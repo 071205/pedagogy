@@ -1,0 +1,1077 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>PEDAGOGY — 문제집/문항 에디터</title>
+
+<!-- KaTeX -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+<!-- KoPub 바탕체 (한국출판인회의 — 수능 신명조 계열 최적 대체) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-kopub@1.0/kopubbatang.min.css">
+<!-- SortableJS -->
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+<style>
+@font-face{
+  font-family:'Adobe Caslon Pro Bold';
+  src:url('./Adobe Caslon Pro Bold.ttf') format('truetype');
+  font-weight:700; font-style:normal; font-display:swap;
+}
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css');
+
+/* ===== Toss Design System ===== */
+:root{
+  /* Surface */
+  --bg:#09090B;
+  --surface-1:#111116;
+  --surface-2:#18181F;
+  --surface-3:#1F1F28;
+  --surface-hover:#23232D;
+
+  /* Border */
+  --border:#27272F;
+  --border-subtle:#1F1F28;
+
+  /* Text */
+  --text-primary:#F4F4F6;
+  --text-secondary:#8B8B9A;
+  --text-tertiary:#55555F;
+
+  /* Toss Blue */
+  --blue:#3182F6;
+  --blue-dim:#1A3566;
+  --blue-subtle:#1B2540;
+  --blue-hover:#4D96FF;
+
+  /* Semantic */
+  --danger:#F04452;
+  --success:#05C072;
+
+  /* UI font */
+  --ui-sans: 'Pretendard Variable', Pretendard, "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif;
+  --body-serif: 'KoPub Batang', "Times New Roman", serif;
+  --num-serif: "Noto Serif KR", "Times New Roman", serif;
+
+  /* Print */
+  --col-gap-mm:7;
+  --print-fs-pt:9.2;
+  --print-lh:1.92;
+
+  --radius-sm:8px;
+  --radius-md:12px;
+  --radius-lg:16px;
+  --radius-xl:20px;
+}
+
+*{box-sizing:border-box;-webkit-font-smoothing:antialiased}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--text-primary);font-family:var(--ui-sans);font-size:14px;line-height:1.5}
+
+/* ── Topbar ── */
+.topbar{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:0 24px;height:60px;
+  background:rgba(9,9,11,.85);
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border-bottom:1px solid var(--border);
+  position:sticky;top:0;z-index:100;
+}
+.brand{
+  font-family:'Adobe Caslon Pro Bold',serif!important;
+  font-size:22px;letter-spacing:.5px;font-weight:700;
+  color:#F4F4F6;cursor:pointer;user-select:none;
+}
+.actions{display:flex;gap:8px;align-items:center}
+.actions input[type="text"]{
+  height:36px;background:var(--surface-2);border:1px solid var(--border);
+  color:var(--text-primary);border-radius:var(--radius-md);
+  padding:0 12px;font-size:13px;font-family:var(--ui-sans);
+  transition:.15s;outline:none;width:200px;
+}
+.actions input[type="text"]:focus{border-color:var(--blue);background:var(--surface-3)}
+.actions input[type="text"]::placeholder{color:var(--text-tertiary)}
+
+/* ── Buttons ── */
+button{
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  background:var(--surface-2);color:var(--text-primary);
+  border:1px solid var(--border);padding:0 14px;height:36px;
+  border-radius:var(--radius-md);font-size:13px;font-weight:500;
+  font-family:var(--ui-sans);cursor:pointer;transition:.15s;white-space:nowrap;
+}
+button:hover{background:var(--surface-hover);border-color:#35353F}
+button:active{transform:scale(.98)}
+.btn{background:var(--surface-2);border-color:var(--border)}
+.btn-primary{background:var(--blue);border-color:transparent;color:#fff}
+.btn-primary:hover{background:var(--blue-hover);border-color:transparent}
+.btn-accent{background:var(--blue);border-color:transparent;color:#fff;font-weight:600}
+.btn-accent:hover{background:var(--blue-hover)}
+.btn-ghost{background:transparent;border-color:transparent;color:var(--text-secondary)}
+.btn-ghost:hover{background:var(--surface-2);color:var(--text-primary)}
+label.btn{height:36px;padding:0 14px;display:inline-flex;align-items:center;cursor:pointer}
+label.btn input{display:none}
+
+/* ── Views ── */
+#libraryView,#editorView{display:none}
+#editorView{height:calc(100vh - 60px)}
+.editor{display:flex;height:100%;overflow:hidden}
+
+/* ── Library ── */
+#libraryView{padding:32px;min-height:calc(100vh - 60px)}
+.lib-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:28px}
+.lib-header h2{margin:0;font-size:24px;font-weight:700;color:var(--text-primary)}
+.lib-actions{display:flex;gap:8px}
+.lib-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px}
+.set-card{
+  position:relative;background:var(--surface-1);
+  border:1px solid var(--border);border-radius:var(--radius-xl);
+  padding:24px;cursor:pointer;
+  transition:border-color .15s, box-shadow .15s, transform .12s;
+}
+.set-card:hover{border-color:#3F3F4F;box-shadow:0 4px 24px rgba(0,0,0,.4);transform:translateY(-2px)}
+.set-card h3{margin:0 0 8px 0;font-size:17px;font-weight:700;color:var(--text-primary);line-height:1.3;padding-right:24px}
+.set-card .count{margin:0;color:var(--text-secondary);font-size:13px}
+.dotbtn{
+  position:absolute;top:12px;right:12px;
+  background:transparent;border:none;color:var(--text-tertiary);
+  cursor:pointer;padding:4px 8px;border-radius:var(--radius-sm);
+  font-size:18px;line-height:1;
+}
+.dotbtn:hover{background:var(--surface-3);color:var(--text-primary)}
+.menu{
+  display:none;position:absolute;top:40px;right:8px;
+  background:var(--surface-2);border:1px solid var(--border);
+  border-radius:var(--radius-lg);overflow:hidden;z-index:20;
+  box-shadow:0 8px 32px rgba(0,0,0,.5);min-width:140px;
+}
+.menu button{
+  display:flex;width:100%;text-align:left;border:none;border-bottom:1px solid var(--border-subtle);
+  background:transparent;padding:11px 16px;font-size:13px;color:var(--text-primary);
+  border-radius:0;height:auto;
+}
+.menu button:last-child{border-bottom:none}
+.menu button:hover{background:var(--surface-3)}
+.menu .danger{color:var(--danger)}
+.menu .danger:hover{background:rgba(240,68,82,.08)}
+
+/* ── Sidebar ── */
+.sidebar{
+  width:280px;border-right:1px solid var(--border);
+  background:var(--surface-1);padding:16px 12px;
+  display:flex;flex-direction:column;gap:12px;overflow:hidden;
+}
+.sidebar .head{display:flex;align-items:center;justify-content:space-between;padding:0 4px}
+.sidebar .title{font-size:15px;font-weight:700;color:var(--text-primary)}
+.sidebar .head-actions{display:flex;gap:4px}
+.q-list{flex:1;overflow:auto;display:flex;flex-direction:column;gap:4px;padding-bottom:8px;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
+.q-item{
+  border:1px solid transparent;border-radius:var(--radius-md);
+  background:transparent;padding:10px 10px;
+  display:flex;align-items:center;gap:8px;cursor:pointer;
+  transition:.12s;
+}
+.q-item:hover{background:var(--surface-2);border-color:var(--border)}
+.q-item.selected{background:var(--blue-subtle);border-color:var(--blue-dim)}
+.q-item .num{
+  font-family:var(--num-serif);font-variant-numeric:tabular-nums;
+  color:var(--blue);min-width:38px;text-align:right;margin-right:2px;
+  white-space:nowrap;font-size:13px;font-weight:700;line-height:1.2;
+}
+.q-item.selected .num{color:#7BB8FF}
+.q-item .num .sub{font-size:9px;vertical-align:baseline;opacity:.75}
+.q-item .name{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:13px;color:var(--text-secondary)}
+.q-item.selected .name{color:var(--text-primary)}
+.iconbtn{
+  background:transparent;border:none;cursor:pointer;
+  padding:5px;border-radius:var(--radius-sm);
+  color:var(--text-tertiary);flex-shrink:0;
+}
+.iconbtn:hover{background:var(--surface-3);color:var(--text-secondary)}
+.icon{width:16px;height:16px;display:inline-block;vertical-align:middle}
+.icon-trash{background:no-repeat center/16px 16px url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" stroke="%238B8B9A" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 5h11"/><path d="M7 5V3.5h4V5"/><path d="M5.5 5l.6 9.5A1.5 1.5 0 0 0 7.6 16h2.8a1.5 1.5 0 0 0 1.5-1.5L12.5 5"/></svg>')}
+.icon-grip{background:no-repeat center/16px 16px url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" stroke="%238B8B9A" fill="none" stroke-width="1.8" stroke-linecap="round"><circle cx="6" cy="6" r="0.9"/><circle cx="12" cy="6" r="0.9"/><circle cx="6" cy="10" r="0.9"/><circle cx="12" cy="10" r="0.9"/><circle cx="6" cy="14" r="0.9"/><circle cx="12" cy="14" r="0.9"/></svg>')}
+.icon-link{background:no-repeat center/14px 14px url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="%238B8B9A" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>')}
+.add-q{
+  display:flex;align-items:center;justify-content:center;gap:6px;
+  border:1.5px dashed var(--border);background:transparent;
+  border-radius:var(--radius-md);padding:10px;
+  font-size:13px;color:var(--text-tertiary);cursor:pointer;
+  transition:.12s;margin-top:4px;
+}
+.add-q:hover{border-color:var(--blue);color:var(--blue);background:var(--blue-subtle)}
+
+/* ── Pair group ── */
+.pair-group{position:relative;padding-left:16px;display:flex;flex-direction:column;gap:3px;margin:2px 0}
+.pair-group::before{
+  content:'';position:absolute;left:4px;top:12px;bottom:12px;
+  width:2px;background:linear-gradient(180deg,var(--blue),#7BB8FF);
+  border-radius:2px;
+}
+.pair-badge{font-size:10px;color:var(--blue);display:flex;align-items:center;gap:6px;padding-bottom:3px;font-weight:600;letter-spacing:.03em}
+.pair-unlink{
+  background:transparent;border:1px solid var(--blue-dim);
+  border-radius:6px;color:var(--blue);font-size:10px;
+  cursor:pointer;padding:1px 7px;height:auto;
+  transition:.12s;font-family:var(--ui-sans);
+}
+.pair-unlink:hover{background:var(--blue-subtle)}
+
+/* ── Center editor ── */
+.center{flex:1;display:flex;flex-direction:column;padding:20px;gap:14px;overflow:auto;background:var(--bg)}
+.blockbar{display:flex;align-items:center;gap:8px}
+select{
+  background:var(--surface-2);border:1px solid var(--border);
+  color:var(--text-primary);padding:8px 12px;
+  border-radius:var(--radius-md);font-size:13px;
+  font-family:var(--ui-sans);appearance:none;outline:none;
+  cursor:pointer;transition:.15s;
+}
+select:focus{border-color:var(--blue)}
+
+/* ── Editor meta fields ── */
+.meta-row{display:flex;flex-direction:column;gap:8px}
+.field-group{display:flex;flex-direction:column;gap:5px}
+.field-label{font-size:11px;font-weight:600;color:var(--text-tertiary);letter-spacing:.04em;text-transform:uppercase}
+.field-input{
+  background:var(--surface-2);border:1px solid var(--border);
+  color:var(--text-primary);border-radius:var(--radius-md);
+  padding:9px 12px;font-size:13px;font-family:var(--ui-sans);
+  outline:none;transition:.15s;width:100%;
+}
+.field-input:focus{border-color:var(--blue);background:var(--surface-3)}
+.field-input::placeholder{color:var(--text-tertiary)}
+
+/* ── Block editor ── */
+.block{
+  border:1px solid var(--border);border-radius:var(--radius-lg);
+  background:var(--surface-1);overflow:hidden;
+  transition:border-color .15s;
+}
+.block:hover{border-color:#35353F}
+.block+.block{margin-top:10px}
+.blk-head{
+  display:flex;align-items:center;gap:8px;
+  padding:10px 14px;background:var(--surface-2);
+  border-bottom:1px solid var(--border);
+}
+.blk-type{
+  font-size:12px;font-weight:700;
+  color:var(--text-secondary);letter-spacing:.03em;flex:1;
+}
+.blk-handle{
+  cursor:grab;padding:4px;border-radius:6px;
+  color:var(--text-tertiary);
+}
+.blk-handle:active{cursor:grabbing}
+.blk-sep{display:none}
+.blk-body{padding:12px 14px}
+.block textarea{
+  width:100%;min-height:120px;resize:none;
+  background:var(--surface-3);border:1px solid var(--border);
+  color:var(--text-primary);border-radius:var(--radius-md);
+  padding:10px 12px;overflow:hidden;font-size:13px;
+  font-family:'Pretendard Variable',Pretendard,monospace;
+  line-height:1.6;outline:none;transition:.15s;
+}
+.block textarea:focus{border-color:var(--blue);background:var(--surface-2)}
+.block input{
+  flex:1;background:var(--surface-3);border:1px solid var(--border);
+  color:var(--text-primary);border-radius:var(--radius-md);
+  padding:8px 12px;font-size:13px;font-family:var(--ui-sans);
+  outline:none;transition:.15s;
+}
+.block input:focus{border-color:var(--blue)}
+.block .row{display:flex;gap:8px;align-items:center;margin:6px 0}
+.block .label{min-width:24px;color:var(--text-secondary);font-size:13px;font-weight:600}
+
+#qAnswer{
+  flex:1;resize:vertical;min-height:40px;
+  background:var(--surface-2);border:1px solid var(--border);
+  color:var(--text-primary);border-radius:var(--radius-md);
+  padding:8px 12px;font-size:13px;
+  font-family:'Pretendard Variable',Pretendard,monospace;
+  outline:none;transition:.15s;
+}
+#qAnswer:focus{border-color:var(--blue)}
+
+/* ── Preview ── */
+.previewWrap{width:500px;border-left:1px solid var(--border);background:var(--surface-1);display:flex;flex-direction:column;overflow:hidden}
+.previewTop{
+  padding:12px 18px;border-bottom:1px solid var(--border);
+  font-size:12px;color:var(--text-secondary);
+  display:flex;align-items:center;justify-content:space-between;
+  background:var(--surface-2);font-weight:600;
+}
+.previewArea{padding:20px;overflow:auto;flex:1;background:var(--bg)}
+.preview{
+  background:#fff;color:#111;
+  font-family:'KoPub Batang',var(--body-serif);
+  padding:28px;border-radius:var(--radius-xl);
+  box-shadow:0 0 0 1px rgba(0,0,0,.06), 0 8px 32px rgba(0,0,0,.12);
+}
+.preview .qnum{
+  font-family:var(--num-serif);font-size:26px;font-weight:800;
+  color:#111;margin-bottom:10px;display:flex;align-items:baseline;gap:8px;
+}
+.preview .content{font-size:13.2px;line-height:1.7;font-weight:400}
+.preview .content .katex,.preview .content .katex *{font-weight:400!important}
+.preview .content .katex-display{display:inline-block;margin:0.05em 0;text-align:left}
+.preview .content .pdm{text-align:center;margin:0.6em 0;display:block}
+.preview .content .pdm .katex-display{display:block!important;text-align:center!important;margin:0}
+.preview .boxed{
+  border:1px solid #ddd;border-radius:10px;
+  padding:12px 14px;background:#fafafa;margin:12px 0;
+}
+.preview .cond-item,.preview .ex-item{margin:5px 0}
+.preview img{max-width:100%;display:block;margin:8px auto}
+
+/* Choices */
+.choices{margin-top:8px}
+.choices.vertical{display:grid;grid-template-columns:1fr;row-gap:8px}
+.choices.horizontal{display:grid;grid-template-columns:repeat(5,1fr);column-gap:12px;row-gap:8px}
+.choice{display:flex;gap:6px;align-items:flex-start;font-family:var(--body-serif)}
+.choice span.label{white-space:nowrap;font-family:var(--num-serif)}
+
+/* ── Print ── */
+@page{margin:0}
+#printDoc{display:none}
+.page{page-break-after:always;position:relative;width:210mm;min-height:297mm;padding:12mm 13mm 16mm 13mm;background:#fff;color:#000;font-family:var(--body-serif)}
+.page .lines-top{position:absolute;left:10mm;right:10mm;top:12mm;height:0;border-top:1px solid #3b45bf}
+.page .lines-mid{position:absolute;top:12mm;bottom:16mm;left:calc(50%);border-left:1px solid #3b45bf}
+.page .lines-bot{position:absolute;left:10mm;right:10mm;bottom:16mm;height:0;border-bottom:1px solid #3b45bf}
+.page .hdr-left{position:absolute;top:6mm;left:14mm;font-size:10.5pt;color:#333}
+.page .ftr-brand{position:absolute;right:14mm;bottom:8mm;font-family:'Adobe Caslon Pro Bold',serif;font-size:11pt;letter-spacing:.3px}
+.page .ftr-page{position:absolute;left:0;right:0;bottom:8mm;text-align:center;font-size:10pt;color:#333}
+
+.columns{display:grid;grid-template-columns:1fr 1fr;gap:calc(var(--col-gap-mm)*1mm);padding-top:5mm;height:calc(297mm - 12mm - 5mm - 16mm)}
+.slot{display:flex;flex-direction:column;height:100%}
+.slot:nth-child(2){padding-left:4mm}
+.slot--paired .pq{flex:1;min-height:0;overflow-x:hidden}
+.pq{width:100%;margin:0;overflow-x:hidden}
+.pq .content{font-family:var(--body-serif);font-size:calc(var(--print-fs-pt)*1pt);line-height:var(--print-lh);word-break:keep-all;font-weight:400}
+.pq .content .katex,.pq .content .katex *{font-weight:400!important}
+/* $...$: display:true → inline-block으로 인라인 유지 (적분 크게) */
+.pq .content .katex-display{display:inline-block;margin:0.05em 0;text-align:left}
+/* $$...$$: .pdm 안에서 가운데 정렬로 복원 */
+.pq .content .pdm{text-align:center;margin:0.6em 0;display:block}
+.pq .content .pdm .katex-display{display:block!important;text-align:center!important;margin:0}
+.pq .content>div{margin-bottom:5mm}
+.pq .content>div:last-child{margin-bottom:0}
+.vspace{display:block}
+.pq .boxed{border:1px solid #222;border-radius:2mm;padding:3.2mm;margin:3.6mm 0}
+.pq img{max-width:100%;height:auto;display:block}
+.pq-header{display:flex;align-items:baseline;gap:3mm;margin-bottom:2mm}
+.pq .num{font-family:var(--num-serif);font-weight:900;font-size:19pt;flex-shrink:0;line-height:1}
+.pq-meta{display:flex;flex-direction:column;gap:0.3mm;justify-content:center}
+.pq-title{font-family:var(--body-serif);font-size:9pt;font-weight:700;color:#111}
+.pq-desc{font-family:var(--body-serif);font-size:8pt;color:#555}
+.answer-block{margin-top:4mm;font-size:8.5pt;color:#333;border-top:0.5px solid #bbb;padding-top:2mm}
+.answer-img{max-width:45mm;max-height:22mm;height:auto;display:block;margin-top:1.5mm}
+body.hide-answers .answer-block{display:none!important}
+
+/* ── Pair sidebar ── */
+/* (already above) */
+
+@media print{
+  body{background:#fff}
+  .topbar,#libraryView,#editorView,#exportModal,#promptModal{display:none!important}
+  #printDoc{display:block}
+}
+</style>
+</head>
+<body>
+
+<!-- Topbar -->
+<div class="topbar">
+  <div class="brand" id="brandBtn">PEDAGOGY</div>
+  <div class="actions" id="topActions">
+    <input id="headerInput" type="text" placeholder="상단 문구 (좌상단 인쇄용)">
+    <button id="promptBtn" class="btn" title="AI 변환 프롬프트">🤖 AI 프롬프트</button>
+    <button id="exportBtn" class="btn-accent">내보내기</button>
+    <button id="saveBtn">저장</button>
+    <label class="btn">불러오기<input id="loadInput" type="file" accept="application/json"></label>
+  </div>
+  <!-- 로그인 영역 -->
+  <div id="authArea" style="display:flex;align-items:center;gap:10px;margin-left:12px">
+    <div id="authLoggedOut">
+      <button id="loginBtn" class="btn-primary" style="gap:8px">
+        <svg width="16" height="16" viewBox="0 0 24 24"><path fill="white" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="white" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="white" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="white" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+        구글로 로그인
+      </button>
+    </div>
+    <div id="authLoggedIn" style="display:none;align-items:center;gap:8px">
+      <img id="userPhoto" style="width:30px;height:30px;border-radius:50%;object-fit:cover" src="" alt="">
+      <span id="userName" style="font-size:13px;color:var(--text-secondary);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+      <button id="logoutBtn" class="btn-ghost" style="font-size:12px;padding:0 10px;height:30px">로그아웃</button>
+    </div>
+  </div>
+</div>
+
+<!-- Library -->
+<div id="libraryView">
+  <div class="lib-header">
+    <h2 style="margin:0">문제집 라이브러리</h2>
+    <div class="lib-actions">
+      <button id="newSetBtn" class="btn-accent">+ 새 문제집</button>
+      <button id="exportAllBtn">전체 내보내기</button>
+      <label class="btn">가져오기<input id="importAllInput" type="file" accept="application/json"></label>
+    </div>
+  </div>
+  <div id="setGrid" class="lib-grid"></div>
+</div>
+
+<!-- Editor -->
+<div id="editorView" class="editor">
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="head">
+      <div class="title" id="setTitle">문제집 이름</div>
+      <button id="orderBtn" class="btn">순서</button>
+    </div>
+    <div id="qList" class="q-list"></div>
+  </div>
+
+  <!-- Center -->
+  <div class="center">
+    <!-- 메타 필드 -->
+    <div style="background:var(--surface-1);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px;display:flex;flex-direction:column;gap:10px">
+      <div style="display:flex;gap:8px">
+        <div class="field-group" style="width:100px;flex-shrink:0">
+          <div class="field-label">번호</div>
+          <input id="qNumLabel" type="text" class="field-input" placeholder="자동" title="비워두면 자동. 예: 1-1, A3">
+        </div>
+        <div class="field-group" style="flex:1">
+          <div class="field-label">제목</div>
+          <input id="qTitle" type="text" class="field-input" placeholder="예) 기하, 타원">
+        </div>
+        <div class="field-group" style="flex:1">
+          <div class="field-label">부제목</div>
+          <input id="qDesc" type="text" class="field-input" placeholder="선택 사항">
+        </div>
+      </div>
+      <!-- 정답 -->
+      <div>
+        <div class="field-label" style="margin-bottom:5px">정답</div>
+        <div style="display:flex;gap:8px;align-items:flex-start">
+          <textarea id="qAnswer" placeholder="LaTeX 가능  예) $\frac{45}{2}$" rows="2"></textarea>
+          <label class="btn" style="cursor:pointer;white-space:nowrap;flex-shrink:0;align-self:flex-start">📎<input id="qAnswerImg" type="file" accept="image/*" style="display:none"></label>
+          <button id="qAnswerImgClear" class="btn-ghost" style="display:none;flex-shrink:0;align-self:flex-start" title="이미지 제거">✕</button>
+        </div>
+      </div>
+      <!-- 묶기 -->
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-secondary);cursor:pointer;padding-top:2px">
+        <input id="pairedChk" type="checkbox" style="width:15px;height:15px;accent-color:var(--blue)"> 다음 문제와 묶기 <span style="color:var(--text-tertiary);font-size:12px">(한 단에 2문제)</span>
+      </label>
+    </div>
+
+    <div id="blocksArea"></div>
+
+    <div class="blockbar" style="gap:8px;margin-top:4px">
+      <select id="blockType" style="flex:1">
+        <option value="statement">문제 본문</option>
+        <option value="conditions">가나다 (조건)</option>
+        <option value="examples">ㄱㄴㄷ (보기)</option>
+        <option value="boxed">박스형 해설</option>
+        <option value="choices">답 선지</option>
+        <option value="image">이미지</option>
+      </select>
+      <button id="addBlockBtn" class="btn-primary">+ 블록 추가</button>
+    </div>
+  </div>
+
+  <!-- Preview -->
+  <div class="previewWrap">
+    <div class="previewTop">
+      <span id="previewTopTxt" style="font-weight:700;color:var(--text-primary)">미리보기</span>
+    </div>
+    <div class="previewArea">
+      <div class="preview">
+        <div class="qnum" id="pvNum">01</div>
+        <div class="content" id="pvContent"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Print container -->
+<div id="printDoc"></div>
+
+<!-- Export modal -->
+<div id="exportModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:2000;align-items:center;justify-content:center">
+  <div style="background:var(--surface-1);border:1px solid var(--border);border-radius:24px;padding:32px;width:360px;text-align:center;box-shadow:0 24px 64px rgba(0,0,0,.6)">
+    <div style="font-size:20px;font-weight:800;margin-bottom:6px;color:var(--text-primary);letter-spacing:-.02em">PDF 내보내기</div>
+    <div style="font-size:13px;color:var(--text-secondary);margin-bottom:24px;line-height:1.5">인쇄 대화상자에서 <b style="color:var(--text-primary)">'PDF로 저장'</b>을 선택하세요</div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <button id="exportWithAns" class="btn-primary" style="height:48px;font-size:14px;font-weight:700;border-radius:14px">정답 포함</button>
+      <button id="exportNoAns" style="height:48px;font-size:14px;font-weight:600;border-radius:14px;background:var(--surface-3);border-color:var(--border)">정답 제외</button>
+      <button id="closeExport" class="btn-ghost" style="height:40px;font-size:13px">취소</button>
+    </div>
+  </div>
+</div>
+
+<!-- AI Prompt modal -->
+<div id="promptModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:2000;align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--surface-1);border:1px solid var(--border);border-radius:24px;padding:28px 28px 24px;width:100%;max-width:600px;max-height:88vh;display:flex;flex-direction:column;gap:16px;box-shadow:0 24px 64px rgba(0,0,0,.6)">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="font-size:18px;font-weight:800;color:var(--text-primary);letter-spacing:-.02em">AI 변환 프롬프트</div>
+        <div style="font-size:12px;color:var(--text-secondary);margin-top:3px">이미지와 함께 ChatGPT · Claude · Gemini에 붙여넣으세요</div>
+      </div>
+      <button id="closePrompt" class="btn-ghost" style="width:36px;height:36px;padding:0;border-radius:50%;font-size:18px">✕</button>
+    </div>
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-md);padding:16px;font-size:12px;line-height:1.75;color:var(--text-secondary);white-space:pre-wrap;overflow-y:auto;max-height:340px;font-family:'Pretendard Variable',Pretendard,monospace" id="promptText"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button id="closePrompt2" class="btn" style="height:40px">닫기</button>
+      <button id="copyPrompt" class="btn-primary" style="height:40px;font-weight:700;padding:0 20px">📋 복사</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ===== Utils ===== */
+const $=s=>document.querySelector(s);
+const el=(t,c,h)=>{const e=document.createElement(t); if(c) e.className=c; if(h!=null) e.innerHTML=h; return e;};
+const uid=()=>'q'+Math.random().toString(36).slice(2,9);
+const sanitize=s=>(s||"").replaceAll("<","&lt;").replaceAll(">","&gt;");
+const HANGULS=["가","나","다","라","마","바","사","아","자","차","카","타","파","하"];
+const HSMALL=["ㄱ","ㄴ","ㄷ","ㄹ","ㅁ","ㅂ","ㅅ","ㅇ","ㅈ","ㅊ","ㅋ","ㅌ","ㅍ","ㅎ"];
+const condLabel=i=>`(${HANGULS[i%HANGULS.length]})`;
+const circled=n=>"①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳".split("")[n-1]||n+'.';
+
+/* ===== Firebase 초기화 ===== */
+const firebaseConfig = {
+  apiKey: "AIzaSyAaQHf_Um-eg7SReuJYgS517XfGmlmGJ3Y",
+  authDomain: "pedagogy-huryul.firebaseapp.com",
+  projectId: "pedagogy-huryul",
+  storageBucket: "pedagogy-huryul.firebasestorage.app",
+  messagingSenderId: "297266134873",
+  appId: "1:297266134873:web:e5b48c7a1d484bcde41648"
+};
+firebase.initializeApp(firebaseConfig);
+const fbAuth = firebase.auth();
+const fbDb = firebase.firestore();
+
+/* ===== Storage ===== */
+const SETS_KEY="PM_SETS_V7";
+let sets=[]; let currentSetId=null; let currentQId=null; let orderMode=false;
+let currentUser=null; // 로그인 유저
+let saveTimer=null;   // 디바운스용
+
+function newProblem(){ return { id:uid(), title:"", desc:"", answer:"", answerImg:"", numLabel:"", paired:false, blocks:[{type:"statement",data:{text:""}}] }; }
+
+function loadSetsLocal(){
+  try{ const raw=localStorage.getItem(SETS_KEY); sets=raw?JSON.parse(raw):[]; }catch{ sets=[]; }
+  if(!sets.length) sets=[{id:uid(), name:"새 문제집", header:"", problems:[newProblem()]}];
+}
+
+async function loadSets(){
+  if(currentUser){
+    try{
+      const doc=await fbDb.collection('users').doc(currentUser.uid).get();
+      if(doc.exists && doc.data().sets && doc.data().sets.length){
+        sets=doc.data().sets; return;
+      }
+    }catch(e){ console.warn('Firestore 로드 실패, 로컬 사용:', e); }
+  }
+  loadSetsLocal();
+}
+
+function saveSets(){
+  // 로컬 항상 저장 (백업)
+  localStorage.setItem(SETS_KEY, JSON.stringify(sets));
+  // 로그인 시 Firestore에 디바운스 저장 (0.8초 대기 후)
+  if(currentUser){
+    clearTimeout(saveTimer);
+    saveTimer=setTimeout(async ()=>{
+      try{
+        await fbDb.collection('users').doc(currentUser.uid).set({ sets, updatedAt: new Date() });
+      }catch(e){ console.warn('Firestore 저장 실패:', e); }
+    }, 800);
+  }
+}
+const activeSet=()=>sets.find(s=>s.id===currentSetId);
+const activeProblems=()=>activeSet()?.problems||[];
+const activeQ=()=>activeProblems().find(q=>q.id===currentQId);
+
+/* 자동 번호 부여: 대표문제→1, 유사문제→1-1, numLabel 있으면 우선 */
+function computeNums(arr){
+  const res=[]; let main=0; let i=0;
+  while(i<arr.length){
+    if(i<arr.length-1 && arr[i].paired){
+      main++;
+      const base=arr[i].numLabel||String(main).padStart(2,'0');
+      res.push({q:arr[i], num:base});
+      res.push({q:arr[i+1], num:arr[i+1].numLabel||(String(main).padStart(2,'0')+'-1')});
+      i+=2;
+    }else{
+      main++;
+      res.push({q:arr[i], num:arr[i].numLabel||String(main).padStart(2,'0')});
+      i++;
+    }
+  }
+  return res;
+}
+
+/* ===== Library ===== */
+function renderLibrary(){
+  const grid=$("#setGrid"); grid.innerHTML="";
+  sets.forEach((s,idx)=>{
+    const card=el("div","set-card");
+    const title=el("h3",null,s.name||"제목 없음");
+    const count=el("p","count",`${(s.problems?.length||0)} 문항`);
+    card.append(title,count);
+
+    const dots=el("button","dotbtn","⋮"); card.append(dots);
+    const menu=el("div","menu");
+    const bRename=el("button",null,"이름 변경");
+    const bDup=el("button",null,"복제");
+    const bExp=el("button",null,"내보내기");
+    const bDel=el("button","danger","삭제");
+    menu.append(bRename,bDup,bExp,bDel); card.append(menu);
+
+    dots.onclick=(e)=>{e.stopPropagation(); menu.style.display=menu.style.display==="block"?"none":"block";}
+    document.addEventListener("click",()=>menu.style.display="none",{once:true});
+
+    bRename.onclick=(e)=>{
+      e.stopPropagation();
+      title.contentEditable="true"; title.style.borderBottom="1px dashed #3a3f52";
+      const sel=window.getSelection(); const range=document.createRange();
+      range.selectNodeContents(title); sel.removeAllRanges(); sel.addRange(range); title.focus();
+      const finish=()=>{
+        title.contentEditable="false"; title.style.borderBottom="none";
+        s.name=title.innerText.trim()||"제목 없음"; saveSets(); renderLibrary();
+      };
+      title.onblur=finish; title.onkeydown=ev=>{ if(ev.key==="Enter"){ ev.preventDefault(); title.blur(); } };
+    };
+
+    card.onclick=()=>showEditor(s.id);
+    bDup.onclick=(e)=>{e.stopPropagation(); const cp=JSON.parse(JSON.stringify(s)); cp.id=uid(); cp.name=(s.name||"문제집")+" 복제"; sets.splice(idx+1,0,cp); saveSets(); renderLibrary();};
+    bExp.onclick=(e)=>{e.stopPropagation(); const blob=new Blob([JSON.stringify(s,null,2)],{type:"application/json"}); const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=(s.name||"set")+".json"; a.click(); };
+    bDel.onclick=(e)=>{e.stopPropagation(); if(!confirm("삭제할까요?")) return; sets.splice(idx,1); if(!sets.length) sets=[{id:uid(),name:"새 문제집",header:"",problems:[newProblem()]}]; saveSets(); renderLibrary(); };
+
+    grid.append(card);
+  });
+}
+function showLibrary(){ $("#libraryView").style.display="block"; $("#editorView").style.display="none"; $("#topActions").style.visibility="hidden"; renderLibrary(); }
+$("#newSetBtn").onclick=()=>{ sets.push({id:uid(), name:"새 문제집", header:"", problems:[newProblem()]}); saveSets(); renderLibrary(); };
+$("#exportAllBtn").onclick=()=>{ const blob=new Blob([JSON.stringify(sets,null,2)],{type:"application/json"}); const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="pedagogy_sets.json"; a.click(); };
+$("#importAllInput").onchange=e=>{ const f=e.target.files?.[0]; if(!f) return; const r=new FileReader(); r.onload=()=>{ try{ const arr=JSON.parse(r.result); if(Array.isArray(arr)){ sets=arr; saveSets(); renderLibrary(); } else alert("배열 JSON이 아님"); }catch{ alert("JSON 오류"); } }; r.readAsText(f); e.target.value=""; };
+
+/* ===== Editor ===== */
+function showEditor(setId){
+  currentSetId=setId;
+  const s=activeSet(); if(!s.problems?.length) s.problems=[newProblem()];
+  currentQId=s.problems[0].id;
+
+  $("#libraryView").style.display="none";
+  $("#editorView").style.display="flex";
+  $("#topActions").style.visibility="visible";
+
+  $("#setTitle").textContent=s.name||"문제집";
+  $("#previewTopTxt").textContent=s.name||"";
+  $("#headerInput").value=s.header||"";
+  renderQList(); renderEditor(); renderPreview(); syncPairedChk();
+}
+
+/* 문항 리스트/정렬 */
+let sortableQ=null;
+function setOrderMode(on){
+  orderMode=on; renderQList();
+  if(on){
+    if(sortableQ) sortableQ.destroy();
+    sortableQ=new Sortable($("#qList"),{
+      handle:".drag-handle", animation:150,
+      onEnd:e=>{
+        const arr=activeProblems();
+        arr.splice(e.newIndex,0,arr.splice(e.oldIndex,1)[0]);
+        saveSets(); renderQList(); renderPreview();
+      }
+    });
+  }else if(sortableQ){ sortableQ.destroy(); sortableQ=null; }
+}
+$("#orderBtn").onclick=()=>setOrderMode(!orderMode);
+
+function renderQList(){
+  const list=$("#qList"); list.innerHTML="";
+  const arr=activeProblems();
+  const nums=computeNums(arr);
+  const fmtNum=raw=>{ const m=raw.match(/^(.+?)(-\d+)$/); return m?`${m[1]}<span class="sub">${m[2]}</span>`:raw; };
+  const numOf=q=>{ const n=nums.find(x=>x.q===q); return n?fmtNum(n.num):"??"; };
+
+  const mkItem=(q,opts={})=>{
+    const item=el("div","q-item"+(q.id===currentQId?" selected":""));
+    const num=el("div","num",numOf(q));
+    const name=el("div","name",q.title||"제목 없음");
+    item.append(num,name);
+    if(orderMode){
+      const grip=el("button","iconbtn drag-handle",""); grip.append(el("span","icon icon-grip","")); item.append(grip);
+    }else{
+      if(opts.showLink){
+        const lb=el("button","iconbtn",""); lb.title="다음 문제와 묶기 (한 단에 2문제)"; lb.append(el("span","icon icon-link",""));
+        lb.onclick=(e)=>{e.stopPropagation(); q.paired=true; saveSets(); renderQList(); syncPairedChk();};
+        item.append(lb);
+      }
+      const del=el("button","iconbtn",""); del.title="삭제"; del.append(el("span","icon icon-trash",""));
+      del.onclick=(e)=>{e.stopPropagation(); const fi=arr.findIndex(x=>x.id===q.id); if(fi<0) return;
+        if(!confirm("문항을 삭제할까요?")) return;
+        if(fi>0 && arr[fi-1].paired) arr[fi-1].paired=false;
+        arr.splice(fi,1); if(!arr.length) arr.push(newProblem()); currentQId=arr[0].id; saveSets(); renderQList(); renderPreview(); syncPairedChk();};
+      item.append(del);
+    }
+    item.onclick=()=>{ if(orderMode) return; currentQId=q.id; renderQList(); renderEditor(); renderPreview(); syncPairedChk(); };
+    return item;
+  };
+
+  if(orderMode){
+    arr.forEach(q=>list.append(mkItem(q,{})));
+  } else {
+    let i=0;
+    while(i<arr.length){
+      if(i<arr.length-1 && arr[i].paired){
+        const group=el("div","pair-group");
+        const badge=el("div","pair-badge","⬝ 한 단");
+        const ulk=el("button","pair-unlink","묶기 해제");
+        const pairIdx=i;
+        ulk.onclick=(e)=>{e.stopPropagation(); arr[pairIdx].paired=false; saveSets(); renderQList(); syncPairedChk();};
+        badge.append(ulk); group.append(badge);
+        group.append(mkItem(arr[i],{showLink:false}));
+        group.append(mkItem(arr[i+1],{showLink:false}));
+        list.append(group);
+        i+=2;
+      }else{
+        list.append(mkItem(arr[i],{showLink:i<arr.length-1}));
+        i++;
+      }
+    }
+  }
+
+  const addBtn=el("div","add-q","+ 문항 추가");
+  addBtn.onclick=()=>{ const np=newProblem(); activeSet().problems.push(np); currentQId=np.id; saveSets(); renderQList(); renderEditor(); renderPreview(); syncPairedChk(); };
+  list.append(addBtn);
+}
+
+/* 블록 에디터 */
+let sortableBlocks=null;
+function autoSizeTA(ta){ ta.style.height='auto'; ta.style.height=(ta.scrollHeight+2)+'px'; }
+
+function renderEditor(){
+  const q=activeQ(); if(!q) return;
+  $("#qTitle").value=q.title; $("#qDesc").value=q.desc;
+  $("#qAnswer").value=q.answer||""; $("#qNumLabel").value=q.numLabel||"";
+  $("#qTitle").oninput=e=>{ q.title=e.target.value; renderQList(); renderPreview(); saveSets(); };
+  $("#qDesc").oninput=e=>{ q.desc=e.target.value; renderPreview(); saveSets(); };
+  $("#qAnswer").oninput=e=>{ q.answer=e.target.value; renderPreview(); saveSets(); };
+  $("#qNumLabel").oninput=e=>{ q.numLabel=e.target.value.trim(); renderQList(); renderPreview(); saveSets(); };
+
+  // 정답 이미지
+  const imgClear=$("#qAnswerImgClear");
+  imgClear.style.display=q.answerImg?"inline-block":"none";
+  $("#qAnswerImg").onchange=(e)=>{
+    const f=e.target.files[0]; if(!f) return;
+    const r=new FileReader(); r.onload=ev=>{ q.answerImg=ev.target.result; saveSets(); imgClear.style.display="inline-block"; renderPreview(); };
+    r.readAsDataURL(f); e.target.value="";
+  };
+  imgClear.onclick=()=>{ q.answerImg=""; saveSets(); imgClear.style.display="none"; renderPreview(); };
+
+  const area=$("#blocksArea"); area.innerHTML="";
+  q.blocks.forEach((blk,idx)=>{
+    const wrap=el("div","block");
+    const head=el("div","blk-head");
+    const handle=el("div","blk-handle"); handle.append(el("span","icon icon-grip",""));
+    const BLK_LABELS={statement:"문제 본문",conditions:"가나다 조건",examples:"ㄱㄴㄷ 보기",boxed:"박스형 해설",choices:"답 선지",image:"이미지"};
+    const type=el("div","blk-type",BLK_LABELS[blk.type]||blk.type);
+    head.append(handle,type);
+
+    if(blk.type==="choices"){
+      if(!blk.data.layout) blk.data.layout="horizontal";
+      const ctrl=el("div",null,""); ctrl.style.cssText="display:flex;gap:6px";
+      const btnV=el("button","btn","↕ 세로");
+      const btnH=el("button","btn","↔ 가로");
+      const sync=()=>{ btnV.classList.toggle("btn-primary", blk.data.layout==="vertical"); btnH.classList.toggle("btn-primary", blk.data.layout==="horizontal"); renderPreview(); saveSets(); };
+      btnV.onclick=()=>{ blk.data.layout="vertical"; sync(); };
+      btnH.onclick=()=>{ blk.data.layout="horizontal"; sync(); };
+      ctrl.append(btnV,btnH); head.append(ctrl); sync();
+    }
+
+    const del=el("button","iconbtn",""); del.append(el("span","icon icon-trash","")); del.title="블록 삭제";
+    del.onclick=()=>{ q.blocks.splice(idx,1); if(!q.blocks.length) q.blocks.push({type:"statement",data:{text:""}}); saveSets(); renderEditor(); renderPreview(); };
+    head.append(del);
+
+    const sep=el("div","blk-sep");
+    const body=el("div","blk-body");
+
+    if(blk.type==="statement"||blk.type==="boxed"){
+      const ta=el("textarea"); ta.placeholder= blk.type==="boxed"?"박스형 해설 (LaTeX)":"본문 (LaTeX)";
+      ta.value=blk.data.text||""; autoSizeTA(ta);
+      ta.addEventListener('input',e=>{ blk.data.text=e.target.value; autoSizeTA(ta); renderPreview(); saveSets(); });
+      body.append(ta);
+    }
+
+    if(blk.type==="conditions"||blk.type==="examples"||blk.type==="choices"){
+      if(blk.type==="choices" && (!blk.data.items || blk.data.items.length<5)){
+        blk.data.items=(blk.data.items||[]); while(blk.data.items.length<5) blk.data.items.push("");
+      }else{ blk.data.items = blk.data.items || [""]; }
+
+      blk.data.items.forEach((t,i)=>{
+        const row=el("div","row");
+        const labelText = blk.type==="conditions" ? condLabel(i) : (blk.type==="examples" ? `${HSMALL[i%HSMALL.length]}.` : circled(i+1));
+        row.append(el("div","label",labelText));
+        const inp=el("input"); inp.type="text"; inp.value=t; inp.placeholder= blk.type==="conditions"?"조건":"내용";
+        inp.oninput=e=>{ blk.data.items[i]=e.target.value; renderPreview(); saveSets(); };
+        const rm=el("button","iconbtn",""); rm.append(el("span","icon icon-trash","")); rm.onclick=()=>{ blk.data.items.splice(i,1); renderEditor(); renderPreview(); saveSets(); };
+        row.append(inp,rm); body.append(row);
+      });
+
+      const add=el("button","btn","+ 항목 추가"); add.onclick=()=>{ blk.data.items.push(""); renderEditor(); renderPreview(); saveSets(); };
+      if(blk.type!=="choices") body.append(add);
+    }
+
+    if(blk.type==="image"){
+      const row=el("div","row");
+      const file=el("input"); file.type="file"; file.accept="image/*";
+      const hint=el("div","label","이미지");
+      row.append(hint,file);
+      file.onchange=e=>{ const f=e.target.files?.[0]; if(!f) return; const r=new FileReader(); r.onload=()=>{ blk.data.dataUrl=r.result; renderPreview(); saveSets(); }; r.readAsDataURL(f); };
+      body.append(row);
+    }
+
+    wrap.append(head,sep,body);
+    area.append(wrap);
+  });
+
+  if(sortableBlocks) sortableBlocks.destroy();
+  sortableBlocks=new Sortable($("#blocksArea"),{
+    handle:".blk-handle", animation:150,
+    onEnd:e=>{
+      const q=activeQ(); const arr=q.blocks;
+      arr.splice(e.newIndex,0,arr.splice(e.oldIndex,1)[0]);
+      saveSets(); renderEditor(); renderPreview();
+    }
+  });
+
+  $("#addBlockBtn").onclick=()=>{
+    const type=$("#blockType").value;
+    const def=(type==="statement"||type==="boxed")?{text:""}:(type==="conditions"||type==="examples")?{items:[""]}:(type==="choices")?{items:["","","","",""],layout:"horizontal"}:(type==="image")?{dataUrl:""}:{};
+    const q=activeQ(); q.blocks.push({type, data:def}); saveSets(); renderEditor(); renderPreview();
+  };
+}
+
+/* ─── 텍스트 전처리: \[Npt] 줄간격 + \n 자동 6pt + \displaystyle 자동 주입 ─── */
+function autoDisplayStyle(raw){
+  // 인라인 $...$ 안에 \int \sum \prod \lim 있으면 \displaystyle 자동 삽입
+  return raw.replace(/\$((?:[^$\\]|\\[\s\S])+?)\$/g,(match,inner)=>{
+    if(/\\(int|sum|prod|lim)\b/.test(inner)&&!/\\displaystyle/.test(inner))
+      return '$\\displaystyle '+inner+'$';
+    return match;
+  });
+}
+function processText(raw){
+  const text=autoDisplayStyle(raw||"");
+
+  // ① $$...$$ 블록을 먼저 플레이스홀더로 교체 (sanitize에 넘기지 않음)
+  const displayBlocks=[];
+  const withPH=text.replace(/\$\$([\s\S]+?)\$\$/g,(match,math)=>{
+    const i=displayBlocks.length;
+    displayBlocks.push(math);
+    return `\x01PDM${i}\x01`;
+  });
+
+  // ② \n → \[6pt], split → spacer HTML
+  const normalized=withPH.replace(/\r?\n/g,'\\[6pt]');
+  const parts=normalized.split(/\\{1,2}\[(\d+(?:\.\d+)?pt)\]/);
+  let html='';
+  parts.forEach((chunk,i)=>{
+    if(i%2===0) html+=sanitize(chunk);
+    else html+=`<span class="vspace" style="display:block;height:${chunk}"></span>`;
+  });
+
+  // ③ 플레이스홀더를 .pdm 래퍼로 복원 (KaTeX가 $$ 처리)
+  html=html.replace(/\x01PDM(\d+)\x01/g,(m,i)=>{
+    return `<div class="pdm">$$${displayBlocks[+i]}$$</div>`;
+  });
+
+  return html;
+}
+
+/* Preview */
+function blockHTML(blk){
+  if(blk.type==="statement") return `<div>${processText(blk.data.text)}</div>`;
+  if(blk.type==="boxed") return `<div class="boxed">${processText(blk.data.text)}</div>`;
+  if(blk.type==="conditions"){
+    const items=(blk.data.items||[]).map((t,i)=>`<div class="cond-item">${condLabel(i)} ${processText(t)}</div>`).join("");
+    return `<div class="boxed">${items}</div>`;
+  }
+  if(blk.type==="examples"){
+    const items=(blk.data.items||[]).map((t,i)=>`<div class="ex-item">${HSMALL[i%HSMALL.length]}. ${processText(t)}</div>`).join("");
+    return `<div class="boxed">${items}</div>`;
+  }
+  if(blk.type==="choices"){
+    const layout = blk.data.layout || "horizontal";
+    const items=(blk.data.items||[]).slice(0,5).map((t,i)=>`
+      <div class="choice"><span class="label">${circled(i+1)}</span><span class="text">${processText(t)}</span></div>`).join("");
+    return `<div class="choices ${layout}">${items}</div>`;
+  }
+  if(blk.type==="image" && blk.data.dataUrl){ return `<div><img src="${blk.data.dataUrl}" alt=""></div>`; }
+  return "";
+}
+function renderPreview(){
+  const q=activeQ(); if(!q) return;
+  const nums=computeNums(activeProblems());
+  const displayNum=nums.find(n=>n.q===q)?.num||"??";
+  // 번호 오른쪽에 제목/부제목
+  $("#pvNum").innerHTML=`${displayNum}${q.title||q.desc?`<span style="font-family:var(--body-serif);font-size:13px;font-weight:500;color:#555;margin-left:8px">${sanitize(q.title)}${q.desc?` <span style="color:#888;font-weight:400">· ${sanitize(q.desc)}</span>`:""}</span>`:""}`;
+  const ansHtml=(q.answer||q.answerImg)?`<div style="margin-top:10px;font-size:12px;color:#444;border-top:1px solid #ddd;padding-top:6px">${q.answer?`<span>정답: ${sanitize(q.answer)}</span>`:""}${q.answerImg?`<img src="${q.answerImg}" style="max-height:40px;display:block;margin-top:4px">`:"" }</div>`:"";
+  const html=`${q.blocks.map(blockHTML).join("")}${ansHtml}`;
+  $("#pvContent").innerHTML = html;
+  try{
+    renderMathInElement($("#pvContent"),{
+      delimiters:[{left:"$$",right:"$$",display:true},{left:"\\[",right:"\\]",display:true},{left:"$",right:"$",display:true}],
+      throwOnError:false
+    });
+  }catch(e){}
+  // 정답 텍스트의 pvNum 내 LaTeX도 렌더
+  try{
+    renderMathInElement($("#pvNum"),{
+      delimiters:[{left:"$",right:"$",display:false}], throwOnError:false
+    });
+  }catch(e){}
+}
+
+/* 다음 문제와 묶기 toggle */
+function syncPairedChk(){
+  const q=activeQ(); const chk=$("#pairedChk"); if(!chk) return;
+  const arr=activeProblems(); const idx=arr.indexOf(q);
+  const isLast=idx===arr.length-1;
+  chk.checked=!isLast&&!!q.paired; chk.disabled=isLast;
+  chk.parentElement.style.opacity=isLast?"0.4":"1";
+}
+$("#pairedChk").onchange=(e)=>{ const q=activeQ(); if(!q) return; q.paired=e.target.checked; saveSets(); renderQList(); };
+
+/* Header text */
+$("#headerInput").oninput=(e)=>{ const s=activeSet(); if(!s) return; s.header=e.target.value; saveSets(); };
+
+/* Print builder */
+function buildPrintDoc(hideAnswers){
+  const s=activeSet(); if(!s) return;
+  s.header=$("#headerInput").value||s.header||"";
+
+  const qs=s.problems.slice();
+  const nums=computeNums(qs);
+  const numOf=q=>nums.find(n=>n.q===q)?.num||"??";
+
+  // 슬롯 구성
+  const slots=[];
+  let i=0;
+  while(i<qs.length){
+    if(qs[i].paired && i+1<qs.length){ slots.push([qs[i],qs[i+1]]); i+=2; }
+    else{ slots.push([qs[i]]); i++; }
+  }
+  const pages=[];
+  for(let j=0;j<slots.length;j+=2) pages.push({left:slots[j], right:slots[j+1]||null});
+
+  const wrap=$("#printDoc"); wrap.innerHTML="";
+  pages.forEach((p,pi)=>{
+    const page=el("div","page");
+    page.append(el("div","lines-top"),el("div","lines-mid"),el("div","lines-bot"));
+    page.append(el("div","hdr-left",s.header||""),el("div","ftr-brand","PEDAGOGY"),el("div","ftr-page",String(pi+1)));
+    const cols=el("div","columns");
+
+    const renderSlot=(slot)=>{
+      const holder=el("div","slot"+(slot&&slot.length>1?" slot--paired":""));
+      if(!slot){ cols.append(holder); return; }
+      slot.forEach(q=>{
+        const box=el("div","pq");
+        const num=numOf(q);
+        const metaHtml=(q.title||q.desc)?`<div class="pq-meta">${q.title?`<span class="pq-title">${sanitize(q.title)}</span>`:""}${q.desc?`<span class="pq-desc"> · ${sanitize(q.desc)}</span>`:""}</div>`:"";
+        const ansHtml=(q.answer||q.answerImg)&&!hideAnswers?`<div class="answer-block">정답: ${q.answer?`<span class="ans-text">${sanitize(q.answer)}</span>`:""}${q.answerImg?`<img class="answer-img" src="${q.answerImg}">`:" "}</div>`:"";
+        box.innerHTML=`<div class="pq-header"><div class="num">${num}</div>${metaHtml}</div><div class="content">${q.blocks.map(blockHTML).join("")}${ansHtml}</div>`;
+        holder.append(box);
+      });
+      cols.append(holder);
+    };
+
+    renderSlot(p.left); renderSlot(p.right);
+    page.append(cols); wrap.append(page);
+  });
+
+  try{
+    renderMathInElement(wrap,{
+      delimiters:[{left:"$$",right:"$$",display:true},{left:"\\[",right:"\\]",display:true},{left:"$",right:"$",display:true}],
+      throwOnError:false
+    });
+  }catch(e){}
+}
+
+/* Actions */
+$("#brandBtn").onclick=()=>showLibrary();
+$("#saveBtn").onclick=()=>{ saveSets(); alert("저장 완료"); };
+$("#loadInput").onchange=e=>{ const f=e.target.files?.[0]; if(!f) return; const r=new FileReader(); r.onload=()=>{ try{ const arr=JSON.parse(r.result); if(Array.isArray(arr)){ sets=arr; saveSets(); showLibrary(); } else alert("문제집 배열 JSON이 아님"); }catch{ alert("JSON 오류"); } }; r.readAsText(f); e.target.value=""; };
+
+/* Export modal */
+const modal=$("#exportModal");
+$("#exportBtn").onclick=()=>{ modal.style.display="flex"; };
+$("#closeExport").onclick=()=>{ modal.style.display="none"; };
+modal.onclick=(e)=>{ if(e.target===modal) modal.style.display="none"; };
+
+async function doPrint(hideAnswers){
+  modal.style.display="none";
+  buildPrintDoc(hideAnswers);
+  await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+  setTimeout(()=>window.print(), 80);
+}
+$("#exportWithAns").onclick=()=>doPrint(false);
+$("#exportNoAns").onclick=()=>doPrint(true);
+
+/* AI Prompt modal */
+const PROMPT_TEXT = `첨부된 이미지의 수학 문제 발문과 보기를 LaTeX 문법으로 변환해 주세요. 변환된 텍스트는 마크다운 코드 블록(` + '```' + `latex ... ` + '```' + `) 안에 넣어주세요.`;
+
+$("#promptText").textContent = PROMPT_TEXT;
+const pmModal=$("#promptModal");
+$("#promptBtn").onclick=()=>{ pmModal.style.display="flex"; };
+$("#closePrompt").onclick=()=>{ pmModal.style.display="none"; };
+$("#closePrompt2").onclick=()=>{ pmModal.style.display="none"; };
+pmModal.onclick=(e)=>{ if(e.target===pmModal) pmModal.style.display="none"; };
+$("#copyPrompt").onclick=()=>{
+  navigator.clipboard.writeText(PROMPT_TEXT).then(()=>{
+    const btn=$("#copyPrompt"); const orig=btn.textContent;
+    btn.textContent="✅ 복사됨!"; setTimeout(()=>btn.textContent=orig, 1800);
+  }).catch(()=>{ alert("복사 실패: 브라우저 권한을 확인하세요"); });
+};
+/* ===== Auth UI ===== */
+function cssVarSet(n,v){ document.documentElement.style.setProperty(n,v); }
+$("#loginBtn").onclick=()=>{
+  const provider=new firebase.auth.GoogleAuthProvider();
+  fbAuth.signInWithPopup(provider).catch(e=>alert('로그인 실패: '+e.message));
+};
+$("#logoutBtn").onclick=()=>{
+  if(confirm('로그아웃 하시겠습니까?')) fbAuth.signOut();
+};
+
+fbAuth.onAuthStateChanged(async (user)=>{
+  currentUser=user;
+  if(user){
+    $("#authLoggedOut").style.display="none";
+    $("#authLoggedIn").style.display="flex";
+    $("#userPhoto").src=user.photoURL||"";
+    $("#userName").textContent=user.displayName||user.email;
+  }else{
+    $("#authLoggedOut").style.display="block";
+    $("#authLoggedIn").style.display="none";
+  }
+  // 로그인 상태에 맞게 데이터 로드 후 라이브러리 표시
+  await loadSets();
+  showLibrary();
+});
+
+cssVarSet('--col-gap-mm',7); cssVarSet('--print-fs-pt',9.2); cssVarSet('--print-lh',1.92);
+try{ const r=localStorage.getItem('PM_PRINT_TUNE_V1'); if(r){ const t=JSON.parse(r); cssVarSet('--col-gap-mm',t.gap||7); cssVarSet('--print-fs-pt',t.fs||9.2); cssVarSet('--print-lh',t.lh||1.92); } }catch{}
+</script>
+</body>
+</html>
