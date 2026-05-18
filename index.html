@@ -373,7 +373,7 @@ select:focus{border-color:var(--blue)}
 .pq-title{font-family:var(--body-serif);font-size:9pt;font-weight:700;color:#111}
 .pq-desc{font-family:var(--body-serif);font-size:8pt;color:#555}
 .answer-block{margin-top:4mm;font-size:8.5pt;color:#333;border-top:0.5px solid #bbb;padding-top:2mm}
-.answer-img{max-width:45mm;max-height:22mm;height:auto;display:block;margin-top:1.5mm}
+.answer-img{max-width:100%;max-height:60mm;height:auto;display:block;margin-top:2mm}
 body.hide-answers .answer-block{display:none!important}
 
 /* ── Pair sidebar ── */
@@ -383,7 +383,11 @@ body.hide-answers .answer-block{display:none!important}
   body{background:#fff}
   .topbar,#libraryView,#editorView,#exportModal,#promptModal{display:none!important}
   #printDoc{display:block}
+  /* 스크롤바 제거 */
+  ::-webkit-scrollbar{display:none!important}
+  .slot,.pq,.columns{overflow:hidden!important}
 }
+
 </style>
 </head>
 <body>
@@ -426,6 +430,9 @@ body.hide-answers .answer-block{display:none!important}
   </div>
   <div id="setGrid" class="lib-grid"></div>
 </div>
+
+
+
 
 <!-- Editor -->
 <div id="editorView" class="editor">
@@ -600,22 +607,13 @@ const activeSet=()=>sets.find(s=>s.id===currentSetId);
 const activeProblems=()=>activeSet()?.problems||[];
 const activeQ=()=>activeProblems().find(q=>q.id===currentQId);
 
-/* 자동 번호 부여: 대표문제→1, 유사문제→1-1, numLabel 있으면 우선 */
+/* 자동 번호 부여: 묶음 여부 관계없이 순차 번호, numLabel 있으면 우선 */
 function computeNums(arr){
-  const res=[]; let main=0; let i=0;
-  while(i<arr.length){
-    if(i<arr.length-1 && arr[i].paired){
-      main++;
-      const base=arr[i].numLabel||String(main).padStart(2,'0');
-      res.push({q:arr[i], num:base});
-      res.push({q:arr[i+1], num:arr[i+1].numLabel||(String(main).padStart(2,'0')+'-1')});
-      i+=2;
-    }else{
-      main++;
-      res.push({q:arr[i], num:arr[i].numLabel||String(main).padStart(2,'0')});
-      i++;
-    }
-  }
+  const res=[]; let main=0;
+  arr.forEach(q=>{
+    main++;
+    res.push({q, num: q.numLabel||String(main).padStart(2,'0')});
+  });
   return res;
 }
 
@@ -735,16 +733,25 @@ function renderQList(){
     let i=0;
     while(i<arr.length){
       if(i<arr.length-1 && arr[i].paired){
+        // 2개 or 3개 묶음
+        const is3 = i+1<arr.length-1 && arr[i+1].paired && i+2<arr.length;
         const group=el("div","pair-group");
         const badge=el("div","pair-badge","⬝ 한 단");
         const ulk=el("button","pair-unlink","묶기 해제");
         const pairIdx=i;
-        ulk.onclick=(e)=>{e.stopPropagation(); arr[pairIdx].paired=false; saveSets(); renderQList(); syncPairedChk();};
+        ulk.onclick=(e)=>{
+          e.stopPropagation();
+          arr[pairIdx].paired=false;
+          if(is3) arr[pairIdx+1].paired=false;
+          saveSets(); renderQList(); syncPairedChk();
+        };
         badge.append(ulk); group.append(badge);
         group.append(mkItem(arr[i],{showLink:false}));
-        group.append(mkItem(arr[i+1],{showLink:false}));
+        // 2번째: 3개가 아니면 묶기 버튼 표시
+        group.append(mkItem(arr[i+1],{showLink:!is3 && i+1<arr.length-1, linkLabel:"3번째 추가"}));
+        if(is3) group.append(mkItem(arr[i+2],{showLink:false}));
         list.append(group);
-        i+=2;
+        i += is3 ? 3 : 2;
       }else{
         list.append(mkItem(arr[i],{showLink:i<arr.length-1}));
         i++;
@@ -970,8 +977,15 @@ function buildPrintDoc(hideAnswers){
   const slots=[];
   let i=0;
   while(i<qs.length){
-    if(qs[i].paired && i+1<qs.length){ slots.push([qs[i],qs[i+1]]); i+=2; }
-    else{ slots.push([qs[i]]); i++; }
+    if(qs[i].paired && i+1<qs.length){
+      if(qs[i+1].paired && i+2<qs.length){
+        slots.push([qs[i],qs[i+1],qs[i+2]]); i+=3;
+      } else {
+        slots.push([qs[i],qs[i+1]]); i+=2;
+      }
+    } else {
+      slots.push([qs[i]]); i++;
+    }
   }
   const pages=[];
   for(let j=0;j<slots.length;j+=2) pages.push({left:slots[j], right:slots[j+1]||null});
