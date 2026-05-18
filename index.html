@@ -357,8 +357,8 @@ select:focus{border-color:var(--blue)}
 .slot:nth-child(2){padding-left:4mm}
 .slot--paired .pq{flex:1;min-height:0;overflow-x:hidden}
 .pq{width:100%;margin:0;overflow-x:hidden}
-.pq .content{font-family:var(--body-serif);font-size:calc(var(--print-fs-pt)*1pt);line-height:var(--print-lh);word-break:keep-all;font-weight:400}
-.pq .content .katex,.pq .content .katex *{font-weight:400!important;font-size:0.9em}
+.pq .content{font-family:'KoPub Batang',"Times New Roman",serif;font-size:calc(var(--print-fs-pt)*1pt);line-height:var(--print-lh);word-break:keep-all;font-weight:400}
+.pq .content .katex,.pq .content .katex *{font-weight:400!important}
 /* $...$: display:true → inline-block으로 인라인 유지 (적분 크게) */
 .pq .content .katex-display{display:inline-block;margin:0.05em 0;text-align:left}
 /* $$...$$: .pdm 안에서 가운데 정렬로 복원 */
@@ -403,7 +403,8 @@ body.hide-answers .answer-block{display:none!important}
   <div class="actions" id="topActions">
     <input id="headerInput" type="text" placeholder="상단 문구 (좌상단 인쇄용)">
     <button id="promptBtn" class="btn" title="AI 변환 프롬프트">🤖 AI 프롬프트</button>
-    <button id="exportBtn" class="btn-accent">내보내기</button>
+    <button id="printBtn" class="btn-accent">인쇄</button>
+    <button id="exportJsonBtn" class="btn">내보내기</button>
     <button id="saveBtn">저장</button>
     <label class="btn">불러오기<input id="loadInput" type="file" accept="application/json"></label>
   </div>
@@ -518,8 +519,8 @@ body.hide-answers .answer-block{display:none!important}
 <!-- Export modal -->
 <div id="exportModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:2000;align-items:center;justify-content:center">
   <div style="background:var(--surface-1);border:1px solid var(--border);border-radius:24px;padding:32px;width:360px;text-align:center;box-shadow:0 24px 64px rgba(0,0,0,.6)">
-    <div style="font-size:20px;font-weight:800;margin-bottom:6px;color:var(--text-primary);letter-spacing:-.02em">PDF 내보내기</div>
-    <div style="font-size:13px;color:var(--text-secondary);margin-bottom:24px;line-height:1.5">인쇄 대화상자에서 <b style="color:var(--text-primary)">'PDF로 저장'</b>을 선택하세요</div>
+    <div style="font-size:20px;font-weight:800;margin-bottom:6px;color:var(--text-primary);letter-spacing:-.02em">인쇄 / PDF 저장</div>
+    <div style="font-size:13px;color:var(--text-secondary);margin-bottom:24px;line-height:1.5">인쇄 대화상자에서 <b style="color:var(--text-primary)">'PDF로 저장'</b>을 선택하면 PDF로 저장됩니다</div>
     <div style="display:flex;flex-direction:column;gap:10px">
       <button id="exportWithAns" class="btn-primary" style="height:48px;font-size:14px;font-weight:700;border-radius:14px">정답 포함</button>
       <button id="exportNoAns" style="height:48px;font-size:14px;font-weight:600;border-radius:14px;background:var(--surface-3);border-color:var(--border)">정답 제외</button>
@@ -1008,7 +1009,7 @@ function buildPrintDoc(hideAnswers){
       slot.forEach(q=>{
         const box=el("div","pq");
         const num=numOf(q);
-        const metaHtml=(q.title||q.desc)?`<div style="display:flex;flex-direction:column;gap:0.3mm;justify-content:center">${q.title?`<span style="font-family:var(--body-serif);font-size:9pt;font-weight:700;color:#111">${sanitize(q.title)}</span>`:""}${q.desc?`<span style="font-family:var(--body-serif);font-size:8pt;color:#555"> · ${sanitize(q.desc)}</span>`:""}</div>`:"";
+        const metaHtml=(q.title||q.desc)?`<div style="display:flex;flex-direction:column;gap:0.3mm;justify-content:center"><span style="font-family:'KoPub Batang','Times New Roman',serif;font-size:9pt;font-weight:500;color:#555">${sanitize(q.title)}${q.desc?` <span style="color:#888;font-weight:400">· ${sanitize(q.desc)}</span>`:""}</span></div>`:"";
         const ansHtml=(q.answer||q.answerImg)&&!hideAnswers?`<div class="answer-block">정답: ${q.answer?`<span class="ans-text">${sanitize(q.answer)}</span>`:""}${q.answerImg?`<img class="answer-img" src="${q.answerImg}">`:" "}</div>`:"";
         box.innerHTML=`<div class="pq-header"><div class="num">${num}</div>${metaHtml}</div><div class="content">${q.blocks.map(blockHTML).join("")}${ansHtml}</div>`;
         holder.append(box);
@@ -1033,20 +1034,30 @@ $("#brandBtn").onclick=()=>showLibrary();
 $("#saveBtn").onclick=()=>{ saveSets(); alert("저장 완료"); };
 $("#loadInput").onchange=e=>{ const f=e.target.files?.[0]; if(!f) return; const r=new FileReader(); r.onload=()=>{ try{ const arr=JSON.parse(r.result); if(Array.isArray(arr)){ sets=arr; saveSets(); showLibrary(); } else alert("문제집 배열 JSON이 아님"); }catch{ alert("JSON 오류"); } }; r.readAsText(f); e.target.value=""; };
 
-/* Export modal */
+/* Export modal (인쇄) */
 const modal=$("#exportModal");
-$("#exportBtn").onclick=()=>{ modal.style.display="flex"; };
+$("#printBtn").onclick=()=>{ modal.style.display="flex"; };
 $("#closeExport").onclick=()=>{ modal.style.display="none"; };
 modal.onclick=(e)=>{ if(e.target===modal) modal.style.display="none"; };
 
 async function doPrint(hideAnswers){
   modal.style.display="none";
   buildPrintDoc(hideAnswers);
-  await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
-  setTimeout(()=>window.print(), 80);
+  await new Promise(r=>requestAnimationFrame(r));
+  window.print();
 }
 $("#exportWithAns").onclick=()=>doPrint(false);
 $("#exportNoAns").onclick=()=>doPrint(true);
+
+/* JSON 내보내기 — 다른 계정/기기에서 불러오기 가능한 형식 */
+$("#exportJsonBtn").onclick=()=>{
+  const s=activeSet(); if(!s){ alert("문제집을 먼저 선택하세요."); return; }
+  const blob=new Blob([JSON.stringify([s],null,2)],{type:"application/json"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download=`${s.name||"문제집"}.json`;
+  a.click(); URL.revokeObjectURL(a.href);
+};
 
 /* AI Prompt modal */
 const PROMPT_TEXT = `첨부된 이미지의 수학 문제 발문과 보기를 LaTeX 문법으로 변환해 주세요. 변환된 텍스트는 마크다운 코드 블록(` + '```' + `latex ... ` + '```' + `) 안에 넣어주세요.`;
