@@ -322,15 +322,15 @@ select:focus{border-color:var(--blue)}
 }
 .preview .content{font-size:13.2px;line-height:1.7;font-weight:400}
 .preview .content .katex,.preview .content .katex *{font-weight:400!important}
-.preview .content .katex-display{display:inline-block;margin:0.05em 0;text-align:left}
+.preview .content .katex-display{display:inline-block;margin:0.3em 0;text-align:left;font-size:1.08em}
 .preview .content .pdm{text-align:center;margin:0.6em 0;display:block}
 .preview .content .pdm .katex-display{display:block!important;text-align:center!important;margin:0}
 .preview .boxed{
   border:1px solid #ddd;border-radius:10px;
   padding:8px 14px;background:#fafafa;margin:10px 0;
 }
-.preview .cond-item{margin:4px 0;display:flex;gap:0.4em;align-items:flex-start}
-.preview .ex-item{margin:4px 0;display:flex;gap:0.4em;align-items:center}
+.preview .cond-item{margin:4px 0;display:flex;gap:0.4em;align-items:baseline}
+.preview .ex-item{margin:4px 0;display:flex;gap:0.4em;align-items:baseline}
 .cond-label,.ex-label{flex-shrink:0;white-space:nowrap}
 .cond-text,.ex-text{flex:1}
 .preview img{max-width:100%;display:block;margin:8px auto}
@@ -349,7 +349,7 @@ select:focus{border-color:var(--blue)}
 .page .lines-top{position:absolute;left:10mm;right:10mm;top:12mm;height:0;border-top:1px solid #3b45bf}
 .page .lines-mid{position:absolute;top:12mm;bottom:16mm;left:calc(50%);border-left:1px solid #3b45bf}
 .page .lines-bot{position:absolute;left:10mm;right:10mm;bottom:16mm;height:0;border-bottom:1px solid #3b45bf}
-.page .hdr-left{position:absolute;top:6mm;left:14mm;font-size:10.5pt;color:#333}
+.page .hdr-left{position:absolute;top:4.2mm;left:10mm;font-size:10.5pt;color:#333}
 .page .ftr-brand{position:absolute;right:14mm;bottom:8mm;font-family:'Adobe Caslon Pro Bold',serif;font-size:11pt;letter-spacing:.3px}
 .page .ftr-page{position:absolute;left:0;right:0;bottom:8mm;text-align:center;font-size:10pt;color:#333}
 
@@ -360,17 +360,21 @@ select:focus{border-color:var(--blue)}
 .pq{width:100%;margin:0;overflow-x:hidden}
 .pq .content{font-family:'KoPub Batang',"Times New Roman",serif;font-size:calc(var(--print-fs-pt)*1pt);line-height:var(--print-lh);word-break:keep-all;font-weight:400}
 .pq .content .katex,.pq .content .katex *{font-weight:400!important}
-/* $...$: display:true → inline-block으로 인라인 유지 (적분 크게) */
-.pq .content .katex-display{display:inline-block;margin:0.05em 0;text-align:left}
-/* $$...$$: .pdm 안에서 가운데 정렬로 복원 */
+/* \text{} 안 한글 폰트 상속 */
+.pq .content .katex .mord.text,.preview .content .katex .mord.text{font-family:'KoPub Batang','Noto Sans KR',sans-serif!important}
+/* $$...$$ 표 등 display 수식 살짝 크게 */
+.pq .content .katex-display{display:inline-block;margin:0.3em 0;text-align:left}
+.preview .content .katex-display{display:inline-block;margin:0.3em 0;text-align:left}
+/* $...$: display:true → inline-block, $$...$$: .pdm 가운데 정렬 */
+.pq .content .katex-display{display:inline-block;margin:0.3em 0;text-align:left;font-size:1.08em}
 .pq .content .pdm{text-align:center;margin:0.6em 0;display:block}
-.pq .content .pdm .katex-display{display:block!important;text-align:center!important;margin:0}
+.pq .content .pdm .katex-display{display:block!important;text-align:center!important;margin:0;font-size:1em}
 .pq .content>div{margin-bottom:5mm}
 .pq .content>div:last-child{margin-bottom:0}
 .vspace{display:block}
 .pq .boxed{border:1px solid #222;border-radius:2mm;padding:2mm 3.2mm;margin:3mm 0}
-.pq .cond-item{display:flex;gap:0.5em;align-items:flex-start;margin:1.5mm 0}
-.pq .ex-item{display:flex;gap:0.5em;align-items:center;margin:1.5mm 0}
+.pq .cond-item{display:flex;gap:0.5em;align-items:baseline;margin:1.5mm 0}
+.pq .ex-item{display:flex;gap:0.5em;align-items:baseline;margin:1.5mm 0}
 .pq .cond-label,.pq .ex-label{flex-shrink:0;white-space:nowrap}
 .pq .cond-text,.pq .ex-text{flex:1}
 .pq img{max-width:100%;height:auto;display:block}
