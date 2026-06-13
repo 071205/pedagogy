@@ -503,6 +503,13 @@ body.hide-answers .answer-block{display:none!important}
       </select>
       <button id="addBlockBtn" class="btn-primary">+ 블록 추가</button>
     </div>
+    <div class="blockbar" style="gap:8px;margin-top:8px">
+      <label id="aiGenBtn" class="btn-accent" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer">
+        🪄 사진으로 자동 생성
+        <input id="aiImgInput" type="file" accept="image/*" style="display:none">
+      </label>
+    </div>
+    <div id="aiGenStatus" style="display:none;margin-top:6px;font-size:12px;color:var(--text-secondary);text-align:center"></div>
   </div>
 
   <!-- Preview -->
@@ -920,6 +927,93 @@ function renderEditor(){
     const def=(type==="statement"||type==="boxed")?{text:""}:(type==="conditions"||type==="examples")?{items:[""]}:(type==="choices")?{items:["","","","",""],layout:"horizontal"}:(type==="image")?{dataUrl:""}:{};
     const q=activeQ(); q.blocks.push({type, data:def}); saveSets(); renderEditor(); renderPreview();
   };
+
+  // ───── AI 사진 자동 생성 ─────
+  const aiInput=$("#aiImgInput");
+  if(aiInput){
+    aiInput.onchange=async (e)=>{
+      const file=e.target.files[0];
+      e.target.value=""; // 같은 파일 재선택 가능하게 초기화
+      if(!file) return;
+      await aiGenerateFromImage(file);
+    };
+  }
+}
+
+// Cloudflare Worker 주소 (배포 후 네 Worker URL로 교체)
+const AI_PROXY_URL="https://dawn-shape-2664.dbruddl79.workers.dev";
+
+function aiStatus(msg, show=true){
+  const s=$("#aiGenStatus"); if(!s) return;
+  s.style.display=show?"block":"none"; s.textContent=msg||"";
+}
+
+function fileToBase64(file){
+  return new Promise((res,rej)=>{
+    const r=new FileReader();
+    r.onload=()=>res(r.result.split(",")[1]); // data URL 앞부분 제거
+    r.onerror=()=>rej(new Error("파일 읽기 실패"));
+    r.readAsDataURL(file);
+  });
+}
+
+// AI 응답(JSON)을 편집기 블록 구조로 변환
+function aiBlocksToProblem(p){
+  const blocks=[];
+  (p.blocks||[]).forEach(b=>{
+    if(b.type==="statement"||b.type==="boxed"){
+      blocks.push({type:b.type, data:{text:b.text||""}});
+    }else if(b.type==="conditions"||b.type==="examples"){
+      const items=(b.items&&b.items.length)?b.items:[""];
+      blocks.push({type:b.type, data:{items}});
+    }else if(b.type==="choices"){
+      const items=(b.items||[]).slice(0,5);
+      while(items.length<5) items.push("");
+      blocks.push({type:"choices", data:{items, layout:"horizontal"}});
+    }
+  });
+  if(!blocks.length) blocks.push({type:"statement", data:{text:""}});
+  return { id:uid(), title:p.title||"", desc:"", answer:"", answerImg:"", numLabel:"", paired:false, blocks };
+}
+
+async function aiGenerateFromImage(file){
+  if(AI_PROXY_URL.includes("YOUR-SUBDOMAIN")){
+    alert("AI 서버 주소가 아직 설정되지 않았습니다.\nindex.html의 AI_PROXY_URL을 배포한 Worker 주소로 바꿔주세요.");
+    return;
+  }
+  const set=activeSet(); if(!set){ alert("문제집을 먼저 선택하세요"); return; }
+  try{
+    aiStatus("🔄 이미지 읽는 중…");
+    const imageBase64=await fileToBase64(file);
+    const mimeType=file.type||"image/png";
+
+    aiStatus("🤖 AI가 문제를 변환하는 중… (몇 초 걸려요)");
+    const r=await fetch(AI_PROXY_URL,{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({imageBase64, mimeType}),
+    });
+    const data=await r.json();
+    if(!r.ok || data.error){
+      throw new Error(data.detail||data.error||("HTTP "+r.status));
+    }
+
+    const problems=data.problems||[];
+    if(!problems.length){ throw new Error("문제를 찾지 못했습니다"); }
+
+    // 변환된 문제들을 현재 문제집에 추가
+    const newQs=problems.map(aiBlocksToProblem);
+    set.problems.push(...newQs);
+    currentQId=newQs[0].id; // 첫 새 문제로 포커스
+    saveSets(); renderEditor(); renderPreview();
+
+    aiStatus(`✅ 문제 ${newQs.length}개 추가됨`);
+    setTimeout(()=>aiStatus("", false), 2500);
+  }catch(err){
+    console.error(err);
+    aiStatus("", false);
+    alert("AI 변환 실패: "+err.message);
+  }
 }
 
 /* ─── 텍스트 전처리: \[Npt] 줄간격 + \n 자동 6pt + \displaystyle 자동 주입 ─── */
