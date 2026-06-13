@@ -585,18 +585,58 @@ let saveTimer=null;   // 디바운스용
 
 function newProblem(){ return { id:uid(), title:"", desc:"", answer:"", answerImg:"", numLabel:"", paired:false, blocks:[{type:"statement",data:{text:""}}] }; }
 
+function readLocalSets(){
+  try{ const raw=localStorage.getItem(SETS_KEY); return raw?JSON.parse(raw):[]; }catch{ return []; }
+}
 function loadSetsLocal(){
-  try{ const raw=localStorage.getItem(SETS_KEY); sets=raw?JSON.parse(raw):[]; }catch{ sets=[]; }
+  sets=readLocalSets();
   if(!sets.length) sets=[{id:uid(), name:"새 문제집", header:"", problems:[newProblem()]}];
+}
+
+// 한 문제집이 "실제 작업물"인지 판단: 이름이 기본값이 아니거나, 내용 있는 문제가 하나라도 있으면 true
+function setHasContent(s){
+  if(!s) return false;
+  if(s.name && s.name!=="새 문제집") return true;
+  return (s.problems||[]).some(q=>{
+    if(q.title || q.desc || q.answer || q.answerImg || q.numLabel) return true;
+    return (q.blocks||[]).some(b=>{
+      const d=b.data||{};
+      return (d.text&&d.text.trim()) || (d.items&&d.items.length) || (d.src);
+    });
+  });
+}
+function localSetsWorthMerging(localSets){
+  return (localSets||[]).filter(setHasContent);
+}
+// 클라우드 sets에 로컬 sets 병합 (중복 id는 클라우드 우선, 새 id만 추가)
+function mergeSets(cloudSets, localSets){
+  const ids=new Set(cloudSets.map(s=>s.id));
+  const added=localSets.filter(s=>!ids.has(s.id));
+  return cloudSets.concat(added);
 }
 
 async function loadSets(){
   if(currentUser){
     try{
       const doc=await fbDb.collection('users').doc(currentUser.uid).get();
-      if(doc.exists && doc.data().sets && doc.data().sets.length){
-        sets=doc.data().sets; return;
+      const cloud=(doc.exists && Array.isArray(doc.data().sets))?doc.data().sets:[];
+      const localWorth=localSetsWorthMerging(readLocalSets());
+
+      if(cloud.length && localWorth.length){
+        // 양쪽 다 있음 → 병합 여부 확인
+        const merge=confirm(
+          "이 컴퓨터에 로그인 전 작업한 문제집이 있습니다.\n"+
+          "클라우드 문제집과 합칠까요?\n\n"+
+          "[확인] 합치기 (로컬 작업도 계정에 추가)\n"+
+          "[취소] 클라우드 문제집만 사용"
+        );
+        sets = merge ? mergeSets(cloud, localWorth) : cloud;
+        if(merge) saveSets(); // 병합 결과를 클라우드에 반영
+        return;
       }
+      if(cloud.length){ sets=cloud; return; }
+      if(localWorth.length){ sets=localWorth; saveSets(); return; } // 클라우드 비었으면 로컬을 올림
+      // 둘 다 없으면 기본 문제집
     }catch(e){ console.warn('Firestore 로드 실패, 로컬 사용:', e); }
   }
   loadSetsLocal();
@@ -1091,6 +1131,7 @@ $("#logoutBtn").onclick=()=>{
 };
 
 let authInitialized=false;
+let prevUid=null;            // 직전 콜백의 uid (로그인/로그아웃 전환 감지용)
 fbAuth.onAuthStateChanged(async (user)=>{
   currentUser=user;
   if(user){
@@ -1102,9 +1143,19 @@ fbAuth.onAuthStateChanged(async (user)=>{
     $("#authLoggedOut").style.display="block";
     $("#authLoggedIn").style.display="none";
   }
-  // 최초 1회만 데이터 로드 + 화면 초기화 (토큰 갱신 등으로 재실행 시 무시)
+
+  const uid=user?user.uid:null;
+  const userChanged=(uid!==prevUid);  // null→로그인, 로그인→로그아웃, 계정 전환 모두 감지
+  prevUid=uid;
+
   if(!authInitialized){
+    // 최초 로드: 비로그인이면 로컬, 로그인이면 Firestore 로드
     authInitialized=true;
+    await loadSets();
+    showLibrary();
+  }else if(userChanged){
+    // 이후 로그인/로그아웃/계정전환이 실제로 일어났을 때만 재로드
+    // (토큰 갱신처럼 uid 그대로면 화면 안 건드림 → 작업 중 덮어쓰기 방지)
     await loadSets();
     showLibrary();
   }
