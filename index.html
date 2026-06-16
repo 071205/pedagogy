@@ -11,6 +11,41 @@
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
 <!-- KoPub 바탕체 (한국출판인회의 — 수능 신명조 계열 최적 대체) -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-kopub@1.0/kopubbatang.min.css">
+<!-- 함초롬바탕 (한컴, 상업용 무료 — 시험지 본문용) -->
+<style>
+@font-face{
+  font-family:'Hamchorom Batang';
+  src:url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2104@1.0/HANBatang.woff') format('woff');
+  font-weight:400; font-style:normal; font-display:swap;
+}
+@font-face{
+  font-family:'Hamchorom Batang';
+  src:url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2104@1.0/HANBatangB.woff') format('woff');
+  font-weight:700; font-style:normal; font-display:swap;
+}
+</style>
+<!-- Computer Modern Serif (LaTeX 기본 글씨체 — 본문 영문·숫자·기호만 담당)
+     unicode-range로 라틴/숫자/기호 영역만 매핑 → 한글은 함초롬바탕이 받음 -->
+<style>
+@font-face{
+  font-family:'Computer Modern Serif';
+  src:url('https://cdn.jsdelivr.net/gh/vsalvino/computer-modern@main/fonts/CMUSerif-Roman.woff2') format('woff2');
+  font-weight:400; font-style:normal; font-display:swap;
+  unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+2000-206F, U+2070-209F, U+20A0-20BF, U+2100-214F, U+2190-21FF, U+2200-22FF, U+2A00-2AFF, U+0370-03FF;
+}
+@font-face{
+  font-family:'Computer Modern Serif';
+  src:url('https://cdn.jsdelivr.net/gh/vsalvino/computer-modern@main/fonts/CMUSerif-Bold.woff2') format('woff2');
+  font-weight:700; font-style:normal; font-display:swap;
+  unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+2000-206F, U+2070-209F, U+20A0-20BF, U+2100-214F, U+2190-21FF, U+2200-22FF, U+2A00-2AFF, U+0370-03FF;
+}
+@font-face{
+  font-family:'Computer Modern Serif';
+  src:url('https://cdn.jsdelivr.net/gh/vsalvino/computer-modern@main/fonts/CMUSerif-Italic.woff2') format('woff2');
+  font-weight:400; font-style:italic; font-display:swap;
+  unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+2000-206F, U+2070-209F, U+20A0-20BF, U+2100-214F, U+2190-21FF, U+2200-22FF, U+2A00-2AFF, U+0370-03FF;
+}
+</style>
 <!-- SortableJS -->
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <!-- Firebase -->
@@ -56,7 +91,7 @@
 
   /* UI font */
   --ui-sans: 'Pretendard Variable', Pretendard, "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif;
-  --body-serif: 'KoPub Batang', "Times New Roman", serif;
+  --body-serif: 'Computer Modern Serif', 'Hamchorom Batang', 'KoPub Batang', "Times New Roman", serif;
   --num-serif: "Noto Serif KR", "Times New Roman", serif;
 
   /* Print */
@@ -312,7 +347,7 @@ select:focus{border-color:var(--blue)}
 .previewArea{padding:20px;overflow:auto;flex:1;background:var(--bg)}
 .preview{
   background:#fff;color:#111;
-  font-family:'KoPub Batang',var(--body-serif);
+  font-family:'Computer Modern Serif','Hamchorom Batang','KoPub Batang',var(--body-serif);
   padding:28px;border-radius:var(--radius-xl);
   box-shadow:0 0 0 1px rgba(0,0,0,.06), 0 8px 32px rgba(0,0,0,.12);
 }
@@ -338,7 +373,10 @@ select:focus{border-color:var(--blue)}
 /* Choices */
 .choices{margin-top:8px}
 .choices.vertical{display:grid;grid-template-columns:1fr;row-gap:8px}
-.choices.horizontal{display:grid;grid-template-columns:repeat(5,1fr);column-gap:12px;row-gap:8px}
+.choices.horizontal{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));column-gap:12px;row-gap:8px}
+.choices.horizontal.choices--wrap{grid-template-columns:repeat(auto-fit,minmax(34mm,1fr))}
+.choices .choice{min-width:0}
+.choices .choice .text{overflow-x:hidden}
 .choice{display:flex;gap:6px;align-items:flex-start;font-family:var(--body-serif)}
 .choice span.label{white-space:nowrap;font-family:var(--num-serif)}
 
@@ -358,10 +396,10 @@ select:focus{border-color:var(--blue)}
 .slot:nth-child(2){padding-left:4mm}
 .slot--paired .pq{flex:1;min-height:0;overflow-x:hidden}
 .pq{width:100%;margin:0;overflow-x:hidden}
-.pq .content{font-family:'KoPub Batang',"Times New Roman",serif;font-size:calc(var(--print-fs-pt)*1pt);line-height:var(--print-lh);word-break:keep-all;font-weight:400}
+.pq .content{font-family:'Computer Modern Serif','Hamchorom Batang','KoPub Batang',"Times New Roman",serif;font-size:calc(var(--print-fs-pt)*1pt);line-height:var(--print-lh);word-break:keep-all;font-weight:400}
 .pq .content .katex,.pq .content .katex *{font-weight:400!important}
 /* \text{} 안 한글 폰트 상속 */
-.pq .content .katex .mord.text,.preview .content .katex .mord.text{font-family:'KoPub Batang','Noto Sans KR',sans-serif!important}
+.pq .content .katex .mord.text,.preview .content .katex .mord.text{font-family:'Hamchorom Batang','KoPub Batang','Noto Sans KR',sans-serif!important}
 /* $$...$$ 표 등 display 수식 살짝 크게 */
 .pq .content .katex-display{display:inline-block;margin:0.3em 0;text-align:left}
 .preview .content .katex-display{display:inline-block;margin:0.3em 0;text-align:left}
@@ -1149,7 +1187,7 @@ function buildPrintDoc(hideAnswers){
       slot.forEach(q=>{
         const box=el("div","pq");
         const num=numOf(q);
-        const metaHtml=(q.title||q.desc)?`<div style="display:flex;flex-direction:column;gap:0.3mm;justify-content:center"><span style="font-family:'KoPub Batang','Times New Roman',serif;font-size:9pt;font-weight:500;color:#555">${sanitize(q.title)}${q.desc?` <span style="color:#888;font-weight:400">· ${sanitize(q.desc)}</span>`:""}</span></div>`:"";
+        const metaHtml=(q.title||q.desc)?`<div style="display:flex;flex-direction:column;gap:0.3mm;justify-content:center"><span style="font-family:'Computer Modern Serif','Hamchorom Batang','KoPub Batang','Times New Roman',serif;font-size:9pt;font-weight:500;color:#555">${sanitize(q.title)}${q.desc?` <span style="color:#888;font-weight:400">· ${sanitize(q.desc)}</span>`:""}</span></div>`:"";
         const ansHtml=(q.answer||q.answerImg)&&!hideAnswers?`<div class="answer-block">정답: ${q.answer?`<span class="ans-text">${sanitize(q.answer)}</span>`:""}${q.answerImg?`<img class="answer-img" src="${q.answerImg}">`:" "}</div>`:"";
         box.innerHTML=`<div class="pq-header"><div class="num">${num}</div>${metaHtml}</div><div class="content">${q.blocks.map(blockHTML).join("")}${ansHtml}</div>`;
         holder.append(box);
@@ -1180,11 +1218,91 @@ $("#printBtn").onclick=()=>{ modal.style.display="flex"; };
 $("#closeExport").onclick=()=>{ modal.style.display="none"; };
 modal.onclick=(e)=>{ if(e.target===modal) modal.style.display="none"; };
 
+/* KaTeX 수식 폰트를 인쇄 전에 모두 강제 로드.
+   (CSS는 lazy 로드라, 화면에 안 쓰인 굵기/기호 폰트가 인쇄 때 누락되면
+    브라우저가 시스템 폰트로 굵게 합성해 수식이 두껍고 어색해짐) */
+async function ensureKatexFonts(){
+  if(!document.fonts||!document.fonts.load) return;
+  const specs=[
+    "10px KaTeX_Main","italic 10px KaTeX_Main","700 10px KaTeX_Main",
+    "10px KaTeX_Math","italic 10px KaTeX_Math",
+    "10px KaTeX_Size1","10px KaTeX_Size2","10px KaTeX_Size3","10px KaTeX_Size4",
+    "10px KaTeX_AMS","10px KaTeX_Caligraphic","10px KaTeX_Fraktur",
+    "10px KaTeX_SansSerif","10px KaTeX_Script","10px KaTeX_Typewriter"
+  ];
+  try{ await Promise.all(specs.map(s=>document.fonts.load(s).catch(()=>{}))); }catch{}
+}
+
 async function doPrint(hideAnswers){
   modal.style.display="none";
   buildPrintDoc(hideAnswers);
+  // KaTeX 수식 폰트를 모두 깨운 뒤 렌더/측정해야 인쇄에서 누락 없음
+  await ensureKatexFonts();
+  await new Promise(r=>requestAnimationFrame(r));
+  if(document.fonts&&document.fonts.ready){ try{ await document.fonts.ready; }catch{} }
+  await new Promise(r=>requestAnimationFrame(r));
+  fitPrintDoc();
   await new Promise(r=>requestAnimationFrame(r));
   window.print();
+}
+
+/* ── 인쇄 레이아웃 보정 ──
+   (1) 칸보다 넓은 가로 선지(choices) → 자동 줄바꿈, 그래도 넓으면 개별 축소
+   (2) 칸보다 넓은 display 수식/표(array) → 가로 축소
+   (3) 칸 높이를 넘치는 문제 → 전체 축소(fallback) */
+function fitPrintDoc(){
+  const wrap=$("#printDoc");
+  const slotRight=(node)=>{ const s=node.closest(".slot"); return s?s.getBoundingClientRect().right:null; };
+
+  // (1) 가로 선지: 칸 오른쪽 경계를 넘으면 먼저 줄바꿈 모드로 전환
+  wrap.querySelectorAll(".pq .choices.horizontal").forEach(ch=>{
+    const right=slotRight(ch); if(right==null) return;
+    if(ch.getBoundingClientRect().right>right+1){
+      ch.classList.add("choices--wrap");
+    }
+  });
+
+  // (2) display 수식/표(.katex-display): 칸을 넘치면 그 수식만 가로 축소
+  wrap.querySelectorAll(".pq .content .katex-display").forEach(disp=>{
+    const right=slotRight(disp); if(right==null) return;
+    const inner=disp.querySelector(".katex")||disp.firstElementChild;
+    if(!inner) return;
+    const r=inner.getBoundingClientRect();
+    const dispLeft=disp.getBoundingClientRect().left;
+    const avail=(right-dispLeft);
+    if(r.width>avail+3 && r.width>0){           // 3px 이상 넘칠 때만 축소
+      const k=(avail*0.99)/r.width;
+      inner.style.display="inline-block";
+      inner.style.transformOrigin="left center";
+      inner.style.transform=`scale(${k.toFixed(4)})`;
+      inner.style.height=(inner.offsetHeight*k)+"px";
+      disp.style.overflow="visible";
+    }
+  });
+
+  // (1-b) 줄바꿈 후에도 개별 선지의 수식이 칸을 넘으면 그 선지 내부만 축소
+  wrap.querySelectorAll(".pq .choices .choice").forEach(choice=>{
+    const right=slotRight(choice); if(right==null) return;
+    const k=(()=>{ const w=choice.scrollWidth, avail=choice.clientWidth; return (w>avail&&avail>0)?avail/w:1; })();
+    if(k<1){
+      const txt=choice.querySelector(".text")||choice;
+      txt.style.display="inline-block";
+      txt.style.transformOrigin="left center";
+      txt.style.transform=`scale(${(k*0.98).toFixed(4)})`;
+    }
+  });
+
+  // (3) 세로 넘침: 칸 높이를 넘치면 그 칸의 문제들을 필요한 만큼만 축소
+  wrap.querySelectorAll(".slot").forEach(slot=>{
+    const limit=slot.clientHeight;
+    if(!limit||slot.scrollHeight<=limit+1) return;
+    const k=Math.max(0.72,(limit/slot.scrollHeight)*0.99);
+    slot.querySelectorAll(".pq").forEach(pq=>{
+      pq.style.transformOrigin="top left";
+      pq.style.transform=`scale(${k.toFixed(4)})`;
+      pq.style.width=(100/k).toFixed(2)+"%";
+    });
+  });
 }
 $("#exportWithAns").onclick=()=>doPrint(false);
 $("#exportNoAns").onclick=()=>doPrint(true);
