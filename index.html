@@ -17,6 +17,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js"></script>
 
 <style>
 @font-face{
@@ -407,7 +408,7 @@ select:focus{border-color:var(--blue)}
 .pq .ex-item{display:flex;gap:0.5em;align-items:baseline;margin:1.5mm 0}
 .pq .cond-label,.pq .ex-label{flex-shrink:0;white-space:nowrap}
 .pq .cond-text,.pq .ex-text{flex:1}
-.pq img{max-width:100%;height:auto;display:block}
+.pq img{max-width:100%;height:auto;display:block;margin-left:auto;margin-right:auto}
 .pq-header{display:flex;align-items:baseline;gap:3mm;margin-bottom:2mm}
 .pq .num{font-family:var(--num-serif);font-weight:900;font-size:19pt;flex-shrink:0;line-height:1}
 .pq-meta{display:flex;flex-direction:column;gap:0.3mm;justify-content:center}
@@ -444,6 +445,7 @@ body.hide-answers .answer-block{display:none!important}
     <button id="printBtn" class="btn-accent">인쇄</button>
     <button id="exportJsonBtn" class="btn">내보내기</button>
     <button id="saveBtn">저장</button>
+    <span id="saveStatus" style="font-size:12px;color:var(--text-tertiary);min-width:54px;white-space:nowrap"></span>
     <button id="loadBtn" class="btn">불러오기</button>
     <input id="loadInput" type="file" accept="application/json" style="display:none">
   </div>
@@ -619,6 +621,40 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const fbAuth = firebase.auth();
 const fbDb = firebase.firestore();
+const fbStorage = firebase.storage();
+
+/* ===== 이미지 저장 헬퍼 (Firebase Storage) =====
+   - 로그인 상태: 이미지를 Storage(users/{uid}/images/)에 올리고 다운로드 URL 반환
+   - 비로그인: base64 dataURL 그대로 반환(로컬 전용)
+   이렇게 하면 Firestore에는 짧은 URL만 저장되어 1MB 문서 제한을 피함 */
+function isStorageUrl(s){ return typeof s==="string" && s.startsWith("http"); }
+function isDataUrl(s){ return typeof s==="string" && s.startsWith("data:"); }
+
+// File 객체를 받아 저장 → URL(또는 base64) 반환
+async function storeImageFile(file){
+  if(!file) return "";
+  // 비로그인: 로컬 base64로 (기존 동작 유지)
+  if(!currentUser){ return await fileToDataURL(file); }
+  // 로그인: Storage 업로드
+  try{
+    const id = uid() + "_" + (file.name||"img").replace(/[^\w.\-]/g,"_");
+    const ref = fbStorage.ref().child(`users/${currentUser.uid}/images/${id}`);
+    const snap = await ref.put(file);
+    return await snap.ref.getDownloadURL();
+  }catch(e){
+    console.warn("Storage 업로드 실패, 로컬 base64로 대체:", e);
+    return await fileToDataURL(file);   // 실패 시 안전하게 로컬 저장
+  }
+}
+
+function fileToDataURL(file){
+  return new Promise((res,rej)=>{
+    const r=new FileReader();
+    r.onload=()=>res(r.result);
+    r.onerror=()=>rej(new Error("파일 읽기 실패"));
+    r.readAsDataURL(file);
+  });
+}
 
 /* ===== Storage ===== */
 const SETS_KEY="PM_SETS_V7";
@@ -779,18 +815,50 @@ function updateHistButtons(){
   if(r) r.disabled=!redoStack.length;
 }
 
+function setSaveStatus(txt, color){
+  const el=document.getElementById("saveStatus");
+  if(!el) return;
+  el.textContent=txt;
+  el.style.color=color||"var(--text-tertiary)";
+}
+
 function saveSets(){
   // 변경 사항을 히스토리에 기록 (디바운스)
   pushHistory();
   // 로컬 항상 저장 (백업)
-  localStorage.setItem(SETS_KEY, JSON.stringify(sets));
+  try{
+    localStorage.setItem(SETS_KEY, JSON.stringify(sets));
+  }catch(e){
+    // localStorage도 용량 초과 가능 (base64 이미지 많을 때)
+    console.error("로컬 저장 실패:", e);
+    setSaveStatus("⚠ 로컬 저장 실패", "#e57373");
+  }
   // 로그인 시 Firestore에 디바운스 저장 (0.8초 대기 후)
   if(currentUser){
+    setSaveStatus("저장 중…", "var(--text-tertiary)");
     clearTimeout(saveTimer);
     saveTimer=setTimeout(async ()=>{
       try{
+        // 저장 전 문서 크기 점검 (Firestore 문서 한도 1MiB)
+        const payload=JSON.stringify(sets);
+        const bytes=new Blob([payload]).size;
+        if(bytes > 1000000){  // 1MB 근접 시 경고
+          console.warn(`문서 크기 ${(bytes/1024/1024).toFixed(2)}MB — Firestore 1MB 한도 초과 위험`);
+          setSaveStatus("⚠ 용량 초과", "#e57373");
+          // 그래도 시도는 함 (Storage로 이미지 옮기면 해결됨)
+        }
         await fbDb.collection('users').doc(currentUser.uid).set({ sets, updatedAt: new Date() });
-      }catch(e){ console.warn('Firestore 저장 실패:', e); }
+        setSaveStatus("✓ 저장됨", "#81c784");
+        setTimeout(()=>setSaveStatus(""), 2000);
+      }catch(e){
+        console.error('Firestore 저장 실패:', e);
+        // 에러 종류 구분
+        let msg="⚠ 저장 실패";
+        const es=String(e?.message||e);
+        if(/permission|insufficient|PERMISSION/i.test(es)) msg="⚠ 권한 오류";
+        else if(/longer than|exceeds|too large|1048487|maximum/i.test(es)) msg="⚠ 용량 초과";
+        setSaveStatus(msg, "#e57373");
+      }
     }, 800);
   }
 }
@@ -1009,10 +1077,17 @@ function renderEditor(){
   // 정답 이미지
   const imgClear=$("#qAnswerImgClear");
   imgClear.style.display=q.answerImg?"inline-block":"none";
-  $("#qAnswerImg").onchange=(e)=>{
+  $("#qAnswerImg").onchange=async (e)=>{
     const f=e.target.files[0]; if(!f) return;
-    const r=new FileReader(); r.onload=ev=>{ q.answerImg=ev.target.result; saveSets(); imgClear.style.display="inline-block"; renderPreview(); };
-    r.readAsDataURL(f); e.target.value="";
+    e.target.value="";
+    imgClear.style.display="inline-block";
+    // 업로드 중 표시 (간단히 미리보기에 즉시 로컬 반영 후 URL 교체)
+    try{
+      const localPreview=await fileToDataURL(f);
+      q.answerImg=localPreview; renderPreview();      // 즉시 미리보기
+      const stored=await storeImageFile(f);           // Storage 업로드(로그인 시) or base64
+      q.answerImg=stored; saveSets(); renderPreview();
+    }catch(err){ console.warn(err); }
   };
   imgClear.onclick=()=>{ q.answerImg=""; saveSets(); imgClear.style.display="none"; renderPreview(); };
 
@@ -1074,7 +1149,15 @@ function renderEditor(){
       const file=el("input"); file.type="file"; file.accept="image/*";
       const hint=el("div","label","이미지");
       row.append(hint,file);
-      file.onchange=e=>{ const f=e.target.files?.[0]; if(!f) return; const r=new FileReader(); r.onload=()=>{ blk.data.dataUrl=r.result; renderPreview(); saveSets(); }; r.readAsDataURL(f); };
+      file.onchange=async e=>{
+        const f=e.target.files?.[0]; if(!f) return;
+        try{
+          const localPreview=await fileToDataURL(f);
+          blk.data.dataUrl=localPreview; renderPreview();   // 즉시 미리보기
+          const stored=await storeImageFile(f);             // Storage 업로드 or base64
+          blk.data.dataUrl=stored; renderPreview(); saveSets();
+        }catch(err){ console.warn(err); }
+      };
       body.append(row);
     }
 
@@ -1403,7 +1486,37 @@ function buildPrintDoc(hideAnswers){
 
 /* Actions */
 $("#brandBtn").onclick=()=>showLibrary();
-$("#saveBtn").onclick=()=>{ saveSets(); alert("저장 완료"); };
+$("#saveBtn").onclick=async ()=>{
+  // 로컬은 즉시 저장
+  try{ localStorage.setItem(SETS_KEY, JSON.stringify(sets)); }catch(e){ console.error(e); }
+  if(!currentUser){
+    setSaveStatus("✓ 로컬 저장됨", "#81c784");
+    setTimeout(()=>setSaveStatus(""), 2000);
+    alert("로컬에 저장했습니다.\n(구글 로그인하면 계정에 저장되어 다른 기기에서도 볼 수 있어요)");
+    return;
+  }
+  // 로그인 시: 디바운스 무시하고 즉시 Firestore 저장 + 결과 확인
+  clearTimeout(saveTimer);
+  setSaveStatus("저장 중…");
+  try{
+    const payload=JSON.stringify(sets);
+    const bytes=new Blob([payload]).size;
+    await fbDb.collection('users').doc(currentUser.uid).set({ sets, updatedAt: new Date() });
+    setSaveStatus("✓ 저장됨", "#81c784");
+    setTimeout(()=>setSaveStatus(""), 2000);
+    if(bytes>900000){
+      alert(`저장됐지만 데이터가 큽니다 (${(bytes/1024/1024).toFixed(2)}MB).\n이미지가 많으면 곧 한도(1MB)를 넘어 저장이 막힐 수 있어요.\nFirebase Storage 연동을 권장합니다.`);
+    }
+  }catch(e){
+    console.error("Firestore 저장 실패:", e);
+    const es=String(e?.message||e);
+    let detail="알 수 없는 오류";
+    if(/permission|insufficient|PERMISSION/i.test(es)) detail="권한 오류 — Firestore 보안 규칙을 확인하세요.";
+    else if(/longer than|exceeds|too large|1048487|maximum/i.test(es)) detail="문서 용량이 1MB를 초과했습니다.\n이미지가 너무 많거나 큽니다 (Storage 연동 필요).";
+    setSaveStatus("⚠ 저장 실패", "#e57373");
+    alert("계정 저장 실패:\n"+detail+"\n\n(자세한 내용은 개발자도구 콘솔 확인)");
+  }
+};
 $("#loadBtn").onclick=()=>$("#loadInput").click();
 $("#importAllBtn").onclick=()=>$("#importAllInput").click();
 $("#undoBtn").onclick=()=>doUndo();
