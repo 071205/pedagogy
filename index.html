@@ -425,11 +425,79 @@ body.hide-answers .answer-block{display:none!important}
 
 @media print{
   body{background:#fff}
-  .topbar,#libraryView,#editorView,#exportModal,#promptModal{display:none!important}
+  .topbar,#libraryView,#editorView,#exportModal,#promptModal,#toastHost{display:none!important}
   #printDoc{display:block}
   /* 스크롤바 제거 */
   ::-webkit-scrollbar{display:none!important}
   .slot,.pq,.columns{overflow:hidden!important}
+}
+
+/* ── 토스트 알림 ── */
+#toastHost{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:3000;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none}
+.toast{
+  background:var(--surface-3);color:var(--text-primary);
+  border:1px solid var(--border);border-radius:var(--radius-md);
+  padding:11px 18px;font-size:13px;font-weight:500;
+  box-shadow:0 8px 32px rgba(0,0,0,.5);
+  opacity:0;transform:translateY(12px) scale(.97);
+  transition:opacity .28s cubic-bezier(.16,1,.3,1), transform .28s cubic-bezier(.16,1,.3,1);
+  max-width:80vw;text-align:center;
+}
+.toast.show{opacity:1;transform:translateY(0) scale(1)}
+.toast--success{border-color:color-mix(in srgb,var(--success) 55%,var(--border))}
+.toast--success::before{content:"✓ ";color:var(--success);font-weight:700}
+.toast--error{border-color:color-mix(in srgb,var(--danger) 55%,var(--border))}
+.toast--error::before{content:"⚠ ";color:var(--danger);font-weight:700}
+
+/* ── 키보드 포커스 표시 (접근성) ── */
+button:focus-visible,select:focus-visible,.set-card:focus-visible,.q-item:focus-visible{
+  outline:2px solid var(--blue);outline-offset:2px;
+}
+input:focus-visible,textarea:focus-visible{outline:none}
+
+/* ── 스크롤바 정리 (실제 스크롤 영역에만 적용) ── */
+.q-list,.center,.previewArea,#libraryView,.block textarea,#qAnswer,#promptText{
+  scrollbar-width:thin;scrollbar-color:var(--border) transparent;
+}
+.q-list::-webkit-scrollbar,.center::-webkit-scrollbar,.previewArea::-webkit-scrollbar,#libraryView::-webkit-scrollbar,.block textarea::-webkit-scrollbar,#qAnswer::-webkit-scrollbar,#promptText::-webkit-scrollbar{width:10px;height:10px}
+.q-list::-webkit-scrollbar-thumb,.center::-webkit-scrollbar-thumb,.previewArea::-webkit-scrollbar-thumb,#libraryView::-webkit-scrollbar-thumb,.block textarea::-webkit-scrollbar-thumb,#qAnswer::-webkit-scrollbar-thumb,#promptText::-webkit-scrollbar-thumb{background:var(--border);border-radius:8px;border:2px solid transparent;background-clip:padding-box}
+.q-list::-webkit-scrollbar-thumb:hover,.center::-webkit-scrollbar-thumb:hover,.previewArea::-webkit-scrollbar-thumb:hover,#libraryView::-webkit-scrollbar-thumb:hover{background:#3a3a45;background-clip:padding-box}
+.q-list::-webkit-scrollbar-track,.center::-webkit-scrollbar-track,.previewArea::-webkit-scrollbar-track,#libraryView::-webkit-scrollbar-track{background:transparent}
+
+/* 미리보기/인쇄 콘텐츠 안쪽(행렬 등 수식)에는 스크롤바를 표시하지 않음 */
+.preview .content,.preview .content *,.pq .content,.pq .content *{scrollbar-width:none}
+.preview .content ::-webkit-scrollbar,.pq .content ::-webkit-scrollbar{display:none;width:0;height:0}
+
+/* ── 라이브러리 검색 ── */
+.lib-search{
+  position:relative;display:flex;align-items:center;margin-bottom:20px;max-width:360px;
+}
+.lib-search input{
+  width:100%;height:40px;background:var(--surface-1);border:1px solid var(--border);
+  color:var(--text-primary);border-radius:var(--radius-md);
+  padding:0 14px 0 38px;font-size:14px;font-family:var(--ui-sans);outline:none;transition:.15s;
+}
+.lib-search input:focus{border-color:var(--blue);background:var(--surface-2)}
+.lib-search input::placeholder{color:var(--text-tertiary)}
+.lib-search::before{
+  content:"";position:absolute;left:13px;width:16px;height:16px;pointer-events:none;
+  background:no-repeat center/16px 16px url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="%2355555F" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>');
+}
+
+/* ── 빈 상태 ── */
+.empty-state{
+  grid-column:1/-1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:10px;padding:64px 24px;text-align:center;color:var(--text-tertiary);
+}
+.empty-state .es-title{font-size:16px;font-weight:600;color:var(--text-secondary)}
+.empty-state .es-sub{font-size:13px;color:var(--text-tertiary)}
+
+/* 복제 아이콘 */
+.icon-copy{background:no-repeat center/15px 15px url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="%238B8B9A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>')}
+
+/* ── 모션 감소 설정 존중 ── */
+@media (prefers-reduced-motion: reduce){
+  *{animation-duration:.001ms!important;transition-duration:.001ms!important}
 }
 
 </style>
@@ -478,8 +546,10 @@ body.hide-answers .answer-block{display:none!important}
       <input id="importAllInput" type="file" accept="application/json" style="display:none">
     </div>
   </div>
+  <div class="lib-search"><input id="setSearch" type="text" placeholder="문제집 검색"></div>
   <div id="setGrid" class="lib-grid"></div>
 </div>
+
 
 
 
@@ -610,6 +680,19 @@ const HANGULS=["가","나","다","라","마","바","사","아","자","차","카"
 const HSMALL=["ㄱ","ㄴ","ㄷ","ㄹ","ㅁ","ㅂ","ㅅ","ㅇ","ㅈ","ㅊ","ㅋ","ㅌ","ㅍ","ㅎ"];
 const condLabel=i=>`(${HANGULS[i%HANGULS.length]})`;
 const circled=n=>"①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳".split("")[n-1]||n+'.';
+
+/* 비침습 토스트 알림 (alert 대체용). type: ''|'success'|'error' */
+function toast(msg, type=""){
+  let host=document.getElementById("toastHost");
+  if(!host){ host=document.createElement("div"); host.id="toastHost"; document.body.append(host); }
+  const t=document.createElement("div");
+  t.className="toast"+(type?" toast--"+type:"");
+  t.textContent=msg;
+  host.append(t);
+  requestAnimationFrame(()=>t.classList.add("show"));
+  const life=type==="error"?3600:2400;
+  setTimeout(()=>{ t.classList.remove("show"); setTimeout(()=>t.remove(),320); }, life);
+}
 
 /* ===== Firebase 초기화 ===== */
 const firebaseConfig = {
@@ -761,6 +844,35 @@ let saveTimer=null;   // 디바운스용
 
 function newProblem(){ return { id:uid(), title:"", desc:"", answer:"", answerImg:"", numLabel:"", paired:false, blocks:[{type:"statement",data:{text:""}}] }; }
 
+/* 문제집별 '마지막으로 보던 문항' 기억 (새로고침 후에도 유지) */
+let lastQIdBySet={};
+try{ lastQIdBySet=JSON.parse(localStorage.getItem('PM_LAST_Q')||'{}')||{}; }catch{ lastQIdBySet={}; }
+function rememberQ(){
+  if(currentSetId && currentQId){
+    lastQIdBySet[currentSetId]=currentQId;
+    try{ localStorage.setItem('PM_LAST_Q', JSON.stringify(lastQIdBySet)); }catch{}
+  }
+}
+
+/* 안전망: 접속 시점의 직전 데이터를 백업으로 1개 보관.
+   실수로 데이터가 꼬여도 콘솔에서 restorePedagogyBackup() 으로 되돌릴 수 있음. */
+function snapshotLocalBackup(){
+  try{
+    const cur=localStorage.getItem(SETS_KEY);
+    if(cur) localStorage.setItem('PM_BACKUP', JSON.stringify({sets:JSON.parse(cur), t:Date.now()}));
+  }catch{}
+}
+window.restorePedagogyBackup=function(){
+  try{
+    const b=JSON.parse(localStorage.getItem('PM_BACKUP')||'null');
+    if(!b||!Array.isArray(b.sets)){ console.log('복구할 백업이 없습니다.'); return false; }
+    sets=b.sets; saveSets();
+    if(typeof showLibrary==="function") showLibrary();
+    console.log('백업 복구 완료 (저장 시각:', new Date(b.t).toLocaleString(), ')');
+    return true;
+  }catch(e){ console.log('복구 실패:', e); return false; }
+};
+
 function readLocalSets(){
   try{ const raw=localStorage.getItem(SETS_KEY); return raw?JSON.parse(raw):[]; }catch{ return []; }
 }
@@ -798,21 +910,18 @@ async function loadSets(){
       const cloud=(doc.exists && Array.isArray(doc.data().sets))?doc.data().sets:[];
       const localWorth=localSetsWorthMerging(readLocalSets());
 
-      if(cloud.length && localWorth.length){
-        // 양쪽 다 있음 → 병합 여부 확인
-        const merge=confirm(
-          "이 컴퓨터에 로그인 전 작업한 문제집이 있습니다.\n"+
-          "클라우드 문제집과 합칠까요?\n\n"+
-          "[확인] 합치기 (로컬 작업도 계정에 추가)\n"+
-          "[취소] 클라우드 문제집만 사용"
-        );
-        sets = merge ? mergeSets(cloud, localWorth) : cloud;
-        if(merge) saveSets(); // 병합 결과를 클라우드에 반영
+      if(cloud.length){
+        // 클라우드를 기준으로 사용. 클라우드에 없는 id의 로컬 문제집만 자동으로 더함
+        // (묻지 않음 / 데이터를 절대 버리지 않음)
+        const merged=mergeSets(cloud, localWorth);
+        sets=merged;
+        // 로컬을 클라우드 기준으로 동기화 → 삭제한 문제집이 다음 접속에 되살아나는 일 방지
+        try{ localStorage.setItem(SETS_KEY, JSON.stringify(sets)); }catch(_){}
+        if(merged.length>cloud.length){ saveSets(); }  // 병합으로 늘어난 경우만 클라우드에 반영
         return;
       }
-      if(cloud.length){ sets=cloud; return; }
-      if(localWorth.length){ sets=localWorth; saveSets(); return; } // 클라우드 비었으면 로컬을 올림
-      // 둘 다 없으면 기본 문제집
+      if(localWorth.length){ sets=localWorth; saveSets(); return; }  // 클라우드 비었으면 로컬을 업로드
+      // 둘 다 비어있으면 아래 기본 문제집
     }catch(e){ console.warn('Firestore 로드 실패, 로컬 사용:', e); }
   }
   loadSetsLocal();
@@ -966,9 +1075,22 @@ function computeNums(arr){
 }
 
 /* ===== Library ===== */
+let setSearchTerm="";
 function renderLibrary(){
   const grid=$("#setGrid"); grid.innerHTML="";
-  sets.forEach((s,idx)=>{
+  const term=setSearchTerm.trim().toLowerCase();
+  const visible = term ? sets.filter(s=>(s.name||"").toLowerCase().includes(term)) : sets;
+
+  if(!visible.length){
+    const es=el("div","empty-state");
+    es.append(el("div","es-title", term?"검색 결과가 없어요":"아직 문제집이 없어요"));
+    es.append(el("div","es-sub", term?`'${setSearchTerm}'와(과) 일치하는 문제집이 없어요`:"오른쪽 위 ‘+ 새 문제집’으로 시작해보세요"));
+    grid.append(es);
+    return;
+  }
+
+  visible.forEach((s)=>{
+    const idx=sets.indexOf(s);   // 검색 필터와 무관하게 원본 위치 사용
     const card=el("div","set-card");
     const title=el("h3",null,s.name||"제목 없음");
     const count=el("p","count",`${(s.problems?.length||0)} 문항`);
@@ -987,6 +1109,7 @@ function renderLibrary(){
 
     bRename.onclick=(e)=>{
       e.stopPropagation();
+      menu.style.display="none";                 // 메뉴 닫기 (옆 버튼들 사라지게)
       title.contentEditable="true"; title.style.borderBottom="1px dashed #3a3f52";
       const sel=window.getSelection(); const range=document.createRange();
       range.selectNodeContents(title); sel.removeAllRanges(); sel.addRange(range); title.focus();
@@ -997,21 +1120,23 @@ function renderLibrary(){
       title.onblur=finish; title.onkeydown=ev=>{ if(ev.key==="Enter"){ ev.preventDefault(); title.blur(); } };
     };
 
-    card.onclick=()=>showEditor(s.id);
-    bDup.onclick=(e)=>{e.stopPropagation(); const cp=JSON.parse(JSON.stringify(s)); cp.id=uid(); cp.name=(s.name||"문제집")+" 복제"; sets.splice(idx+1,0,cp); saveSets(); renderLibrary();};
+    card.onclick=()=>{ if(title.isContentEditable) return; showEditor(s.id); };  // 이름 편집 중엔 진입 안 함
+    bDup.onclick=(e)=>{e.stopPropagation(); const cp=JSON.parse(JSON.stringify(s)); cp.id=uid(); cp.name=(s.name||"문제집")+" 복제"; sets.splice(idx+1,0,cp); saveSets(); renderLibrary(); toast("문제집을 복제했어요","success");};
     bExp.onclick=(e)=>{e.stopPropagation(); const blob=new Blob([JSON.stringify(s,null,2)],{type:"application/json"}); const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=(s.name||"set")+".json"; a.click(); };
-    bDel.onclick=(e)=>{e.stopPropagation(); if(!confirm("삭제할까요?")) return; sets.splice(idx,1); if(!sets.length) sets=[{id:uid(),name:"새 문제집",header:"",problems:[newProblem()]}]; saveSets(); renderLibrary(); };
+    bDel.onclick=(e)=>{e.stopPropagation(); if(!confirm(`'${s.name||"제목 없음"}' 문제집을 삭제할까요?`)) return; sets.splice(idx,1); if(!sets.length) sets=[{id:uid(),name:"새 문제집",header:"",problems:[newProblem()]}]; saveSets(); renderLibrary(); toast("문제집을 삭제했어요"); };
 
     grid.append(card);
   });
 }
 function showLibrary(){ $("#libraryView").style.display="block"; $("#editorView").style.display="none"; $("#topActions").style.visibility="hidden"; renderLibrary(); }
-$("#newSetBtn").onclick=()=>{ sets.push({id:uid(), name:"새 문제집", header:"", problems:[newProblem()]}); saveSets(); renderLibrary(); };
+const _setSearchEl=$("#setSearch");
+if(_setSearchEl){ _setSearchEl.oninput=(e)=>{ setSearchTerm=e.target.value||""; renderLibrary(); }; }
+$("#newSetBtn").onclick=()=>{ const ns={id:uid(), name:"새 문제집", header:"", problems:[newProblem()]}; sets.push(ns); setSearchTerm=""; const se=$("#setSearch"); if(se) se.value=""; saveSets(); showEditor(ns.id); };
 $("#exportAllBtn").onclick=()=>{ const blob=new Blob([JSON.stringify(sets,null,2)],{type:"application/json"}); const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="pedagogy_sets.json"; a.click(); };
 $("#importAllInput").onchange=e=>{ const f=e.target.files?.[0]; if(!f) return; const r=new FileReader(); r.onload=()=>{ try{
   const data=JSON.parse(r.result);
   const incoming=Array.isArray(data)?data:[data];
-  if(!incoming.length){ alert("불러올 문제집이 없습니다."); return; }
+  if(!incoming.length){ toast("불러올 문제집이 없어요","error"); return; }
   // 각 문제집을 새 id로 라이브러리에 추가 (기존 유지)
   let added=0;
   incoming.forEach(s=>{
@@ -1025,15 +1150,17 @@ $("#importAllInput").onchange=e=>{ const f=e.target.files?.[0]; if(!f) return; c
     cp.name=name;
     sets.push(cp); added++;
   });
-  if(added){ saveSets(); renderLibrary(); alert(`${added}개의 문제집을 추가했습니다.`); }
-  else alert("올바른 문제집 형식이 아닙니다.");
-}catch{ alert("JSON 오류"); } }; r.readAsText(f); e.target.value=""; };
+  if(added){ saveSets(); renderLibrary(); toast(`문제집 ${added}개를 추가했어요`,"success"); }
+  else toast("문제집 형식이 올바르지 않아요","error");
+}catch{ toast("JSON을 읽을 수 없어요","error"); } }; r.readAsText(f); e.target.value=""; };
 
 /* ===== Editor ===== */
 function showEditor(setId){
   currentSetId=setId;
   const s=activeSet(); if(!s.problems?.length) s.problems=[newProblem()];
-  currentQId=s.problems[0].id;
+  // 이 문제집에서 마지막으로 보던 문항 복원 (없거나 삭제됐으면 첫 문항)
+  const remembered=lastQIdBySet[setId];
+  currentQId=(remembered && s.problems.some(p=>p.id===remembered)) ? remembered : s.problems[0].id;
 
   $("#libraryView").style.display="none";
   $("#editorView").style.display="flex";
@@ -1102,6 +1229,15 @@ function renderQList(){
           makeIndependent(arr, fi); saveSets(); renderQList(); syncPairedChk();};
         item.append(ub);
       }
+      const dup=el("button","iconbtn",""); dup.title="이 문항 복제"; dup.append(el("span","icon icon-copy",""));
+      dup.onclick=(e)=>{e.stopPropagation(); const fi=arr.findIndex(x=>x.id===q.id); if(fi<0) return;
+        const cp=JSON.parse(JSON.stringify(q)); cp.id=uid(); cp.paired=false;
+        // 복제본을 원본 바로 뒤에 삽입. 원본이 묶여있었다면 경계가 깨지지 않게 독립 처리
+        if(arr[fi].paired) arr[fi].paired=false;
+        arr.splice(fi+1,0,cp); currentQId=cp.id;
+        saveSets(); renderQList(); renderEditor(); renderPreview(); syncPairedChk();
+        toast("문항을 복제했어요","success");};
+      item.append(dup);
       const del=el("button","iconbtn",""); del.title="삭제"; del.append(el("span","icon icon-trash",""));
       del.onclick=(e)=>{e.stopPropagation(); const fi=arr.findIndex(x=>x.id===q.id); if(fi<0) return;
         if(!confirm("문항을 삭제할까요?")) return;
@@ -1156,7 +1292,8 @@ function autoSizeTA(ta){ ta.style.height='auto'; ta.style.height=(ta.scrollHeigh
 
 function renderEditor(){
   const q=activeQ(); if(!q) return;
-  $("#qTitle").value=q.title; $("#qDesc").value=q.desc;
+  rememberQ();
+  $("#qTitle").value=q.title||""; $("#qDesc").value=q.desc||"";
   $("#qAnswer").value=q.answer||""; $("#qNumLabel").value=q.numLabel||"";
   $("#qTitle").oninput=e=>{ q.title=e.target.value; renderQList(); renderPreview(); saveSets(); };
   $("#qDesc").oninput=e=>{ q.desc=e.target.value; renderPreview(); saveSets(); };
@@ -1351,7 +1488,7 @@ async function aiGenerateFromImage(file){
     alert("AI 서버 주소가 아직 설정되지 않았습니다.\nindex.html의 AI_PROXY_URL을 배포한 Worker 주소로 바꿔주세요.");
     return;
   }
-  const set=activeSet(); if(!set){ alert("문제집을 먼저 선택하세요"); return; }
+  const set=activeSet(); if(!set){ toast("먼저 문제집을 열어주세요","error"); return; }
   const dz=$("#aiDropZone"); if(dz) dz.classList.add("busy");
   try{
     aiStatus("🔄 이미지 읽는 중…");
@@ -1383,7 +1520,7 @@ async function aiGenerateFromImage(file){
   }catch(err){
     console.error(err);
     aiStatus("", false);
-    alert("AI 변환 실패: "+err.message);
+    toast("AI 변환에 실패했어요: "+err.message,"error");
   }finally{
     if(dz) dz.classList.remove("busy");
   }
@@ -1599,7 +1736,7 @@ $("#saveBtn").onclick=async ()=>{
     try{ localStorage.setItem(SETS_KEY, JSON.stringify(sets)); }catch(e){ console.error(e); }
     setSaveStatus("✓ 로컬 저장됨", "#81c784");
     setTimeout(()=>setSaveStatus(""), 2000);
-    alert("로컬에 저장했습니다.\n(구글 로그인하면 계정에 저장되어 다른 기기에서도 볼 수 있어요)");
+    toast("이 기기에 저장했어요 · 로그인하면 계정에 동기화돼요","success");
     return;
   }
   clearTimeout(saveTimer);
@@ -1625,6 +1762,7 @@ $("#saveBtn").onclick=async ()=>{
     try{ localStorage.setItem(SETS_KEY, JSON.stringify(sets)); }catch(_){}
     setSaveStatus("✓ 저장됨", "#81c784");
     setTimeout(()=>setSaveStatus(""), 2000);
+    toast("저장했어요","success");
   }catch(e){
     console.error("Firestore 저장 실패:", e);
     const es=String(e?.message||e);
@@ -1643,6 +1781,8 @@ $("#redoBtn").onclick=()=>doRedo();
 document.addEventListener("keydown",(e)=>{
   const mod=e.metaKey||e.ctrlKey; if(!mod) return;
   const k=e.key.toLowerCase();
+  // Cmd/Ctrl+S → 저장 (브라우저 기본 저장 막음)
+  if(k==="s"){ e.preventDefault(); $("#saveBtn").click(); return; }
   // 입력창에서 타이핑 중 텍스트 자체 되돌리기는 브라우저 기본에 맡김(단, 필드 밖이면 전역 undo)
   const tag=(e.target.tagName||"").toLowerCase();
   const inField = tag==="input"||tag==="textarea"||e.target.isContentEditable;
@@ -1655,9 +1795,9 @@ $("#loadInput").onchange=e=>{ const f=e.target.files?.[0]; if(!f) return; const 
   // 불러온 모든 문제집의 문제를 한 줄로 모음
   const newProbs=[];
   incoming.forEach(s=>{ if(s&&Array.isArray(s.problems)) s.problems.forEach(p=>newProbs.push(p)); });
-  if(!newProbs.length){ alert("불러올 문제가 없습니다."); return; }
+  if(!newProbs.length){ toast("불러올 문항이 없어요","error"); return; }
   const s=activeSet();
-  if(!s){ alert("문제집을 먼저 선택하세요."); return; }
+  if(!s){ toast("먼저 문제집을 열어주세요","error"); return; }
   // id 재발급 + 안전하게 깊은 복사 (id 충돌 방지)
   const cloned=newProbs.map(p=>{ const cp=JSON.parse(JSON.stringify(p)); cp.id=uid(); return cp; });
   // 삽입된 묶음이 기존과 잘못 이어지지 않도록, 첫 문제 직전 경계 정리: 마지막 삽입 문제는 독립
@@ -1672,8 +1812,8 @@ $("#loadInput").onchange=e=>{ const f=e.target.files?.[0]; if(!f) return; const 
   arr.splice(at, 0, ...cloned);
   currentQId=cloned[0].id;
   saveSets(); renderQList(); renderEditor(); renderPreview(); syncPairedChk();
-  alert(`${cloned.length}개의 문항을 현재 위치 뒤에 추가했습니다.`);
-}catch{ alert("JSON 오류"); } }; r.readAsText(f); e.target.value=""; };
+  toast(`문항 ${cloned.length}개를 추가했어요`,"success");
+}catch{ toast("JSON을 읽을 수 없어요","error"); } }; r.readAsText(f); e.target.value=""; };
 
 /* Export modal (인쇄) */
 const modal=$("#exportModal");
@@ -1786,7 +1926,7 @@ $("#exportNoAns").onclick=()=>doPrint(true);
 
 /* JSON 내보내기 — 다른 계정/기기에서 불러오기 가능한 형식 */
 $("#exportJsonBtn").onclick=()=>{
-  const s=activeSet(); if(!s){ alert("문제집을 먼저 선택하세요."); return; }
+  const s=activeSet(); if(!s){ toast("먼저 문제집을 열어주세요","error"); return; }
   const blob=new Blob([JSON.stringify([s],null,2)],{type:"application/json"});
   const a=document.createElement("a");
   a.href=URL.createObjectURL(blob);
@@ -1807,13 +1947,13 @@ $("#copyPrompt").onclick=()=>{
   navigator.clipboard.writeText(PROMPT_TEXT).then(()=>{
     const btn=$("#copyPrompt"); const orig=btn.textContent;
     btn.textContent="✅ 복사됨!"; setTimeout(()=>btn.textContent=orig, 1800);
-  }).catch(()=>{ alert("복사 실패: 브라우저 권한을 확인하세요"); });
+  }).catch(()=>{ toast("복사에 실패했어요 · 브라우저 권한을 확인해주세요","error"); });
 };
 /* ===== Auth UI ===== */
 function cssVarSet(n,v){ document.documentElement.style.setProperty(n,v); }
 $("#loginBtn").onclick=()=>{
   const provider=new firebase.auth.GoogleAuthProvider();
-  fbAuth.signInWithPopup(provider).catch(e=>alert('로그인 실패: '+e.message));
+  fbAuth.signInWithPopup(provider).catch(e=>toast("로그인에 실패했어요: "+e.message,"error"));
 };
 $("#logoutBtn").onclick=()=>{
   if(confirm('로그아웃 하시겠습니까?')) fbAuth.signOut();
@@ -1840,14 +1980,17 @@ fbAuth.onAuthStateChanged(async (user)=>{
   if(!authInitialized){
     // 최초 로드: 비로그인이면 로컬, 로그인이면 Firestore 로드
     authInitialized=true;
+    snapshotLocalBackup();                 // 직전 세션 데이터를 백업으로 보관
     await loadSets();
     lastSnapshot=snapshot(); undoStack=[]; redoStack=[]; updateHistButtons();
+    currentSetId=null; currentQId=null;    // 접속은 항상 라이브러리부터
     showLibrary();
   }else if(userChanged){
     // 이후 로그인/로그아웃/계정전환이 실제로 일어났을 때만 재로드
     // (토큰 갱신처럼 uid 그대로면 화면 안 건드림 → 작업 중 덮어쓰기 방지)
     await loadSets();
     lastSnapshot=snapshot(); undoStack=[]; redoStack=[]; updateHistButtons();
+    currentSetId=null; currentQId=null;
     showLibrary();
   }
 });
