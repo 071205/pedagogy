@@ -625,16 +625,16 @@ const fbAuth = firebase.auth();
 const fbDb = firebase.firestore();
 const fbStorage = firebase.storage();
 
-/* ===== 이미지 저장 헬퍼 =====
-   Spark(무료) 플랜에서는 Firebase Storage를 쓸 수 없어 업로드가 402/403으로 실패한다.
-   그래서 이미지를 클라이언트에서 리사이즈 + JPEG 압축한 base64로 저장한다.
-   인쇄 단 폭(~90mm)에는 가로 1400px이면 충분하고, 용량은 수십~수백 KB로 줄어
-   Firestore 1MB 문서 한도 안에 여러 장이 들어간다. */
-function isStorageUrl(s){ return typeof s==="string" && s.startsWith("http"); }
+/* ===== 이미지 저장 헬퍼 (Firebase Storage) =====
+   - 로그인 상태: 이미지를 Storage(users/{uid}/images/)에 올리고 다운로드 URL 반환
+     → Firestore에는 짧은 URL만 저장되므로 1MB 한도를 완전히 피함
+   - 비로그인: 가볍게 압축한 base64로 로컬 저장
+   - 기존에 base64로 박혀있던 이미지는 첫 저장 시 자동으로 Storage로 이전(migrate) */
+function isStorageUrl(s){ return typeof s==="string" && (s.startsWith("https://firebasestorage.googleapis.com")||s.startsWith("https://storage.googleapis.com")); }
 function isDataUrl(s){ return typeof s==="string" && s.startsWith("data:"); }
 
-// dataURL 이미지를 canvas로 리사이즈 + 압축 → JPEG dataURL 반환
-function compressDataUrl(dataUrl, maxDim=1400, quality=0.82){
+// dataURL → canvas 리사이즈 + JPEG 압축 → dataURL (비로그인 fallback용)
+function compressDataUrl(dataUrl, maxDim=1400, quality=0.85){
   return new Promise((resolve)=>{
     if(!isDataUrl(dataUrl)) return resolve(dataUrl);
     const img=new Image();
@@ -644,13 +644,11 @@ function compressDataUrl(dataUrl, maxDim=1400, quality=0.82){
         if(!w||!h) return resolve(dataUrl);
         const scale=Math.min(1, maxDim/Math.max(w,h));
         w=Math.max(1,Math.round(w*scale)); h=Math.max(1,Math.round(h*scale));
-        const cv=document.createElement("canvas");
-        cv.width=w; cv.height=h;
+        const cv=document.createElement("canvas"); cv.width=w; cv.height=h;
         const ctx=cv.getContext("2d");
-        ctx.fillStyle="#fff"; ctx.fillRect(0,0,w,h);   // 투명 PNG → 흰 배경
+        ctx.fillStyle="#fff"; ctx.fillRect(0,0,w,h);
         ctx.drawImage(img,0,0,w,h);
         const out=cv.toDataURL("image/jpeg", quality);
-        // 압축 결과가 원본보다 작을 때만 사용 (이미 작은 이미지의 불필요한 열화 방지)
         resolve(out.length < dataUrl.length ? out : dataUrl);
       }catch(e){ resolve(dataUrl); }
     };
@@ -659,38 +657,91 @@ function compressDataUrl(dataUrl, maxDim=1400, quality=0.82){
   });
 }
 
-// File → 압축 JPEG dataURL
-async function compressImageFile(file, maxDim=1400, quality=0.82){
-  const d=await fileToDataURL(file);
-  return await compressDataUrl(d, maxDim, quality);
+// dataURL → Blob (Storage 업로드용)
+function dataUrlToBlob(dataUrl){
+  const [header, b64]=dataUrl.split(",");
+  const mime=header.match(/:(.*?);/)[1];
+  const bin=atob(b64); const arr=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i);
+  return new Blob([arr],{type:mime});
 }
 
-// File 객체를 받아 저장용 문자열(압축 base64) 반환
+// dataURL → canvas 리사이즈 → JPEG Blob (Storage 업로드 전 가벼운 압축)
+function dataUrlToJpegBlob(dataUrl, maxDim=1800, quality=0.88){
+  return new Promise((resolve)=>{
+    if(!isDataUrl(dataUrl)){ resolve(null); return; }
+    const img=new Image();
+    img.onload=()=>{
+      try{
+        let w=img.naturalWidth||img.width, h=img.naturalHeight||img.height;
+        if(!w||!h){ resolve(null); return; }
+        const scale=Math.min(1, maxDim/Math.max(w,h));
+        w=Math.max(1,Math.round(w*scale)); h=Math.max(1,Math.round(h*scale));
+        const cv=document.createElement("canvas"); cv.width=w; cv.height=h;
+        const ctx=cv.getContext("2d");
+        ctx.fillStyle="#fff"; ctx.fillRect(0,0,w,h);
+        ctx.drawImage(img,0,0,w,h);
+        cv.toBlob(blob=>resolve(blob),"image/jpeg",quality);
+      }catch(e){ resolve(null); }
+    };
+    img.onerror=()=>resolve(null);
+    img.src=dataUrl;
+  });
+}
+
+// Blob → Storage 업로드 → 다운로드 URL 반환
+async function uploadBlobToStorage(blob, filename){
+  const id=uid()+"_"+filename.replace(/[^\w.\-]/g,"_");
+  const ref=fbStorage.ref().child(`users/${currentUser.uid}/images/${id}`);
+  const snap=await ref.put(blob,{contentType:blob.type||"image/jpeg"});
+  return await snap.ref.getDownloadURL();
+}
+
+// File 객체 → (로그인)Storage URL / (비로그인)압축 base64
 async function storeImageFile(file){
   if(!file) return "";
-  try{ return await compressImageFile(file); }
-  catch(e){ console.warn("이미지 압축 실패, 원본 사용:", e); return await fileToDataURL(file); }
+  if(currentUser){
+    try{
+      const dataUrl=await fileToDataURL(file);
+      const blob=await dataUrlToJpegBlob(dataUrl) || new Blob([await file.arrayBuffer()],{type:file.type});
+      return await uploadBlobToStorage(blob, file.name||"image.jpg");
+    }catch(e){
+      console.warn("Storage 업로드 실패, 로컬 압축으로 대체:", e);
+      return await compressDataUrl(await fileToDataURL(file));
+    }
+  }
+  // 비로그인: 가볍게 압축해서 base64
+  try{ return await compressDataUrl(await fileToDataURL(file)); }
+  catch(e){ return await fileToDataURL(file); }
 }
 
-// 모든 문제집에 박힌 큰 base64 이미지를 일괄 재압축 (용량 정리용). 압축한 장수 반환
-async function compactAllImages(maxDim=1400, quality=0.82, threshold=200000){
-  let changed=0;
-  const tooBig=s=>isDataUrl(s) && s.length>threshold;   // 기본: 약 150KB 이상만 손봄
+// 기존 base64 이미지를 Storage로 일괄 이전 (로그인 필수). 이전한 개수 반환
+async function migrateBase64ToStorage(){
+  if(!currentUser) return 0;
+  let migrated=0;
   for(const set of sets){
     for(const q of (set.problems||[])){
-      if(tooBig(q.answerImg)){
-        const c=await compressDataUrl(q.answerImg, maxDim, quality);
-        if(c!==q.answerImg){ q.answerImg=c; changed++; }
+      // 정답 이미지
+      if(isDataUrl(q.answerImg)){
+        try{
+          const blob=await dataUrlToJpegBlob(q.answerImg)||dataUrlToBlob(q.answerImg);
+          q.answerImg=await uploadBlobToStorage(blob,"answer.jpg");
+          migrated++;
+        }catch(e){ console.warn("정답 이미지 이전 실패:", e); }
       }
+      // 블록 이미지
       for(const b of (q.blocks||[])){
-        if(b && b.data && tooBig(b.data.dataUrl)){
-          const c=await compressDataUrl(b.data.dataUrl, maxDim, quality);
-          if(c!==b.data.dataUrl){ b.data.dataUrl=c; changed++; }
+        if(b&&b.data&&isDataUrl(b.data.dataUrl)){
+          try{
+            const blob=await dataUrlToJpegBlob(b.data.dataUrl)||dataUrlToBlob(b.data.dataUrl);
+            b.data.dataUrl=await uploadBlobToStorage(blob,"block.jpg");
+            migrated++;
+          }catch(e){ console.warn("블록 이미지 이전 실패:", e); }
         }
       }
     }
   }
-  return changed;
+  return migrated;
 }
 
 function fileToDataURL(file){
@@ -885,16 +936,6 @@ function saveSets(){
     clearTimeout(saveTimer);
     saveTimer=setTimeout(async ()=>{
       try{
-        // 저장 전 문서 크기 점검 (Firestore 문서 한도 1MiB) — 크면 이미지 자동 압축
-        let bytes=new Blob([JSON.stringify(sets)]).size;
-        if(bytes > 950000){
-          setSaveStatus("이미지 압축 중…", "var(--text-tertiary)");
-          await compactAllImages(1400,0.82,200000);
-          bytes=new Blob([JSON.stringify(sets)]).size;
-          if(bytes > 950000){ await compactAllImages(1000,0.70,0); bytes=new Blob([JSON.stringify(sets)]).size; }
-          try{ localStorage.setItem(SETS_KEY, JSON.stringify(sets)); }catch(_){}
-          if($("#editorView").style.display!=="none" && typeof renderPreview==="function") renderPreview();
-        }
         await fbDb.collection('users').doc(currentUser.uid).set({ sets, updatedAt: new Date() });
         setSaveStatus("✓ 저장됨", "#81c784");
         setTimeout(()=>setSaveStatus(""), 2000);
@@ -1554,48 +1595,44 @@ function buildPrintDoc(hideAnswers){
 /* Actions */
 $("#brandBtn").onclick=()=>showLibrary();
 $("#saveBtn").onclick=async ()=>{
-  // 0) 용량이 크면 저장 전에 이미지 자동 압축
-  let bytes=new Blob([JSON.stringify(sets)]).size;
-  let compressed=0;
-  if(bytes>950000){
-    setSaveStatus("이미지 압축 중…");
-    compressed+=await compactAllImages(1400,0.82,200000);   // 1차: 가로 1400px / 품질 0.82
-    bytes=new Blob([JSON.stringify(sets)]).size;
-  }
-  if(bytes>950000){
-    compressed+=await compactAllImages(1000,0.70,0);        // 2차: 더 강하게 (가로 1000px / 품질 0.70)
-    bytes=new Blob([JSON.stringify(sets)]).size;
-  }
-  if(compressed>0) renderPreview();
-
-  // 로컬은 즉시 저장
-  try{ localStorage.setItem(SETS_KEY, JSON.stringify(sets)); }catch(e){ console.error(e); }
   if(!currentUser){
+    try{ localStorage.setItem(SETS_KEY, JSON.stringify(sets)); }catch(e){ console.error(e); }
     setSaveStatus("✓ 로컬 저장됨", "#81c784");
     setTimeout(()=>setSaveStatus(""), 2000);
-    alert((compressed?`이미지 ${compressed}장을 자동 압축했어요.\n`:"")+"로컬에 저장했습니다.\n(구글 로그인하면 계정에 저장되어 다른 기기에서도 볼 수 있어요)");
+    alert("로컬에 저장했습니다.\n(구글 로그인하면 계정에 저장되어 다른 기기에서도 볼 수 있어요)");
     return;
   }
-  // 로그인 시: 디바운스 무시하고 즉시 Firestore 저장 + 결과 확인
   clearTimeout(saveTimer);
+
+  // 기존 base64 이미지가 남아있으면 Storage로 먼저 이전
+  const hasBase64=sets.some(s=>(s.problems||[]).some(q=>
+    isDataUrl(q.answerImg)||(q.blocks||[]).some(b=>b&&b.data&&isDataUrl(b.data.dataUrl))
+  ));
+  if(hasBase64){
+    setSaveStatus("이미지 이전 중…");
+    try{
+      const n=await migrateBase64ToStorage();
+      if(n>0){
+        try{ localStorage.setItem(SETS_KEY, JSON.stringify(sets)); }catch(_){}
+        if($("#editorView").style.display!=="none") renderPreview();
+      }
+    }catch(e){ console.warn("마이그레이션 중 일부 실패:", e); }
+  }
+
   setSaveStatus("저장 중…");
   try{
     await fbDb.collection('users').doc(currentUser.uid).set({ sets, updatedAt: new Date() });
+    try{ localStorage.setItem(SETS_KEY, JSON.stringify(sets)); }catch(_){}
     setSaveStatus("✓ 저장됨", "#81c784");
     setTimeout(()=>setSaveStatus(""), 2000);
-    if(compressed>0){
-      alert(`이미지 ${compressed}장을 자동 압축해서 용량을 줄였어요. (현재 ${(bytes/1024/1024).toFixed(2)}MB)\n저장 완료!`);
-    }else if(bytes>900000){
-      alert(`저장됐지만 데이터가 아직 큽니다 (${(bytes/1024/1024).toFixed(2)}MB).\n이미지를 아주 많이 넣으면 한도(1MB)에 다시 가까워질 수 있어요.`);
-    }
   }catch(e){
     console.error("Firestore 저장 실패:", e);
     const es=String(e?.message||e);
     let detail="알 수 없는 오류";
     if(/permission|insufficient|PERMISSION/i.test(es)) detail="권한 오류 — Firestore 보안 규칙을 확인하세요.";
-    else if(/longer than|exceeds|too large|1048487|maximum/i.test(es)) detail=`문서 용량이 1MB를 초과했습니다 (현재 ${(bytes/1024/1024).toFixed(2)}MB).\n이미지를 일부 줄이거나 삭제해 주세요.`;
+    else if(/longer than|exceeds|too large|1048487|maximum/i.test(es)) detail="문서 용량이 1MB를 초과했습니다.\n이미지 마이그레이션이 완료되지 않았을 수 있어요. 다시 저장해보세요.";
     setSaveStatus("⚠ 저장 실패", "#e57373");
-    alert("계정 저장 실패:\n"+detail+"\n\n(자세한 내용은 개발자도구 콘솔 확인)");
+    alert("계정 저장 실패:\n"+detail);
   }
 };
 $("#loadBtn").onclick=()=>$("#loadInput").click();
