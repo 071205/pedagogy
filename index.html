@@ -362,6 +362,7 @@ select:focus{border-color:var(--blue)}
 .cond-label,.ex-label{flex-shrink:0;white-space:nowrap}
 .cond-text,.ex-text{flex:1}
 .preview img{max-width:100%;display:block;margin:8px auto}
+.preview .content .img-wrap{text-align:center}
 
 /* Choices */
 .choices{margin-top:8px}
@@ -409,6 +410,7 @@ select:focus{border-color:var(--blue)}
 .pq .cond-label,.pq .ex-label{flex-shrink:0;white-space:nowrap}
 .pq .cond-text,.pq .ex-text{flex:1}
 .pq img{max-width:100%;height:auto;display:block;margin-left:auto;margin-right:auto}
+.pq .content .img-wrap{text-align:center}
 .pq-header{display:flex;align-items:baseline;gap:3mm;margin-bottom:2mm}
 .pq .num{font-family:var(--num-serif);font-weight:900;font-size:19pt;flex-shrink:0;line-height:1}
 .pq-meta{display:flex;flex-direction:column;gap:0.3mm;justify-content:center}
@@ -1111,6 +1113,21 @@ function renderEditor(){
       ctrl.append(btnV,btnH); head.append(ctrl); sync();
     }
 
+    if(blk.type==="image"){
+      if(!blk.data.size) blk.data.size="full";
+      const ctrl=el("div",null,""); ctrl.style.cssText="display:flex;gap:4px;flex-wrap:wrap";
+      const opts=[["full","꽉 채움"],["large","크게"],["medium","중간"],["small","작게"]];
+      const btns={};
+      const sync=()=>{ Object.entries(btns).forEach(([k,b])=>b.classList.toggle("btn-primary",blk.data.size===k)); renderPreview(); saveSets(); };
+      opts.forEach(([k,label])=>{
+        const b=el("button","btn",label);
+        b.style.cssText="height:30px;padding:0 10px;font-size:12px";
+        b.onclick=()=>{ blk.data.size=k; sync(); };
+        btns[k]=b; ctrl.append(b);
+      });
+      head.append(ctrl); sync();
+    }
+
     const del=el("button","iconbtn",""); del.append(el("span","icon icon-trash","")); del.title="블록 삭제";
     del.onclick=()=>{ q.blocks.splice(idx,1); if(!q.blocks.length) q.blocks.push({type:"statement",data:{text:""}}); saveSets(); renderEditor(); renderPreview(); };
     head.append(del);
@@ -1177,7 +1194,7 @@ function renderEditor(){
 
   $("#addBlockBtn").onclick=()=>{
     const type=$("#blockType").value;
-    const def=(type==="statement"||type==="boxed")?{text:""}:(type==="conditions"||type==="examples")?{items:[""]}:(type==="choices")?{items:["","","","",""],layout:"horizontal"}:(type==="image")?{dataUrl:""}:{};
+    const def=(type==="statement"||type==="boxed")?{text:""}:(type==="conditions"||type==="examples")?{items:[""]}:(type==="choices")?{items:["","","","",""],layout:"horizontal"}:(type==="image")?{dataUrl:"",size:"full"}:{};
     const q=activeQ(); q.blocks.push({type, data:def}); saveSets(); renderEditor(); renderPreview();
   };
 
@@ -1360,7 +1377,11 @@ function blockHTML(blk){
       <div class="choice"><span class="label">${circled(i+1)}</span><span class="text">${processText(t)}</span></div>`).join("");
     return `<div class="choices ${layout}">${items}</div>`;
   }
-  if(blk.type==="image" && blk.data.dataUrl){ return `<div><img src="${blk.data.dataUrl}" alt=""></div>`; }
+  if(blk.type==="image" && blk.data.dataUrl){
+    const W={full:"100%",large:"72%",medium:"52%",small:"36%"};
+    const w=W[blk.data.size]||"100%";
+    return `<div class="img-wrap"><img src="${blk.data.dataUrl}" alt="" style="width:${w}"></div>`;
+  }
   return "";
 }
 function renderPreview(){
