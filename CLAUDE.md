@@ -19,7 +19,8 @@ compat SDK, Pretendard/KoPub webfonts).
   generated Typst source to PNG page previews with the real exam font/layout, so the
   in-browser approximate preview can be swapped for a pixel-accurate one.
 
-There is no `.git` repository initialized in this working directory yet.
+Git remote: `origin` → https://github.com/071205/pedagogy (branch `main`, GitHub Pages로
+`https://071205.github.io` 에 배포됨 — `serve.py`의 `ALLOW_ORIGINS`가 이 주소를 허용한다).
 
 ## Running it
 
@@ -72,6 +73,12 @@ pieces to know before editing:
   ​Never inline real API keys/secrets for third-party services other than the already-public
   Firebase web config; the `AI_PROXY_URL` Cloudflare Worker endpoint exists specifically so
   the actual AI provider key stays server-side.
+- **신뢰 경계 (중요)**: 가져온 `.json`은 신뢰하지 않는다. `normSet()`/`normProblem()`/
+  `normBlock()`이 화이트리스트로 정규화하고, 이미지 URL은 `safeUrl()`이 Firebase Storage /
+  `data:image` 로만 제한하며, `sanitize()`가 `& < > " '`를 모두 이스케이프한다.
+  **새 렌더 경로를 추가하거나 사용자 값을 HTML 속성에 넣을 때는 반드시 이 헬퍼들을 거칠 것** —
+  과거 이게 없어서 악성 문제집 파일 하나로 로그인된 Firestore 데이터를 읽어갈 수 있었다.
+  블록 타입·`layout`·이미지 `size` 같은 열거값은 렌더 시점에도 한 번 더 고정한다.
 - **AI-assisted problem entry**: `aiGenerateFromImage()` posts a photographed problem image
   to a Cloudflare Worker proxy (`AI_PROXY_URL`), which returns structured `blocks`;
   `aiBlocksToProblem()` converts the response into the normal problem shape and appends it
