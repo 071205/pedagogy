@@ -22,6 +22,7 @@ from __future__ import annotations
 import argparse, base64, hashlib, json, os, shutil, signal, subprocess, sys, tempfile, threading, webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from urllib.parse import unquote
 
 HERE = Path(__file__).resolve().parent
 WORK = HERE / "work"                 # 그림 등 typst 가 읽어도 되는 유일한 폴더
@@ -39,6 +40,9 @@ STATIC = {
     # 모의고사 모드에서 /render 를 그대로 부를 수 있다)
     "/index.html": ("index.html", "text/html; charset=utf-8"),
     "/mock": ("mock-exam-editor.html", "text/html; charset=utf-8"),
+    # index.html 이 @font-face 로 참조하는 브랜드 글꼴. 화이트리스트에 없으면 404 가 나
+    # 로고가 폴백 서체로 나온다. 파일이 없으면 아래 do_GET 이 알아서 404 를 돌려준다.
+    "/Adobe Caslon Pro Bold.ttf": ("Adobe Caslon Pro Bold.ttf", "font/ttf"),
 }
 
 # https 사이트(깃허브 페이지 등)에서 이 로컬 서버를 부를 수 있게 허용할 출처.
@@ -163,7 +167,9 @@ class Handler(BaseHTTPRequestHandler):
 
     # ── GET ──
     def do_GET(self):
-        path = self.path.split("?", 1)[0]
+        # 퍼센트 인코딩을 풀어야 공백이 든 파일명(글꼴)이 화이트리스트 키와 맞는다.
+        # 화이트리스트 '정확히 일치' 방식이라 디코딩해도 경로 조작은 여전히 불가능하다.
+        path = unquote(self.path.split("?", 1)[0])
         if path == "/health":
             return self._json(200, {"ok": TYPST is not None, "typst": TYPST,
                                     "fonts": [str(d) for d in FONT_DIRS if d.is_dir()]})

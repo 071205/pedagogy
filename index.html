@@ -740,7 +740,23 @@ input:focus-visible,textarea:focus-visible{outline:none}
 const $=s=>document.querySelector(s);
 const el=(t,c,h)=>{const e=document.createElement(t); if(c) e.className=c; if(h!=null) e.innerHTML=h; return e;};
 const uid=()=>'q'+Math.random().toString(36).slice(2,9);
-const sanitize=s=>(s||"").replaceAll("<","&lt;").replaceAll(">","&gt;");
+/* HTML 이스케이프. 따옴표까지 막아야 속성값(src="…", class="…") 안에서도 안전하다.
+   & 를 가장 먼저 치환해야 이중 이스케이프가 생기지 않는다.
+   KaTeX 는 textContent 를 읽으므로 &amp; → & 로 되돌아가 수식의 & (cases 정렬)도 그대로 동작한다. */
+const sanitize=s=>(s||"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")
+                         .replaceAll('"',"&quot;").replaceAll("'","&#39;");
+
+/* 이미지 URL 화이트리스트. 가져온 문제집(.json)에 심어진 javascript: 나
+   따옴표 탈출(" onerror=…)이 src 속성에 그대로 들어가는 것을 막는다.
+   허용: Firebase Storage 다운로드 URL, data:image/* (비로그인 로컬 저장분) */
+function safeUrl(u){
+  if(typeof u!=="string") return "";
+  const s=u.trim();
+  const ok = s.startsWith("https://firebasestorage.googleapis.com")
+          || s.startsWith("https://storage.googleapis.com")
+          || /^data:image\/(png|jpeg|jpg|gif|webp|svg\+xml);base64,/i.test(s);
+  return ok ? s.replaceAll('"',"&quot;") : "";
+}
 const HANGULS=["가","나","다","라","마","바","사","아","자","차","카","타","파","하"];
 const HSMALL=["ㄱ","ㄴ","ㄷ","ㄹ","ㅁ","ㅂ","ㅅ","ㅇ","ㅈ","ㅊ","ㅋ","ㅌ","ㅍ","ㅎ"];
 const condLabel=i=>`(${HANGULS[i%HANGULS.length]})`;
@@ -768,10 +784,20 @@ const firebaseConfig = {
   messagingSenderId: "297266134873",
   appId: "1:297266134873:web:e5b48c7a1d484bcde41648"
 };
-firebase.initializeApp(firebaseConfig);
-const fbAuth = firebase.auth();
-const fbDb = firebase.firestore();
-const fbStorage = firebase.storage();
+/* Firebase SDK(CDN)가 차단되거나 장애일 때 여기서 예외가 나면 이 스크립트 블록 전체가
+   중단되어 저장·불러오기·편집이 모두 죽는다. 초기화 실패는 삼키고, 클라우드 없이
+   localStorage 만으로 동작하는 모드로 내려간다(currentUser 가 계속 null 로 남는다). */
+let fbAuth=null, fbDb=null, fbStorage=null;
+let fbReady=false;
+try{
+  firebase.initializeApp(firebaseConfig);
+  fbAuth = firebase.auth();
+  fbDb = firebase.firestore();
+  fbStorage = firebase.storage();
+  fbReady = true;
+}catch(e){
+  console.error("Firebase 초기화 실패 — 로컬 전용 모드로 동작합니다", e);
+}
 
 /* ===== 이미지 저장 헬퍼 (Firebase Storage) =====
    - 로그인 상태: 이미지를 Storage(users/{uid}/images/)에 올리고 다운로드 URL 반환
@@ -908,6 +934,48 @@ let currentUser=null; // 로그인 유저
 let saveTimer=null;   // 디바운스용
 
 function newProblem(){ return { id:uid(), title:"", desc:"", answer:"", answerImg:"", numLabel:"", paired:false, blocks:[{type:"statement",data:{text:""}}] }; }
+
+/* ===== 가져오기 정규화 =====
+   남이 만든 .json 은 신뢰하지 않는다. 알고 있는 필드만 화이트리스트로 뽑아내고
+   타입·열거값·길이를 강제한다. (모의고사 편집기의 sanitize() 와 같은 취지)
+   이 단계에서 걸러야 렌더 단계에서 예상 못 한 값이 DOM 에 닿지 않는다. */
+const BLOCK_TYPES=["statement","conditions","examples","boxed","choices","image"];
+const IMG_SIZES=["full","large","medium","small"];
+const str=(v,max=20000)=>typeof v==="string"?v.slice(0,max):"";
+
+function normBlock(b){
+  if(!b||typeof b!=="object") return null;
+  const type=BLOCK_TYPES.includes(b.type)?b.type:null;
+  if(!type) return null;
+  const d=(b.data&&typeof b.data==="object")?b.data:{};
+  if(type==="statement"||type==="boxed") return {type,data:{text:str(d.text)}};
+  if(type==="conditions"||type==="examples")
+    return {type,data:{items:(Array.isArray(d.items)?d.items:[]).slice(0,20).map(t=>str(t))}};
+  if(type==="choices")
+    return {type,data:{items:(Array.isArray(d.items)?d.items:[]).slice(0,5).map(t=>str(t)),
+                       layout:d.layout==="vertical"?"vertical":"horizontal"}};
+  // image — safeUrl 을 통과하지 못하는 주소는 아예 버린다
+  return {type,data:{dataUrl:safeUrl(d.dataUrl),
+                     size:IMG_SIZES.includes(d.size)?d.size:"full"}};
+}
+
+function normProblem(p){
+  if(!p||typeof p!=="object") return null;
+  const blocks=(Array.isArray(p.blocks)?p.blocks:[]).slice(0,50).map(normBlock).filter(Boolean);
+  return {
+    id:uid(),                       // 항상 새 id — 기존 문항과의 충돌 방지
+    title:str(p.title,300), desc:str(p.desc,300),
+    answer:str(p.answer,5000), answerImg:safeUrl(p.answerImg),
+    numLabel:str(p.numLabel,40), paired:p.paired===true,
+    blocks:blocks.length?blocks:[{type:"statement",data:{text:""}}]
+  };
+}
+
+function normSet(s){
+  if(!s||typeof s!=="object"||!Array.isArray(s.problems)) return null;
+  const problems=s.problems.slice(0,500).map(normProblem).filter(Boolean);
+  return { id:uid(), name:str(s.name,200)||"제목 없음", header:str(s.header,200), problems };
+}
 
 /* 문제집별 '마지막으로 보던 문항' 기억 (새로고침 후에도 유지) */
 let lastQIdBySet={};
@@ -1209,9 +1277,8 @@ $("#importAllInput").onchange=e=>{ const f=e.target.files?.[0]; if(!f) return; c
   // 각 문제집을 새 id로 라이브러리에 추가 (기존 유지)
   let added=0;
   incoming.forEach(s=>{
-    if(!s || !Array.isArray(s.problems)) return;
-    const cp=JSON.parse(JSON.stringify(s));
-    cp.id=uid();
+    const cp=normSet(s);          // 화이트리스트 정규화 — 모르는 필드는 버린다
+    if(!cp) return;
     // 이름 충돌 시 표시
     const baseName=cp.name||"불러온 문제집";
     let name=baseName, n=2;
@@ -1383,7 +1450,11 @@ function renderEditor(){
       q.answerImg=localPreview; renderPreview();      // 즉시 미리보기
       const stored=await storeImageFile(f);           // Storage 업로드(로그인 시) or base64
       q.answerImg=stored; saveSets(); renderPreview();
-    }catch(err){ console.warn(err); }
+    }catch(err){
+      console.warn(err);
+      q.answerImg=""; imgClear.style.display="none"; renderPreview();
+      toast("이미지를 넣지 못했어요: "+(err&&err.message||"알 수 없는 오류"),"error");
+    }
   };
   imgClear.onclick=()=>{ q.answerImg=""; saveSets(); imgClear.style.display="none"; renderPreview(); };
 
@@ -1467,7 +1538,11 @@ function renderEditor(){
           blk.data.dataUrl=localPreview; renderPreview();   // 즉시 미리보기
           const stored=await storeImageFile(f);             // Storage 업로드 or base64
           blk.data.dataUrl=stored; renderPreview(); saveSets();
-        }catch(err){ console.warn(err); }
+        }catch(err){
+          console.warn(err);
+          blk.data.dataUrl=""; renderPreview();
+          toast("이미지를 넣지 못했어요: "+(err&&err.message||"알 수 없는 오류"),"error");
+        }
       };
       body.append(row);
     }
@@ -1666,7 +1741,7 @@ function blockHTML(blk){
     return `<div class="boxed">${items}</div>`;
   }
   if(blk.type==="choices"){
-    const layout = blk.data.layout || "horizontal";
+    const layout = (blk.data.layout==="vertical") ? "vertical" : "horizontal";
     const items=(blk.data.items||[]).slice(0,5).map((t,i)=>`
       <div class="choice"><span class="label">${circled(i+1)}</span><span class="text">${processText(t)}</span></div>`).join("");
     return `<div class="choices ${layout}">${items}</div>`;
@@ -1674,7 +1749,9 @@ function blockHTML(blk){
   if(blk.type==="image" && blk.data.dataUrl){
     const W={full:"100%",large:"72%",medium:"52%",small:"36%"};
     const w=W[blk.data.size]||"100%";
-    return `<div class="img-wrap"><img src="${blk.data.dataUrl}" alt="" style="width:${w}"></div>`;
+    const src=safeUrl(blk.data.dataUrl);
+    if(!src) return "";
+    return `<div class="img-wrap"><img src="${src}" alt="" style="width:${w}"></div>`;
   }
   return "";
 }
@@ -1684,7 +1761,7 @@ function renderPreview(){
   const displayNum=nums.find(n=>n.q===q)?.num||"??";
   // 번호 오른쪽에 제목/부제목
   $("#pvNum").innerHTML=`${displayNum}${q.title||q.desc?`<span style="font-family:var(--body-serif);font-size:13px;font-weight:500;color:#555;margin-left:8px">${sanitize(q.title)}${q.desc?` <span style="color:#888;font-weight:400">· ${sanitize(q.desc)}</span>`:""}</span>`:""}`;
-  const ansHtml=(q.answer||q.answerImg)?`<div style="margin-top:10px;font-size:12px;color:#444;border-top:1px solid #ddd;padding-top:6px">${q.answer?`<span>정답: ${sanitize(q.answer)}</span>`:""}${q.answerImg?`<img src="${q.answerImg}" style="max-height:40px;display:block;margin-top:4px">`:"" }</div>`:"";
+  const ansHtml=(q.answer||q.answerImg)?`<div style="margin-top:10px;font-size:12px;color:#444;border-top:1px solid #ddd;padding-top:6px">${q.answer?`<span>정답: ${sanitize(q.answer)}</span>`:""}${safeUrl(q.answerImg)?`<img src="${safeUrl(q.answerImg)}" style="max-height:40px;display:block;margin-top:4px">`:"" }</div>`:"";
   const html=`${q.blocks.map(blockHTML).join("")}${ansHtml}`;
   $("#pvContent").innerHTML = html;
   try{
@@ -1780,7 +1857,7 @@ function buildPrintDoc(hideAnswers){
         const box=el("div","pq");
         const num=numOf(q);
         const metaHtml=(q.title||q.desc)?`<div style="display:flex;flex-direction:column;gap:0.3mm;justify-content:center"><span style="font-family:'KoPub Batang','Times New Roman',serif;font-size:9pt;font-weight:500;color:#555">${sanitize(q.title)}${q.desc?` <span style="color:#888;font-weight:400">· ${sanitize(q.desc)}</span>`:""}</span></div>`:"";
-        const ansHtml=(q.answer||q.answerImg)&&!hideAnswers?`<div class="answer-block">정답: ${q.answer?`<span class="ans-text">${sanitize(q.answer)}</span>`:""}${q.answerImg?`<img class="answer-img" src="${q.answerImg}">`:" "}</div>`:"";
+        const ansHtml=(q.answer||q.answerImg)&&!hideAnswers?`<div class="answer-block">정답: ${q.answer?`<span class="ans-text">${sanitize(q.answer)}</span>`:""}${safeUrl(q.answerImg)?`<img class="answer-img" src="${safeUrl(q.answerImg)}">`:" "}</div>`:"";
         box.innerHTML=`<div class="pq-header"><div class="num">${num}</div>${metaHtml}</div><div class="content">${q.blocks.map(blockHTML).join("")}${ansHtml}</div>`;
         holder.append(box);
       });
@@ -1801,7 +1878,8 @@ function buildPrintDoc(hideAnswers){
 
 /* Actions */
 $("#brandBtn").onclick=()=>showLibrary();
-$("#mockModeBtn").onclick=()=>showMock();
+/* #mockModeBtn 의 클릭 핸들러는 파일 앞쪽 모의고사 IIFE 에서 이미 등록한다.
+   여기서 다시 대입하면 그 핸들러를 덮어써서 모의고사 모드가 열리지 않는다. */
 $("#saveBtn").onclick=async ()=>{
   if(!currentUser){
     try{ localStorage.setItem(SETS_KEY, JSON.stringify(sets)); }catch(e){ console.error(e); }
@@ -1869,8 +1947,9 @@ $("#loadInput").onchange=e=>{ const f=e.target.files?.[0]; if(!f) return; const 
   if(!newProbs.length){ toast("불러올 문항이 없어요","error"); return; }
   const s=activeSet();
   if(!s){ toast("먼저 문제집을 열어주세요","error"); return; }
-  // id 재발급 + 안전하게 깊은 복사 (id 충돌 방지)
-  const cloned=newProbs.map(p=>{ const cp=JSON.parse(JSON.stringify(p)); cp.id=uid(); return cp; });
+  // 화이트리스트 정규화 (id 재발급 포함) — 남이 만든 파일을 그대로 신뢰하지 않는다
+  const cloned=newProbs.map(normProblem).filter(Boolean);
+  if(!cloned.length){ toast("불러올 문항이 없어요","error"); return; }
   // 삽입된 묶음이 기존과 잘못 이어지지 않도록, 첫 문제 직전 경계 정리: 마지막 삽입 문제는 독립
   if(cloned.length) cloned[cloned.length-1].paired=false;
   // 현재 선택 문제 바로 뒤에 삽입 (없으면 맨 끝)
@@ -2023,16 +2102,28 @@ $("#copyPrompt").onclick=()=>{
 /* ===== Auth UI ===== */
 function cssVarSet(n,v){ document.documentElement.style.setProperty(n,v); }
 $("#loginBtn").onclick=()=>{
+  if(!fbReady){ toast("로그인 서버에 연결할 수 없어요 · 이 기기에만 저장됩니다","error"); return; }
   const provider=new firebase.auth.GoogleAuthProvider();
   fbAuth.signInWithPopup(provider).catch(e=>toast("로그인에 실패했어요: "+e.message,"error"));
 };
 $("#logoutBtn").onclick=()=>{
-  if(confirm('로그아웃 하시겠습니까?')) fbAuth.signOut();
+  if(fbReady && confirm('로그아웃 하시겠습니까?')) fbAuth.signOut();
 };
 
 let authInitialized=false;
 let prevUid=null;            // 직전 콜백의 uid (로그인/로그아웃 전환 감지용)
-fbAuth.onAuthStateChanged(async (user)=>{
+/* 최초 진입 공통 경로. 로그인 상태와 무관하게 한 번은 반드시 실행돼야
+   라이브러리가 화면에 뜬다(Firebase 없이도 로컬 데이터로 동작). */
+async function bootLibrary(){
+  authInitialized=true;
+  snapshotLocalBackup();                 // 직전 세션 데이터를 백업으로 보관
+  await loadSets();
+  lastSnapshot=snapshot(); undoStack=[]; redoStack=[]; updateHistButtons();
+  currentSetId=null; currentQId=null;    // 접속은 항상 라이브러리부터
+  showLibrary();
+}
+
+const onAuth=async (user)=>{
   currentUser=user;
   if(user){
     $("#authLoggedOut").style.display="none";
@@ -2050,12 +2141,7 @@ fbAuth.onAuthStateChanged(async (user)=>{
 
   if(!authInitialized){
     // 최초 로드: 비로그인이면 로컬, 로그인이면 Firestore 로드
-    authInitialized=true;
-    snapshotLocalBackup();                 // 직전 세션 데이터를 백업으로 보관
-    await loadSets();
-    lastSnapshot=snapshot(); undoStack=[]; redoStack=[]; updateHistButtons();
-    currentSetId=null; currentQId=null;    // 접속은 항상 라이브러리부터
-    showLibrary();
+    await bootLibrary();
   }else if(userChanged){
     // 이후 로그인/로그아웃/계정전환이 실제로 일어났을 때만 재로드
     // (토큰 갱신처럼 uid 그대로면 화면 안 건드림 → 작업 중 덮어쓰기 방지)
@@ -2064,7 +2150,15 @@ fbAuth.onAuthStateChanged(async (user)=>{
     currentSetId=null; currentQId=null;
     showLibrary();
   }
-});
+};
+
+if(fbReady){
+  fbAuth.onAuthStateChanged(onAuth);
+}else{
+  // Firebase 없이 뜬 경우: 로그인 UI 는 그대로 두되 로컬 데이터로 바로 시작한다
+  bootLibrary();
+  toast("오프라인 모드 · 이 기기에만 저장됩니다","error");
+}
 
 cssVarSet('--col-gap-mm',7); cssVarSet('--print-fs-pt',9.2); cssVarSet('--print-lh',1.92);
 try{ const r=localStorage.getItem('PM_PRINT_TUNE_V1'); if(r){ const t=JSON.parse(r); cssVarSet('--col-gap-mm',t.gap||7); cssVarSet('--print-fs-pt',t.fs||9.2); cssVarSet('--print-lh',t.lh||1.92); } }catch{}

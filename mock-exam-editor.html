@@ -359,7 +359,9 @@ function tex(src){
   if(!src) return '';
   return String(src).split(/(\$[^$]*\$)/g).map(p=>{
     if(p.length>2&&p.startsWith('$')&&p.endsWith('$')){
-      try{return katex.renderToString(p.slice(1,-1),{throwOnError:false,output:'html'});}
+      /* 정본(Typst) 경로와 같은 cases 간격 보정을 적용해야 미리보기와 결과물이 어긋나지 않는다.
+         fixCases 는 함수 선언이라 이 시점에도 호이스팅되어 있다. */
+      try{return katex.renderToString(fixCases(p.slice(1,-1)),{throwOnError:false,output:'html'});}
       catch(e){return '<span style="color:#F04452">'+esc(p)+'</span>';}
     }
     return esc(p);
