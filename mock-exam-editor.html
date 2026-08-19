@@ -1,0 +1,1138 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PEDAGOGY — 모의고사 편집기</title>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+
+<style>
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css');
+
+/* 평가원 실제 폰트 */
+@font-face{font-family:'Hamchorom';font-weight:400;font-display:swap;
+  src:url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2104@1.0/HANBatang.woff') format('woff')}
+@font-face{font-family:'Hamchorom';font-weight:700;font-display:swap;
+  src:url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2104@1.0/HANBatangB.woff') format('woff')}
+
+/* 시스템에 설치돼 있으면 정본과 같은 글꼴로 미리보기 —
+   A053SinMyungjo95.ttf / A053SinMyungjo.ttf / 신그래픽체 / UnDinaru 를
+   Font Book 에 설치해 두면 미리보기 줄바꿈까지 정본과 거의 같아진다.
+   설치 안 돼 있으면 아래 웹폰트(함초롬)로 자동으로 떨어진다. */
+@font-face{font-family:'ExamBody';font-weight:400;font-display:swap;
+  src:local('A053 SinMyungjo 95'),local('A053SinMyungjo95'),
+      local('A053 SinMyungjo'),local('A053SinMyungjo')}
+@font-face{font-family:'ExamGraphic';font-weight:400;font-display:swap;
+  src:local('신그래픽체'),local('SinGraphic'),local('HYgtrE')}
+@font-face{font-family:'ExamRound';font-weight:400;font-display:swap;
+  src:local('UnDinaru'),local('은 디나루')}
+@font-face{font-family:'ExamHead';font-weight:400;font-display:swap;
+  src:local('HYmjrE'),local('한양견명조')}
+@font-face{font-family:'HamchoromD';font-weight:400;font-display:swap;
+  src:url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_four@1.0/HCRDotum.woff') format('woff')}
+
+:root{
+  --bg:#09090B; --surface-1:#111116; --surface-2:#18181F;
+  --surface-3:#1F1F28; --surface-hover:#23232D;
+  --border:#27272F; --border-subtle:#1F1F28;
+  --text-primary:#F4F4F6; --text-secondary:#8B8B9A; --text-tertiary:#55555F;
+  --blue:#3182F6; --blue-dim:#1A3566; --blue-subtle:#1B2540; --blue-hover:#4D96FF;
+  --danger:#F04452;
+  --ui-sans:'Pretendard Variable',Pretendard,"Apple SD Gothic Neo",system-ui,sans-serif;
+  /* ── 시험지 글꼴 ──
+     원본: 한글=신명 중명조 / 영문=한양신명조 (상용, 웹 배포 불가)
+     미리보기는 함초롬바탕으로 대체하되 크기·장평·자간·줄간격은 원본 값 사용.
+     Typst 내보내기에는 원본 글꼴명이 그대로 들어감. */
+  /* 언어별 글꼴 분리 — 한글=신명 중명조, 영문/숫자=한양신명조 */
+  --exam:'ExamBody','Hamchorom','KoPub Batang',serif;          /* 발문 — A053 신명조 95% */
+  --exam-g:'ExamGraphic','HamchoromD','Hamchorom',sans-serif;  /* 수학 영역 — 신그래픽체 */
+  --exam-h:'ExamHead','Hamchorom',serif;                       /* 제2교시·쪽번호 — 한양견명조 */
+  --exam-d:'ExamRound','ExamGraphic','HamchoromD',sans-serif;  /* 회차명 — 은 디나루 */
+  --radius-sm:8px; --radius-md:12px;
+
+  /* ── PDF 실측 규격 (mm) ── */
+  --pg-w:272; --pg-h:394.1;
+  --mg:18.33;             /* 좌우 여백 */
+  --body-w:235.42;        /* 본문 폭 */
+  --col-w:112.57;         /* 단 폭 */
+  --col-gap:10.28;        /* 단 간격 */
+  --rule1:59.48;          /* 1p 괘선 y */
+  --ruleN:35.01;          /* 2p+ 괘선 y */
+  --body-bot:34.69;       /* 아래에서 본문 끝(y=359.41)까지 */
+  /* ── HWP 스타일 정의값 (200906 수학.hwpx) ── */
+  --fs:10.91pt;           /* 발문 — 프레임 10.91pt × K-BODY 1.0 */
+  --fs-no:12.83pt;        /* 문항 번호 — 12.83pt × K-NO(대체폰트 보정 1.049 적용 전) */
+  --fs-pts:10.91pt;       /* 배점 */
+  --lh:1.65;              /* 줄간격 165% */
+  --track:-.05em;         /* 자간 -5% (문제 계열) */
+  --track-ch:-.03em;      /* 자간 -3% (선지 계열) */
+  /* 장평: Typst에 글자 가로압축 기능이 없어 정본이 100%로 나간다.
+     미리보기가 정본과 어긋나지 않도록 여기도 100%로 맞춘다.
+     (평가원 원본은 발문 장평 95% — 현재 구현 한계) */
+  --xscale:1;
+  --eq:1.012;             /* 수식 배율 — 11.04pt / 10.91pt */
+  --ind:3.99;             /* 내어쓰기 -3.99mm */
+  --ch-gap:21.6;          /* 선지 간격 (09 정본 탭: 3.99·25.6·47.2·68.81·90.4) */
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--bg);color:var(--text-primary);font-family:var(--ui-sans);
+  font-size:13px;overflow:hidden;-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+button{background:none;border:none;cursor:pointer}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:var(--surface-3);border-radius:5px;border:2px solid transparent;background-clip:content-box}
+::-webkit-scrollbar-thumb:hover{background:var(--surface-hover);background-clip:content-box}
+::-webkit-scrollbar-track{background:transparent}
+:focus-visible{outline:2px solid var(--blue);outline-offset:1px}
+
+.topbar{display:flex;justify-content:space-between;align-items:center;
+  padding:0 24px;height:60px;background:rgba(9,9,11,.85);
+  backdrop-filter:blur(20px);border-bottom:1px solid var(--border);z-index:100}
+.tb-l,.tb-r{display:flex;align-items:center;gap:12px}
+.brand{font-family:'Adobe Caslon Pro Bold',serif;font-size:22px;letter-spacing:.5px;
+  font-weight:700;user-select:none}
+.brand-tag{font-size:11px;color:var(--text-tertiary);letter-spacing:.08em;
+  padding-left:12px;border-left:1px solid var(--border)}
+.inp,.sel{background:var(--surface-2);border:1px solid var(--border);
+  border-radius:var(--radius-sm);padding:0 12px;height:36px;font-size:13px}
+.inp{width:250px}
+.inp:focus,.sel:focus{border-color:var(--blue);outline:none}
+.btn{height:36px;padding:0 14px;background:var(--surface-2);border:1px solid var(--border);
+  border-radius:var(--radius-sm);font-size:13px;color:var(--text-secondary);
+  display:inline-flex;align-items:center;transition:.12s}
+.btn:hover{background:var(--surface-hover);color:var(--text-primary)}
+.btn.on{background:var(--blue-subtle);border-color:var(--blue-dim);color:var(--blue-hover)}
+.btn-primary{background:var(--blue);border-color:transparent;color:#fff;font-weight:600}
+.btn-primary:hover{background:var(--blue-hover)}
+.zoom{display:flex;align-items:center;background:var(--surface-2);
+  border:1px solid var(--border);border-radius:var(--radius-sm);height:36px;overflow:hidden}
+.zoom button{padding:0 11px;height:100%;color:var(--text-secondary);font-size:15px}
+.zoom button:hover{background:var(--surface-hover);color:var(--text-primary)}
+.zoom span{font-size:12px;min-width:46px;text-align:center;color:var(--text-secondary)}
+
+.panes{display:flex;height:calc(100% - 60px)}
+.preview{flex:1 1 auto;min-width:320px;overflow:auto;padding:24px}
+.editor{flex:0 0 430px;background:var(--surface-1);border-left:1px solid var(--border);overflow-y:auto}
+.outline{flex:0 0 176px;background:var(--surface-1);border-left:1px solid var(--border);overflow-y:auto}
+.pane-hd{position:sticky;top:0;z-index:5;background:var(--surface-1);
+  border-bottom:1px solid var(--border-subtle);padding:14px 18px;
+  font-size:12px;color:var(--text-secondary);font-weight:600}
+
+/* ── 시험지: 좌상단 기준 확대 ── */
+.errbox{position:fixed;left:24px;bottom:24px;max-width:min(720px,60vw);z-index:60;
+  background:#2A1416;border:1px solid #5A2026;border-radius:var(--radius-md);
+  padding:12px 14px;color:#FFB4B4;font-size:12px;box-shadow:0 8px 32px rgba(0,0,0,.5)}
+.errbox b{display:block;margin-bottom:6px;color:#F04452}
+.errbox pre{white-space:pre-wrap;font:11px/1.5 ui-monospace,Menlo,monospace;max-height:30vh;overflow:auto}
+.live-pg{background:#fff;box-shadow:0 4px 24px rgba(0,0,0,.6);flex:none;display:block}
+.stage.busy{opacity:.55;transition:opacity .15s}
+.stage{transform-origin:0 0;display:flex;flex-direction:column;gap:24px;width:max-content}
+.paper{position:relative;width:calc(var(--pg-w)*1mm);height:calc(var(--pg-h)*1mm);
+  background:#fff;color:#000;flex:none;box-shadow:0 4px 24px rgba(0,0,0,.6);
+  font-family:var(--exam);overflow:hidden}
+
+/* 머리말 */
+.rule{position:absolute;left:calc(var(--mg)*1mm);width:calc(var(--body-w)*1mm);
+  border-top:.45mm solid #000}
+/* 회차명 — 신명 디나루 21pt · 장평 85% · 자간 0% (대체폰트 자폭 보정 23.5pt) */
+.round{position:absolute;left:0;right:0;text-align:center;line-height:1.7}
+.round span{font-family:var(--exam-d);font-size:17.85pt;letter-spacing:0;
+  display:inline-block;transform:scaleX(.85)}
+/* 수학 영역 — 신명 신그래픽 40pt, 줄간격 137% */
+/* 수학 영역 — 신명 신그래픽 40pt · 장평 90% · 자간 -3% (보정 44pt) */
+.area{position:absolute;left:0;right:0;text-align:center;line-height:1.37;white-space:nowrap}
+.area span{font-family:var(--exam-g);font-weight:700;font-size:40.9pt;letter-spacing:-.03em;
+  display:inline-block;transform:scaleX(.9)}
+.area.p2 span{font-size:28.6pt}
+/* 제 2 교시 — 한양견명조 22pt · 장평 80% · 글자위치 +5% · 자간 -3% */
+.gyosi{position:absolute;display:flex;align-items:center;justify-content:center;
+  border:.4mm solid #000;border-radius:5.5mm}
+.gyosi span{font-family:var(--exam-h);font-size:21.4pt;letter-spacing:-.03em;
+  display:inline-block;transform:scaleX(.8) translateY(-.05em)}
+/* 쪽 번호 — 신명 견명조 33pt, 장평 90% */
+.pno{position:absolute;font-family:var(--exam-h);font-weight:700;line-height:1;
+  font-size:32.7pt}
+
+/* 본문 */
+.body{position:absolute;left:calc(var(--mg)*1mm);width:calc(var(--body-w)*1mm);
+  bottom:calc(var(--body-bot)*1mm);display:flex;gap:calc(var(--col-gap)*1mm)}
+.divider{position:absolute;left:136.4mm;width:.25mm;background:#000;
+  bottom:calc(var(--body-bot)*1mm)}
+.col{width:calc(var(--col-w)*1mm);flex:none;display:flex;flex-direction:column;min-height:0}
+.tag{align-self:flex-start;display:flex;align-items:center;justify-content:center;
+  border:.35mm solid #000;width:38.99mm;height:8.29mm;margin:0 0 11.21mm .51mm;
+  font-family:var(--exam-g);font-weight:400;font-size:15.7pt;letter-spacing:0}
+.tag.inline{align-self:auto;display:inline-flex;margin:0 0 11.21mm .51mm}
+.tag.short{width:27.84mm}
+.slots{flex:1;display:grid;min-height:0}
+.slot{min-height:0;align-self:start}
+
+/* 문항 */
+/* 장평 95% — 글리프를 실제로 가로 압축하고 컨테이너 폭을 역보정 */
+.prob{font-size:var(--fs);line-height:var(--lh);letter-spacing:var(--track);
+  transform:scaleX(var(--xscale));transform-origin:left top;
+  width:calc(100% / var(--xscale))}
+.stmt{padding-left:calc(var(--ind)*1mm);text-indent:calc(var(--ind)*-1mm)}
+/* 이어지는 줄 — 문항 첫 글자선에 정렬 */
+.cont{padding-left:calc(var(--ind)*1mm)}
+/* 별행 수식 — 단 안에서 가운데, 위아래 여백 */
+.dispeq{text-align:center;margin:2.8mm 0}
+/* 인라인 수식 — 앞은 띄우고 뒤는 조사가 붙도록 */
+.stmt .katex,.cont .katex,.it .katex{margin-left:.16em;margin-right:0}
+.dispeq .katex{margin:0}
+.no{font-size:var(--fs-no);font-weight:400;margin-right:2.2mm;letter-spacing:0}
+.pts{white-space:nowrap;font-size:var(--fs-pts);margin-left:.33em}
+.empty{color:#c9c9c9}
+
+/* 조건 박스 — 보기틀 스타일: 11.48pt, 자간 -3%, 줄간격 150%, 좌여백 3.53mm */
+.condbox{width:104mm;/* 09 정본 108.07mm */border:.12mm solid #000;padding:3mm;
+  margin:3.4mm 0 3.4mm calc(var(--ind)*1mm);font-size:var(--fs);line-height:1.5;
+  letter-spacing:var(--track-ch)}
+.condbox div+div{margin-top:1.6mm}
+/* 확인 사항 — 각 과목 마지막 쪽 오른쪽 단 아래 (본문 끝 y=359.41) */
+.notebox{position:absolute;left:141.75mm;width:112mm;
+  bottom:34.69mm;border:.12mm solid #000;padding:2.6mm 3mm;
+  font-size:var(--fs);line-height:1.5;letter-spacing:var(--track-ch)}
+.notebox div+div{margin-top:2.2mm}
+.figbox{margin:3.4mm auto;border:.2mm dashed #ccc;color:#c2c2c2;
+  display:flex;align-items:center;justify-content:center;font-size:3mm}
+
+/* 선지 — 21.72mm 고정 탭 */
+/* 선지 — ①-5 / ①-3 / ①-2 스타일: 좌여백 3.99mm, 자간 -3%, 줄간격 165% */
+.ch{margin-top:6.5mm;/* 프레임 CHGAP과 동일 */margin-left:calc(var(--ind)*1mm);font-size:var(--fs);
+  letter-spacing:var(--track-ch);line-height:var(--lh)}
+.ch .r{display:grid;align-items:baseline}
+.ch-1 .r{grid-template-columns:21.61mm 21.6mm 21.61mm 21.59mm auto}
+.ch-2 .r{grid-template-columns:36.01mm 36mm auto}
+.ch-2 .r+.r{margin-top:2.6mm}
+.ch-v .r{grid-template-columns:1fr}
+.ch-v .r+.r{margin-top:2.2mm}
+.it{white-space:nowrap}
+
+/* 꼬리말 */
+.pbox{position:absolute;left:50%;transform:translateX(-50%);
+  top:364.66mm;width:17.7mm;height:7.75mm;border:.3mm solid #000;
+  font-family:var(--exam-h);font-size:11.4pt;line-height:1;overflow:hidden}
+.pbox span{position:absolute}
+.pbox .n{left:2.7mm;top:.5mm}
+.pbox .b{right:1.5mm;bottom:.3mm}
+.pbox::after{content:"";position:absolute;inset:0;
+  background:linear-gradient(to top right,transparent calc(50% - .12mm),#000 50%,transparent calc(50% + .12mm))}
+.pbox .b{font-size:3mm;align-self:flex-end;margin-bottom:.4mm}
+
+.paper .katex,.paper .katex *{font-weight:400!important}
+.paper .katex{font-size:calc(var(--eq)*1em);letter-spacing:0}
+.paper .katex .mord.text{font-family:var(--exam)!important;font-size:.9em;letter-spacing:var(--track)}
+
+.paper.g .col{outline:.2mm solid rgba(49,130,246,.4)}
+.paper.g .slot{box-shadow:inset 0 0 0 .15mm rgba(49,130,246,.28)}
+
+/* 편집기 */
+.ed{padding:18px}
+.ed-top{display:flex;align-items:center;gap:9px;margin-bottom:18px}
+.ed-no{font-family:"Noto Serif KR",serif;font-size:26px;font-weight:600;color:var(--blue);line-height:1}
+.chip{font-size:11px;padding:4px 9px;border-radius:6px;background:var(--surface-2);
+  border:1px solid var(--border);color:var(--text-secondary)}
+.grp{margin-bottom:18px}
+.grp>label{display:block;font-size:12px;color:var(--text-secondary);margin-bottom:8px;font-weight:600}
+.ta{width:100%;background:var(--surface-2);border:1px solid var(--border);
+  border-radius:var(--radius-sm);padding:10px 12px;font-size:12.5px;line-height:1.7;resize:vertical}
+.ta:focus{border-color:var(--blue);outline:none}
+.row-in{display:flex;gap:9px;align-items:flex-start;margin-bottom:7px}
+.row-in .mk{font-size:15px;width:18px;flex:none;color:var(--text-secondary);padding-top:9px}
+.row-in .ta{flex:1;min-height:38px}
+.seg{display:flex;border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden}
+.seg button{flex:1;padding:8px 4px;font-size:12px;color:var(--text-secondary);background:var(--surface-2)}
+.seg button+button{border-left:1px solid var(--border)}
+.seg button.on{background:var(--blue-subtle);color:var(--blue-hover);font-weight:600}
+.hint{font-size:11.5px;color:var(--text-tertiary);margin-top:7px;line-height:1.7}
+.hint code{background:var(--surface-2);padding:2px 5px;border-radius:4px;font-size:11px}
+.sw{display:flex;align-items:center;justify-content:space-between;padding:11px 13px;
+  background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm)}
+.sw+.ta{margin-top:8px}
+.sw button{width:38px;height:22px;border-radius:11px;background:var(--surface-3);
+  position:relative;transition:.15s;flex:none}
+.sw button::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;
+  border-radius:50%;background:var(--text-tertiary);transition:.15s}
+.sw button.on{background:var(--blue)}
+.sw button.on::after{left:19px;background:#fff}
+.gauge{margin-top:10px;display:flex;align-items:center;gap:9px;font-size:11.5px;color:var(--text-tertiary)}
+.gauge .bar{flex:1;height:5px;background:var(--surface-3);border-radius:3px;overflow:hidden}
+.gauge .fill{height:100%;background:var(--blue)}
+.gauge .fill.warn{background:var(--danger)}
+.gauge b{color:var(--text-secondary)}
+.gauge .res{color:var(--blue-hover)}
+
+.ol{padding:8px}
+.ol-sect{font-size:11px;color:var(--text-tertiary);padding:12px 8px 6px;font-weight:600}
+.ol-i{display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:7px;
+  cursor:pointer;border:1px solid transparent}
+.ol-i:hover{background:var(--surface-2)}
+.ol-i.sel{background:var(--blue-subtle);border-color:var(--blue-dim)}
+.ol-i.drag{opacity:.35}
+.ol-i.over{border-top:2px solid var(--blue)}
+.ol-i .n{font-size:13px;width:20px;text-align:right;color:var(--text-secondary)}
+.ol-i.sel .n{color:var(--blue-hover);font-weight:600}
+.ol-i .bars{flex:1;display:flex;flex-direction:column;gap:3px}
+.ol-i .bar{height:2px;background:var(--surface-3);border-radius:1px}
+.ol-i.filled .bar{background:#3A3A46}
+.ol-i .p{font-size:10.5px;color:var(--text-tertiary)}
+.ol-i .w{color:var(--danger);font-size:11px}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="tb-l">
+    <div class="brand">PEDAGOGY</div>
+    <div class="brand-tag">모의고사</div>
+    <input class="inp" id="round" value="2027학년도 9월 모의고사 대비 1회" style="margin-left:12px">
+    <select class="sel" id="elective">
+      <option>확률과 통계</option><option>미적분</option><option>기하</option>
+    </select>
+  </div>
+  <div class="tb-r">
+    <button class="btn" id="saveBtn">저장</button>
+    <label class="btn" for="loadInput" style="cursor:pointer">불러오기</label>
+    <input type="file" id="loadInput" accept=".json,application/json" style="display:none">
+    <button class="btn" id="liveBtn" title="로컬 서버에서 Typst로 실제 렌더링">실시간</button>
+    <button class="btn" id="guideBtn">가이드</button>
+    <div class="zoom"><button id="zOut">−</button><span id="zVal">60%</span><button id="zIn">+</button></div>
+    <button class="btn" id="zFit">맞춤</button>
+    <button class="btn btn-primary" id="exportBtn">Typst 내보내기</button>
+  </div>
+</header>
+
+<main class="panes">
+  <section class="preview" id="preview"><div class="stage" id="stage"></div>
+    <div class="errbox" id="errbox" hidden><b>Typst 오류</b><pre id="errtxt"></pre></div></section>
+  <section class="editor"><div class="pane-hd">문항 편집</div><div id="ed"></div></section>
+  <aside class="outline"><div class="pane-hd">순서</div><div class="ol" id="ol"></div></aside>
+</main>
+
+<div id="measure" style="position:absolute;visibility:hidden;left:-9999px;
+  font-family:'Hamchorom',serif;font-size:11.04pt;white-space:nowrap"></div>
+
+<script>
+const SPEC={colW:112.57,chGap:21.72,r1:0.62,r2:1.00,perCol:2};
+const MM=96/25.4;
+const PTS={1:2,2:2,3:3,4:3,5:3,6:3,7:3,8:3,9:4,10:4,11:4,12:4,13:4,14:4,15:4,
+           16:3,17:3,18:3,19:3,20:4,21:4,22:4,
+           23:2,24:3,25:3,26:3,27:3,28:4,29:4,30:4};
+const MARKS=['①','②','③','④','⑤'];
+
+function blank(n){/* figSrc: 그림 파일명 */
+  const sect=n<=22?'공통':'선택';
+  const type=(n<=15||(n>=23&&n<=28))?'choice':'short';
+  return {id:'p'+n,num:n,sect,type,pts:PTS[n],stmt:'',conds:[],useCond:false,
+    choices:type==='choice'?['','','','','']:[],layout:'auto',figure:0,breakAfter:false};
+}
+const state={problems:Array.from({length:30},(_,i)=>blank(i+1)),sel:'p1',zoom:.6,guides:false};
+
+(function seed(){
+  const P=state.problems;
+  P[0].stmt='$\\sqrt[3]{5}\\times 25^{\\frac13}$의 값은?';
+  P[0].choices=['$1$','$2$','$3$','$4$','$5$'];
+  P[1].stmt='함수 $f(x)=x^3-8x+7$에 대하여 $\\lim\\limits_{h\\to0}\\dfrac{f(2+h)-f(2)}{h}$의 값은?';
+  P[1].choices=['$1$','$2$','$3$','$4$','$5$'];
+  P[2].stmt='첫째항과 공비가 모두 양수 $k$인 등비수열 $\\{a_n\\}$이\n$\\dfrac{a_4}{a_2}+\\dfrac{a_2}{a_1}=30$\n을 만족시킬 때, $k$의 값은?';
+  P[2].choices=['$1$','$2$','$3$','$4$','$5$'];
+  P[8].stmt='함수 $f(x)=3x^2-16x-20$에 대하여 $\\displaystyle\\int_{-2}^{a}f(x)\\,dx=\\int_{-2}^{0}f(x)\\,dx$일 때, 양수 $a$의 값은?';
+  P[8].choices=['$16$','$14$','$12$','$10$','$8$'];
+  P[13].stmt='그림과 같이 삼각형 $ABC$에서 선분 $AB$ 위에 $\\overline{AD}:\\overline{DB}=3:2$인 점 $D$를 잡고, 점 $A$를 중심으로 하고 점 $D$를 지나는 원을 $O$라 하자.\n원 $O$ 위의 점 $P$에 대하여 삼각형 $PBC$의 넓이의 최댓값은? (단, $\\overline{AB}<\\overline{AC}$)\n[그림]';
+  P[13].figure=58;
+  P[13].choices=['$18+15\\sqrt3$','$24+20\\sqrt3$','$30+25\\sqrt3$','$36+30\\sqrt3$','$42+35\\sqrt3$'];
+  P[14].stmt='상수 $a\\;(a\\neq3\\sqrt5)$와 최고차항의 계수가 음수인 이차함수 $f(x)$에 대하여 함수 $g(x)$가 다음 조건을 만족시킨다.\n[조건]\n$g(-2)+g(2)$의 값은?';
+  P[14].useCond=true;
+  P[14].conds=['(가) 함수 $g(x)$는 실수 전체의 집합에서 미분가능하다.',
+               '(나) $x$에 대한 방정식 $g\'(x)\\times g\'(x-4)=0$의 서로 다른 실근의 개수는 $4$이다.'];
+  P[14].choices=['$30$','$32$','$34$','$36$','$38$'];
+})();
+
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+function tex(src){
+  if(!src) return '';
+  return String(src).split(/(\$[^$]*\$)/g).map(p=>{
+    if(p.length>2&&p.startsWith('$')&&p.endsWith('$')){
+      try{return katex.renderToString(p.slice(1,-1),{throwOnError:false,output:'html'});}
+      catch(e){return '<span style="color:#F04452">'+esc(p)+'</span>';}
+    }
+    return esc(p);
+  }).join('');
+}
+/* 09 정본 탭 칸에 선지가 실제로 들어가는지로 판정한다.
+   ①-5 칸폭 21.6mm(마지막 칸은 남는 폭 전부) · ①-3 칸폭 36.0mm
+   비율만 보면 √3 붙은 선지처럼 총폭이 넘쳐도 3+2로 들어가는 경우를 놓친다. */
+function measureCh(ch){
+  const m=$('#measure');const w=[];let t=0;
+  ch.forEach((c,i)=>{m.innerHTML=MARKS[i]+' '+(tex(c)||'0');
+    const x=m.offsetWidth/MM; w.push(x); t+=x;});
+  const last=w.length-1;
+  const fits1=w.every((x,i)=>i===last?x<=SPEC.colW-90.4:x<=21.6-1.0);
+  const fits2=w.every((x,i)=>(i===2||i===last)?x<=SPEC.colW-76-1:x<=36.0-1.0);
+  return {ratio:t/SPEC.colW, widths:w, fits1, fits2};
+}
+function layoutOf(p){
+  if(p.layout!=='auto') return p.layout;
+  if(hasGND(p.choices)) return '2';           // ㄱㄴㄷ 합답형은 폭과 무관하게 3+2
+  const {fits1,fits2}=measureCh(p.choices);
+  return fits1?'1':fits2?'2':'v';
+}
+/* ㄱ/ㄴ/ㄷ 합답형 — 평가원 관례상 항상 3+2 */
+function hasGND(ch){return ch.some(c=>/[ㄱㄴㄷ]/.test(c));}
+function renderCh(p){
+  if(p.type!=='choice'||!p.choices.some(c=>c.trim())) return '';
+  const it=p.choices.map((c,i)=>`<span class="it">${MARKS[i]} ${tex(c)}</span>`);
+  const L=layoutOf(p);
+  if(L==='1') return `<div class="ch ch-1"><div class="r">${it.join('')}</div></div>`;
+  if(L==='2') return `<div class="ch ch-2"><div class="r">${it.slice(0,3).join('')}</div><div class="r">${it.slice(3).join('')}</div></div>`;
+  return `<div class="ch ch-v">${it.map(x=>`<div class="r">${x}</div>`).join('')}</div>`;
+}
+/* ── 평가원 조판 관례 ──
+   · 수식 앞 공백 1칸 (원본 236회 중 압도적) / 수식 뒤엔 조사 바로 붙임
+   · 수식만 있는 줄 → 별행(디스플레이) 수식, 가운데 정렬
+   · (단, ~) 은 별도 줄로 내림                                        */
+const JOSA=/^[의이가은는을를에와과로도만나며서라人]/;
+/* 지문 안에서 조건 박스·그림이 놓일 자리를 [조건] / [그림] 한 줄로 지정한다.
+   마커가 없으면 지금까지처럼 지문 뒤·선지 앞에 붙는다. */
+const MK_C=/^\[조건\]$/, MK_F=/^\[그림\]$/;
+function stmtLines(p){
+  return String(p.stmt).replace(/\s*(\(단,)/g,'\n$1').split('\n')
+    .map(x=>x.trim()).filter(Boolean);
+}
+function renderProb(p){
+  if(!p.stmt.trim())
+    return `<div class="prob"><div class="stmt"><span class="no">${p.num}.</span><span class="empty">—</span></div></div>`;
+  const lines=stmtLines(p);
+  const isEq=t=>/^\$[^$]*\$$/.test(t);
+  const isMk=t=>MK_C.test(t)||MK_F.test(t);
+  const cond=()=>p.useCond&&p.conds.length
+    ?`<div class="condbox">${p.conds.map(c=>`<div>${tex(c)}</div>`).join('')}</div>`:'';
+  const fig=()=>p.figure
+    ?`<div class="figbox" style="width:${Math.min(p.figure,110)}mm;height:${Math.round(p.figure*.68)}mm">${p.figSrc?esc(p.figSrc):'그림'}</div>`:'';
+  let pi=-1;lines.forEach((t,i)=>{if(!isEq(t)&&!isMk(t))pi=i;});
+  if(pi<0)pi=lines.length-1;
+  let h=`<div class="prob">`,first=true;
+  lines.forEach((t,i)=>{
+    const pts=i===pi?`<span class="pts">[${p.pts}점]</span>`:'';
+    if(MK_C.test(t)){h+=cond();return;}
+    if(MK_F.test(t)){h+=fig();return;}
+    if(isEq(t)) h+=`<div class="dispeq">${tex(t)}${pts}</div>`;
+    else if(first){h+=`<div class="stmt"><span class="no">${p.num}.</span>${tex(t)}${pts}</div>`;first=false;}
+    else h+=`<div class="cont">${tex(t)}${pts}</div>`;
+  });
+  if(!lines.some(t=>MK_C.test(t)))h+=cond();
+  if(!lines.some(t=>MK_F.test(t)))h+=fig();
+  return h+renderCh(p)+`</div>`;
+}
+
+/* ══════════ 쪽 구성 ══════════
+   · 한 단 SPEC.perCol문항 · breakAfter로 강제 단 나눔
+   · 공통 → 선택 경계에서는 반드시 새 쪽의 왼쪽 단부터 시작
+   미리보기와 Typst 내보내기가 이 함수를 함께 쓰므로 배치가 어긋나지 않는다. */
+function buildPages(){
+  const P=state.problems,cols=[];let cur=[];
+  P.forEach((p,i)=>{
+    cur.push(p);
+    const nx=P[i+1];
+    if(cur.length>=SPEC.perCol||p.breakAfter||(nx&&nx.sect!==p.sect)){cols.push(cur);cur=[];}
+  });
+  if(cur.length)cols.push(cur);
+  const pages=[];let pg=[];
+  cols.forEach(col=>{
+    if(pg.length===1&&pg[0].length&&col[0].sect!==pg[0][0].sect){pg.push([]);pages.push(pg);pg=[];}
+    pg.push(col);
+    if(pg.length===2){pages.push(pg);pg=[];}
+  });
+  if(pg.length){pg.push([]);pages.push(pg);}
+  return pages;
+}
+/* 각 (과목구분 × 문항유형)의 첫 문항인가 */
+function isGroupFirst(p){
+  const f=state.problems.find(x=>x.sect===p.sect&&x.type===p.type);
+  return !!f&&f.id===p.id;
+}
+/* 구획 태그 — 단 첫머리면 절대배치, 아니면 문항 위에 흐름대로 */
+function tagOf(col){
+  if(!col||!col.length)return null;
+  const p=col[0];
+  return isGroupFirst(p)?tagName(p):null;
+}
+function tagName(p){return p.type==='choice'?'5지선다형':'단답형';}
+/* 쪽 메타 — 선택과목이 시작되면 쪽번호가 1로 되돌아간다 (꼬리말은 통쪽수) */
+function pageMeta(pages){
+  let sect=null,local=0;
+  return pages.map((pg,i)=>{
+    const c=pg.find(x=>x&&x.length),s=c?c[0].sect:(sect||'공통');
+    if(s!==sect){sect=s;local=1;}else local++;
+    return {sect:s,pageno:local,sheetno:i+1,first:local===1};
+  });
+}
+/* 확인 사항 — 각 과목의 마지막 쪽 오른쪽 단 아래 */
+function noteFor(meta,i,elec){
+  const M=meta[i],N=meta[i+1];
+  if(N&&N.sect===M.sect)return null;
+  const L=['※ 확인 사항','◦ 답안지의 해당란에 필요한 내용을 정확히 기입(표기)했는지 확인하시오.'];
+  if(M.sect==='공통')L.push('◦ 이어서, 「선택과목('+elec+')」 문제가 제시되오니, 자신이 선택한 과목인지 확인하시오.');
+  return L;
+}
+
+function renderPreview(){
+  if(LIVE.on){requestRender();return;}   // 실시간 모드면 서버 렌더로 넘긴다
+  const pages=buildPages(),meta=pageMeta(pages);
+  const round=$('#round').value,elec=$('#elective').value;
+
+  $('#stage').innerHTML=pages.map((pg,pi)=>{
+    const M=meta[pi],n=M.pageno,odd=n%2===1;
+    const area=M.sect==='선택'?`수학 영역(${elec})`:'수학 영역';
+    const ruleY=M.first?59.48:35.01;
+    const hd=M.first
+      ? `<div class="round" style="top:24.5mm"><span>${esc(round)}</span></div>
+         <div class="area" style="top:39mm"><span>${esc(area)}</span></div>
+         <div class="gyosi" style="left:18.97mm;top:38.44mm;width:32mm;height:10.96mm"><span>제 2 교시</span></div>
+         <div class="pno" style="right:18.33mm;top:21.8mm">${n}</div>`
+      : `<div class="area p2" style="top:24mm"><span>${esc(area)}</span></div>
+         <div class="pno" style="${odd?'right':'left'}:18.33mm;top:23.4mm">${n}</div>`;
+    const note=noteFor(meta,pi,elec);
+    return `<div class="paper ${state.guides?'g':''}">
+      ${hd}
+      <div class="rule" style="top:${ruleY}mm"></div>
+      <div class="divider" style="top:${ruleY}mm"></div>
+      <div class="body" style="top:${ruleY+4.5}mm">
+        ${[0,1].map(ci=>{
+          const col=pg[ci]||[],t=tagOf(col);
+          const rows=Math.max(col.length,SPEC.perCol);
+          return `<div class="col">${t?`<div class="tag ${t==='단답형'?'short':''}">${t}</div>`:''}
+            <div class="slots" style="grid-template-rows:repeat(${rows},1fr)">
+              ${col.map((p,i)=>`<div class="slot">${
+                  i>0&&isGroupFirst(p)?`<div class="tag inline ${tagName(p)==='단답형'?'short':''}">${tagName(p)}</div>`:''
+                }${renderProb(p)}</div>`).join('')}
+            </div></div>`;
+        }).join('')}
+      </div>
+      ${note?`<div class="notebox">${note.map(x=>`<div>${esc(x)}</div>`).join('')}</div>`:''}
+      <div class="pbox"><span class="n">${M.sheetno}</span><span class="b">${pages.length}</span></div>
+    </div>`;
+  }).join('');
+  applyZoom();
+}
+
+function renderEditor(){
+  const p=state.problems.find(x=>x.id===state.sel);
+  const isCh=p.type==='choice';
+  const pct=isCh?Math.round(measureCh(p.choices).ratio*100):0;
+  const L=isCh?layoutOf(p):null;
+  const ln=L==='1'?'1줄 5개':L==='2'?'2줄 3+2':'세로';
+  $('#ed').innerHTML=`<div class="ed">
+    <div class="ed-top"><div class="ed-no">${p.num}</div>
+      <span class="chip">${p.sect}</span><span class="chip">${isCh?'5지선다':'단답형'}</span>
+      <div style="flex:1"></div>
+      <select class="sel" id="edPts">${[2,3,4].map(v=>`<option ${v===p.pts?'selected':''}>${v}점</option>`).join('')}</select>
+    </div>
+    <div class="grp"><label>지문</label>
+      <textarea class="ta" id="edStmt" rows="6" placeholder="수식은 $...$ 안에 LaTeX으로">${esc(p.stmt)}</textarea>
+      <div class="hint">수식 <code>$\\dfrac{a}{b}$</code> · <code>$\\lim\\limits_{x\\to1}$</code> · <code>$\\overline{AB}$</code><br>
+        수식만 있는 줄은 별행 수식이 되고, <code>[조건]</code> · <code>[그림]</code> 을 한 줄에 적으면 그 자리에 조건 박스·그림이 들어갑니다.</div>
+    </div>
+    <div class="grp">
+      <div class="sw"><span>조건 박스 (가)(나)</span><button class="${p.useCond?'on':''}" id="edCondSw"></button></div>
+      ${p.useCond?`<textarea class="ta" id="edConds" rows="3">${esc(p.conds.join('\n'))}</textarea>`:''}
+    </div>
+    ${isCh?`<div class="grp"><label>선지</label>
+      ${p.choices.map((c,i)=>`<div class="row-in"><div class="mk">${MARKS[i]}</div>
+        <textarea class="ta ch-in" data-i="${i}" rows="1">${esc(c)}</textarea></div>`).join('')}
+      <div class="gauge"><span>폭</span>
+        <div class="bar"><div class="fill ${pct>100?'warn':''}" style="width:${Math.min(pct,100)}%"></div></div>
+        <b>${pct}%</b><span class="res">${ln}</span></div></div>
+    <div class="grp"><label>선지 배치</label>
+      <div class="seg" id="edLayout">${[['auto','자동'],['1','1줄'],['2','3+2'],['v','세로']]
+        .map(([v,t])=>`<button data-v="${v}" class="${p.layout===v?'on':''}">${t}</button>`).join('')}</div>
+    </div>`:''}
+    <div class="grp"><label>그림</label>
+      <div class="row-in" style="align-items:center">
+        <input class="inp" type="number" id="edFig" value="${p.figure}" min="0" max="110" style="width:90px">
+        <span style="font-size:12px;color:var(--text-tertiary)">mm 폭 · 0이면 없음</span></div>
+      <input class="inp" id="edFigSrc" value="${esc(p.figSrc||'')}" placeholder="파일명 (예: fig-14.png) — 비우면 자리만 표시">
+      <div class="hint">.typ 파일과 같은 폴더에 두면 됩니다. 지문에 <code>[그림]</code>을 적으면 그 자리에, 없으면 선지 앞에 들어갑니다.</div>
+    </div>
+    <div class="grp">
+      <div class="sw"><span>이 문항 뒤에서 단 나눔</span><button class="${p.breakAfter?'on':''}" id="edBreak"></button></div>
+      <div class="hint">기본 한 단 ${SPEC.perCol}문항. 각 문항은 단을 균등 분할한 자리에 고정됩니다.</div>
+    </div></div>`;
+  bindEd(p);
+}
+function bindEd(p){
+  $('#edPts').onchange=e=>{p.pts=parseInt(e.target.value);renderPreview();renderOutline();};
+  $('#edStmt').oninput=e=>{p.stmt=e.target.value;renderPreview();renderOutline();};
+  $('#edCondSw').onclick=()=>{p.useCond=!p.useCond;renderEditor();renderPreview();};
+  const ce=$('#edConds');if(ce)ce.oninput=e=>{p.conds=e.target.value.split('\n').filter(x=>x.trim());renderPreview();};
+  document.querySelectorAll('.ch-in').forEach(t=>t.oninput=e=>{
+    p.choices[+e.target.dataset.i]=e.target.value;renderPreview();gauge(p);renderOutline();});
+  const lay=$('#edLayout');
+  if(lay)lay.querySelectorAll('button').forEach(b=>b.onclick=()=>{p.layout=b.dataset.v;renderEditor();renderPreview();});
+  $('#edFig').oninput=e=>{p.figure=+e.target.value||0;renderPreview();};
+  $('#edFigSrc').oninput=e=>{p.figSrc=e.target.value.trim().replace(/["\\]/g,'');renderPreview();};
+  $('#edBreak').onclick=e=>{p.breakAfter=!p.breakAfter;e.target.classList.toggle('on');renderPreview();};
+}
+function gauge(p){
+  const g=document.querySelector('.gauge');if(!g)return;
+  const pct=Math.round(measureCh(p.choices).ratio*100),L=layoutOf(p);
+  const f=g.querySelector('.fill');
+  f.style.width=Math.min(pct,100)+'%';f.classList.toggle('warn',pct>100);
+  g.querySelector('b').textContent=pct+'%';
+  g.querySelector('.res').textContent=L==='1'?'1줄 5개':L==='2'?'2줄 3+2':'세로';
+}
+
+function renderOutline(){
+  let h='',last='';
+  state.problems.forEach(p=>{
+    if(p.sect!==last){h+=`<div class="ol-sect">${p.sect==='공통'?'공통과목':'선택 · '+$('#elective').value}</div>`;last=p.sect;}
+    const f=!!p.stmt.trim();
+    const over=p.type==='choice'&&p.layout==='auto'&&measureCh(p.choices).ratio>1;
+    h+=`<div class="ol-i ${p.id===state.sel?'sel':''} ${f?'filled':''}" data-id="${p.id}" draggable="true">
+      <div class="n">${p.num}</div>
+      <div class="bars"><div class="bar"></div><div class="bar" style="width:${f?70:38}%"></div></div>
+      ${over?'<span class="w">↕</span>':''}<div class="p">${p.pts}</div></div>`;
+  });
+  $('#ol').innerHTML=h;bindOutline();
+}
+function bindOutline(){
+  let src=null;
+  document.querySelectorAll('.ol-i').forEach(el=>{
+    el.onclick=()=>{state.sel=el.dataset.id;renderEditor();renderOutline();};
+    el.ondragstart=()=>{src=el;el.classList.add('drag');};
+    el.ondragend=()=>{el.classList.remove('drag');document.querySelectorAll('.ol-i').forEach(x=>x.classList.remove('over'));};
+    el.ondragover=e=>{e.preventDefault();if(el!==src)el.classList.add('over');};
+    el.ondragleave=()=>el.classList.remove('over');
+    el.ondrop=e=>{
+      e.preventDefault();if(!src||el===src)return;
+      const P=state.problems;
+      const a=P.findIndex(x=>x.id===src.dataset.id),b=P.findIndex(x=>x.id===el.dataset.id);
+      const [m]=P.splice(a,1);P.splice(b,0,m);
+      P.forEach((p,i)=>{const n=i+1;p.num=n;p.sect=n<=22?'공통':'선택';
+        p.type=(n<=15||(n>=23&&n<=28))?'choice':'short';p.pts=PTS[n];
+        if(p.type==='short')p.choices=[];else if(!p.choices.length)p.choices=['','','','',''];});
+      renderPreview();renderOutline();renderEditor();
+    };
+  });
+}
+
+/* 좌상단 기준 확대 */
+function applyZoom(){
+  const s=$('#stage');
+  s.style.transform=`scale(${state.zoom})`;
+  const pw=272*MM*state.zoom, ph=s.scrollHeight*state.zoom;
+  s.style.marginRight=(272*MM-pw)*-1+'px';
+  s.style.marginBottom=(s.scrollHeight-ph)*-1+'px';
+  $('#zVal').textContent=Math.round(state.zoom*100)+'%';
+}
+$('#zIn').onclick=()=>{state.zoom=Math.min(2.5,state.zoom+.1);applyZoom();};
+$('#zOut').onclick=()=>{state.zoom=Math.max(.15,state.zoom-.1);applyZoom();};
+$('#zFit').onclick=()=>{state.zoom=Math.max(.15,($('#preview').clientWidth-48)/(272*MM));applyZoom();};
+$('#preview').addEventListener('wheel',e=>{
+  if(!e.ctrlKey&&!e.metaKey)return;e.preventDefault();
+  state.zoom=Math.max(.15,Math.min(2.5,state.zoom-e.deltaY*.002));applyZoom();},{passive:false});
+$('#guideBtn').onclick=e=>{state.guides=!state.guides;e.target.classList.toggle('on',state.guides);renderPreview();};
+$('#round').oninput=renderPreview;
+$('#elective').onchange=()=>{renderPreview();renderOutline();};
+
+/* ══════════ Typst 프레임 ══════════
+   layout-test.typ 의 검증된 구조 그대로. 좌표·글꼴·보정계수를 고치려면
+   이 문자열만 고치면 내보내기 전체에 반영된다. */
+const TYPST_FRAME = `#import "@preview/mitex:0.2.7": mi, mitex
+
+// ── 판형 (평가원 PDF 실측) ──
+#let PW = 272mm
+#let PH = 394.1mm
+#let MG = 18.33mm          // 좌우 여백
+#let BW = 235.42mm         // 본문 폭
+#let CW = 112.57mm         // 단 폭
+#let CG = 10.28mm          // 단 간격
+#let RULE1 = 59.48mm       // 1p 괘선 y
+#let RULEN = 35.01mm       // 2p+ 괘선 y
+#let BOT = 359.41mm        // 본문 끝 y
+
+#set page(width: PW, height: PH, margin: 0pt)
+
+// ── 글꼴: 원본 → Mac 대체 매핑 ──
+// 발문 — 평가원 장평 95%. Typst엔 글자 가로압축이 없어서 폰트 자체를 95%로
+// 눌러 만든 A053SinMyungjo95.ttf 를 쓴다. 없으면 100%짜리로 떨어진다.
+#let F-BODY  = ("A053 SinMyungjo 95", "A053 SinMyungjo", "HCR Batang", "AppleMyungjo")
+#let F-PLAIN = ("A053 SinMyungjo", "HCR Batang", "AppleMyungjo")   // 장평 100% (수식용)
+#let F-LATIN = ("한양신명조", "HYsnrL", "Libertinus Serif")     // 영문/숫자, 선지 기호
+#let F-NO    = ("한양견명조", "HYmjrE", "HCR Batang")           // 문항 번호, 제2교시
+#let F-GYOSI = F-NO
+#let F-ROUND = ("신명 디나루", "은 디나루", "UnDinaru", "HCR Batang")   // 회차명 (숫자 포함)
+#let F-PNO   = ("신명 견명조", "HYmjrE", "HCR Batang")          // 쪽번호
+#let F-TAG   = ("#태고딕", "HYgtrE", "HCR Batang")              // 5지선다형/단답형
+// 숫자·영문은 한글 본문과 같은 글꼴을 쓴다.
+// (원본은 발문 영문에 한양신명조를 쓰지만 Mac에 없으면 Libertinus 로 떨어져
+//  한글과 확 달라 보인다. 원본 글꼴을 구하면 맨 앞에 다시 넣을 것.)
+// 수식 — 한컴 원본 HyhwpEQ (TTF/Install 폴더에 있음). 뒤는 없는 글자 대비
+#let F-EQ    = ("HyhwpEQ",) + F-PLAIN + ("New Computer Modern Math",)
+#let F-AREA  = ("신명 신그래픽", "신그래픽체", "SinGraphic", "HYgtrE")  // 수학 영역
+// cases 의 큰 중괄호용. HWP 계열 폰트에는 OpenType MATH 표가 없어서
+// 그냥 두면 { 가 한 글자 크기로 나온다. 중괄호만 수학 폰트로 바꾸면 늘어난다.
+#let F-BRACE = "New Computer Modern Math"
+
+// ── 대체 폰트 자폭 보정 (원본 폰트를 구하면 1.0으로) ──
+#let K-BODY  = 1.0
+#let K-AREA  = 1.022
+#let K-GYOSI = 1.213
+#let K-ROUND = 1.0
+#let K-NO    = 1.049
+#let K-TAG   = 1.10
+#let K-PNO   = 1.10
+
+#set text(font: F-BODY, size: 10.91pt * K-BODY, tracking: -0.546pt * K-BODY, lang: "ko")
+// 영문·숫자 전용 글꼴 지정은 쓰지 않는다 — 본문 글꼴 그대로 간다.
+// (되살리려면: #show regex("[A-Za-z0-9]"): set text(font: F-LATIN))
+// 수식 = HyhwpEQ 11.04pt · 평가원 수식의 변수는 이탤릭이 아니라 정자
+#show math.equation: set text(font: F-EQ, size: 11.04pt * K-BODY)
+#show math.equation: math.upright
+#show math.equation: it => { show regex("[{}]"): set text(font: F-BRACE); it }
+#set par(leading: 0.65em, justify: false)
+
+// ── 문항 요소 ──
+#let ptsmark(pts) = [\\[#str(pts)점\\]]
+// 한 줄짜리 문항
+#let prob(n, pts, body) = block(width: 100%, breakable: false, below: 0pt)[
+  #par(hanging-indent: 3.99mm)[#text(font: F-NO, size: 12.83pt * K-NO)[#n.]#h(2.2mm)#body#h(0.33em)#ptsmark(pts)]
+]
+// 여러 줄 문항의 첫 줄 (배점은 마지막 텍스트 줄에 붙음)
+#let probhead(n, body) = block(width: 100%, breakable: false, below: 0pt)[
+  #par(hanging-indent: 3.99mm)[#text(font: F-NO, size: 12.83pt * K-NO)[#n.]#h(2.2mm)#body]
+]
+// 이어지는 줄 — 문항 첫 글자선 정렬
+#let contline(body) = block(width: 100%, above: 0.65em, below: 0pt)[
+  #pad(left: 3.99mm)[#body]]
+// 별행 수식 — 단 안에서 가운데, 위아래 2.8mm
+#let dispeq(body) = block(width: 100%, above: 2.8mm, below: 2.8mm)[#align(center)[#body]]
+// 조건 박스 (가)(나) — 1행1열 표, 테두리 0.12mm, 안여백 3mm
+// CONDW: 25 양식 실측 104mm / 09 정본 스타일 정의는 108.07mm (바꾸려면 여기만)
+#let CONDW = 104mm
+#let condbox(..items) = block(above: 3.4mm, below: 3.4mm)[
+  #pad(left: 3.99mm)[
+    #box(width: CONDW, stroke: 0.12mm, inset: 3mm)[
+      #grid(columns: 1, row-gutter: 1.6mm, ..items.pos())]]]
+// 실제 그림 — 단 안에서 가운데, 위아래 3.4mm
+#let figbox(body) = block(width: 100%, above: 3.4mm, below: 3.4mm)[#align(center)[#body]]
+// 그림 자리(파일 미지정) — 나중에 figbox[#image(...)] 로 교체
+#let figplace(w, label) = block(width: 100%, above: 3.4mm, below: 3.4mm)[
+  #align(center)[#box(width: w, height: w * 0.68,
+    stroke: (paint: luma(170), thickness: 0.2mm, dash: "dashed"))[
+    #align(center + horizon)[#text(size: 8pt, fill: luma(150))[#label]]]]]
+
+// ── 선지 ── (200906 hwpx의 ①-5 / ①-3 스타일 탭 위치를 그대로 옮김)
+//   ①-5 : 3.99 · 25.60 · 47.20 · 68.81 · 90.40 mm  (5등분 아님, 등간격도 아님)
+//   ①-3 : 3.99 · 40.00 · 76.00 mm
+//   HWP '문제' 스타일의 문단 아래 간격 3.99mm 는 줄간격에 '더해지는' 값이다.
+//   Typst의 블록 간격은 줄간격을 대체하므로 그만큼(0.65em≒2.5mm) 보태준다.
+//   → 글줄 baseline 간격 ≒ 3.85 + 6.5 = 10.35mm (원본 실측 약 10mm)
+#let CHGAP = 6.5mm
+#let ch1(..it) = pad(left: 3.99mm, top: CHGAP)[
+  #grid(columns: (21.61mm, 21.60mm, 21.61mm, 21.59mm, auto), ..it.pos())]
+#let ch2(..it) = { let a = it.pos(); pad(left: 3.99mm, top: CHGAP)[
+  #grid(columns: (36.01mm, 36.00mm, auto), row-gutter: 2.6mm, ..a.slice(0, 3), ..a.slice(3))] }
+// 세로 1개씩
+#let chv(..it) = pad(left: 3.99mm, top: CHGAP)[
+  #grid(columns: 1, row-gutter: 2.2mm, ..it.pos())]
+
+// ── 구획 태그 ──
+// 5지선다형 38.99mm / 단답형 27.84mm (09 정본 실측) · 높이 8.29mm
+#let sectag(t) = box(stroke: 0.35mm, height: 8.29mm,
+                     width: if t == "단답형" { 27.84mm } else { 38.99mm })[
+  #align(center + horizon)[#text(font: F-TAG, size: 14.25pt * K-TAG)[#t]]]
+
+// 단 첫머리가 아닌 곳에서 구획이 바뀔 때 — 문항 위에 흐름대로 넣는다
+#let sectag-inline(t) = block(above: 0pt, below: 11.21mm)[#sectag(t)]
+
+// ── 확인 사항 박스 ──
+// 09 정본: 폭 112.00mm · 높이 22.34mm(3줄) · 테두리 0.12mm,
+//          쪽(본문영역) 기준 오른쪽·아래 정렬, 오프셋 0
+#let NOTEW = 112mm
+#let notebox(..lines) = box(width: NOTEW, stroke: 0.12mm, inset: (x: 2.5mm, y: 2.0mm))[
+  #set par(leading: 0.75em)
+  #grid(columns: 1, row-gutter: 2.2mm, ..lines.pos())]
+
+// ── 꼬리말 쪽수 (박스 좌표·크기는 실측값, 내부는 원본의 분수꼴) ──
+// 원본(200906 PDF 300dpi 실측): 대각선은 왼쪽아래 → 오른쪽위 모서리를 잇는다.
+// 쪽번호는 왼쪽 위, 총쪽수는 오른쪽 아래.
+#let pfoot(n, total) = box(width: 17.7mm, height: 7.75mm, stroke: 0.3mm)[
+  #place(top + left, line(start: (0mm, 7.75mm), end: (17.7mm, 0mm), stroke: 0.25mm))
+  #place(top + left, dx: 2.7mm, dy: 0.5mm, text(font: F-PNO, size: 11.4pt)[#n])
+  #place(bottom + right, dx: -1.5mm, dy: -0.3mm, text(font: F-PNO, size: 11.4pt)[#total])]
+
+// ── 단: 높이를 균등 분할해 각 문항을 자기 칸 상단에 고정 ──
+#let column-slots(items, pad-top: 0mm) = {
+  let n = calc.max(items.len(), 2)
+  grid(columns: 1, rows: (1fr,) * n,
+    ..items.enumerate().map(((i, x)) => block(width: 100%)[
+      #if i == 0 and pad-top != 0mm { v(pad-top) }
+      #x]))
+}
+
+// ── 페이지 프레임 ──
+//   pageno  : 과목별 쪽번호 (선택과목에서 1로 되돌아감) — 머리말 모양·좌우 결정
+//   sheetno : 꼬리말 통쪽수
+#let sheet(pageno, area, round: none, tag-l: none, tag-r: none,
+           sheetno: 1, total: 20, note: none,
+           left-items: (), right-items: ()) = {
+  let ruleY = if pageno == 1 { RULE1 } else { RULEN }
+  let bodyH = BOT - ruleY - 4.5mm
+
+  // 머리말
+  if pageno == 1 {
+    place(top + left, dx: 0mm, dy: 24.5mm,
+      box(width: PW)[#align(center)[
+        // 신명 디나루 17.85pt · 장평 85% · 자간 0%
+        #scale(x: 85%, reflow: true)[#text(font: F-ROUND, size: 17.85pt * K-ROUND, tracking: 0pt)[#round]]]])
+    place(top + left, dx: 18.97mm, dy: 38.44mm,
+      box(width: 32mm, height: 10.96mm, stroke: 0.4mm, radius: 5.5mm)[
+        #align(center + horizon)[
+          // 한양견명조 17.6pt · 장평 80% · 글자위치 +5% · 자간 -3%
+          #scale(x: 80%, reflow: true)[
+            #text(font: F-GYOSI, size: 17.6pt * K-GYOSI, tracking: -0.53pt,
+                  baseline: -0.05em)[제 2 교시]]]])
+    place(top + left, dx: 0mm, dy: 39.0mm,
+      box(width: PW)[#align(center)[
+        // 신명 신그래픽 40pt · 장평 90% · 자간 -3%
+        #scale(x: 90%, reflow: true)[#text(font: F-AREA, size: 40pt * K-AREA, tracking: -1.2pt)[#area]]]])
+    place(top + right, dx: -MG, dy: 21.8mm, text(font: F-PNO, size: 29.7pt * K-PNO, weight: "bold")[#pageno])
+  } else {
+    place(top + left, dx: 0mm, dy: 24.0mm,
+      box(width: PW)[#align(center)[
+        #scale(x: 90%, reflow: true)[#text(font: F-AREA, size: 28pt * K-AREA, tracking: -0.84pt)[#area]]]])
+    if calc.odd(pageno) {
+      place(top + right, dx: -MG, dy: 23.4mm, text(font: F-PNO, size: 29.7pt * K-PNO, weight: "bold")[#pageno])
+    } else {
+      place(top + left, dx: MG, dy: 23.4mm, text(font: F-PNO, size: 29.7pt * K-PNO, weight: "bold")[#pageno])
+    }
+  }
+
+  // 가로 괘선 / 세로 단 구분선
+  place(top + left, dx: MG, dy: ruleY, line(length: BW, stroke: 0.6mm))
+  place(top + left, dx: 136.40mm, dy: ruleY,
+        line(angle: 90deg, length: BOT - ruleY, stroke: 0.25mm))
+
+  // 구획 태그 — 괘선 아래 4.49mm (1쪽 실측 y=63.97 기준)
+  let tagY = ruleY + 4.49mm
+  if tag-l != none { place(top + left, dx: 18.84mm, dy: tagY, tag-l) }
+  if tag-r != none { place(top + left, dx: 141.18mm, dy: tagY, tag-r) }
+
+  // 본문 2단
+  place(top + left, dx: MG, dy: ruleY + 4.5mm,
+    box(width: BW, height: bodyH)[
+      #grid(columns: (CW, CW), column-gutter: CG,
+        box(width: CW, height: bodyH)[
+          #column-slots(left-items, pad-top: if tag-l != none { 19.5mm } else { 0mm })
+        ],
+        box(width: CW, height: bodyH)[
+          #column-slots(right-items, pad-top: if tag-r != none { 19.5mm } else { 0mm })
+        ])
+    ])
+
+  // 확인 사항 — 본문 영역의 오른쪽·아래 끝에 붙임 (09 정본과 동일한 기준)
+  if note != none {
+    place(bottom + left, dx: MG + BW - NOTEW, dy: -(PH - BOT), note)
+  }
+
+  // 꼬리말 쪽수
+  place(top + left, dx: (PW - 17.7mm) / 2, dy: 364.66mm, pfoot(sheetno, total))
+}
+`;
+
+/* ── Typst 마크업 이스케이프 ──
+   Typst에서 특별한 뜻을 갖는 문자를 본문 텍스트로 내보낼 때 막아준다. */
+function tq(s){return String(s).replace(/([\\#$\[\]*_`<>@~])/g,'\\$1');}
+/* Typst 문자열 리터럴("...") 안에 넣을 때 */
+function tqs(s){return String(s).replace(/\\/g,'\\\\').replace(/"/g,'\\"');}
+/* LaTeX → MiTeX 호출. disp=true면 별행(디스플레이) 수식 */
+/* cases 환경의 열 구분 & 는 Typst에서 폭이 0이라 조건이 식에 바로 붙는다.
+   평가원 원본처럼 띄우려면 \quad 을 넣어줘야 한다. */
+function fixCases(s){
+  return s.replace(/\\begin\{cases\}[\s\S]*?\\end\{cases\}/g,
+    m=>m.replace(/&(?!\s*\\quad)/g,'&\\quad '));
+}
+function texToTypst(latex,disp){
+  const src=fixCases(String(latex).replace(/`/g,"'").replace(/\r?\n/g,' '));
+  return '#'+(disp?'mitex':'mi')+'(`'+src+'`)';
+}
+/* $...$ 이 섞인 한 줄 → Typst 마크업.
+   수식 바로 뒤의 '.' '(' 는 필드접근·함수호출로 잘못 읽히므로 이스케이프한다.
+   (검증: `#mi(`x`).이다` → error / `#mi(`x`)\.이다` → 정상) */
+function tline(s){
+  const segs=String(s).split(/(\$[^$]*\$)/g);let out='',eq=false;
+  segs.forEach(seg=>{
+    if(!seg)return;
+    if(seg.length>2&&seg.startsWith('$')&&seg.endsWith('$')){
+      out+=texToTypst(seg.slice(1,-1),false);eq=true;
+    }else{
+      let t=tq(seg);
+      if(eq&&/^[.(]/.test(t))t='\\'+t;
+      out+=t;eq=false;
+    }
+  });
+  return out;
+}
+
+/* 한 문항 → Typst 조각 (sheet의 left-items/right-items 원소 안에 들어간다) */
+function probTypst(p){
+  const PM=`#ptsmark(${p.pts})`,IND='\n     ';
+  if(!p.stmt.trim())
+    return `// ${p.num}번 — 발문 비어 있음${IND}#probhead(${p.num})[ ]`;
+  const lines=stmtLines(p);
+  const isEq=t=>/^\$[^$]*\$$/.test(t);
+  const isMk=t=>MK_C.test(t)||MK_F.test(t);
+  const cond=()=>p.useCond&&p.conds.length
+    ?`#condbox(${p.conds.map(c=>`\n       [${tline(c)}],`).join('')}\n     )`:null;
+  const fig=()=>{
+    if(!p.figure)return null;
+    return p.figSrc
+      ? `#figbox[#image("${tqs(p.figSrc)}", width: ${p.figure}mm)]`
+      : `#figplace(${p.figure}mm)[그림 ${p.num}]`
+        +`  // 그림 파일을 지정하면 #figbox[#image("...", width: ${p.figure}mm)] 로 바뀝니다`;
+  };
+  let pi=-1;lines.forEach((t,i)=>{if(!isEq(t)&&!isMk(t))pi=i;});
+  if(pi<0)pi=lines.length-1;
+  const out=[],push=x=>{if(x)out.push(x)};
+  const single=lines.length===1&&!isEq(lines[0])&&!isMk(lines[0]);
+  let first=true;
+  lines.forEach((t,i)=>{
+    const tail=i===pi?' '+PM:'';
+    if(MK_C.test(t)){push(cond());return;}
+    if(MK_F.test(t)){push(fig());return;}
+    if(isEq(t))      push(`#dispeq[${texToTypst(t.slice(1,-1),true)}${tail}]`);
+    else if(first){
+      push(single?`#prob(${p.num}, ${p.pts})[${tline(t)}]`
+                 :`#probhead(${p.num})[${tline(t)}${tail}]`);
+      first=false;
+    }
+    else             push(`#contline[${tline(t)}${tail}]`);
+  });
+  if(!lines.some(t=>MK_C.test(t)))push(cond());
+  if(!lines.some(t=>MK_F.test(t)))push(fig());
+  if(p.type==='choice'&&p.choices.some(c=>c.trim())){
+    const L=layoutOf(p),fn=L==='1'?'ch1':L==='2'?'ch2':'chv';
+    push(`#${fn}(${p.choices.map((c,i)=>`[${MARKS[i]} ${tline(c)}]`).join(', ')})`);
+  }
+  return out.join(IND);
+}
+
+/* 한 쪽 → #sheet(...) 호출 */
+function sheetTypst(pg,M,meta,total,round,elec){
+  const area=M.sect==='선택'?`수학 영역(${elec})`:'수학 영역';
+  const col=ci=>{
+    const c=pg[ci]||[];
+    if(!c.length)return '()';
+    return '(\n    '+c.map((p,i)=>{
+      const tag=i>0&&isGroupFirst(p)?`#sectag-inline("${tagName(p)}")\n     `:'';
+      return `[${tag}${probTypst(p)}],`;
+    }).join('\n    ')+'\n  )';
+  };
+  const tl=tagOf(pg[0]),tr=tagOf(pg[1]),note=noteFor(meta,M.sheetno-1,elec);
+  const a=[`#sheet(${M.pageno}, "${tqs(area)}",`];
+  if(M.first)a.push(`  round: "${tqs(round)}",`);
+  a.push(`  sheetno: ${M.sheetno}, total: ${total},`);
+  if(tl)a.push(`  tag-l: sectag("${tl}"),`);
+  if(tr)a.push(`  tag-r: sectag("${tr}"),`);
+  if(note)a.push(`  note: notebox(${note.map(x=>`\n    [${tq(x)}],`).join('')}\n  ),`);
+  a.push(`  left-items: ${col(0)},`);
+  a.push(`  right-items: ${col(1)})`);
+  return a.join('\n');
+}
+
+function typstSource(){
+  const round=$('#round').value,elec=$('#elective').value;
+  const pages=buildPages(),meta=pageMeta(pages);
+  const total=pages.length;
+  const head=`// ═══════════════════════════════════════════════════════════════
+//  ${round} — 선택: ${elec}
+//  PEDAGOGY 모의고사 편집기 자동 생성 · 정본은 로컬 typst 렌더링
+//
+//  typst compile --font-path ~/exam-fonts --font-path "/Applications/Hancom Office HWP.app/Contents/Resources/Hnc/Shared/TTF/Hwp" ${round.replace(/\s+/g,'_')}.typ
+// ═══════════════════════════════════════════════════════════════
+`+TYPST_FRAME;
+  const body=pages.map((pg,i)=>{
+    const M=meta[i];
+    return `// ════════ ${M.sect} ${M.pageno}쪽 (통 ${M.sheetno}쪽) ════════\n`
+      +sheetTypst(pg,M,meta,total,round,elec);
+  }).join('\n\n#pagebreak()\n\n');
+  return head+'\n'+body+'\n';
+}
+function toTypst(){
+  const src=typstSource();
+  const name=$('#round').value.replace(/\s+/g,'_')+'_'+$('#elective').value.replace(/\s+/g,'')+'.typ';
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([src],{type:'text/plain;charset=utf-8'}));
+  a.download=name;a.click();
+}
+
+/* ══════════ 실시간 렌더 ══════════
+   serve.py 가 떠 있으면 정본과 똑같은 typst·글꼴로 컴파일해서 그 결과를 띄운다.
+   서버가 없으면 기존 CSS 근사 미리보기로 자동으로 돌아간다. */
+const LIVE={on:false,busy:false,pending:false,timer:null,cache:new Map(),ppi:110,base:''};
+/* 로컬 서버가 띄운 페이지면 같은 출처(''), 깃허브 페이지 등에서 열었으면
+   내 컴퓨터의 렌더 서버 주소를 직접 부른다. 크롬은 https 페이지에서
+   로컬 주소를 부를 때 서버의 허가 헤더를 요구하는데 serve.py 가 붙여 준다. */
+const LIVE_PORTS=[8787,8788,8080];
+async function probe(base){
+  try{
+    const c=new AbortController();const t=setTimeout(()=>c.abort(),1500);
+    const r=await fetch(base+'/health',{headers:{'X-Exam-Client':'1'},signal:c.signal});
+    clearTimeout(t);
+    if(!r.ok)return false;
+    const d=await r.json();return !!d.ok;
+  }catch(e){return false;}
+}
+async function pingServer(){
+  if(await probe('')){LIVE.base='';return true;}          // 같은 출처 우선
+  for(const p of LIVE_PORTS){
+    const b='http://127.0.0.1:'+p;
+    if(await probe(b)){LIVE.base=b;return true;}
+  }
+  return false;
+}
+function setLive(on){
+  LIVE.on=on;
+  const b=$('#liveBtn');if(b)b.classList.toggle('on',on);
+  if(on)requestRender(0); else {LIVE.cache.clear();showErr('');renderPreview();}
+}
+function showErr(t){
+  const box=$('#errbox');if(!box)return;
+  if(t&&t.trim()){$('#errtxt').textContent=t.trim();box.hidden=false;}
+  else box.hidden=true;
+}
+function requestRender(delay=400){
+  if(!LIVE.on)return;
+  clearTimeout(LIVE.timer);
+  LIVE.timer=setTimeout(()=>{
+    if(LIVE.busy){LIVE.pending=true;return;}
+    doRender();
+  },delay);
+}
+async function doRender(){
+  LIVE.busy=true;$('#stage').classList.add('busy');
+  try{
+    const r=await fetch(LIVE.base+'/render',{method:'POST',
+      headers:{'Content-Type':'application/json','X-Exam-Client':'1'},
+      body:JSON.stringify({typ:typstSource(),ppi:livePpi(),known:[...LIVE.cache.keys()]})});
+    const d=await r.json();
+    if(!d.ok){showErr(d.log||d.error||'컴파일 실패');}
+    else{
+      showErr(d.log&&/error/i.test(d.log)?d.log:'');
+      const st=$('#stage');st.innerHTML='';
+      for(const p of d.pages){
+        if(p.png)LIVE.cache.set(p.hash,'data:image/png;base64,'+p.png);
+        const url=LIVE.cache.get(p.hash);
+        const img=document.createElement('img');
+        img.className='live-pg';img.src=url||'';img.alt=p.n+'쪽';
+        img.style.width=SPECPG.w+'mm';img.style.height=SPECPG.h+'mm';
+        st.appendChild(img);
+      }
+      // 캐시가 너무 커지지 않게
+      if(LIVE.cache.size>60)LIVE.cache.clear();
+      applyZoom();
+    }
+  }catch(e){
+    showErr('렌더 서버에 연결하지 못했습니다. serve.py 가 떠 있는지 확인하세요.\n'+e);
+    setLive(false);
+  }finally{
+    LIVE.busy=false;$('#stage').classList.remove('busy');
+    if(LIVE.pending){LIVE.pending=false;requestRender(120);}
+  }
+}
+const SPECPG={w:272,h:394.1};
+/* 화면에 실제로 찍히는 밀도에 맞춘 해상도 — 확대하면 더 선명하게 받는다 */
+function livePpi(){
+  const dpr=Math.min(window.devicePixelRatio||1,2);
+  return Math.round(Math.max(72,Math.min(200,96*state.zoom*dpr*1.15)));
+}
+
+$('#exportBtn').onclick=toTypst;
+
+/* 불러온 JSON 을 그대로 믿지 않고 형식을 맞춘다 */
+function sanitize(base,p){
+  if(!p||typeof p!=='object')return base;
+  const S=(v,d)=>typeof v==='string'?v.slice(0,4000):d;
+  const o=Object.assign({},base);
+  o.sect=p.sect==='선택'?'선택':'공통';
+  o.type=p.type==='short'?'short':'choice';
+  o.pts=[2,3,4].includes(+p.pts)?+p.pts:base.pts;
+  o.stmt=S(p.stmt,'');
+  o.conds=Array.isArray(p.conds)?p.conds.slice(0,6).map(x=>S(x,'')):[];
+  o.useCond=!!p.useCond;
+  o.choices=Array.isArray(p.choices)?[0,1,2,3,4].map(i=>S(p.choices[i],'')):base.choices;
+  o.layout=['auto','1','2','v'].includes(p.layout)?p.layout:'auto';
+  o.figure=Math.max(0,Math.min(110,+p.figure||0));
+  o.figSrc=S(p.figSrc,'').replace(/["\\]/g,'');
+  o.breakAfter=!!p.breakAfter;
+  return o;
+}
+let DIRTY=false;
+/* ── 작업 저장·불러오기 ──
+   브라우저 저장소를 쓰지 않고 .json 파일로 주고받는다(탭을 닫아도 안전). */
+function saveJSON(){
+  const data={v:1,round:$('#round').value,elective:$('#elective').value,problems:state.problems};
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,1)],{type:'application/json'}));
+  a.download=$('#round').value.replace(/\s+/g,'_')+'.json';a.click();
+  DIRTY=false;
+}
+$('#saveBtn').onclick=saveJSON;
+
+/* ── 단축키 ──
+   ⌘S 저장 · ⌘E 내보내기 · ⌥↑/↓ 문항 이동 */
+document.addEventListener('keydown',e=>{
+  const cmd=e.metaKey||e.ctrlKey;
+  if(cmd&&e.key.toLowerCase()==='s'){e.preventDefault();saveJSON();return;}
+  if(cmd&&e.key.toLowerCase()==='e'){e.preventDefault();toTypst();return;}
+  if(e.altKey&&(e.key==='ArrowUp'||e.key==='ArrowDown')){
+    e.preventDefault();
+    const i=state.problems.findIndex(x=>x.id===state.sel);
+    const j=Math.max(0,Math.min(state.problems.length-1,i+(e.key==='ArrowDown'?1:-1)));
+    state.sel=state.problems[j].id;renderEditor();renderOutline();
+  }
+});
+
+/* 저장 안 한 채로 닫으려 하면 경고 (브라우저 저장소를 안 쓰기 때문) */
+document.addEventListener('input',()=>{DIRTY=true;});
+window.addEventListener('beforeunload',e=>{if(DIRTY){e.preventDefault();e.returnValue='';}});
+$('#loadInput').onchange=e=>{
+  const f=e.target.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=()=>{
+    try{
+      const d=JSON.parse(r.result);
+      if(d.round)$('#round').value=d.round;
+      if(d.elective)$('#elective').value=d.elective;
+      if(Array.isArray(d.problems))
+        state.problems=d.problems.slice(0,60).map((p,i)=>sanitize(blank(i+1),p));
+      state.sel=state.problems[0].id;
+      renderPreview();renderEditor();renderOutline();
+    }catch(err){alert('불러오기 실패: '+err.message);}
+  };
+  r.readAsText(f);e.target.value='';
+};
+
+async function boot(){
+  renderPreview();renderEditor();renderOutline();
+  $('#liveBtn').onclick=async()=>{
+    if(LIVE.on)return setLive(false);
+    if(await pingServer())setLive(true);
+    else showErr('로컬 렌더 서버가 없습니다.\n터미널에서  python3 serve.py  를 실행한 뒤\nhttp://127.0.0.1:8787 로 열어 주세요.');
+  };
+  if(location.protocol.startsWith('http')&&await pingServer())setLive(true);
+  else if(location.protocol.startsWith('http'))
+    console.info('로컬 렌더 서버 없음 — 근사 미리보기로 동작합니다.');
+}
+if(window.katex)boot(); else window.addEventListener('load',boot);
+document.fonts&&document.fonts.ready.then(()=>{renderPreview();});
+</script>
+</body>
+</html>

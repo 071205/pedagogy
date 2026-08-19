@@ -120,7 +120,16 @@ label.btn{height:36px;padding:0 14px;display:inline-flex;align-items:center;curs
 label.btn input{display:none}
 
 /* ── Views ── */
-#libraryView,#editorView{display:none}
+#libraryView,#editorView,#mockView{display:none}
+/* 모의고사 모드 — 별도 문서(iframe)로 격리한다.
+   PEDAGOGY 와 전역 변수·CSS 가 섞이지 않게 하기 위한 것이며,
+   저장소도 서로 독립이다(문제집은 Firestore, 모의고사는 .json 파일). */
+#mockView{height:calc(100vh - 60px);background:#09090B}
+#mockView iframe{width:100%;height:100%;border:0;display:block}
+#mockModeBtn.on{background:var(--accent,#3182F6);border-color:transparent;color:#fff}
+#mockFallback{padding:48px;color:#8B8B9A;font-size:14px;line-height:1.8;max-width:760px}
+#mockFallback code{background:#18181F;border:1px solid #27272F;border-radius:6px;padding:2px 7px;
+  font:12px/1.6 ui-monospace,Menlo,monospace;color:#F4F4F6}
 #editorView{height:calc(100vh - 60px)}
 .editor{display:flex;height:100%;overflow:hidden}
 
@@ -425,7 +434,7 @@ body.hide-answers .answer-block{display:none!important}
 
 @media print{
   body{background:#fff}
-  .topbar,#libraryView,#editorView,#exportModal,#promptModal,#toastHost{display:none!important}
+  .topbar,#libraryView,#editorView,#mockView,#exportModal,#promptModal,#toastHost{display:none!important}
   #printDoc{display:block}
   /* 스크롤바 제거 */
   ::-webkit-scrollbar{display:none!important}
@@ -507,6 +516,7 @@ input:focus-visible,textarea:focus-visible{outline:none}
 <!-- Topbar -->
 <div class="topbar">
   <div class="brand" id="brandBtn">PEDAGOGY</div>
+  <button id="mockModeBtn" class="btn" style="margin-left:14px" title="평가원 양식 시험지 편집기">📝 모의고사</button>
   <div class="actions" id="topActions">
     <button id="undoBtn" class="btn-ghost histbtn" title="실행취소 (Cmd/Ctrl+Z)" disabled><span class="icon icon-undo"></span></button>
     <button id="redoBtn" class="btn-ghost histbtn" title="다시실행 (Cmd/Ctrl+Shift+Z)" disabled><span class="icon icon-redo"></span></button>
@@ -555,6 +565,61 @@ input:focus-visible,textarea:focus-visible{outline:none}
 
 
 <!-- Editor -->
+<!-- 모의고사 모드 (평가원 양식 시험지 편집기) -->
+<div id="mockView">
+  <div id="mockFallback" hidden>
+    <h2 style="margin:0 0 16px;color:#F4F4F6">모의고사 모드</h2>
+    <p><code>mock-exam-editor.html</code> 을 찾지 못했습니다. <code>index.html</code> 과 같은 폴더에 두세요.</p>
+    <p>실시간 Typst 렌더링을 쓰려면 그 폴더에서 <code>python3 serve.py</code> 를 실행하고
+       <code>http://127.0.0.1:8787</code> 로 접속하세요. 서버 없이도 근사 미리보기로 편집은 됩니다.</p>
+  </div>
+</div>
+
+<script>
+/* ══ 모의고사 모드 ══
+   PEDAGOGY 본체와 완전히 분리된 스크립트다. 본체 스크립트(Firebase 등)가
+   실패해도 이 모드는 동작하도록 일부러 앞쪽에서 독립적으로 등록한다.
+   편집기 자체는 iframe(별도 문서)이라 전역 변수·CSS·저장소가 서로 섞이지 않는다. */
+(function(){
+  var V=document.getElementById('mockView'),
+      B=document.getElementById('mockModeBtn'),
+      FB=document.getElementById('mockFallback');
+  if(!V||!B) return;
+  function hideOthers(){
+    ['libraryView','editorView'].forEach(function(id){
+      var e=document.getElementById(id); if(e) e.style.display='none';
+    });
+    var t=document.getElementById('topActions'); if(t) t.style.visibility='hidden';
+  }
+  function open(){
+    hideOthers(); V.style.display='block'; B.classList.add('on'); B.textContent='← PEDAGOGY';
+    if(!V.querySelector('iframe')){
+      var fr=document.createElement('iframe');
+      fr.id='mockFrame'; fr.title='모의고사 편집기'; fr.src='mock-exam-editor.html';
+      fr.onerror=function(){ fr.remove(); FB.hidden=false; };
+      fr.onload=function(){
+        try{ var d=fr.contentDocument;
+             if(d && !d.querySelector('#stage')){ fr.remove(); FB.hidden=false; } }
+        catch(e){}   /* 교차 출처면 검사 불가 — 정상으로 본다 */
+      };
+      V.appendChild(fr);
+    }
+  }
+  function back(){
+    V.style.display='none'; B.classList.remove('on'); B.textContent='📝 모의고사';
+    if(typeof window.showLibrary==='function'){ window.showLibrary(); return; }
+    var l=document.getElementById('libraryView'); if(l) l.style.display='block';
+  }
+  B.onclick=function(){ V.style.display==='block'?back():open(); };
+  /* 본체가 다른 뷰로 전환할 때 버튼 상태를 되돌리기 위해 노출 */
+  window.__mockClose=function(){ B.classList.remove('on'); B.textContent='📝 모의고사'; };
+  /* 본체가 라이브러리/편집기로 전환할 때 이 뷰도 확실히 닫는다 */
+  var brand=document.getElementById('brandBtn');
+  if(brand) brand.addEventListener('click', function(){
+    V.style.display='none'; B.classList.remove('on'); B.textContent='📝 모의고사'; });
+})();
+</script>
+
 <div id="editorView" class="editor">
   <!-- Sidebar -->
   <div class="sidebar">
@@ -1128,7 +1193,11 @@ function renderLibrary(){
     grid.append(card);
   });
 }
-function showLibrary(){ $("#libraryView").style.display="block"; $("#editorView").style.display="none"; $("#topActions").style.visibility="hidden"; renderLibrary(); }
+function showLibrary(){ $("#libraryView").style.display="block"; $("#editorView").style.display="none";
+  $("#mockView").style.display="none"; if(window.__mockClose) window.__mockClose();
+  $("#topActions").style.visibility="hidden"; renderLibrary(); }
+
+
 const _setSearchEl=$("#setSearch");
 if(_setSearchEl){ _setSearchEl.oninput=(e)=>{ setSearchTerm=e.target.value||""; renderLibrary(); }; }
 $("#newSetBtn").onclick=()=>{ const ns={id:uid(), name:"새 문제집", header:"", problems:[newProblem()]}; sets.push(ns); setSearchTerm=""; const se=$("#setSearch"); if(se) se.value=""; saveSets(); showEditor(ns.id); };
@@ -1163,6 +1232,7 @@ function showEditor(setId){
   currentQId=(remembered && s.problems.some(p=>p.id===remembered)) ? remembered : s.problems[0].id;
 
   $("#libraryView").style.display="none";
+  $("#mockView").style.display="none"; if(window.__mockClose) window.__mockClose();
   $("#editorView").style.display="flex";
   $("#topActions").style.visibility="visible";
 
@@ -1731,6 +1801,7 @@ function buildPrintDoc(hideAnswers){
 
 /* Actions */
 $("#brandBtn").onclick=()=>showLibrary();
+$("#mockModeBtn").onclick=()=>showMock();
 $("#saveBtn").onclick=async ()=>{
   if(!currentUser){
     try{ localStorage.setItem(SETS_KEY, JSON.stringify(sets)); }catch(e){ console.error(e); }

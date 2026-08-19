@@ -1,0 +1,252 @@
+#!/usr/bin/env python3
+"""
+평가원 모의고사 편집기 — 로컬 렌더 서버
+
+  python3 serve.py            →  http://127.0.0.1:8787 을 브라우저로 열기
+  python3 serve.py --port 9000
+  python3 serve.py --open     →  브라우저까지 자동으로 열기
+
+편집기가 만든 Typst 소스를 받아 실제로 컴파일하고 쪽 이미지를 돌려준다.
+정본을 뽑는 것과 똑같은 typst·글꼴을 쓰므로, 왼쪽 미리보기가 곧 결과물이다.
+
+── 보안 ──
+이 서버는 로컬 전용이다. 다음을 지킨다.
+  · 127.0.0.1 에만 바인딩한다 (같은 와이파이의 다른 기기도 접근 불가)
+  · 브라우저에서 온 요청은 Origin 이 localhost 일 때만 받는다 (DNS 리바인딩 차단)
+  · 사용자가 보낸 경로로 파일을 읽거나 쓰지 않는다. 정적 파일은 화이트리스트만
+  · typst 는 --root 를 작업 폴더로 묶어 그 밖의 파일을 못 읽게 한다
+  · 셸을 거치지 않고(shell=False) 인자 배열로만 실행한다
+  · 본문 크기 상한과 컴파일 시간 상한을 둔다
+"""
+from __future__ import annotations
+import argparse, base64, hashlib, json, os, shutil, signal, subprocess, sys, tempfile, threading, webbrowser
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+WORK = HERE / "work"                 # 그림 등 typst 가 읽어도 되는 유일한 폴더
+MAX_BODY = 4 * 1024 * 1024           # 요청 본문 4MB
+TIMEOUT = 25                         # 컴파일 제한 시간(초)
+PPI_MIN, PPI_MAX = 48, 200
+
+# 정적 파일 화이트리스트 — 여기 없는 이름은 어떤 경로로도 못 가져간다
+STATIC = {
+    # / 는 index.html(PEDAGOGY)이 같은 폴더에 있으면 그쪽을, 없으면 모의고사 편집기를 연다
+    "/": ("index.html" if (HERE / "index.html").is_file() else "mock-exam-editor.html",
+          "text/html; charset=utf-8"),
+    "/mock-exam-editor.html": ("mock-exam-editor.html", "text/html; charset=utf-8"),
+    # PEDAGOGY 본체를 같은 폴더에 두면 여기서 같이 띄울 수 있다 (같은 출처가 되어
+    # 모의고사 모드에서 /render 를 그대로 부를 수 있다)
+    "/index.html": ("index.html", "text/html; charset=utf-8"),
+    "/mock": ("mock-exam-editor.html", "text/html; charset=utf-8"),
+}
+
+# https 사이트(깃허브 페이지 등)에서 이 로컬 서버를 부를 수 있게 허용할 출처.
+# 여기 적힌 곳만 허용한다. --allow-origin 으로 더 추가할 수 있다.
+ALLOW_ORIGINS = {
+    "https://071205.github.io",
+}
+
+FONT_DIRS = [
+    Path.home() / "exam-fonts",
+    Path("/Applications/Hancom Office HWP.app/Contents/Resources/Hnc/Shared/TTF/Hwp"),
+    Path("/Applications/Hancom Office HWP.app/Contents/Resources/Hnc/Shared/TTF/Install"),
+]
+
+
+def find_typst() -> str | None:
+    p = shutil.which("typst")
+    if p:
+        return p
+    for c in ("/opt/homebrew/bin/typst", "/usr/local/bin/typst"):
+        if Path(c).is_file():
+            return c
+    return None
+
+
+TYPST = find_typst()
+
+
+def font_args() -> list[str]:
+    out = []
+    for d in FONT_DIRS:
+        if d.is_dir():
+            out += ["--font-path", str(d)]
+    return out
+
+
+def compile_typ(src: str, ppi: int) -> dict:
+    """소스를 임시 폴더에서 컴파일해 쪽별 PNG 를 돌려준다."""
+    if TYPST is None:
+        return {"ok": False, "log": "typst 를 찾을 수 없습니다.  brew install typst"}
+    WORK.mkdir(exist_ok=True)
+    with tempfile.TemporaryDirectory(dir=str(WORK)) as td:
+        tdp = Path(td)
+        (tdp / "main.typ").write_text(src, encoding="utf-8")
+        cmd = [TYPST, "compile", *font_args(),
+               "--root", str(WORK),          # WORK 바깥은 못 읽는다
+               "--format", "png", "--ppi", str(ppi),
+               str(tdp / "main.typ"), str(tdp / "p{n}.png")]
+        try:
+            r = subprocess.run(cmd, capture_output=True, timeout=TIMEOUT,
+                               cwd=str(WORK), shell=False)
+        except subprocess.TimeoutExpired:
+            return {"ok": False, "log": f"컴파일이 {TIMEOUT}초를 넘겨 중단했습니다."}
+        log = (r.stderr or b"").decode("utf-8", "replace")
+        pages = sorted(tdp.glob("p*.png"),
+                       key=lambda p: int("".join(ch for ch in p.stem if ch.isdigit()) or 0))
+        if r.returncode != 0 or not pages:
+            return {"ok": False, "log": log or "컴파일 실패"}
+        out = []
+        for i, f in enumerate(pages, 1):
+            b = f.read_bytes()
+            out.append({"n": i, "hash": hashlib.sha1(b).hexdigest()[:16],
+                        "png": base64.b64encode(b).decode()})
+        return {"ok": True, "pages": out, "log": log}
+
+
+class Handler(BaseHTTPRequestHandler):
+    server_version = "ExamRender/1.0"
+    protocol_version = "HTTP/1.1"
+
+    # ── 공통 ──
+    def log_message(self, fmt, *a):          # 접근 로그 조용히
+        pass
+
+    def _allowed(self) -> set[str]:
+        port = self.server.server_address[1]
+        return ALLOW_ORIGINS | {f"http://127.0.0.1:{port}", f"http://localhost:{port}"}
+
+    def _origin_ok(self) -> bool:
+        """Origin 이 로컬이거나 ALLOW_ORIGINS 에 있을 때만 허용."""
+        o = self.headers.get("Origin")
+        if o is None:
+            return True                       # curl 등 Origin 없는 요청
+        return o in self._allowed()
+
+    def _cors(self):
+        """허용된 출처면 CORS 헤더를 붙인다.
+        Access-Control-Allow-Private-Network 는 크롬이 https 페이지에서
+        로컬(사설망) 주소를 부를 때 요구하는 허가 헤더다."""
+        o = self.headers.get("Origin")
+        if o and o in self._allowed():
+            self.send_header("Access-Control-Allow-Origin", o)
+            self.send_header("Vary", "Origin")
+            self.send_header("Access-Control-Allow-Headers", "Content-Type, X-Exam-Client")
+            self.send_header("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
+            self.send_header("Access-Control-Max-Age", "600")
+            if self.headers.get("Access-Control-Request-Private-Network") == "true":
+                self.send_header("Access-Control-Allow-Private-Network", "true")
+
+    def _send(self, code: int, body: bytes, ctype: str):
+        self.send_response(code)
+        self.send_header("Content-Type", ctype)
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("Referrer-Policy", "no-referrer")
+        self._cors()
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _json(self, code: int, obj: dict):
+        self._send(code, json.dumps(obj, ensure_ascii=False).encode(), "application/json; charset=utf-8")
+
+    # ── 사전 요청(preflight) ──
+    def do_OPTIONS(self):
+        if not self._origin_ok():
+            return self._json(403, {"error": "forbidden origin"})
+        self.send_response(204)
+        self.send_header("Content-Length", "0")
+        self._cors()
+        self.end_headers()
+
+    # ── GET ──
+    def do_GET(self):
+        path = self.path.split("?", 1)[0]
+        if path == "/health":
+            return self._json(200, {"ok": TYPST is not None, "typst": TYPST,
+                                    "fonts": [str(d) for d in FONT_DIRS if d.is_dir()]})
+        item = STATIC.get(path)
+        if not item:
+            return self._json(404, {"error": "not found"})
+        name, ctype = item
+        f = HERE / name
+        if not f.is_file():
+            return self._send(404, f"{name} 이 serve.py 와 같은 폴더에 있어야 합니다.".encode(), "text/plain; charset=utf-8")
+        return self._send(200, f.read_bytes(), ctype)
+
+    # ── POST /render ──
+    def do_POST(self):
+        if self.path.split("?", 1)[0] != "/render":
+            return self._json(404, {"error": "not found"})
+        if not self._origin_ok():
+            return self._json(403, {"error": "forbidden origin"})
+        # 커스텀 헤더를 요구해 다른 사이트의 단순 요청(form 등)을 막는다
+        if self.headers.get("X-Exam-Client") != "1":
+            return self._json(403, {"error": "missing client header"})
+        try:
+            n = int(self.headers.get("Content-Length") or 0)
+        except ValueError:
+            return self._json(400, {"error": "bad length"})
+        if n <= 0 or n > MAX_BODY:
+            return self._json(413, {"error": "body too large"})
+        try:
+            req = json.loads(self.rfile.read(n).decode("utf-8"))
+        except Exception:
+            return self._json(400, {"error": "bad json"})
+        src = req.get("typ")
+        if not isinstance(src, str) or not src.strip():
+            return self._json(400, {"error": "no source"})
+        try:
+            ppi = int(req.get("ppi", 110))
+        except (TypeError, ValueError):
+            ppi = 110
+        ppi = max(PPI_MIN, min(PPI_MAX, ppi))
+        known = req.get("known") or []
+        known = set(x for x in known if isinstance(x, str))
+
+        res = compile_typ(src, ppi)
+        if res.get("ok"):
+            # 안 바뀐 쪽은 이미지를 빼고 해시만 보낸다 (보통 한 쪽만 바뀐다)
+            for p in res["pages"]:
+                if p["hash"] in known:
+                    p.pop("png", None)
+                    p["cached"] = True
+        return self._json(200, res)
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--port", type=int, default=8787)
+    ap.add_argument("--open", action="store_true", help="브라우저를 자동으로 연다")
+    ap.add_argument("--allow-origin", action="append", default=[],
+                    help="이 로컬 서버를 부를 수 있는 https 사이트 주소 (여러 번 지정 가능)")
+    a = ap.parse_args()
+
+    for o in a.allow_origin:
+        ALLOW_ORIGINS.add(o.rstrip("/"))
+    WORK.mkdir(exist_ok=True)
+    url = f"http://127.0.0.1:{a.port}/"
+    print("─" * 58)
+    print(f"  편집기      {url}")
+    print(f"  typst       {TYPST or '없음 →  brew install typst'}")
+    for d in FONT_DIRS:
+        print(f"  글꼴        {'○' if d.is_dir() else '×'} {d}")
+    print(f"  그림 폴더   {WORK}   (그림 파일은 여기에 두세요)")
+    for o in sorted(ALLOW_ORIGINS):
+        print(f"  허용 사이트 {o}")
+    print("  Ctrl+C 로 종료")
+    print("─" * 58)
+    srv = ThreadingHTTPServer(("127.0.0.1", a.port), Handler)   # 로컬에만 바인딩
+    if a.open:
+        threading.Timer(0.6, lambda: webbrowser.open(url)).start()
+    try:
+        srv.serve_forever()
+    except KeyboardInterrupt:
+        print("\n종료합니다.")
+        srv.shutdown()
+
+
+if __name__ == "__main__":
+    main()
