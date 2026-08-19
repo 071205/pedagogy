@@ -118,3 +118,32 @@ only, checks `Origin` against an allowlist, requires a custom `X-Exam-Client` he
 directory, and never uses `shell=True`. Preserve these constraints when modifying it —
 they're the whole reason this is safe to run as a local dev server that a remote GitHub
 Pages–hosted `index.html` can also call into (via `--allow-origin`).
+
+## 다음 세션 이어서 할 일 (2026-08-20 기준)
+
+`ANALYSIS.md`에 전체 코드 분석이 있다. 아래는 그중 **아직 안 고친 것**만 추린 목록.
+
+### 확인 필요 (코드 밖)
+- **Firestore/Storage 보안 규칙이 이 저장소에 없다.** 실제 접근 제어 전부가 규칙에
+  달려 있는데 버전 관리가 안 되고 있어 리뷰가 불가능하다. Firebase 콘솔에서 확인하고
+  `firestore.rules` / `storage.rules` 를 레포에 커밋할 것. 규칙이
+  `allow read, write: if request.auth != null` 수준이면 로그인한 아무나
+  다른 사용자의 `users/{uid}` 문서를 읽을 수 있다.
+
+### 미착수 개선
+- **Undo/Redo 전체 스냅샷** (`index.html` `snapshot()`): 한 글자 편집마다 모든
+  문제집을 `JSON.stringify`. 80단계 스택이라 이미지 많은 라이브러리에서 메모리 부담.
+  문항 단위 diff 또는 스택 깊이 축소 검토.
+- **`SETS_KEY="PM_SETS_V7"` 마이그레이션 부재**: V1~V6 키의 구버전 데이터가
+  자동 이관 없이 사라져 보인다.
+- **문제집 복제 시 `problems[].id` 중복**: `renderLibrary()` 의 복제 경로가
+  set id만 재발급하고 문항 id는 원본과 같게 둔다. (가져오기 경로는 `normProblem()`
+  으로 이미 해결됨 — 복제 경로도 같은 방식으로 맞추면 된다.)
+- **모의고사 편집기에 자동저장 없음**: 파일 export 만 있어 브라우저 크래시 시 전부 소실.
+  `beforeunload` 경고로는 부족 — 본체처럼 localStorage 임시저장 권장.
+- **빈 `catch(e){}` 다수**: 최소한 `console.error` 라도 남길 것.
+- **알림 UX 불일치**: 모의고사 편집기는 `alert()`, 본체는 `toast()`.
+- **`serve.py` `Content-Length` 신뢰** (`do_POST`): 과대 선언 시 커넥션이
+  타임아웃까지 블로킹. 로컬 전용이라 우선순위는 낮다.
+- **브랜드 글꼴 파일이 레포에 없다**: `Adobe Caslon Pro Bold.ttf` 를 참조하지만
+  파일이 없어 404. 화이트리스트 등록은 끝났으니 파일을 추가하거나 참조를 제거할 것.
