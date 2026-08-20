@@ -1,0 +1,43 @@
+rules_version = '2';
+
+// PEDAGOGY — Firestore 보안 규칙
+//
+// 이 앱이 Firestore 에 쓰는 것은 사용자당 문서 하나뿐이다.
+//   users/{uid}  ←  { sets: [...], updatedAt: <timestamp> }
+//   (index.html 의 loadSets() / saveSets() / 저장 버튼 경로)
+//
+// 핵심: 로그인 여부만 보는 게 아니라 "본인 uid 인지"까지 확인해야 한다.
+// `allow read, write: if request.auth != null` 로 두면 로그인한 아무나
+// 다른 사람의 users/{uid} 문서를 읽어갈 수 있다.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /users/{uid} {
+      // 읽기: 본인 문서만
+      allow read: if request.auth != null
+                  && request.auth.uid == uid;
+
+      // 쓰기: 본인 문서만 + 앱이 실제로 쓰는 형태인지 확인
+      //
+      // 앱은 항상 set({ sets, updatedAt }) 형태로 통째로 덮어쓴다.
+      // 나중에 필드를 추가하면 아래 hasOnly([...]) 목록에도 같이 넣어야 한다.
+      // (넣지 않으면 저장이 '권한 오류' 로 실패한다)
+      allow write: if request.auth != null
+                   && request.auth.uid == uid
+                   && request.resource.data.keys().hasOnly(['sets', 'updatedAt'])
+                   && request.resource.data.sets is list;
+
+      // 이 문서 아래에 하위 컬렉션은 쓰지 않는다
+      match /{sub=**} {
+        allow read, write: if false;
+      }
+    }
+
+    // 그 밖의 모든 경로는 차단.
+    // (규칙이 없으면 어차피 기본이 거부지만, 의도를 명시해 둔다)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

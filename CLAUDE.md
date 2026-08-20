@@ -131,14 +131,16 @@ Pages–hosted `index.html` can also call into (via `--allow-origin`).
 `ANALYSIS.md`에 전체 코드 분석이 있다. 분석에서 지적된 코드 문제는 대부분 처리했고,
 아래가 **남은 것** 전부다.
 
-### 코드 밖 — 반드시 확인할 것 (유일한 미해결 보안 항목)
-- **Firestore/Storage 보안 규칙이 이 저장소에 없다.** 실제 접근 제어 전부가 규칙에
-  달려 있는데 버전 관리가 안 되고 있어 리뷰가 불가능하다. Firebase 콘솔에서 확인하고
-  `firestore.rules` / `storage.rules` 를 레포에 커밋할 것. 규칙이
-  `allow read, write: if request.auth != null` 수준이면 로그인한 아무나
-  다른 사용자의 `users/{uid}` 문서를 읽을 수 있다.
-  (앱 코드는 `users/{uid}` 만 읽고 쓰므로, 규칙은 `request.auth.uid == uid` 로
-  좁혀도 기능에 영향이 없다.)
+### 코드 밖 — 반드시 적용할 것 (유일한 미해결 보안 항목)
+- **`firestore.rules` / `storage.rules` 를 Firebase 에 실제로 배포해야 한다.**
+  두 파일은 이 저장소에 있지만, **배포하기 전까지는 아무 효력이 없다.**
+  콘솔 규칙이 `allow read, write: if request.auth != null` 수준이면
+  로그인한 아무나 다른 사용자의 `users/{uid}` 문서를 읽어갈 수 있다.
+  - 콘솔: Firestore Database → 규칙 / Storage → 규칙 에 파일 내용을 붙여넣고 게시
+  - CLI: `firebase deploy --only firestore:rules,storage`
+  적용 후 로그인 → 문제집 저장 → 이미지 첨부까지 한 번 확인할 것.
+  저장이 '권한 오류' 로 실패하면 `firestore.rules` 의
+  `hasOnly(['sets','updatedAt'])` 목록에 새 필드를 추가해야 한다.
 
 ### 자료 추가 필요
 - **브랜드 글꼴 파일이 레포에 없다**: `Adobe Caslon Pro Bold.ttf`.

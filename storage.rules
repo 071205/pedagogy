@@ -1,0 +1,38 @@
+rules_version = '2';
+
+// PEDAGOGY — Cloud Storage 보안 규칙
+//
+// 이 앱이 Storage 에 쓰는 것은 문항 이미지뿐이다.
+//   users/{uid}/images/{파일명}
+//   (index.html 의 uploadBlobToStorage() — 1800px 이하 JPEG 로 줄여서 올린다)
+//
+// 참고: 화면에 이미지를 띄울 때는 getDownloadURL() 이 준 주소(?token=... 포함)를
+// <img src> 에 그대로 넣는다. 이 토큰이 붙은 주소는 규칙과 무관하게 열리므로,
+// 아래처럼 read 를 본인으로 제한해도 이미지는 정상적으로 보인다.
+// (제한이 걸리는 쪽은 SDK 로 직접 목록을 훑거나 남의 파일을 읽으려는 접근이다)
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    match /users/{uid}/images/{allPaths=**} {
+      // 읽기: 본인 파일만
+      allow read: if request.auth != null
+                  && request.auth.uid == uid;
+
+      // 올리기/덮어쓰기: 본인 폴더에만, 이미지 파일만, 10MB 이하
+      allow write: if request.auth != null
+                   && request.auth.uid == uid
+                   && request.resource.size < 10 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+
+      // 지우기: 본인 파일만
+      allow delete: if request.auth != null
+                    && request.auth.uid == uid;
+    }
+
+    // 그 밖의 모든 경로는 차단
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
