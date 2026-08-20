@@ -190,6 +190,43 @@ body.embedded .brand-tag{margin-left:0}
   color:inherit;opacity:.55;cursor:pointer;font-size:14px;line-height:1;padding:2px 4px}
 .errbox .errclose:hover{opacity:1}
 
+/* ── 블록 조립 편집 (N제 편집기와 동일한 UI) ── */
+.blocks{display:flex;flex-direction:column}
+.block{border:1px solid var(--border);border-radius:10px;background:var(--surface-1);overflow:hidden}
+.blk-head{display:flex;align-items:center;gap:6px;padding:7px 10px;
+  background:var(--surface-2);border-bottom:1px solid var(--border)}
+.blk-handle{cursor:grab;color:var(--text-tertiary);font-size:13px;padding:0 2px;user-select:none}
+.blk-handle:active{cursor:grabbing}
+.blk-type-sel{flex:1;height:26px;padding:0 6px;font-size:12px;font-weight:700;
+  background:transparent;border:1px solid transparent;border-radius:6px;
+  color:var(--text-secondary);cursor:pointer}
+.blk-type-sel:hover{background:var(--surface-3);border-color:var(--border);color:var(--text-primary)}
+.blk-ico{width:24px;height:24px;padding:0;border:0;background:transparent;
+  color:var(--text-tertiary);border-radius:6px;font-size:12px;line-height:1;cursor:pointer}
+.blk-ico:hover{background:var(--surface-3);color:var(--text-primary)}
+.blk-body{padding:10px;display:flex;flex-direction:column;gap:6px}
+.blk-body .hint{margin-top:2px}
+
+/* 블록 사이 삽입 지점 */
+.blk-insert{position:relative;height:14px;display:flex;align-items:center;justify-content:center}
+.blk-insert-line{position:absolute;left:0;right:0;height:1px;background:transparent;transition:.12s}
+.blk-insert-btn{position:relative;width:20px;height:20px;padding:0;border-radius:50%;
+  background:var(--surface-2);border:1px solid var(--border);color:var(--text-tertiary);
+  font-size:13px;line-height:1;opacity:0;transition:.12s;cursor:pointer}
+.blk-insert:hover .blk-insert-line{background:var(--blue-dim)}
+.blk-insert:hover .blk-insert-btn,.blk-insert.open .blk-insert-btn{opacity:1}
+.blk-insert.open .blk-insert-btn{background:var(--blue);border-color:transparent;color:#fff;transform:rotate(45deg)}
+.blk-insert-menu{display:none;position:absolute;top:24px;left:50%;transform:translateX(-50%);
+  background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:5px;
+  z-index:30;box-shadow:0 8px 28px rgba(0,0,0,.35);grid-template-columns:1fr 1fr;gap:3px;width:220px}
+.blk-insert.open .blk-insert-menu{display:grid}
+.blk-insert-menu button{height:28px;padding:0 8px;font-size:12px;text-align:left;
+  background:transparent;border:0;color:var(--text-secondary);border-radius:6px;cursor:pointer}
+.blk-insert-menu button:hover{background:var(--blue-subtle);color:var(--blue-hover)}
+
+/* 미리보기의 ㄱㄴㄷ 보기 상자 */
+.exbox .exmk{font-weight:700;margin-right:.35em}
+
 /* ── 편집칸 아래 수식 미리보기 ──
    시험지와 같은 서체로 보여줘야 실제 결과를 가늠할 수 있다. */
 .mathpv{display:none}
@@ -444,8 +481,10 @@ const MARKS=['①','②','③','④','⑤'];
 function blank(n){/* figSrc: 그림 파일명 */
   const sect=n<=22?'공통':'선택';
   const type=(n<=15||(n>=23&&n<=28))?'choice':'short';
-  return {id:'p'+n,num:n,sect,type,pts:PTS[n],stmt:'',conds:[],useCond:false,
-    choices:type==='choice'?['','','','','']:[],layout:'auto',figure:0,breakAfter:false};
+  return {id:'p'+n,num:n,sect,type,pts:PTS[n],
+    blocks:[{type:'statement',data:{text:''}}]
+      .concat(type==='choice'?[{type:'choices',data:{items:['','','','',''],layout:'auto'}}]:[]),
+    layout:'auto',breakAfter:false};
 }
 const state={problems:Array.from({length:30},(_,i)=>blank(i+1)),sel:'p1',zoom:.6,guides:false};
 
@@ -496,17 +535,31 @@ function measureCh(ch){
   const fits2=w.every((x,i)=>(i===2||i===last)?x<=SPEC.colW-76-1:x<=36.0-1.0);
   return {ratio:t/SPEC.colW, widths:w, fits1, fits2};
 }
+/* ㄱㄴㄷ 보기 라벨 */
+const HGND=['ㄱ','ㄴ','ㄷ','ㄹ','ㅁ','ㅂ'];
+
+/* 선지는 이제 choices 블록에 들어 있다. 없으면 빈 배열. */
+function choiceItems(p){
+  const b=choicesBlock(p);
+  const a=b?(b.data.items||[]).map(x=>String(x||'')):[];
+  while(a.length<5) a.push('');
+  return a.slice(0,5);
+}
 function layoutOf(p){
-  if(p.layout!=='auto') return p.layout;
-  if(hasGND(p.choices)) return '2';           // ㄱㄴㄷ 합답형은 폭과 무관하게 3+2
-  const {fits1,fits2}=measureCh(p.choices);
+  const b=choicesBlock(p);
+  const lay=(b&&b.data.layout)||p.layout||'auto';
+  if(lay!=='auto') return lay;
+  const ch=choiceItems(p);
+  if(hasGND(ch)) return '2';                  // ㄱㄴㄷ 합답형은 폭과 무관하게 3+2
+  const {fits1,fits2}=measureCh(ch);
   return fits1?'1':fits2?'2':'v';
 }
 /* ㄱ/ㄴ/ㄷ 합답형 — 평가원 관례상 항상 3+2 */
 function hasGND(ch){return ch.some(c=>/[ㄱㄴㄷ]/.test(c));}
-function renderCh(p){
-  if(p.type!=='choice'||!p.choices.some(c=>c.trim())) return '';
-  const it=p.choices.map((c,i)=>`<span class="it">${MARKS[i]} ${tex(c)}</span>`);
+function renderChoices(p,u){
+  const items=(u&&u.items)||choiceItems(p);
+  if(!items.some(c=>c.trim())) return '';
+  const it=items.map((c,i)=>`<span class="it">${MARKS[i]} ${tex(c)}</span>`);
   const L=layoutOf(p);
   if(L==='1') return `<div class="ch ch-1"><div class="r">${it.join('')}</div></div>`;
   if(L==='2') return `<div class="ch ch-2"><div class="r">${it.slice(0,3).join('')}</div><div class="r">${it.slice(3).join('')}</div></div>`;
@@ -520,34 +573,125 @@ const JOSA=/^[의이가은는을를에와과로도만나며서라人]/;
 /* 지문 안에서 조건 박스·그림이 놓일 자리를 [조건] / [그림] 한 줄로 지정한다.
    마커가 없으면 지금까지처럼 지문 뒤·선지 앞에 붙는다. */
 const MK_C=/^\[조건\]$/, MK_F=/^\[그림\]$/;
-function stmtLines(p){
-  return String(p.stmt).replace(/\s*(\(단,)/g,'\n$1').split('\n')
-    .map(x=>x.trim()).filter(Boolean);
+
+/* ══════════════════════════════════════════════════════════════
+   블록 모델 — N제 편집기(PEDAGOGY 본체)와 입력 방식을 통일하기 위한 공용 구조
+
+   예전에는 지문을 큰 textarea 하나에 넣고, 줄 모양과 [조건]·[그림] 마커로
+   구조를 '암시'했다. 오타 하나로 조건 박스가 본문이 되고, 순서를 바꾸려면
+   텍스트를 잘라 옮겨야 했으며, ㄱㄴㄷ 보기·박스형 해설은 아예 표현할 수 없었다.
+   이제 구조를 blocks[] 로 명시한다. 예전 파일은 legacyToBlocks() 가 변환한다.
+   ══════════════════════════════════════════════════════════════ */
+const BLK_LABELS={statement:"문제 본문",conditions:"가나다 조건",examples:"ㄱㄴㄷ 보기",
+                  boxed:"박스형 해설",choices:"답 선지",image:"그림"};
+
+function blankBlockData(type){
+  if(type==='statement'||type==='boxed') return {text:''};
+  if(type==='conditions'||type==='examples') return {items:['']};
+  if(type==='choices') return {items:['','','','',''],layout:'auto'};
+  if(type==='image') return {width:58,src:''};
+  return {};
 }
-function renderProb(p){
-  if(!p.stmt.trim())
-    return `<div class="prob"><div class="stmt"><span class="no">${p.num}.</span><span class="empty">—</span></div></div>`;
-  const lines=stmtLines(p);
-  const isEq=t=>/^\$[^$]*\$$/.test(t);
-  const isMk=t=>MK_C.test(t)||MK_F.test(t);
-  const cond=()=>p.useCond&&p.conds.length
-    ?`<div class="condbox">${p.conds.map(c=>`<div>${tex(c)}</div>`).join('')}</div>`:'';
-  const fig=()=>p.figure
-    ?`<div class="figbox" style="width:${Math.min(p.figure,110)}mm;height:${Math.round(p.figure*.68)}mm">${p.figSrc?esc(p.figSrc):'그림'}</div>`:'';
-  let pi=-1;lines.forEach((t,i)=>{if(!isEq(t)&&!isMk(t))pi=i;});
-  if(pi<0)pi=lines.length-1;
-  let h=`<div class="prob">`,first=true;
-  lines.forEach((t,i)=>{
-    const pts=i===pi?`<span class="pts">[${p.pts}점]</span>`:'';
-    if(MK_C.test(t)){h+=cond();return;}
-    if(MK_F.test(t)){h+=fig();return;}
-    if(isEq(t)) h+=`<div class="dispeq">${tex(t)}${pts}</div>`;
-    else if(first){h+=`<div class="stmt"><span class="no">${p.num}.</span>${tex(t)}${pts}</div>`;first=false;}
-    else h+=`<div class="cont">${tex(t)}${pts}</div>`;
+
+/* 예전 형식(stmt/conds/choices/figure) → blocks[] */
+function legacyToBlocks(p){
+  const out=[];
+  const lines=String(p.stmt||'').replace(/\s*(\(단,)/g,'\n$1')
+                .split('\n').map(x=>x.trim()).filter(Boolean);
+  const condBlk=()=> (p.useCond && (p.conds||[]).length)
+      ? {type:'conditions',data:{items:p.conds.slice(0,6)}} : null;
+  const figBlk=()=> (+p.figure)
+      ? {type:'image',data:{width:+p.figure,src:String(p.figSrc||'')}} : null;
+  let usedC=false, usedF=false, buf=[];
+  const flush=()=>{ if(buf.length){ out.push({type:'statement',data:{text:buf.join('\n')}}); buf=[]; } };
+  lines.forEach(t=>{
+    if(MK_C.test(t)){ flush(); const c=condBlk(); if(c){out.push(c);usedC=true;} return; }
+    if(MK_F.test(t)){ flush(); const f=figBlk(); if(f){out.push(f);usedF=true;} return; }
+    buf.push(t);
   });
-  if(!lines.some(t=>MK_C.test(t)))h+=cond();
-  if(!lines.some(t=>MK_F.test(t)))h+=fig();
-  return h+renderCh(p)+`</div>`;
+  flush();
+  if(!usedC){ const c=condBlk(); if(c) out.push(c); }
+  if(!usedF){ const f=figBlk(); if(f) out.push(f); }
+  if(p.type==='choice' && (p.choices||[]).some(c=>String(c).trim()))
+    out.push({type:'choices',data:{items:p.choices.slice(0,5),layout:p.layout||'auto'}});
+  return out.length?out:[{type:'statement',data:{text:''}}];
+}
+
+/* 이 문항의 블록 배열. 예전 형식만 있으면 한 번 변환해 심어 둔다. */
+function blocksOf(p){
+  if(!Array.isArray(p.blocks)||!p.blocks.length){ p.blocks=legacyToBlocks(p); return p.blocks; }
+  // 블록이 있어도 내용이 전부 비어 있고 예전 필드에 내용이 있으면 그쪽을 살린다
+  // (blank() 가 만든 빈 블록 위에 예전 형식 데이터가 얹힌 경우)
+  const empty=p.blocks.every(b=>{
+    const d=b.data||{};
+    return !String(d.text||'').trim()
+        && !(d.items||[]).some(x=>String(x||'').trim())
+        && !(+d.width);
+  });
+  const legacy=String(p.stmt||'').trim() || (p.conds||[]).some(x=>String(x).trim())
+            || (p.choices||[]).some(x=>String(x).trim()) || (+p.figure);
+  if(empty&&legacy) p.blocks=legacyToBlocks(p);
+  return p.blocks;
+}
+function choicesBlock(p){ return blocksOf(p).find(b=>b.type==='choices')||null; }
+
+/* ── 렌더 공용 유닛 ──
+   화면 근사 미리보기와 Typst 정본이 각자 줄을 분류하던 것을 하나로 모은다.
+   두 경로가 어긋나던 원인을 없애기 위한 것이므로, 렌더러는 반드시 이걸 쓴다.
+   ptsAt : [N점] 표시를 붙일 유닛 번호(마지막 본문 줄) */
+function probUnits(p){
+  const units=[];
+  blocksOf(p).forEach(b=>{
+    const d=b.data||{};
+    if(b.type==='statement'){
+      String(d.text||'').replace(/\s*(\(단,)/g,'\n$1').split('\n')
+        .map(x=>x.trim()).filter(Boolean)
+        .forEach(t=>units.push(/^\$[^$]*\$$/.test(t)?{k:'eq',t}:{k:'text',t}));
+    }
+    else if(b.type==='boxed'){
+      const t=String(d.text||'').trim(); if(t) units.push({k:'boxed',t});
+    }
+    else if(b.type==='conditions'||b.type==='examples'){
+      const items=(d.items||[]).map(x=>String(x)).filter(x=>x.trim());
+      if(items.length) units.push({k:b.type==='conditions'?'cond':'ex',items});
+    }
+    else if(b.type==='choices'){
+      const items=(d.items||[]).map(x=>String(x||''));
+      if(items.some(x=>x.trim())) units.push({k:'choices',items,layout:d.layout||'auto'});
+    }
+    else if(b.type==='image'){
+      const w=+d.width||0; if(w) units.push({k:'fig',w,src:String(d.src||'')});
+    }
+  });
+  let ptsAt=-1;
+  units.forEach((u,i)=>{ if(u.k==='text') ptsAt=i; });
+  if(ptsAt<0) units.forEach((u,i)=>{ if(u.k!=='choices'&&ptsAt<0) ptsAt=i; });
+  return {units, ptsAt};
+}
+function probIsEmpty(p){ return !probUnits(p).units.some(u=>u.k!=='choices'); }
+
+/* stmtLines() 는 probUnits() 안으로 흡수됐다(블록 전환). */
+
+function renderProb(p){
+  const {units,ptsAt}=probUnits(p);
+  if(probIsEmpty(p))
+    return `<div class="prob"><div class="stmt"><span class="no">${p.num}.</span><span class="empty">—</span></div></div>`;
+  let h=`<div class="prob">`, first=true;
+  units.forEach((u,i)=>{
+    const pts=i===ptsAt?`<span class="pts">[${p.pts}점]</span>`:'';
+    if(u.k==='text'){
+      if(first){ h+=`<div class="stmt"><span class="no">${p.num}.</span>${tex(u.t)}${pts}</div>`; first=false; }
+      else h+=`<div class="cont">${tex(u.t)}${pts}</div>`;
+    }
+    else if(u.k==='eq')   h+=`<div class="dispeq">${tex(u.t)}${pts}</div>`;
+    else if(u.k==='cond') h+=`<div class="condbox">${u.items.map(c=>`<div>${tex(c)}</div>`).join('')}</div>`;
+    else if(u.k==='ex')   h+=`<div class="condbox exbox">${u.items.map((c,j)=>
+      `<div><span class="exmk">${HGND[j%HGND.length]}.</span> ${tex(c)}</div>`).join('')}</div>`;
+    else if(u.k==='boxed')h+=`<div class="condbox">${tex(u.t)}</div>`;
+    else if(u.k==='fig')  h+=`<div class="figbox" style="width:${Math.min(u.w,110)}mm;height:${Math.round(u.w*.68)}mm">${u.src?esc(u.src):'그림'}</div>`;
+    else if(u.k==='choices') h+=renderChoices(p,u);
+  });
+  return h+`</div>`;
 }
 
 /* ══════════ 쪽 구성 ══════════
@@ -641,95 +785,224 @@ function renderPreview(){
   applyZoom();
 }
 
+/* ══════════ 문항 편집 — 블록 조립 ══════════
+   N제 편집기(PEDAGOGY 본체)와 같은 방식으로 통일했다.
+   배점·공통/선택·선지배치·단나눔 같은 '시험지 고유' 설정은 그대로 둔다. */
+const elx=(t,c,h)=>{const e=document.createElement(t); if(c)e.className=c; if(h!=null)e.innerHTML=h; return e;};
+
+function convertBlock(blk,to){
+  const from=blk.type, d=blk.data||{}, nd=blankBlockData(to);
+  const textLike=t=>t==='statement'||t==='boxed';
+  const listLike=t=>t==='conditions'||t==='examples'||t==='choices';
+  if(textLike(from)&&textLike(to)) nd.text=d.text||'';
+  else if(listLike(from)&&listLike(to)){
+    const src=(d.items||[]).filter(x=>x!=null);
+    if(to==='choices'){ const a=src.slice(0,5); while(a.length<5)a.push(''); nd.items=a; }
+    else nd.items=src.length?src:[''];
+  }
+  else if(textLike(from)&&listLike(to)){
+    const lines=String(d.text||'').split('\n').map(x=>x.trim()).filter(Boolean);
+    if(to==='choices'){ const a=lines.slice(0,5); while(a.length<5)a.push(''); nd.items=a; }
+    else nd.items=lines.length?lines:[''];
+  }
+  else if(listLike(from)&&textLike(to)) nd.text=(d.items||[]).filter(Boolean).join('\n');
+  else if(from==='image'&&to==='image') return d;
+  return nd;
+}
+
+function edChanged(p,full){
+  DIRTY=true; scheduleDraft();
+  renderPreview(); renderOutline();
+  if(full) renderEditor();
+}
+
 function renderEditor(){
   const p=state.problems.find(x=>x.id===state.sel);
+  if(!p) return;
   const isCh=p.type==='choice';
-  const pct=isCh?Math.round(measureCh(p.choices).ratio*100):0;
-  const L=isCh?layoutOf(p):null;
-  const ln=L==='1'?'1줄 5개':L==='2'?'2줄 3+2':'세로';
-  $('#ed').innerHTML=`<div class="ed">
-    <div class="ed-top"><div class="ed-no">${p.num}</div>
-      <span class="chip">${p.sect}</span><span class="chip">${isCh?'5지선다':'단답형'}</span>
-      <div style="flex:1"></div>
-      <select class="sel" id="edPts">${[2,3,4].map(v=>`<option ${v===p.pts?'selected':''}>${v}점</option>`).join('')}</select>
-    </div>
-    <div class="grp"><label>지문</label>
-      <textarea class="ta" id="edStmt" rows="6" placeholder="수식은 $...$ 안에 LaTeX으로">${esc(p.stmt)}</textarea>
-      <div class="mathpv" id="edStmtPv"></div>
-      <div class="hint">수식 <code>$\\dfrac{a}{b}$</code> · <code>$\\lim\\limits_{x\\to1}$</code> · <code>$\\overline{AB}$</code><br>
-        수식만 있는 줄은 별행 수식이 되고, <code>[조건]</code> · <code>[그림]</code> 을 한 줄에 적으면 그 자리에 조건 박스·그림이 들어갑니다.</div>
-    </div>
-    <div class="grp">
-      <div class="sw"><span>조건 박스 (가)(나)</span><button class="${p.useCond?'on':''}" id="edCondSw"></button></div>
-      ${p.useCond?`<textarea class="ta" id="edConds" rows="3">${esc(p.conds.join('\n'))}</textarea>
-      <div class="mathpv" id="edCondsPv"></div>`:''}
-    </div>
-    ${isCh?`<div class="grp"><label>선지</label>
-      ${p.choices.map((c,i)=>`<div class="row-in"><div class="mk">${MARKS[i]}</div>
-        <textarea class="ta ch-in" data-i="${i}" rows="1">${esc(c)}</textarea>
-        <div class="mathpv mathpv--ch" id="edChPv${i}"></div></div>`).join('')}
-      <div class="gauge"><span>폭</span>
-        <div class="bar"><div class="fill ${pct>100?'warn':''}" style="width:${Math.min(pct,100)}%"></div></div>
-        <b>${pct}%</b><span class="res">${ln}</span></div></div>
-    <div class="grp"><label>선지 배치</label>
-      <div class="seg" id="edLayout">${[['auto','자동'],['1','1줄'],['2','3+2'],['v','세로']]
-        .map(([v,t])=>`<button data-v="${v}" class="${p.layout===v?'on':''}">${t}</button>`).join('')}</div>
-    </div>`:''}
-    <div class="grp"><label>그림</label>
-      <div class="row-in" style="align-items:center">
-        <input class="inp" type="number" id="edFig" value="${p.figure}" min="0" max="110" style="width:90px">
-        <span style="font-size:12px;color:var(--text-tertiary)">mm 폭 · 0이면 없음</span></div>
-      <input class="inp" id="edFigSrc" value="${esc(p.figSrc||'')}" placeholder="파일명 (예: fig-14.png) — 비우면 자리만 표시">
-      <div class="hint">.typ 파일과 같은 폴더에 두면 됩니다. 지문에 <code>[그림]</code>을 적으면 그 자리에, 없으면 선지 앞에 들어갑니다.</div>
-    </div>
-    <div class="grp">
-      <div class="sw"><span>이 문항 뒤에서 단 나눔</span><button class="${p.breakAfter?'on':''}" id="edBreak"></button></div>
-      <div class="hint">기본 한 단 ${SPEC.perCol}문항. 각 문항은 단을 균등 분할한 자리에 고정됩니다.</div>
-    </div></div>`;
-  bindEd(p);
+  const host=$('#ed'); host.innerHTML='';
+  const root=elx('div','ed');
+
+  /* ── 문항 머리 (시험지 고유 설정) ── */
+  const top=elx('div','ed-top');
+  top.append(elx('div','ed-no',String(p.num)),
+             elx('span','chip',p.sect),
+             elx('span','chip',isCh?'5지선다':'단답형'));
+  const sp=elx('div'); sp.style.flex='1'; top.append(sp);
+  const pts=elx('select','sel');
+  [2,3,4].forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=v+'점';
+    if(v===p.pts)o.selected=true; pts.append(o); });
+  pts.onchange=e=>{ p.pts=parseInt(e.target.value)||p.pts; edChanged(p,false); };
+  top.append(pts); root.append(top);
+
+  /* ── 블록 조립 ── */
+  const area=elx('div','blocks'); root.append(area);
+  const blocks=blocksOf(p);
+
+  const insertPoint=(at)=>{
+    const row=elx('div','blk-insert');
+    row.append(elx('div','blk-insert-line'));
+    const plus=elx('button','blk-insert-btn','+'); plus.title='여기에 블록 추가';
+    plus.onclick=e=>{ e.stopPropagation(); row.classList.toggle('open'); };
+    const menu=elx('div','blk-insert-menu');
+    Object.entries(BLK_LABELS).forEach(([v,label])=>{
+      const b=elx('button',null,label);
+      b.onclick=e=>{ e.stopPropagation();
+        blocks.splice(at,0,{type:v,data:blankBlockData(v)}); edChanged(p,true); };
+      menu.append(b);
+    });
+    row.append(plus,menu); return row;
+  };
+  area.onclick=e=>{ if(!e.target.closest('.blk-insert'))
+    area.querySelectorAll('.blk-insert.open').forEach(x=>x.classList.remove('open')); };
+
+  blocks.forEach((blk,idx)=>{
+    area.append(insertPoint(idx));
+    const wrap=elx('div','block'); wrap.dataset.bi=String(idx);
+    const head=elx('div','blk-head');
+    const handle=elx('div','blk-handle','⠿'); handle.title='끌어서 순서 변경';
+    const sel=elx('select','blk-type-sel');
+    Object.entries(BLK_LABELS).forEach(([v,label])=>{
+      const o=document.createElement('option'); o.value=v; o.textContent=label;
+      if(v===blk.type)o.selected=true; sel.append(o);
+    });
+    sel.title='블록 종류 바꾸기';
+    sel.onchange=()=>{ const to=sel.value; if(to===blk.type)return;
+      blk.data=convertBlock(blk,to); blk.type=to; edChanged(p,true); };
+    head.append(handle,sel);
+
+    const dup=elx('button','blk-ico','⧉'); dup.title='블록 복제';
+    dup.onclick=()=>{ blocks.splice(idx+1,0,JSON.parse(JSON.stringify(blk))); edChanged(p,true); };
+    const del=elx('button','blk-ico','✕'); del.title='블록 삭제';
+    del.onclick=()=>{ blocks.splice(idx,1);
+      if(!blocks.length) blocks.push({type:'statement',data:{text:''}}); edChanged(p,true); };
+    head.append(dup,del);
+    wrap.append(head);
+
+    const body=elx('div','blk-body');
+
+    if(blk.type==='statement'||blk.type==='boxed'){
+      const ta=elx('textarea','ta'); ta.rows=blk.type==='boxed'?3:5;
+      ta.placeholder=blk.type==='boxed'?'박스 안에 들어갈 내용':'수식은 $...$ 안에 LaTeX으로';
+      ta.value=blk.data.text||'';
+      body.append(ta);
+      const paint=attachPv(body,()=>blk.data.text);
+      ta.addEventListener('input',e=>{ blk.data.text=e.target.value; paint(); edChanged(p,false); });
+      if(blk.type==='statement')
+        body.append(elx('div','hint','수식만 있는 줄은 별행 수식이 됩니다 · <code>(단, …)</code> 는 자동으로 줄을 내립니다'));
+    }
+
+    if(blk.type==='conditions'||blk.type==='examples'){
+      const labels=blk.type==='conditions'?['(가)','(나)','(다)','(라)','(마)','(바)']:HGND.map(x=>x+'.');
+      if(!blk.data.items||!blk.data.items.length) blk.data.items=[''];
+      blk.data.items.forEach((t,i)=>{
+        const row=elx('div','row-in');
+        row.append(elx('div','mk',labels[i%labels.length]));
+        const inp=elx('input','inp'); inp.type='text'; inp.value=t;
+        const rm=elx('button','blk-ico','✕'); rm.title='항목 삭제';
+        rm.onclick=()=>{ blk.data.items.splice(i,1);
+          if(!blk.data.items.length) blk.data.items=['']; edChanged(p,true); };
+        row.append(inp,rm); body.append(row);
+        const paint=attachPv(body,()=>blk.data.items[i]);
+        inp.oninput=e=>{ blk.data.items[i]=e.target.value; paint(); edChanged(p,false); };
+      });
+      const add=elx('button','btn','+ 항목 추가');
+      add.onclick=()=>{ blk.data.items.push(''); edChanged(p,true); };
+      body.append(add);
+    }
+
+    if(blk.type==='choices'){
+      const items=(blk.data.items||[]); while(items.length<5) items.push('');
+      blk.data.items=items.slice(0,5);
+      blk.data.items.forEach((c,i)=>{
+        const row=elx('div','row-in');
+        row.append(elx('div','mk',MARKS[i]));
+        const ta=elx('textarea','ta ch-in'); ta.rows=1; ta.value=c;
+        row.append(ta); body.append(row);
+        const paint=attachPv(body,()=>blk.data.items[i]);
+        ta.oninput=e=>{ blk.data.items[i]=e.target.value; paint(); edChanged(p,false); };
+      });
+      // 폭 게이지 — 선지가 한 단에 들어가는지 (시험지 고유 기능, 그대로 유지)
+      const m=measureCh(blk.data.items);
+      const pct=Math.round(m.ratio*100), L=layoutOf(p);
+      const ln=L==='1'?'1줄 5개':L==='2'?'2줄 3+2':'세로';
+      const g=elx('div','gauge');
+      g.innerHTML=`<span>폭</span><div class="bar"><div class="fill ${pct>100?'warn':''}" `
+        +`style="width:${Math.min(pct,100)}%"></div></div><b>${pct}%</b><span class="res">${ln}</span>`;
+      body.append(g);
+      const lab=elx('label',null,'선지 배치'); lab.style.cssText='font-size:11px;color:var(--text-tertiary);margin-top:8px;display:block';
+      body.append(lab);
+      const seg=elx('div','seg');
+      [['auto','자동'],['1','1줄'],['2','3+2'],['v','세로']].forEach(([v,t])=>{
+        const b=elx('button',null,t);
+        if((blk.data.layout||'auto')===v) b.classList.add('on');
+        b.onclick=()=>{ blk.data.layout=v; p.layout=v; edChanged(p,true); };
+        seg.append(b);
+      });
+      body.append(seg);
+    }
+
+    if(blk.type==='image'){
+      const row=elx('div','row-in'); row.style.alignItems='center';
+      const w=elx('input','inp'); w.type='number'; w.min=0; w.max=110;
+      w.value=blk.data.width||58; w.style.width='90px';
+      w.oninput=e=>{ blk.data.width=Math.max(0,Math.min(110,+e.target.value||0)); edChanged(p,false); };
+      row.append(w, elx('span',null,'mm 폭'));
+      body.append(row);
+      const src=elx('input','inp'); src.value=blk.data.src||'';
+      src.placeholder='파일명 (예: fig-14.png) — 비우면 자리만 표시';
+      src.oninput=e=>{ blk.data.src=e.target.value.trim().replace(/["\\]/g,''); edChanged(p,false); };
+      body.append(src);
+      body.append(elx('div','hint','.typ 파일과 같은 폴더에 두면 됩니다.'));
+    }
+
+    wrap.append(body); area.append(wrap);
+  });
+  area.append(insertPoint(blocks.length));
+
+  /* ── 단 나눔 (시험지 고유) ── */
+  const grp=elx('div','grp');
+  const sw=elx('div','sw'); sw.append(elx('span',null,'이 문항 뒤에서 단 나눔'));
+  const bt=elx('button',null,''); if(p.breakAfter) bt.classList.add('on');
+  bt.onclick=()=>{ p.breakAfter=!p.breakAfter; bt.classList.toggle('on',p.breakAfter); edChanged(p,false); };
+  sw.append(bt); grp.append(sw);
+  grp.append(elx('div','hint',`기본 한 단 ${SPEC.perCol}문항. 각 문항은 단을 균등 분할한 자리에 고정됩니다.`));
+  root.append(grp);
+
+  host.append(root);
+
+  // 블록 순서 드래그
+  if(window.Sortable){
+    if(window.__edSort) window.__edSort.destroy();
+    window.__edSort=new Sortable(area,{handle:'.blk-handle',animation:150,draggable:'.block',
+      onEnd:()=>{
+        const order=[...area.querySelectorAll('.block')].map(el=>blocks[+el.dataset.bi]).filter(Boolean);
+        if(order.length===blocks.length) p.blocks=order;
+        edChanged(p,true);
+      }});
+  }
 }
+
+/* 입력칸 아래 수식 미리보기 (본체와 같은 동작) */
+function attachPv(host,getText){
+  const pv=elx('div','mathpv');
+  const paint=()=>{
+    const src=(getText()||'').trim();
+    if(!src){ pv.classList.remove('on'); pv.innerHTML=''; return; }
+    pv.classList.add('on');
+    pv.innerHTML=src.split('\n').map(line=>{
+      const t=line.trim(); if(!t) return '';
+      return `<div>${tex(line)}</div>`;
+    }).join('');
+  };
+  paint(); host.append(pv);
+  return paint;
+}
+
 /* ── 편집 중 수식 미리보기 ──
    지문·조건·선지는 textarea 라 LaTeX 원문($\dfrac{a}{b}$ 같은 영문 명령)이 그대로 보인다.
    입력칸 바로 아래에 KaTeX 로 렌더한 결과를 같이 띄워, 오른쪽 시험지 미리보기까지
    눈을 옮기지 않고도 수식이 맞게 써졌는지 확인할 수 있게 한다. */
-function mathPreview(elId, text){
-  const box=document.getElementById(elId);
-  if(!box) return;
-  const src=(text||'').trim();
-  if(!src){ box.innerHTML=''; box.classList.remove('on'); return; }
-  box.classList.add('on');
-  // 줄 단위로 렌더. [조건]/[그림] 자리표시자는 그대로 뱃지처럼 보여준다.
-  box.innerHTML=src.split('\n').map(line=>{
-    const t=line.trim();
-    if(!t) return '';
-    if(t==='[조건]'||t==='[그림]') return `<div class="mathpv-tag">${esc(t)}</div>`;
-    return `<div>${tex(line)}</div>`;
-  }).join('');
-}
-
-function refreshMathPreviews(p){
-  mathPreview('edStmtPv', p.stmt);
-  if(p.useCond) mathPreview('edCondsPv', (p.conds||[]).join('\n'));
-  if(p.type==='choice') (p.choices||[]).forEach((c,i)=>mathPreview('edChPv'+i, c));
-}
-
-function bindEd(p){
-  refreshMathPreviews(p);
-  $('#edPts').onchange=e=>{p.pts=parseInt(e.target.value);renderPreview();renderOutline();};
-  $('#edStmt').oninput=e=>{p.stmt=e.target.value;mathPreview('edStmtPv',p.stmt);renderPreview();renderOutline();};
-  $('#edCondSw').onclick=()=>{p.useCond=!p.useCond;renderEditor();renderPreview();};
-  const ce=$('#edConds');if(ce)ce.oninput=e=>{p.conds=e.target.value.split('\n').filter(x=>x.trim());mathPreview('edCondsPv',p.conds.join('\n'));renderPreview();};
-  document.querySelectorAll('.ch-in').forEach(t=>t.oninput=e=>{
-    const i=+e.target.dataset.i;
-    p.choices[i]=e.target.value;
-    mathPreview('edChPv'+i, p.choices[i]);
-    renderPreview();gauge(p);renderOutline();});
-  const lay=$('#edLayout');
-  if(lay)lay.querySelectorAll('button').forEach(b=>b.onclick=()=>{p.layout=b.dataset.v;renderEditor();renderPreview();});
-  $('#edFig').oninput=e=>{p.figure=+e.target.value||0;renderPreview();};
-  $('#edFigSrc').oninput=e=>{p.figSrc=e.target.value.trim().replace(/["\\]/g,'');renderPreview();};
-  $('#edBreak').onclick=e=>{p.breakAfter=!p.breakAfter;e.target.classList.toggle('on');renderPreview();};
-}
 function gauge(p){
   const g=document.querySelector('.gauge');if(!g)return;
   const pct=Math.round(measureCh(p.choices).ratio*100),L=layoutOf(p);
@@ -743,8 +1016,10 @@ function renderOutline(){
   let h='',last='';
   state.problems.forEach(p=>{
     if(p.sect!==last){h+=`<div class="ol-sect">${p.sect==='공통'?'공통과목':'선택 · '+$('#elective').value}</div>`;last=p.sect;}
-    const f=!!p.stmt.trim();
-    const over=p.type==='choice'&&p.layout==='auto'&&measureCh(p.choices).ratio>1;
+    const f=!probIsEmpty(p);
+    const cb=choicesBlock(p);
+    const over=p.type==='choice'&&((cb&&cb.data.layout)||p.layout)==='auto'
+               &&measureCh(choiceItems(p)).ratio>1;
     h+=`<div class="ol-i ${p.id===state.sel?'sel':''} ${f?'filled':''}" data-id="${p.id}" draggable="true">
       <div class="n">${p.num}</div>
       <div class="bars"><div class="bar"></div><div class="bar" style="width:${f?70:38}%"></div></div>
@@ -1012,6 +1287,12 @@ const TYPST_FRAME = `#import "@preview/mitex:0.2.7": mi, mitex
   #pad(left: 3.99mm)[
     #box(width: CONDW, stroke: 0.12mm, inset: 3mm)[
       #grid(columns: 1, row-gutter: 1.6mm, ..items.pos())]]]
+// ㄱㄴㄷ 보기 상자 — 조건 상자와 같은 틀을 쓰되 항목을 왼쪽 정렬로 나열한다.
+// (N제 편집기와 블록 종류를 맞추면서 새로 필요해진 것 — 예전 모의고사에는 없었다)
+#let exbox(..items) = block(above: 3.4mm, below: 3.4mm)[
+  #pad(left: 3.99mm)[
+    #box(width: CONDW, stroke: 0.12mm, inset: 3mm)[
+      #grid(columns: 1, row-gutter: 1.6mm, ..items.pos())]]]
 // 실제 그림 — 단 안에서 가운데, 위아래 3.4mm
 #let figbox(body) = block(width: 100%, above: 3.4mm, below: 3.4mm)[#align(center)[#body]]
 // 그림 자리(파일 미지정) — 나중에 figbox[#image(...)] 로 교체
@@ -1175,44 +1456,38 @@ function tline(s){
 
 /* 한 문항 → Typst 조각 (sheet의 left-items/right-items 원소 안에 들어간다) */
 function probTypst(p){
-  const PM=`#ptsmark(${p.pts})`,IND='\n     ';
-  if(!p.stmt.trim())
+  const PM=`#ptsmark(${p.pts})`, IND='\n     ';
+  const {units,ptsAt}=probUnits(p);
+  if(probIsEmpty(p))
     return `// ${p.num}번 — 발문 비어 있음${IND}#probhead(${p.num})[ ]`;
-  const lines=stmtLines(p);
-  const isEq=t=>/^\$[^$]*\$$/.test(t);
-  const isMk=t=>MK_C.test(t)||MK_F.test(t);
-  const cond=()=>p.useCond&&p.conds.length
-    ?`#condbox(${p.conds.map(c=>`\n       [${tline(c)}],`).join('')}\n     )`:null;
-  const fig=()=>{
-    if(!p.figure)return null;
-    return p.figSrc
-      ? `#figbox[#image("${tqs(p.figSrc)}", width: ${p.figure}mm)]`
-      : `#figplace(${p.figure}mm)[그림 ${p.num}]`
-        +`  // 그림 파일을 지정하면 #figbox[#image("...", width: ${p.figure}mm)] 로 바뀝니다`;
-  };
-  let pi=-1;lines.forEach((t,i)=>{if(!isEq(t)&&!isMk(t))pi=i;});
-  if(pi<0)pi=lines.length-1;
-  const out=[],push=x=>{if(x)out.push(x)};
-  const single=lines.length===1&&!isEq(lines[0])&&!isMk(lines[0]);
+  // 본문이 딱 한 줄뿐이면 번호·배점을 한 줄에 붙이는 #prob 를 쓴다(기존 동작 유지)
+  const single = units.filter(u=>u.k!=='choices').length===1 && units[0] && units[0].k==='text';
+  const out=[], push=x=>{ if(x) out.push(x); };
   let first=true;
-  lines.forEach((t,i)=>{
-    const tail=i===pi?' '+PM:'';
-    if(MK_C.test(t)){push(cond());return;}
-    if(MK_F.test(t)){push(fig());return;}
-    if(isEq(t))      push(`#dispeq[${texToTypst(t.slice(1,-1),true)}${tail}]`);
-    else if(first){
-      push(single?`#prob(${p.num}, ${p.pts})[${tline(t)}]`
-                 :`#probhead(${p.num})[${tline(t)}${tail}]`);
-      first=false;
+  units.forEach((u,i)=>{
+    const tail = i===ptsAt ? ' '+PM : '';
+    if(u.k==='text'){
+      if(first){
+        push(single ? `#prob(${p.num}, ${p.pts})[${tline(u.t)}]`
+                    : `#probhead(${p.num})[${tline(u.t)}${tail}]`);
+        first=false;
+      } else push(`#contline[${tline(u.t)}${tail}]`);
     }
-    else             push(`#contline[${tline(t)}${tail}]`);
+    else if(u.k==='eq')   push(`#dispeq[${texToTypst(u.t.slice(1,-1),true)}${tail}]`);
+    else if(u.k==='cond') push(`#condbox(${u.items.map(c=>`\n       [${tline(c)}],`).join('')}\n     )`);
+    else if(u.k==='ex')   push(`#exbox(${u.items.map((c,j)=>`\n       [${tq(HGND[j%HGND.length])}. ${tline(c)}],`).join('')}\n     )`);
+    else if(u.k==='boxed')push(`#condbox(\n       [${tline(u.t)}],\n     )`);
+    else if(u.k==='fig')  push(u.src
+        ? `#figbox[#image("${tqs(u.src)}", width: ${u.w}mm)]`
+        // 안내 주석은 반드시 '앞줄'에 둔다. 뒤에 붙이면 Typst 의 // 주석이
+        // 줄 끝까지 먹어서, 이 항목을 닫는 ], 까지 주석 처리돼 컴파일이 깨진다.
+        : `// 그림 파일을 지정하면 #figbox[#image("...", width: ${u.w}mm)] 로 바뀝니다\n     `
+          +`#figplace(${u.w}mm)[그림 ${p.num}]`);
+    else if(u.k==='choices'){
+      const L=layoutOf(p), fn=L==='1'?'ch1':L==='2'?'ch2':'chv';
+      push(`#${fn}(${u.items.map((c,j)=>`[${MARKS[j]} ${tline(c)}]`).join(', ')})`);
+    }
   });
-  if(!lines.some(t=>MK_C.test(t)))push(cond());
-  if(!lines.some(t=>MK_F.test(t)))push(fig());
-  if(p.type==='choice'&&p.choices.some(c=>c.trim())){
-    const L=layoutOf(p),fn=L==='1'?'ch1':L==='2'?'ch2':'chv';
-    push(`#${fn}(${p.choices.map((c,i)=>`[${MARKS[i]} ${tline(c)}]`).join(', ')})`);
-  }
   return out.join(IND);
 }
 
@@ -1410,6 +1685,22 @@ function livePpi(){
 $('#exportBtn').onclick=toTypst;
 
 /* 불러온 JSON 을 그대로 믿지 않고 형식을 맞춘다 */
+/* 불러온 블록을 화이트리스트로 정규화 — 모르는 종류·필드는 버린다 */
+function normBlockM(b,S){
+  if(!b||typeof b!=='object'||!BLK_LABELS[b.type]) return null;
+  const d=(b.data&&typeof b.data==='object')?b.data:{};
+  if(b.type==='statement'||b.type==='boxed') return {type:b.type,data:{text:S(d.text,'')}};
+  if(b.type==='conditions'||b.type==='examples')
+    return {type:b.type,data:{items:(Array.isArray(d.items)?d.items:[]).slice(0,8).map(x=>S(x,''))}};
+  if(b.type==='choices'){
+    const a=(Array.isArray(d.items)?d.items:[]).slice(0,5).map(x=>S(x,''));
+    while(a.length<5) a.push('');
+    return {type:'choices',data:{items:a,layout:['auto','1','2','v'].includes(d.layout)?d.layout:'auto'}};
+  }
+  return {type:'image',data:{width:Math.max(0,Math.min(110,+d.width||0)),
+                             src:S(d.src,'').replace(/["\\]/g,'')}};
+}
+
 function sanitize(base,p){
   if(!p||typeof p!=='object')return base;
   const S=(v,d)=>typeof v==='string'?v.slice(0,4000):d;
@@ -1417,14 +1708,23 @@ function sanitize(base,p){
   o.sect=p.sect==='선택'?'선택':'공통';
   o.type=p.type==='short'?'short':'choice';
   o.pts=[2,3,4].includes(+p.pts)?+p.pts:base.pts;
-  o.stmt=S(p.stmt,'');
-  o.conds=Array.isArray(p.conds)?p.conds.slice(0,6).map(x=>S(x,'')):[];
-  o.useCond=!!p.useCond;
-  o.choices=Array.isArray(p.choices)?[0,1,2,3,4].map(i=>S(p.choices[i],'')):base.choices;
   o.layout=['auto','1','2','v'].includes(p.layout)?p.layout:'auto';
-  o.figure=Math.max(0,Math.min(110,+p.figure||0));
-  o.figSrc=S(p.figSrc,'').replace(/["\\]/g,'');
   o.breakAfter=!!p.breakAfter;
+  // 블록이 있으면 화이트리스트로 정규화, 없으면 예전 형식에서 변환한다
+  if(Array.isArray(p.blocks)&&p.blocks.length){
+    o.blocks=p.blocks.slice(0,40).map(b=>normBlockM(b,S)).filter(Boolean);
+  }else{
+    o.blocks=legacyToBlocks({
+      stmt:S(p.stmt,''),
+      conds:Array.isArray(p.conds)?p.conds.slice(0,6).map(x=>S(x,'')):[],
+      useCond:!!p.useCond,
+      choices:Array.isArray(p.choices)?[0,1,2,3,4].map(i=>S(p.choices[i],'')):[],
+      layout:o.layout, type:o.type,
+      figure:Math.max(0,Math.min(110,+p.figure||0)),
+      figSrc:S(p.figSrc,'').replace(/["\\]/g,''),
+    });
+  }
+  if(!o.blocks.length) o.blocks=[{type:'statement',data:{text:''}}];
   return o;
 }
 let DIRTY=false;
