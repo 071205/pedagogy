@@ -76,6 +76,33 @@
   --ind:3.99;             /* 내어쓰기 -3.99mm */
   --ch-gap:21.6;          /* 선지 간격 (09 정본 탭: 3.99·25.6·47.2·68.81·90.4) */
 }
+
+/* ══════════ 테마 ══════════
+   위 :root 가 어두운 색이 기본이다. 아래에서 밝은 색을 덮어쓴다.
+     · data-theme 없음  → 시스템 설정을 따른다
+     · data-theme="light" / "dark" → 사용자가 고른 값이 항상 이긴다
+   시험지(.paper)는 실제 인쇄물을 나타내므로 테마와 무관하게 항상 흰 종이다. */
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){
+    --bg:#F5F6F8; --surface-1:#FFFFFF; --surface-2:#F0F1F4;
+    --surface-3:#E7E9EE; --surface-hover:#E1E4EA;
+    --border:#D6D9E0; --border-subtle:#E7E9EE;
+    --text-primary:#16171A; --text-secondary:#5A5F6B; --text-tertiary:#8A909C;
+    --blue-dim:#B9D3FA; --blue-subtle:#E8F1FE;
+  }
+}
+:root[data-theme="light"]{
+  --bg:#F5F6F8; --surface-1:#FFFFFF; --surface-2:#F0F1F4;
+  --surface-3:#E7E9EE; --surface-hover:#E1E4EA;
+  --border:#D6D9E0; --border-subtle:#E7E9EE;
+  --text-primary:#16171A; --text-secondary:#5A5F6B; --text-tertiary:#8A909C;
+  --blue-dim:#B9D3FA; --blue-subtle:#E8F1FE;
+}
+/* 밝은 테마에서는 미리보기 바탕을 살짝 눌러 흰 시험지가 도드라지게 한다 */
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]) .preview{background:#E9EBEF}
+}
+:root[data-theme="light"] .preview{background:#E9EBEF}
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%}
 body{background:var(--bg);color:var(--text-primary);font-family:var(--ui-sans);
@@ -89,9 +116,16 @@ button{background:none;border:none;cursor:pointer}
 :focus-visible{outline:2px solid var(--blue);outline-offset:1px}
 
 .topbar{display:flex;justify-content:space-between;align-items:center;
-  padding:0 24px;height:60px;background:rgba(9,9,11,.85);
-  backdrop-filter:blur(20px);border-bottom:1px solid var(--border);z-index:100}
-.tb-l,.tb-r{display:flex;align-items:center;gap:12px}
+  padding:0 16px;height:60px;background:var(--bg);
+  backdrop-filter:blur(20px);border-bottom:1px solid var(--border);z-index:100;
+  gap:12px;overflow:hidden}
+/* 좁아지면 왼쪽(제목 입력)이 먼저 줄고, 오른쪽 버튼들은 가로 스크롤된다 */
+.tb-l{display:flex;align-items:center;gap:12px;min-width:0;flex:0 1 auto}
+.tb-l .inp{min-width:0}
+.tb-r{display:flex;align-items:center;gap:8px;flex:0 0 auto;
+  overflow-x:auto;scrollbar-width:none}
+.tb-r::-webkit-scrollbar{display:none}
+.tb-r>*{flex:0 0 auto}
 .brand{font-family:'Adobe Caslon Pro Bold',serif;font-size:22px;letter-spacing:.5px;
   font-weight:700;user-select:none}
 .brand-tag{font-size:11px;color:var(--text-tertiary);letter-spacing:.08em;
@@ -122,6 +156,16 @@ button{background:none;border:none;cursor:pointer}
 body.embedded .brand{display:none}
 body.embedded .brand-tag{margin-left:0}
 
+/* 확대 감도 슬라이더 */
+.sens{display:flex;align-items:center;gap:6px;height:36px;padding:0 9px;
+  background:var(--surface-2);border:1px solid var(--border);
+  border-radius:var(--radius-sm);font-size:11px;color:var(--text-tertiary)}
+.sens input[type=range]{width:58px;accent-color:var(--blue);cursor:pointer}
+.sens b{color:var(--text-secondary);font-weight:600;min-width:26px;
+  text-align:right;font-variant-numeric:tabular-nums;font-size:11px}
+/* 아주 좁을 땐 글자를 빼고 슬라이더만 남긴다 */
+@media (max-width:1500px){ .sens>span{display:none} }
+
 .panes{display:flex;height:calc(100% - 60px)}
 .preview{flex:1 1 auto;min-width:320px;overflow:auto;padding:24px;
   overscroll-behavior:contain;scrollbar-width:thin}
@@ -151,15 +195,15 @@ body.embedded .brand-tag{margin-left:0}
 .mathpv{display:none}
 .mathpv.on{
   display:block;margin-top:6px;padding:9px 11px;
-  background:rgba(255,255,255,.035);
-  border:1px solid var(--border);border-left:2px solid var(--accent,#3182F6);
+  background:var(--surface-3);
+  border:1px solid var(--border);border-left:2px solid var(--blue);
   border-radius:8px;
   font-family:'ExamBody','Hamchorom','KoPub Batang',serif;
-  font-size:13.5px;line-height:1.75;color:#E8E8EE;
+  font-size:13.5px;line-height:1.75;color:var(--text-primary);
   word-break:keep-all;overflow-x:auto;
 }
 .mathpv.on>div{margin:1px 0}
-.mathpv .katex{color:#F4F4F6}
+.mathpv .katex{color:var(--text-primary)}
 .mathpv-tag{
   display:inline-block;font-family:var(--ui-sans,system-ui);
   font-size:11px;color:var(--text-tertiary);
@@ -370,6 +414,12 @@ body.embedded .brand-tag{margin-left:0}
       <button id="zIn" title="확대 (⌘+)">+</button>
     </div>
     <button class="btn" id="zFit" title="폭에 맞추기 — 다시 누르면 100%">맞춤</button>
+    <label class="sens" title="확대 감도 — 휠/버튼이 한 번에 얼마나 확대할지">
+      <span>감도</span>
+      <input id="zSens" type="range" min="0.4" max="2.5" step="0.1">
+      <b id="zSensVal">1.0×</b>
+    </label>
+    <button class="btn" id="themeBtn" title="테마 — 시스템/밝게/어둡게">🌗</button>
     <button class="btn btn-primary" id="exportBtn">Typst 내보내기</button>
   </div>
 </header>
@@ -779,6 +829,18 @@ function setZoom(z, anchor){
 /* 배율 단계는 곱셈으로 움직여야 어느 배율에서든 체감이 일정하다 */
 const zoomBy=(f,anchor)=>setZoom(state.zoom*f,anchor);
 
+/* ── 확대 감도 ──
+   ZOOM_STEP : 버튼·단축키 한 번에 몇 배씩 (1.2 = 20%씩)
+   WHEEL_K   : 휠/트랙패드 감도. 클수록 조금만 굴려도 크게 확대된다.
+   슬라이더(#zSens)로 조절하며 localStorage 에 기억된다. */
+let ZOOM_SENS = 1;                       // 0.4 ~ 2.5
+const ZOOM_STEP = () => 1 + 0.2 * ZOOM_SENS;
+const WHEEL_K   = () => 0.0025 * ZOOM_SENS;
+try{
+  const v=parseFloat(localStorage.getItem('MOCK_ZOOM_SENS'));
+  if(v>=0.4 && v<=2.5) ZOOM_SENS=v;
+}catch(e){ console.error(e); }
+
 /* 폭에 맞추는 배율 */
 function fitZoom(){
   const pv=$('#preview');
@@ -793,8 +855,8 @@ function fitWidth(){
   const pv=$('#preview'); pv.scrollTop=0; pv.scrollLeft=0;
 }
 
-$('#zIn').onclick=()=>zoomBy(1.2);
-$('#zOut').onclick=()=>zoomBy(1/1.2);
+$('#zIn').onclick=()=>zoomBy(ZOOM_STEP());
+$('#zOut').onclick=()=>zoomBy(1/ZOOM_STEP());
 $('#zVal').onclick=()=>setZoom(1);
 /* 맞춤: 폭 맞추기 ↔ 100% 를 번갈아 */
 $('#zFit').onclick=()=>{
@@ -808,7 +870,7 @@ $('#preview').addEventListener('wheel',e=>{
   if(!e.ctrlKey&&!e.metaKey)return;
   e.preventDefault();
   const pr=$('#preview').getBoundingClientRect();
-  zoomBy(Math.exp(-e.deltaY*.0025),{x:e.clientX-pr.left,y:e.clientY-pr.top});
+  zoomBy(Math.exp(-e.deltaY*WHEEL_K()),{x:e.clientX-pr.left,y:e.clientY-pr.top});
 },{passive:false});
 
 /* 빈 곳을 드래그해서 시험지를 밀어 볼 수 있게 (확대했을 때 편하다) */
@@ -830,6 +892,52 @@ $('#preview').addEventListener('wheel',e=>{
   const end=()=>{on=false;pv.style.cursor='';};
   pv.addEventListener('pointerup',end); pv.addEventListener('pointercancel',end);
 })();
+/* ── 확대 감도 슬라이더 ── */
+(function(){
+  const sl=$('#zSens'), lab=$('#zSensVal');
+  if(!sl) return;
+  const show=()=>{ if(lab) lab.textContent=ZOOM_SENS.toFixed(1)+'×'; };
+  sl.value=ZOOM_SENS; show();
+  sl.oninput=e=>{
+    ZOOM_SENS=parseFloat(e.target.value)||1;
+    show();
+    try{ localStorage.setItem('MOCK_ZOOM_SENS', String(ZOOM_SENS)); }
+    catch(err){ console.error(err); }
+  };
+})();
+
+/* ── 테마 (시스템 / 밝게 / 어둡게) ── */
+const THEMES=[
+  {v:'system', icon:'🌗', name:'시스템 설정'},
+  {v:'light',  icon:'☀️', name:'밝게'},
+  {v:'dark',   icon:'🌙', name:'어둡게'},
+];
+let themeCur='system';
+
+/* rerender 는 첫 적용 때 false 로 준다 — 이 시점엔 LIVE 등 아래쪽 const 가
+   아직 초기화 전이라(TDZ) renderPreview 를 부르면 스크립트가 통째로 죽는다. */
+function applyTheme(v, rerender){
+  const root=document.documentElement;
+  if(v==='system') root.removeAttribute('data-theme');
+  else root.setAttribute('data-theme', v);
+  themeCur=v;
+  const t=THEMES.find(x=>x.v===v)||THEMES[0];
+  const b=$('#themeBtn');
+  if(b){ b.textContent=t.icon; b.title='테마: '+t.name+' (눌러서 변경)'; }
+  try{ localStorage.setItem('MOCK_THEME', v); }catch(e){ console.error(e); }
+  // 색이 바뀌면 캔버스 폭 측정이 흔들릴 수 있어 다시 그린다
+  if(rerender) renderPreview();
+}
+
+/* 저장된 테마를 '색만' 먼저 입힌다(깜빡임 방지). 버튼 연결은 boot() 에서. */
+(function(){
+  try{ const s=localStorage.getItem('MOCK_THEME'); if(THEMES.some(x=>x.v===s)) themeCur=s; }
+  catch(e){ console.error(e); }
+  const root=document.documentElement;
+  if(themeCur==='system') root.removeAttribute('data-theme');
+  else root.setAttribute('data-theme', themeCur);
+})();
+
 $('#errClose').onclick=()=>showErr('');
 $('#guideBtn').onclick=e=>{state.guides=!state.guides;e.target.classList.toggle('on',state.guides);renderPreview();};
 $('#round').oninput=renderPreview;
@@ -868,7 +976,11 @@ const TYPST_FRAME = `#import "@preview/mitex:0.2.7": mi, mitex
 // (원본은 발문 영문에 한양신명조를 쓰지만 Mac에 없으면 Libertinus 로 떨어져
 //  한글과 확 달라 보인다. 원본 글꼴을 구하면 맨 앞에 다시 넣을 것.)
 // 수식 — 한컴 원본 HyhwpEQ (TTF/Install 폴더에 있음). 뒤는 없는 글자 대비
-#let F-EQ    = ("HyhwpEQ",) + F-PLAIN + ("New Computer Modern Math",)
+// 수식 글꼴. HyhwpEQ(한컴 수식체)가 없는 환경에서 본문 글꼴로 떨어지면
+// 아래첨자·이탤릭 같은 수식 조판이 통째로 깨진다("font is not designed for math" 경고).
+// 그래서 한글 본문 글꼴보다 '진짜 수식 글꼴'을 먼저 둔다.
+// 수식 안 한글은 뒤쪽 한글 글꼴에서 자동으로 채워진다(타입스트는 글리프 단위로 폴백).
+#let F-EQ    = ("HyhwpEQ", "New Computer Modern Math") + F-PLAIN
 #let F-AREA  = ("신명 신그래픽", "신그래픽체", "SinGraphic", "HYgtrE")  // 수학 영역
 // cases 의 큰 중괄호용. HWP 계열 폰트에는 OpenType MATH 표가 없어서
 // 그냥 두면 { 가 한 글자 크기로 나온다. 중괄호만 수학 폰트로 바꾸면 늘어난다.
@@ -886,9 +998,11 @@ const TYPST_FRAME = `#import "@preview/mitex:0.2.7": mi, mitex
 #set text(font: F-BODY, size: 10.91pt * K-BODY, tracking: -0.546pt * K-BODY, lang: "ko")
 // 영문·숫자 전용 글꼴 지정은 쓰지 않는다 — 본문 글꼴 그대로 간다.
 // (되살리려면: #show regex("[A-Za-z0-9]"): set text(font: F-LATIN))
-// 수식 = HyhwpEQ 11.04pt · 평가원 수식의 변수는 이탤릭이 아니라 정자
+// 수식 11.04pt.
+// 예전에는 여기서 math.upright 로 변수를 정자로 강제했는데, 평가원 원본 시험지를
+// 대조해 보면 변수(k, a_n, f(x) …)는 이탤릭이 맞다. 게다가 HyhwpEQ 가 없는 환경에서는
+// upright 강제 때문에 아래첨자가 내려가지 않고 수식이 통째로 깨져 보였다.
 #show math.equation: set text(font: F-EQ, size: 11.04pt * K-BODY)
-#show math.equation: math.upright
 #show math.equation: it => { show regex("[{}]"): set text(font: F-BRACE); it }
 #set par(leading: 0.65em, justify: false)
 
@@ -1407,8 +1521,8 @@ document.addEventListener('keydown',e=>{
   if(cmd&&e.key.toLowerCase()==='s'){e.preventDefault();saveJSON();return;}
   if(cmd&&e.key.toLowerCase()==='e'){e.preventDefault();toTypst();return;}
   // ⌘+ / ⌘− / ⌘0 — 브라우저 자체 확대 대신 시험지 배율을 조절한다
-  if(cmd&&(e.key==='='||e.key==='+')){e.preventDefault();zoomBy(1.2);return;}
-  if(cmd&&(e.key==='-'||e.key==='_')){e.preventDefault();zoomBy(1/1.2);return;}
+  if(cmd&&(e.key==='='||e.key==='+')){e.preventDefault();zoomBy(ZOOM_STEP());return;}
+  if(cmd&&(e.key==='-'||e.key==='_')){e.preventDefault();zoomBy(1/ZOOM_STEP());return;}
   if(cmd&&e.key==='0'){e.preventDefault();setZoom(1);return;}
   if(e.altKey&&(e.key==='ArrowUp'||e.key==='ArrowDown')){
     e.preventDefault();
@@ -1443,6 +1557,15 @@ async function boot(){
   catch(e){ document.body.classList.add('embedded'); }   // 교차 출처면 iframe 으로 본다
 
   renderPreview();renderEditor();renderOutline();
+
+  // 테마 버튼 — 여기서 연결해야 아래쪽 const 들이 모두 초기화된 뒤가 된다
+  applyTheme(themeCur, false);
+  const tb=$('#themeBtn');
+  if(tb) tb.onclick=()=>{
+    const i=THEMES.findIndex(x=>x.v===themeCur);
+    applyTheme(THEMES[(i+1)%THEMES.length].v, true);
+  };
+
   offerDraftRestore();          // 저장 없이 끝난 직전 작업이 있으면 복구 제안
   $('#liveBtn').onclick=async()=>{
     if(LIVE.on)return setLive(false);
