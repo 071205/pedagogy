@@ -28,6 +28,9 @@ HERE = Path(__file__).resolve().parent
 WORK = HERE / "work"                 # 그림 등 typst 가 읽어도 되는 유일한 폴더
 MAX_BODY = 4 * 1024 * 1024           # 요청 본문 4MB
 TIMEOUT = 25                         # 컴파일 제한 시간(초)
+MAX_CONCURRENT = 2                   # 동시에 돌릴 typst 개수 (CPU 폭주 방지)
+MAX_PAGES = 60                       # 한 번에 돌려줄 쪽 수 상한
+MAX_TOTAL_PNG = 48 * 1024 * 1024     # 응답에 담을 PNG 총량 상한
 PPI_MIN, PPI_MAX = 48, 400   # 레티나에서 크게 확대하면 200 으로는 뭉개진다
 
 # 정적 파일 화이트리스트 — 여기 없는 이름은 어떤 경로로도 못 가져간다
@@ -93,6 +96,10 @@ def find_typst() -> str | None:
 
 TYPST = find_typst()
 
+# 동시 컴파일 수 제한. typst 는 CPU 를 많이 쓰므로, 창을 여러 개 열어 두거나
+# 편집이 빨라 요청이 몰리면 노트북이 통째로 느려진다. 순서대로 처리한다.
+_COMPILE_SEM = threading.BoundedSemaphore(MAX_CONCURRENT)
+
 
 def font_args() -> list[str]:
     out = []
@@ -106,6 +113,16 @@ def compile_typ(src: str, ppi: int) -> dict:
     """소스를 임시 폴더에서 컴파일해 쪽별 PNG 를 돌려준다."""
     if TYPST is None:
         return {"ok": False, "log": "typst 를 찾을 수 없습니다.  brew install typst"}
+    # 동시 실행 수를 넘으면 잠시 기다린다. 너무 오래 밀리면 그냥 거절한다.
+    if not _COMPILE_SEM.acquire(timeout=TIMEOUT):
+        return {"ok": False, "log": "렌더 요청이 몰려 있습니다. 잠시 후 다시 시도해 주세요."}
+    try:
+        return _compile_typ_locked(src, ppi)
+    finally:
+        _COMPILE_SEM.release()
+
+
+def _compile_typ_locked(src: str, ppi: int) -> dict:
     WORK.mkdir(exist_ok=True)
     with tempfile.TemporaryDirectory(dir=str(WORK)) as td:
         tdp = Path(td)
@@ -124,11 +141,21 @@ def compile_typ(src: str, ppi: int) -> dict:
                        key=lambda p: int("".join(ch for ch in p.stem if ch.isdigit()) or 0))
         if r.returncode != 0 or not pages:
             return {"ok": False, "log": log or "컴파일 실패"}
-        out = []
+        # 쪽 수·총 용량 상한 — 실수로 거대한 문서를 만들어도 메모리를 다 먹지 않게
+        truncated = len(pages) > MAX_PAGES
+        pages = pages[:MAX_PAGES]
+        out, total = [], 0
         for i, f in enumerate(pages, 1):
             b = f.read_bytes()
+            total += len(b)
+            if total > MAX_TOTAL_PNG:
+                truncated = True
+                break
             out.append({"n": i, "hash": hashlib.sha1(b).hexdigest()[:16],
                         "png": base64.b64encode(b).decode()})
+        if truncated:
+            log = (log + "\n" if log else "") + \
+                  f"※ 미리보기가 너무 커서 {len(out)}쪽까지만 표시합니다."
         return {"ok": True, "pages": out, "log": log}
 
 

@@ -957,9 +957,9 @@ document.addEventListener('DOMContentLoaded',()=>{
 <div id="printDoc"></div>
 
 <!-- Export modal -->
-<div id="exportModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:2000;align-items:center;justify-content:center">
+<div id="exportModal" role="dialog" aria-modal="true" aria-labelledby="exportModalTitle" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:2000;align-items:center;justify-content:center">
   <div style="background:var(--surface-1);border:1px solid var(--border);border-radius:24px;padding:32px;width:360px;text-align:center;box-shadow:0 24px 64px rgba(0,0,0,.6)">
-    <div style="font-size:20px;font-weight:800;margin-bottom:6px;color:var(--text-primary);letter-spacing:-.02em">인쇄 / PDF 저장</div>
+    <div id="exportModalTitle" style="font-size:20px;font-weight:800;margin-bottom:6px;color:var(--text-primary);letter-spacing:-.02em">인쇄 / PDF 저장</div>
     <div style="font-size:13px;color:var(--text-secondary);margin-bottom:24px;line-height:1.5">인쇄 대화상자에서 <b style="color:var(--text-primary)">'PDF로 저장'</b>을 선택하면 PDF로 저장됩니다</div>
     <div style="display:flex;flex-direction:column;gap:10px">
       <button id="exportWithAns" class="btn-primary" style="height:48px;font-size:14px;font-weight:700;border-radius:14px">정답 포함</button>
@@ -970,11 +970,11 @@ document.addEventListener('DOMContentLoaded',()=>{
 </div>
 
 <!-- AI Prompt modal -->
-<div id="promptModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:2000;align-items:center;justify-content:center;padding:20px">
+<div id="promptModal" role="dialog" aria-modal="true" aria-labelledby="promptModalTitle" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:2000;align-items:center;justify-content:center;padding:20px">
   <div style="background:var(--surface-1);border:1px solid var(--border);border-radius:24px;padding:28px 28px 24px;width:100%;max-width:600px;max-height:88vh;display:flex;flex-direction:column;gap:16px;box-shadow:0 24px 64px rgba(0,0,0,.6)">
     <div style="display:flex;justify-content:space-between;align-items:center">
       <div>
-        <div style="font-size:18px;font-weight:800;color:var(--text-primary);letter-spacing:-.02em">AI 변환 프롬프트</div>
+        <div id="promptModalTitle" style="font-size:18px;font-weight:800;color:var(--text-primary);letter-spacing:-.02em">AI 변환 프롬프트</div>
         <div style="font-size:12px;color:var(--text-secondary);margin-top:3px">이미지와 함께 ChatGPT · Claude · Gemini에 붙여넣으세요</div>
       </div>
       <button id="closePrompt" class="btn-ghost" style="width:36px;height:36px;padding:0;border-radius:50%;font-size:18px">✕</button>
@@ -2677,11 +2677,41 @@ $("#loadInput").onchange=e=>{ const f=e.target.files?.[0]; if(!f) return; const 
   toast(`문항 ${cloned.length}개를 추가했어요`,"success");
 }catch{ toast("JSON을 읽을 수 없어요","error"); } }; r.readAsText(f); e.target.value=""; };
 
+/* ── 모달 공용 동작 ──
+   Escape 로 닫기 · Tab 이 모달 밖으로 나가지 않게 가두기 · 닫을 때 원래 자리로 포커스 복귀.
+   키보드만 쓰는 사용자가 모달 뒤 화면으로 빠져나가 길을 잃지 않도록 한다. */
+let modalPrevFocus=null, modalOpen=null;
+function openModal(m){
+  modalPrevFocus=document.activeElement;
+  modalOpen=m;
+  m.style.display="flex";
+  const f=m.querySelector('button,[href],input,select,textarea,[tabindex]:not([tabindex="-1"])');
+  if(f) f.focus();
+}
+function closeModal(m){
+  m=m||modalOpen; if(!m) return;
+  m.style.display="none";
+  if(modalOpen===m) modalOpen=null;
+  if(modalPrevFocus && document.contains(modalPrevFocus)) modalPrevFocus.focus();
+  modalPrevFocus=null;
+}
+document.addEventListener("keydown",(e)=>{
+  if(!modalOpen || getComputedStyle(modalOpen).display==="none") return;
+  if(e.key==="Escape"){ e.preventDefault(); closeModal(); return; }
+  if(e.key!=="Tab") return;
+  const f=[...modalOpen.querySelectorAll('button,[href],input,select,textarea,[tabindex]:not([tabindex="-1"])')]
+          .filter(x=>x.offsetParent!==null && !x.disabled);
+  if(!f.length) return;
+  const first=f[0], last=f[f.length-1];
+  if(e.shiftKey && document.activeElement===first){ e.preventDefault(); last.focus(); }
+  else if(!e.shiftKey && document.activeElement===last){ e.preventDefault(); first.focus(); }
+});
+
 /* Export modal (인쇄) */
 const modal=$("#exportModal");
-$("#printBtn").onclick=()=>{ modal.style.display="flex"; };
-$("#closeExport").onclick=()=>{ modal.style.display="none"; };
-modal.onclick=(e)=>{ if(e.target===modal) modal.style.display="none"; };
+$("#printBtn").onclick=()=>openModal(modal);
+$("#closeExport").onclick=()=>closeModal(modal);
+modal.onclick=(e)=>{ if(e.target===modal) closeModal(modal); };
 
 /* KaTeX 수식 폰트를 인쇄 전에 모두 강제 로드.
    (CSS는 lazy 로드라, 화면에 안 쓰인 굵기/기호 폰트가 인쇄 때 누락되면
@@ -2713,7 +2743,7 @@ async function ensureKatexFonts(){
 }
 
 async function doPrint(hideAnswers){
-  modal.style.display="none";
+  closeModal(modal);
   buildPrintDoc(hideAnswers);
   // KaTeX 수식 폰트를 모두 깨운 뒤 렌더/측정해야 인쇄에서 누락 없음
   await ensureKatexFonts();
@@ -2801,10 +2831,10 @@ const PROMPT_TEXT = `첨부된 이미지의 수학 문제 발문과 보기를 La
 
 $("#promptText").textContent = PROMPT_TEXT;
 const pmModal=$("#promptModal");
-$("#promptBtn").onclick=()=>{ pmModal.style.display="flex"; };
-$("#closePrompt").onclick=()=>{ pmModal.style.display="none"; };
-$("#closePrompt2").onclick=()=>{ pmModal.style.display="none"; };
-pmModal.onclick=(e)=>{ if(e.target===pmModal) pmModal.style.display="none"; };
+$("#promptBtn").onclick=()=>openModal(pmModal);
+$("#closePrompt").onclick=()=>closeModal(pmModal);
+$("#closePrompt2").onclick=()=>closeModal(pmModal);
+pmModal.onclick=(e)=>{ if(e.target===pmModal) closeModal(pmModal); };
 $("#copyPrompt").onclick=()=>{
   navigator.clipboard.writeText(PROMPT_TEXT).then(()=>{
     const btn=$("#copyPrompt"); const orig=btn.textContent;
