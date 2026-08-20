@@ -345,6 +345,65 @@ select:focus{border-color:var(--blue)}
 }
 .blk-handle:active{cursor:grabbing}
 .blk-sep{display:none}
+
+/* 입력칸 아래 수식 미리보기 */
+.mathpv{display:none}
+.mathpv.on{
+  display:block;margin:6px 0 2px;padding:8px 11px;
+  background:var(--surface-3);
+  border:1px solid var(--border);border-left:2px solid var(--blue);
+  border-radius:8px;
+  font-family:'KoPub Batang',var(--body-serif);
+  font-size:13px;line-height:1.7;color:var(--text-primary);
+  word-break:keep-all;overflow-x:auto;
+}
+.mathpv.on .katex{color:var(--text-primary)}
+.mathpv .vspace{display:block}
+/* 이 앱은 $...$ 도 display:true 로 렌더한다(.preview 와 같은 규칙).
+   그대로 두면 인라인 수식이 한 줄씩 차지해 버리므로 inline-block 으로 되돌린다. */
+.mathpv .katex-display{display:inline-block;margin:.2em 0;text-align:left}
+.mathpv .pdm{text-align:center;margin:.45em 0;display:block}
+.mathpv .pdm .katex-display{display:block!important;text-align:center!important;margin:0}
+/* 길어지면 상자만 스크롤 */
+.mathpv.on{max-height:190px;overflow-y:auto}
+
+/* 블록 종류 선택 (헤더의 라벨 자리) */
+.blk-type-sel{
+  flex:1;height:28px;padding:0 8px;font-size:12px;font-weight:700;
+  background:transparent;border:1px solid transparent;border-radius:7px;
+  color:var(--text-secondary);letter-spacing:.02em;cursor:pointer;
+}
+.blk-type-sel:hover{background:var(--surface-3);border-color:var(--border);color:var(--text-primary)}
+.blk-type-sel:focus{border-color:var(--blue);background:var(--surface-3)}
+
+/* 블록 사이 '여기에 추가' 지점 — 평소엔 옅은 선, 올리면 + 가 보인다 */
+.blk-insert{position:relative;height:14px;display:flex;align-items:center;justify-content:center}
+.blk-insert-line{position:absolute;left:0;right:0;height:1px;background:transparent;transition:.12s}
+.blk-insert-btn{
+  position:relative;width:22px;height:22px;padding:0;border-radius:50%;
+  background:var(--surface-2);border:1px solid var(--border);
+  color:var(--text-tertiary);font-size:14px;line-height:1;
+  opacity:0;transition:.12s;
+}
+.blk-insert:hover .blk-insert-line{background:var(--blue-dim)}
+.blk-insert:hover .blk-insert-btn,
+.blk-insert.open .blk-insert-btn{opacity:1}
+.blk-insert.open .blk-insert-btn{background:var(--blue);border-color:transparent;color:#fff;transform:rotate(45deg)}
+.blk-insert-btn:hover{border-color:var(--blue);color:var(--blue)}
+/* 종류 고르는 작은 메뉴 */
+.blk-insert-menu{
+  display:none;position:absolute;top:26px;left:50%;transform:translateX(-50%);
+  background:var(--surface-2);border:1px solid var(--border);
+  border-radius:var(--radius-md);padding:5px;z-index:30;
+  box-shadow:0 8px 28px rgba(0,0,0,.35);
+  grid-template-columns:1fr 1fr;gap:3px;width:230px;
+}
+.blk-insert.open .blk-insert-menu{display:grid}
+.blk-insert-menu button{
+  height:30px;padding:0 9px;font-size:12px;justify-content:flex-start;
+  background:transparent;border:0;color:var(--text-secondary);border-radius:7px;
+}
+.blk-insert-menu button:hover{background:var(--blue-subtle);color:var(--blue-hover)}
 .blk-body{padding:12px 14px}
 .block textarea{
   width:100%;min-height:120px;resize:none;
@@ -1609,6 +1668,65 @@ function renderQList(){
 let sortableBlocks=null;
 function autoSizeTA(ta){ ta.style.height='auto'; ta.style.height=(ta.scrollHeight+2)+'px'; }
 
+/* 블록 종류별 기본값 — 추가·타입 변경에서 함께 쓴다 */
+const BLK_LABELS={statement:"문제 본문",conditions:"가나다 조건",examples:"ㄱㄴㄷ 보기",
+                  boxed:"박스형 해설",choices:"답 선지",image:"이미지"};
+function blankBlockData(type){
+  if(type==="statement"||type==="boxed") return {text:""};
+  if(type==="conditions"||type==="examples") return {items:[""]};
+  if(type==="choices") return {items:["","","","",""],layout:"horizontal"};
+  if(type==="image") return {dataUrl:"",size:"full"};
+  return {};
+}
+/* 타입을 바꿔도 살릴 수 있는 내용은 옮겨 담는다(본문↔해설, 조건↔보기 등) */
+function convertBlock(blk,to){
+  const from=blk.type, d=blk.data||{};
+  const nd=blankBlockData(to);
+  const textLike=t=>t==="statement"||t==="boxed";
+  const listLike=t=>t==="conditions"||t==="examples"||t==="choices";
+  if(textLike(from)&&textLike(to)) nd.text=d.text||"";
+  else if(listLike(from)&&listLike(to)){
+    const src=(d.items||[]).filter(x=>x!=null);
+    if(to==="choices"){ const a=src.slice(0,5); while(a.length<5)a.push(""); nd.items=a; }
+    else nd.items=src.length?src:[""];
+  }
+  else if(textLike(from)&&listLike(to)){
+    const lines=(d.text||"").split("\n").map(x=>x.trim()).filter(Boolean);
+    if(to==="choices"){ const a=lines.slice(0,5); while(a.length<5)a.push(""); nd.items=a; }
+    else nd.items=lines.length?lines:[""];
+  }
+  else if(listLike(from)&&textLike(to)) nd.text=(d.items||[]).filter(Boolean).join("\n");
+  else if(from==="image"&&to==="image") return blk.data;
+  return nd;
+}
+/* 입력칸 아래에 KaTeX 로 렌더한 결과를 함께 보여준다.
+   textarea 에는 LaTeX 원문($\dfrac{a}{b}$ 같은 영문 명령)만 보이므로,
+   수식이 맞게 써졌는지 미리보기까지 눈을 옮기지 않고 확인할 수 있게 한다. */
+function attachMathPv(host, getText){
+  const pv=el("div","mathpv");
+  const paint=()=>{
+    const src=(getText()||"").trim();
+    if(!src){ pv.classList.remove("on"); pv.innerHTML=""; return; }
+    pv.classList.add("on");
+    pv.innerHTML=processText(src);
+    try{
+      renderMathInElement(pv,{delimiters:[
+        {left:"$$",right:"$$",display:true},
+        {left:"\\[",right:"\\]",display:true},
+        {left:"$",right:"$",display:true}],throwOnError:false});
+    }catch(e){ console.error("수식 미리보기 렌더 실패",e); }
+  };
+  paint();
+  host.append(pv);
+  return paint;
+}
+
+function addBlockAt(idx,type){
+  const q=activeQ(); if(!q) return;
+  q.blocks.splice(idx,0,{type,data:blankBlockData(type)});
+  saveSets(); renderEditor(); renderPreview();
+}
+
 function renderEditor(){
   const q=activeQ(); if(!q) return;
   rememberQ();
@@ -1641,12 +1759,48 @@ function renderEditor(){
   imgClear.onclick=()=>{ q.answerImg=""; saveSets(); imgClear.style.display="none"; renderPreview(); };
 
   const area=$("#blocksArea"); area.innerHTML="";
+
+  /* 블록과 블록 사이에 '여기에 추가' 지점을 둔다.
+     예전에는 맨 아래에만 추가할 수 있어서, 중간에 넣으려면 추가 후 드래그해야 했다. */
+  const insertPoint=(at)=>{
+    const row=el("div","blk-insert");
+    const line=el("div","blk-insert-line");
+    const menu=el("div","blk-insert-menu");
+    Object.entries(BLK_LABELS).forEach(([v,label])=>{
+      const b=el("button",null,label);
+      b.onclick=(e)=>{ e.stopPropagation(); addBlockAt(at,v); };
+      menu.append(b);
+    });
+    const plus=el("button","blk-insert-btn","+");
+    plus.title="여기에 블록 추가";
+    plus.onclick=(e)=>{ e.stopPropagation(); row.classList.toggle("open"); };
+    row.append(line,plus,menu);
+    return row;
+  };
+  // 다른 곳을 누르면 열린 삽입 메뉴를 닫는다
+  area.onclick=(e)=>{
+    if(e.target.closest(".blk-insert")) return;
+    area.querySelectorAll(".blk-insert.open").forEach(x=>x.classList.remove("open"));
+  };
+
   q.blocks.forEach((blk,idx)=>{
+    area.append(insertPoint(idx));
     const wrap=el("div","block");
     const head=el("div","blk-head");
     const handle=el("div","blk-handle"); handle.append(el("span","icon icon-grip",""));
-    const BLK_LABELS={statement:"문제 본문",conditions:"가나다 조건",examples:"ㄱㄴㄷ 보기",boxed:"박스형 해설",choices:"답 선지",image:"이미지"};
-    const type=el("div","blk-type",BLK_LABELS[blk.type]||blk.type);
+    // 종류를 바로 바꿀 수 있게 select 로 (지우고 다시 만들 필요 없음)
+    const type=el("select","blk-type-sel");
+    Object.entries(BLK_LABELS).forEach(([v,label])=>{
+      const o=document.createElement("option"); o.value=v; o.textContent=label;
+      if(v===blk.type) o.selected=true; type.append(o);
+    });
+    type.title="블록 종류 바꾸기";
+    type.onchange=()=>{
+      const to=type.value;
+      if(to===blk.type) return;
+      blk.data=convertBlock(blk,to); blk.type=to;
+      saveSets(); renderEditor(); renderPreview();
+    };
     head.append(handle,type);
 
     if(blk.type==="choices"){
@@ -1675,6 +1829,10 @@ function renderEditor(){
       head.append(ctrl); sync();
     }
 
+    const dup=el("button","iconbtn",""); dup.append(el("span","icon icon-copy","")); dup.title="블록 복제";
+    dup.onclick=()=>{ q.blocks.splice(idx+1,0,JSON.parse(JSON.stringify(blk))); saveSets(); renderEditor(); renderPreview(); };
+    head.append(dup);
+
     const del=el("button","iconbtn",""); del.append(el("span","icon icon-trash","")); del.title="블록 삭제";
     del.onclick=()=>{ q.blocks.splice(idx,1); if(!q.blocks.length) q.blocks.push({type:"statement",data:{text:""}}); saveSets(); renderEditor(); renderPreview(); };
     head.append(del);
@@ -1685,8 +1843,9 @@ function renderEditor(){
     if(blk.type==="statement"||blk.type==="boxed"){
       const ta=el("textarea"); ta.placeholder= blk.type==="boxed"?"박스형 해설 (LaTeX)":"본문 (LaTeX)";
       ta.value=blk.data.text||""; autoSizeTA(ta);
-      ta.addEventListener('input',e=>{ blk.data.text=e.target.value; autoSizeTA(ta); renderPreview(); saveSets(); });
       body.append(ta);
+      const paint=attachMathPv(body, ()=>blk.data.text);
+      ta.addEventListener('input',e=>{ blk.data.text=e.target.value; autoSizeTA(ta); paint(); renderPreview(); saveSets(); });
     }
 
     if(blk.type==="conditions"||blk.type==="examples"||blk.type==="choices"){
@@ -1699,9 +1858,10 @@ function renderEditor(){
         const labelText = blk.type==="conditions" ? condLabel(i) : (blk.type==="examples" ? `${HSMALL[i%HSMALL.length]}.` : circled(i+1));
         row.append(el("div","label",labelText));
         const inp=el("input"); inp.type="text"; inp.value=t; inp.placeholder= blk.type==="conditions"?"조건":"내용";
-        inp.oninput=e=>{ blk.data.items[i]=e.target.value; renderPreview(); saveSets(); };
         const rm=el("button","iconbtn",""); rm.append(el("span","icon icon-trash","")); rm.onclick=()=>{ blk.data.items.splice(i,1); renderEditor(); renderPreview(); saveSets(); };
         row.append(inp,rm); body.append(row);
+        const paintItem=attachMathPv(body, ()=>blk.data.items[i]);
+        inp.oninput=e=>{ blk.data.items[i]=e.target.value; paintItem(); renderPreview(); saveSets(); };
       });
 
       const add=el("button","btn","+ 항목 추가"); add.onclick=()=>{ blk.data.items.push(""); renderEditor(); renderPreview(); saveSets(); };
@@ -1730,15 +1890,22 @@ function renderEditor(){
     }
 
     wrap.append(head,sep,body);
+    wrap.dataset.bi=String(idx);      // 드래그 정렬에서 원래 위치를 찾기 위한 표시
     area.append(wrap);
   });
+  area.append(insertPoint(q.blocks.length));   // 맨 끝에도 추가 지점
 
   if(sortableBlocks) sortableBlocks.destroy();
   sortableBlocks=new Sortable($("#blocksArea"),{
     handle:".blk-handle", animation:150,
-    onEnd:e=>{
-      const q=activeQ(); const arr=q.blocks;
-      arr.splice(e.newIndex,0,arr.splice(e.oldIndex,1)[0]);
+    draggable:".block",              // 삽입 지점은 끌리지 않게
+    onEnd:()=>{
+      // 컨테이너에 삽입 지점이 섞여 있어 oldIndex/newIndex 를 그대로 쓸 수 없다.
+      // 화면에 놓인 .block 순서를 읽어 배열을 다시 만든다.
+      const q=activeQ(); if(!q) return;
+      const order=[...$("#blocksArea").querySelectorAll(".block")]
+        .map(el=>q.blocks[+el.dataset.bi]).filter(Boolean);
+      if(order.length===q.blocks.length) q.blocks=order;
       saveSets(); renderEditor(); renderPreview();
     }
   });
@@ -2217,6 +2384,16 @@ $("#undoBtn").onclick=()=>doUndo();
 $("#redoBtn").onclick=()=>doRedo();
 // 키보드 단축키: Cmd/Ctrl+Z (undo), Cmd/Ctrl+Shift+Z 또는 Ctrl+Y (redo)
 document.addEventListener("keydown",(e)=>{
+  // ⌥↑/↓ — 문항 이동 (모의고사 편집기와 같은 단축키)
+  if(e.altKey&&(e.key==="ArrowUp"||e.key==="ArrowDown")){
+    const arr=activeProblems();
+    if(!arr||!arr.length) return;
+    e.preventDefault();
+    const i=arr.findIndex(x=>x.id===currentQId);
+    const j=Math.max(0,Math.min(arr.length-1,(i<0?0:i)+(e.key==="ArrowDown"?1:-1)));
+    if(arr[j]){ currentQId=arr[j].id; rememberQ(); renderQList(); renderEditor(); renderPreview(); syncPairedChk(); }
+    return;
+  }
   const mod=e.metaKey||e.ctrlKey; if(!mod) return;
   const k=e.key.toLowerCase();
   // Cmd/Ctrl+S → 저장 (브라우저 기본 저장 막음)
