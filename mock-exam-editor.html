@@ -139,6 +139,12 @@ body.embedded .brand-tag{margin-left:0}
   background:#2A1416;border:1px solid #5A2026;border-radius:var(--radius-md);
   padding:12px 14px;color:#FFB4B4;font-size:12px;box-shadow:0 8px 32px rgba(0,0,0,.5)}
 .errbox b{display:block;margin-bottom:6px;color:#F04452}
+/* 오류가 아니라 안내일 때 — 빨강 대신 중립 톤 */
+.errbox.info{background:var(--surface-2);border-color:var(--border);color:var(--text-secondary)}
+.errbox.info b{color:var(--blue-hover,#4D96FF)}
+.errbox .errclose{position:absolute;top:8px;right:10px;background:none;border:0;
+  color:inherit;opacity:.55;cursor:pointer;font-size:14px;line-height:1;padding:2px 4px}
+.errbox .errclose:hover{opacity:1}
 
 /* ── 편집칸 아래 수식 미리보기 ──
    시험지와 같은 서체로 보여줘야 실제 결과를 가늠할 수 있다. */
@@ -367,7 +373,7 @@ body.embedded .brand-tag{margin-left:0}
 
 <main class="panes">
   <section class="preview" id="preview"><div class="stage-wrap" id="stageWrap"><div class="stage" id="stage"></div></div>
-    <div class="errbox" id="errbox" hidden><b>Typst 오류</b><pre id="errtxt"></pre></div></section>
+    <div class="errbox" id="errbox" hidden><button class="errclose" id="errClose" title="닫기">✕</button><b id="errttl">Typst 오류</b><pre id="errtxt"></pre></div></section>
   <section class="editor"><div class="pane-hd">문항 편집</div><div id="ed"></div></section>
   <aside class="outline"><div class="pane-hd">순서</div><div class="ol" id="ol"></div></aside>
 </main>
@@ -821,6 +827,7 @@ $('#preview').addEventListener('wheel',e=>{
   const end=()=>{on=false;pv.style.cursor='';};
   pv.addEventListener('pointerup',end); pv.addEventListener('pointercancel',end);
 })();
+$('#errClose').onclick=()=>showErr('');
 $('#guideBtn').onclick=e=>{state.guides=!state.guides;e.target.classList.toggle('on',state.guides);renderPreview();};
 $('#round').oninput=renderPreview;
 $('#elective').onchange=()=>{renderPreview();renderOutline();};
@@ -1223,10 +1230,34 @@ function setLive(on){
   const b=$('#liveBtn');if(b)b.classList.toggle('on',on);
   if(on)requestRender(0); else {LIVE.cache.clear();showErr('');renderPreview();}
 }
-function showErr(t){
+/* 안내 상자. kind='info' 면 오류가 아니라 안내로 보여준다.
+   (서버가 안 떠 있다는 안내에 'Typst 오류' 딱지가 붙어 혼란스러웠다) */
+function showErr(t, title, kind){
   const box=$('#errbox');if(!box)return;
-  if(t&&t.trim()){$('#errtxt').textContent=t.trim();box.hidden=false;}
+  if(t&&t.trim()){
+    $('#errttl').textContent=title||'Typst 오류';
+    $('#errtxt').textContent=t.trim();
+    box.classList.toggle('info', kind==='info');
+    box.hidden=false;
+  }
   else box.hidden=true;
+}
+
+/* '실시간'을 켤 수 없을 때의 안내. 어디서 열었는지에 따라 해야 할 일이 다르다. */
+function showNoServer(){
+  const local=location.protocol.startsWith('http')&&/^(127\.0\.0\.1|localhost)$/.test(location.hostname);
+  const msg = local
+    ? `이 페이지를 연 주소(${location.host})에서 렌더 서버를 찾지 못했습니다.\n`
+      +`터미널에서 python3 serve.py 가 실행 중인지 확인해 주세요.`
+    : `'실시간'은 내 컴퓨터에서 Typst 로 직접 조판한 결과를 보여주는 기능이라,\n`
+      +`로컬 렌더 서버가 필요합니다.\n\n`
+      +`  1) 터미널에서:  python3 serve.py --open\n`
+      +`  2) 열리는 http://127.0.0.1:8787 에서 편집기를 사용\n\n`
+      +`지금처럼 ${location.host} 에서 열어 두고 써도 되지만, 브라우저가 보안상\n`
+      +`외부 사이트 → 내 컴퓨터 주소 호출을 막는 경우가 있습니다(특히 사파리).\n`
+      +`그때는 위 2번 주소로 직접 열면 확실합니다.\n\n`
+      +`서버 없이도 편집과 근사 미리보기, Typst 내보내기는 그대로 됩니다.`;
+  showErr(msg, '실시간 미리보기 — 로컬 서버 필요', 'info');
 }
 function requestRender(delay=400){
   if(!LIVE.on)return;
@@ -1260,7 +1291,8 @@ async function doRender(){
       applyZoom();
     }
   }catch(e){
-    showErr('렌더 서버에 연결하지 못했습니다. serve.py 가 떠 있는지 확인하세요.\n'+e);
+    showErr('렌더 서버와 연결이 끊겼습니다. serve.py 가 아직 떠 있는지 확인해 주세요.\n\n'+e,
+            '렌더 서버 연결 끊김');
     setLive(false);
   }finally{
     LIVE.busy=false;$('#stage').classList.remove('busy');
@@ -1412,7 +1444,7 @@ async function boot(){
   $('#liveBtn').onclick=async()=>{
     if(LIVE.on)return setLive(false);
     if(await pingServer()){ injectServerWebfonts(); setLive(true); }
-    else showErr('로컬 렌더 서버가 없습니다.\n터미널에서  python3 serve.py  를 실행한 뒤\nhttp://127.0.0.1:8787 로 열어 주세요.');
+    else showNoServer();
   };
   if(location.protocol.startsWith('http')&&await pingServer()){
     injectServerWebfonts();     // 실시간을 켜지 않아도 서체는 정본과 맞춰 둔다
