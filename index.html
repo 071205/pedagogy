@@ -135,13 +135,14 @@ body{background:var(--bg);color:var(--text-primary);font-family:var(--ui-sans);f
 button{
   display:inline-flex;align-items:center;justify-content:center;gap:6px;
   background:var(--surface-2);color:var(--text-primary);
-  border:1px solid var(--border);padding:0 14px;height:36px;
-  border-radius:var(--radius-md);font-size:13px;font-weight:500;
-  font-family:var(--ui-sans);cursor:pointer;transition:.15s;white-space:nowrap;
+  border:1px solid var(--border);padding:0 14px;height:34px;
+  border-radius:10px;font-size:13px;font-weight:500;
+  font-family:var(--ui-sans);cursor:pointer;transition:.13s;white-space:nowrap;
 }
 button:hover{background:var(--surface-hover);border-color:#35353F}
 button:active{transform:scale(.98)}
-.btn{background:var(--surface-2);border-color:var(--border)}
+.btn{background:transparent;border-color:transparent;color:var(--text-secondary)}
+.btn:hover{background:var(--surface-2);border-color:var(--border);color:var(--text-primary)}
 .btn-primary{background:var(--blue);border-color:transparent;color:#fff}
 .btn-primary:hover{background:var(--blue-hover);border-color:transparent}
 .btn-accent{background:var(--blue);border-color:transparent;color:#fff;font-weight:600}
@@ -400,27 +401,6 @@ select:focus{border-color:var(--blue)}
 .blk-handle:active{cursor:grabbing}
 .blk-sep{display:none}
 
-/* 입력칸 아래 수식 미리보기 */
-.mathpv{display:none}
-.mathpv.on{
-  display:block;margin:6px 0 2px;padding:8px 11px;
-  background:var(--surface-3);
-  border:1px solid var(--border);border-left:2px solid var(--blue);
-  border-radius:8px;
-  font-family:'KoPub Batang',var(--body-serif);
-  font-size:13px;line-height:1.7;color:var(--text-primary);
-  word-break:keep-all;overflow-x:auto;
-}
-.mathpv.on .katex{color:var(--text-primary)}
-.mathpv .vspace{display:block}
-/* 이 앱은 $...$ 도 display:true 로 렌더한다(.preview 와 같은 규칙).
-   그대로 두면 인라인 수식이 한 줄씩 차지해 버리므로 inline-block 으로 되돌린다. */
-.mathpv .katex-display{display:inline-block;margin:.2em 0;text-align:left}
-.mathpv .pdm{text-align:center;margin:.45em 0;display:block}
-.mathpv .pdm .katex-display{display:block!important;text-align:center!important;margin:0}
-/* 길어지면 상자만 스크롤 */
-.mathpv.on{max-height:190px;overflow-y:auto}
-
 /* 블록 종류 선택 (헤더의 라벨 자리) */
 .blk-type-sel{
   flex:1;height:28px;padding:0 8px;font-size:12px;font-weight:700;
@@ -520,10 +500,6 @@ body.col-resizing{cursor:col-resize;user-select:none}
 .pv-zoom #pvZVal{font-size:11px;min-width:48px;text-align:center;
   border-left:1px solid var(--border);border-right:1px solid var(--border);
   font-variant-numeric:tabular-nums;cursor:pointer}
-.pv-sens{display:flex;align-items:center;gap:6px;height:30px;padding:0 9px;
-  background:var(--surface-2);border:1px solid var(--border);
-  border-radius:var(--radius-sm);font-size:11px;color:var(--text-tertiary)}
-.pv-sens input[type=range]{width:54px;accent-color:var(--blue);cursor:pointer}
 /* 미리보기 카드 폭 = 실제 인쇄물의 한 단 폭.
    .page 가 210mm 에 좌우 13mm 여백, 단 간격 7mm 이므로
    한 단 = (210 - 13 - 13 - 7) / 2 = 88.5mm.
@@ -962,9 +938,6 @@ document.addEventListener('DOMContentLoaded',()=>{
           <button id="pvZVal" title="100% 로 되돌리기">100%</button>
           <button id="pvZIn" title="확대">+</button>
         </div>
-        <label class="pv-sens" title="확대 감도">
-          <input id="pvZSens" type="range" min="0.4" max="2.5" step="0.1">
-        </label>
         <button id="pvZFit" class="btn" style="height:30px;padding:0 10px;font-size:11px"
                 title="폭에 맞추기 — 다시 누르면 100%">맞춤</button>
       </div>
@@ -1825,28 +1798,6 @@ function convertBlock(blk,to){
   else if(from==="image"&&to==="image") return blk.data;
   return nd;
 }
-/* 입력칸 아래에 KaTeX 로 렌더한 결과를 함께 보여준다.
-   textarea 에는 LaTeX 원문($\dfrac{a}{b}$ 같은 영문 명령)만 보이므로,
-   수식이 맞게 써졌는지 미리보기까지 눈을 옮기지 않고 확인할 수 있게 한다. */
-function attachMathPv(host, getText){
-  const pv=el("div","mathpv");
-  const paint=()=>{
-    const src=(getText()||"").trim();
-    if(!src){ pv.classList.remove("on"); pv.innerHTML=""; return; }
-    pv.classList.add("on");
-    pv.innerHTML=processText(src);
-    try{
-      renderMathInElement(pv,{delimiters:[
-        {left:"$$",right:"$$",display:true},
-        {left:"\\[",right:"\\]",display:true},
-        {left:"$",right:"$",display:true}],throwOnError:false});
-    }catch(e){ console.error("수식 미리보기 렌더 실패",e); }
-  };
-  paint();
-  host.append(pv);
-  return paint;
-}
-
 function addBlockAt(idx,type){
   const q=activeQ(); if(!q) return;
   q.blocks.splice(idx,0,{type,data:blankBlockData(type)});
@@ -1971,8 +1922,7 @@ function renderEditor(){
       const ta=el("textarea"); ta.placeholder= blk.type==="boxed"?"박스형 해설 (LaTeX)":"본문 (LaTeX)";
       ta.value=blk.data.text||""; autoSizeTA(ta);
       body.append(ta);
-      const paint=attachMathPv(body, ()=>blk.data.text);
-      ta.addEventListener('input',e=>{ blk.data.text=e.target.value; autoSizeTA(ta); paint(); renderPreview(); saveSets(); });
+      ta.addEventListener('input',e=>{ blk.data.text=e.target.value; autoSizeTA(ta); renderPreview(); saveSets(); });
     }
 
     if(blk.type==="conditions"||blk.type==="examples"||blk.type==="choices"){
@@ -1987,8 +1937,7 @@ function renderEditor(){
         const inp=el("input"); inp.type="text"; inp.value=t; inp.placeholder= blk.type==="conditions"?"조건":"내용";
         const rm=el("button","iconbtn",""); rm.append(el("span","icon icon-trash","")); rm.onclick=()=>{ blk.data.items.splice(i,1); renderEditor(); renderPreview(); saveSets(); };
         row.append(inp,rm); body.append(row);
-        const paintItem=attachMathPv(body, ()=>blk.data.items[i]);
-        inp.oninput=e=>{ blk.data.items[i]=e.target.value; paintItem(); renderPreview(); saveSets(); };
+        inp.oninput=e=>{ blk.data.items[i]=e.target.value; renderPreview(); saveSets(); };
       });
 
       const add=el("button","btn","+ 항목 추가"); add.onclick=()=>{ blk.data.items.push(""); renderEditor(); renderPreview(); saveSets(); };
@@ -2293,11 +2242,9 @@ function renderPreview(){
 const PV_ZMIN=.3, PV_ZMAX=3;
 let pvZoom=1, pvNat={w:0,h:0};
 let pvFitted=false;          // 편집기에 처음 들어왔을 때 한 번만 폭 맞춤
-let PV_SENS=1;
-try{
-  const v=parseFloat(localStorage.getItem('PM_PV_SENS'));
-  if(v>=0.4&&v<=2.5) PV_SENS=v;
-}catch(e){ console.error(e); }
+/* 확대 감도 — 예전엔 슬라이더로 조절했는데 UI 만 어수선해서 고정값으로 뺐다.
+   기존 슬라이더 범위(0.4~2.5)의 80% 지점. */
+const PV_SENS=2.08;
 const PV_STEP=()=>1+0.2*PV_SENS;
 const PV_WHEEL=()=>0.0025*PV_SENS;
 
@@ -2528,7 +2475,11 @@ function setPreviewWidth(px,save){
   px=Math.max(min,Math.min(max,Math.round(px)));
   w.style.flex="0 0 "+px+"px"; w.style.width=px+"px";
   if(save){ try{ localStorage.setItem(PV_W_KEY,String(px)); }catch(e){ console.error(e); } }
-  pvApply();     // 폭이 바뀌면 확대 래퍼 크기도 다시 잡는다
+  // 폭이 바뀌면 배율도 같이 맞춘다. 그러지 않으면 좁힐 때 미리보기가 잘려 보인다.
+  const f=pvFitZoom();
+  if(f>0){ pvZoom=Math.min(f,PV_ZMAX); }
+  pvApply(false);
+  const pa=$("#previewArea"); if(pa) pa.scrollLeft=0;
 }
 (function(){
   let saved=PV_W_DEFAULT;
@@ -2572,16 +2523,6 @@ $("#pvZFit").onclick=()=>{
   if(Math.abs(pvZoom-f)<.01) pvSetZoom(1);
   else { pvZoom=f; pvApply(false); const pa=$("#previewArea"); pa.scrollTop=0; pa.scrollLeft=0; }
 };
-(function(){
-  const sl=$("#pvZSens"); if(!sl) return;
-  sl.value=PV_SENS;
-  sl.title="확대 감도 "+PV_SENS.toFixed(1)+"×";
-  sl.oninput=e=>{
-    PV_SENS=parseFloat(e.target.value)||1;
-    sl.title="확대 감도 "+PV_SENS.toFixed(1)+"×";
-    try{ localStorage.setItem("PM_PV_SENS",String(PV_SENS)); }catch(err){ console.error(err); }
-  };
-})();
 /* ⌘/Ctrl + 휠 (트랙패드 핀치 포함) — 커서 기준 확대 */
 $("#previewArea").addEventListener("wheel",e=>{
   if(!e.ctrlKey&&!e.metaKey) return;

@@ -134,15 +134,15 @@ button{background:none;border:none;cursor:pointer}
   border-radius:var(--radius-sm);padding:0 12px;height:36px;font-size:13px}
 .inp{width:250px}
 .inp:focus,.sel:focus{border-color:var(--blue);outline:none}
-.btn{height:36px;padding:0 14px;background:var(--surface-2);border:1px solid var(--border);
-  border-radius:var(--radius-sm);font-size:13px;color:var(--text-secondary);
-  display:inline-flex;align-items:center;transition:.12s}
-.btn:hover{background:var(--surface-hover);color:var(--text-primary)}
+.btn{height:34px;padding:0 13px;background:transparent;border:1px solid transparent;
+  border-radius:9px;font-size:13px;color:var(--text-secondary);
+  display:inline-flex;align-items:center;transition:.12s;white-space:nowrap}
+.btn:hover{background:var(--surface-2);border-color:var(--border);color:var(--text-primary)}
 .btn.on{background:var(--blue-subtle);border-color:var(--blue-dim);color:var(--blue-hover)}
-.btn-primary{background:var(--blue);border-color:transparent;color:#fff;font-weight:600}
+.btn-primary{height:34px;background:var(--blue);border-color:transparent;color:#fff;font-weight:600}
 .btn-primary:hover{background:var(--blue-hover)}
 .zoom{display:flex;align-items:center;background:var(--surface-2);
-  border:1px solid var(--border);border-radius:var(--radius-sm);height:36px;overflow:hidden}
+  border:1px solid var(--border);border-radius:9px;height:34px;overflow:hidden}
 .zoom button{padding:0 11px;height:100%;color:var(--text-secondary);font-size:15px}
 .zoom button:hover{background:var(--surface-hover);color:var(--text-primary)}
 /* 배율 숫자를 누르면 100% 로 돌아간다 */
@@ -156,15 +156,6 @@ button{background:none;border:none;cursor:pointer}
 body.embedded .brand{display:none}
 body.embedded .brand-tag{margin-left:0}
 
-/* 확대 감도 슬라이더 */
-.sens{display:flex;align-items:center;gap:6px;height:36px;padding:0 9px;
-  background:var(--surface-2);border:1px solid var(--border);
-  border-radius:var(--radius-sm);font-size:11px;color:var(--text-tertiary)}
-.sens input[type=range]{width:58px;accent-color:var(--blue);cursor:pointer}
-.sens b{color:var(--text-secondary);font-weight:600;min-width:26px;
-  text-align:right;font-variant-numeric:tabular-nums;font-size:11px}
-/* 아주 좁을 땐 글자를 빼고 슬라이더만 남긴다 */
-@media (max-width:1500px){ .sens>span{display:none} }
 
 .panes{display:flex;height:calc(100% - 60px)}
 .preview{flex:1 1 auto;min-width:320px;overflow:auto;padding:24px;
@@ -191,8 +182,17 @@ body.embedded .brand-tag{margin-left:0}
 .errbox .errclose:hover{opacity:1}
 
 /* 미리보기 범위 토글 */
-.pv-mode{flex:0 0 auto}
-.pv-mode.stale button[data-v="all"]{color:var(--blue-hover)}
+/* 미리보기 범위 토글 — 미리보기 영역 위에 떠 있는 큰 2분할 버튼 */
+.pv-mode{position:sticky;top:0;z-index:20;display:flex;gap:6px;
+  margin:-24px -24px 18px;padding:12px 24px;
+  background:linear-gradient(var(--bg) 72%,transparent)}
+.pv-mode button{flex:1;height:40px;font-size:13.5px;font-weight:600;
+  background:var(--surface-2);border:1px solid var(--border);
+  border-radius:10px;color:var(--text-secondary);transition:.14s}
+.pv-mode button:hover{background:var(--surface-hover);color:var(--text-primary)}
+.pv-mode button.on{background:var(--blue);border-color:transparent;color:#fff}
+/* 전체보기는 편집할 때마다 다시 그리지 않는다 — 갱신이 필요하면 표시 */
+.pv-mode.stale button[data-v="all"]:not(.on){border-color:var(--blue-dim);color:var(--blue-hover)}
 .pv-mode.stale button[data-v="all"]::after{content:" ●";font-size:8px;vertical-align:2px}
 /* 편집 패널 맨 아래 추가 버튼 줄 */
 .addbar{display:flex;flex-wrap:wrap;gap:5px;margin-top:10px}
@@ -200,18 +200,26 @@ body.embedded .brand-tag{margin-left:0}
 
 /* ── 블록 조립 편집 (N제 편집기와 동일한 UI) ── */
 .blocks{display:flex;flex-direction:column}
-.block{border:1px solid var(--border);border-radius:10px;background:var(--surface-1);overflow:hidden}
-.blk-head{display:flex;align-items:center;gap:6px;padding:7px 10px;
-  background:var(--surface-2);border-bottom:1px solid var(--border)}
-.blk-handle{cursor:grab;color:var(--text-tertiary);font-size:13px;padding:0 2px;user-select:none}
+.block{border:1px solid var(--border);border-radius:11px;background:var(--surface-1);
+  overflow:hidden;transition:border-color .14s}
+.block:hover{border-color:var(--border-hover,#35353F)}
+.blk-head{display:flex;align-items:center;gap:4px;padding:6px 8px 6px 6px;
+  background:var(--surface-2);border-bottom:1px solid var(--border-subtle)}
+.blk-handle{cursor:grab;color:var(--text-tertiary);width:20px;height:20px;
+  display:flex;align-items:center;justify-content:center;user-select:none;opacity:.7}
+.blk-handle svg{width:16px;height:16px}
+.blk-handle:hover{opacity:1;color:var(--text-secondary)}
 .blk-handle:active{cursor:grabbing}
 .blk-type-sel{flex:1;height:26px;padding:0 6px;font-size:12px;font-weight:700;
   background:transparent;border:1px solid transparent;border-radius:6px;
   color:var(--text-secondary);cursor:pointer}
 .blk-type-sel:hover{background:var(--surface-3);border-color:var(--border);color:var(--text-primary)}
-.blk-ico{width:24px;height:24px;padding:0;border:0;background:transparent;
-  color:var(--text-tertiary);border-radius:6px;font-size:12px;line-height:1;cursor:pointer}
+.blk-ico{width:26px;height:26px;padding:0;border:0;background:transparent;
+  color:var(--text-tertiary);border-radius:7px;cursor:pointer;
+  display:inline-flex;align-items:center;justify-content:center;transition:.12s}
+.blk-ico svg{width:15px;height:15px;display:block}
 .blk-ico:hover{background:var(--surface-3);color:var(--text-primary)}
+.blk-ico:last-child:hover{color:var(--danger)}
 .blk-body{padding:10px;display:flex;flex-direction:column;gap:6px}
 .blk-body .hint{margin-top:2px}
 
@@ -234,29 +242,6 @@ body.embedded .brand-tag{margin-left:0}
 
 /* 미리보기의 ㄱㄴㄷ 보기 상자 */
 .exbox .exmk{font-weight:700;margin-right:.35em}
-
-/* ── 편집칸 아래 수식 미리보기 ──
-   시험지와 같은 서체로 보여줘야 실제 결과를 가늠할 수 있다. */
-.mathpv{display:none}
-.mathpv.on{
-  display:block;margin-top:6px;padding:9px 11px;
-  background:var(--surface-3);
-  border:1px solid var(--border);border-left:2px solid var(--blue);
-  border-radius:8px;
-  font-family:'ExamBody','Hamchorom','KoPub Batang',serif;
-  font-size:13.5px;line-height:1.75;color:var(--text-primary);
-  word-break:keep-all;overflow-x:auto;
-}
-.mathpv.on>div{margin:1px 0}
-.mathpv .katex{color:var(--text-primary)}
-.mathpv-tag{
-  display:inline-block;font-family:var(--ui-sans,system-ui);
-  font-size:11px;color:var(--text-tertiary);
-  border:1px dashed var(--border);border-radius:5px;padding:1px 7px;
-}
-/* 선지 미리보기는 입력칸 오른쪽에 좁게 */
-.mathpv--ch.on{margin-top:0;margin-left:8px;padding:5px 9px;flex:0 1 auto;
-  max-width:44%;font-size:13px;align-self:center}
 
 /* ── 토스트 알림 (본체 PEDAGOGY 와 동일한 UX) ── */
 #toastHost{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:3000;
@@ -281,6 +266,8 @@ body.embedded .brand-tag{margin-left:0}
 .paper{position:relative;width:calc(var(--pg-w)*1mm);height:calc(var(--pg-h)*1mm);
   background:#fff;color:#000;flex:none;box-shadow:0 4px 24px rgba(0,0,0,.6);
   font-family:var(--exam);overflow:hidden}
+/* '이 문항' 모드 — 쪽이 아니라 한 단 폭 조각이므로 높이를 내용에 맡긴다 */
+.paper.one-prob{height:auto;min-height:0;overflow:visible;border-radius:2px}
 
 /* 머리말 */
 .rule{position:absolute;left:calc(var(--mg)*1mm);width:calc(var(--body-w)*1mm);
@@ -451,9 +438,6 @@ body.embedded .brand-tag{margin-left:0}
     <button class="btn" id="saveBtn">저장</button>
     <label class="btn" for="loadInput" style="cursor:pointer">불러오기</label>
     <input type="file" id="loadInput" accept=".json,application/json" style="display:none">
-    <div class="seg pv-mode" id="pvMode" title="미리보기 범위">
-      <button data-v="one" class="on">이 문항</button><button data-v="all">전체보기</button>
-    </div>
     <button class="btn" id="liveBtn" title="로컬 서버에서 Typst로 실제 렌더링">실시간</button>
     <button class="btn" id="guideBtn">가이드</button>
     <div class="zoom">
@@ -462,17 +446,17 @@ body.embedded .brand-tag{margin-left:0}
       <button id="zIn" title="확대 (⌘+)">+</button>
     </div>
     <button class="btn" id="zFit" title="폭에 맞추기 — 다시 누르면 100%">맞춤</button>
-    <label class="sens" title="확대 감도 — 휠/버튼이 한 번에 얼마나 확대할지">
-      <span>감도</span>
-      <input id="zSens" type="range" min="0.4" max="2.5" step="0.1">
-      <b id="zSensVal">1.0×</b>
-    </label>
     <button class="btn btn-primary" id="exportBtn">Typst 내보내기</button>
   </div>
 </header>
 
 <main class="panes">
-  <section class="preview" id="preview"><div class="stage-wrap" id="stageWrap"><div class="stage" id="stage"></div></div>
+  <section class="preview" id="preview">
+    <!-- 미리보기 범위 — 미리보기 위에 큼직하게 얹는다 -->
+    <div class="pv-mode" id="pvMode">
+      <button data-v="one" class="on">이 문항</button><button data-v="all">전체 시험지</button>
+    </div>
+    <div class="stage-wrap" id="stageWrap"><div class="stage" id="stage"></div></div>
     <div class="errbox" id="errbox" hidden><button class="errclose" id="errClose" title="닫기">✕</button><b id="errttl">Typst 오류</b><pre id="errtxt"></pre></div></section>
   <section class="editor"><div class="pane-hd">문항 편집</div><div id="ed"></div></section>
   <aside class="outline"><div class="pane-hd">순서</div><div class="ol" id="ol"></div></aside>
@@ -757,8 +741,22 @@ function noteFor(meta,i,elec){
   return L;
 }
 
+/* '이 문항' 모드의 근사 미리보기 — 시험지 한 단 폭으로 지금 문항만 그린다.
+   실시간(Typst) 모드의 oneProbTypst() 와 같은 범위를 보여 주기 위한 것. */
+function renderOneProbPreview(){
+  const p=state.problems.find(x=>x.id===state.sel);
+  const st=$('#stage');
+  if(!p){ st.innerHTML=''; return; }
+  st.innerHTML=`<div class="paper one-prob" style="width:${SPEC.colW+14}mm;min-height:auto;padding:7mm">`
+    +`<div class="col">${renderProb(p)}</div></div>`;
+  applyZoom();
+}
+
 function renderPreview(){
   if(LIVE.on){requestRender();return;}   // 실시간 모드면 서버 렌더로 넘긴다
+  // '이 문항' 모드는 근사 미리보기에서도 지금 고른 문항만 보여준다.
+  // (예전에는 실시간일 때만 반영돼서, 서버가 없으면 버튼이 먹통이었다)
+  if(state.pvMode!=='all'){ renderOneProbPreview(); return; }
   const pages=buildPages(),meta=pageMeta(pages);
   const round=$('#round').value,elec=$('#elective').value;
 
@@ -800,6 +798,12 @@ function renderPreview(){
 /* ══════════ 문항 편집 — 블록 조립 ══════════
    N제 편집기(PEDAGOGY 본체)와 같은 방식으로 통일했다.
    배점·공통/선택·선지배치·단나눔 같은 '시험지 고유' 설정은 그대로 둔다. */
+/* 선 아이콘 — 텍스트 기호(⧉ ✕ ⠿)는 글꼴마다 모양·크기가 제각각이라 SVG 로 통일 */
+const ICON={
+  grip:'<svg viewBox="0 0 16 16" fill="currentColor"><circle cx="6" cy="4" r="1.1"/><circle cx="10" cy="4" r="1.1"/><circle cx="6" cy="8" r="1.1"/><circle cx="10" cy="8" r="1.1"/><circle cx="6" cy="12" r="1.1"/><circle cx="10" cy="12" r="1.1"/></svg>',
+  copy:'<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="7.5" y="7.5" width="9" height="9" rx="2"/><path d="M4.5 12.5V5a2 2 0 0 1 2-2H14"/></svg>',
+  trash:'<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h12"/><path d="M8 6V4.5h4V6"/><path d="M5.6 6l.6 9.2A1.6 1.6 0 0 0 7.8 17h4.4a1.6 1.6 0 0 0 1.6-1.8L14.4 6"/></svg>',
+};
 const elx=(t,c,h)=>{const e=document.createElement(t); if(c)e.className=c; if(h!=null)e.innerHTML=h; return e;};
 
 function convertBlock(blk,to){
@@ -872,7 +876,7 @@ function renderEditor(){
     area.append(insertPoint(idx));
     const wrap=elx('div','block'); wrap.dataset.bi=String(idx);
     const head=elx('div','blk-head');
-    const handle=elx('div','blk-handle','⠿'); handle.title='끌어서 순서 변경';
+    const handle=elx('div','blk-handle',ICON.grip); handle.title='끌어서 순서 변경';
     const sel=elx('select','blk-type-sel');
     Object.entries(BLK_LABELS).forEach(([v,label])=>{
       const o=document.createElement('option'); o.value=v; o.textContent=label;
@@ -883,9 +887,9 @@ function renderEditor(){
       blk.data=convertBlock(blk,to); blk.type=to; edChanged(p,true); };
     head.append(handle,sel);
 
-    const dup=elx('button','blk-ico','⧉'); dup.title='블록 복제';
+    const dup=elx('button','blk-ico',ICON.copy); dup.title='블록 복제';
     dup.onclick=()=>{ blocks.splice(idx+1,0,JSON.parse(JSON.stringify(blk))); edChanged(p,true); };
-    const del=elx('button','blk-ico','✕'); del.title='블록 삭제';
+    const del=elx('button','blk-ico',ICON.trash); del.title='블록 삭제';
     del.onclick=()=>{ blocks.splice(idx,1);
       if(!blocks.length) blocks.push({type:'statement',data:{text:''}}); edChanged(p,true); };
     head.append(dup,del);
@@ -898,8 +902,7 @@ function renderEditor(){
       ta.placeholder=blk.type==='boxed'?'박스 안에 들어갈 내용':'수식은 $...$ 안에 LaTeX으로';
       ta.value=blk.data.text||'';
       body.append(ta);
-      const paint=attachPv(body,()=>blk.data.text);
-      ta.addEventListener('input',e=>{ blk.data.text=e.target.value; paint(); edChanged(p,false); });
+      ta.addEventListener('input',e=>{ blk.data.text=e.target.value; edChanged(p,false); });
       if(blk.type==='statement')
         body.append(elx('div','hint','수식만 있는 줄은 별행 수식이 됩니다 · <code>(단, …)</code> 는 자동으로 줄을 내립니다'));
     }
@@ -911,12 +914,11 @@ function renderEditor(){
         const row=elx('div','row-in');
         row.append(elx('div','mk',labels[i%labels.length]));
         const inp=elx('input','inp'); inp.type='text'; inp.value=t;
-        const rm=elx('button','blk-ico','✕'); rm.title='항목 삭제';
+        const rm=elx('button','blk-ico',ICON.trash); rm.title='항목 삭제';
         rm.onclick=()=>{ blk.data.items.splice(i,1);
           if(!blk.data.items.length) blk.data.items=['']; edChanged(p,true); };
         row.append(inp,rm); body.append(row);
-        const paint=attachPv(body,()=>blk.data.items[i]);
-        inp.oninput=e=>{ blk.data.items[i]=e.target.value; paint(); edChanged(p,false); };
+        inp.oninput=e=>{ blk.data.items[i]=e.target.value; edChanged(p,false); };
       });
       const add=elx('button','btn','+ 항목 추가');
       add.onclick=()=>{ blk.data.items.push(''); edChanged(p,true); };
@@ -931,8 +933,7 @@ function renderEditor(){
         row.append(elx('div','mk',MARKS[i]));
         const ta=elx('textarea','ta ch-in'); ta.rows=1; ta.value=c;
         row.append(ta); body.append(row);
-        const paint=attachPv(body,()=>blk.data.items[i]);
-        ta.oninput=e=>{ blk.data.items[i]=e.target.value; paint(); edChanged(p,false); };
+        ta.oninput=e=>{ blk.data.items[i]=e.target.value; edChanged(p,false); };
       });
       // 폭 게이지 — 선지가 한 단에 들어가는지 (시험지 고유 기능, 그대로 유지)
       const m=measureCh(blk.data.items);
@@ -1003,22 +1004,6 @@ function renderEditor(){
         edChanged(p,true);
       }});
   }
-}
-
-/* 입력칸 아래 수식 미리보기 (본체와 같은 동작) */
-function attachPv(host,getText){
-  const pv=elx('div','mathpv');
-  const paint=()=>{
-    const src=(getText()||'').trim();
-    if(!src){ pv.classList.remove('on'); pv.innerHTML=''; return; }
-    pv.classList.add('on');
-    pv.innerHTML=src.split('\n').map(line=>{
-      const t=line.trim(); if(!t) return '';
-      return `<div>${tex(line)}</div>`;
-    }).join('');
-  };
-  paint(); host.append(pv);
-  return paint;
 }
 
 /* ── 편집 중 수식 미리보기 ──
@@ -1127,16 +1112,12 @@ function setZoom(z, anchor){
 const zoomBy=(f,anchor)=>setZoom(state.zoom*f,anchor);
 
 /* ── 확대 감도 ──
-   ZOOM_STEP : 버튼·단축키 한 번에 몇 배씩 (1.2 = 20%씩)
-   WHEEL_K   : 휠/트랙패드 감도. 클수록 조금만 굴려도 크게 확대된다.
-   슬라이더(#zSens)로 조절하며 localStorage 에 기억된다. */
-let ZOOM_SENS = 1;                       // 0.4 ~ 2.5
+   ZOOM_STEP : 버튼·단축키 한 번에 몇 배씩
+   WHEEL_K   : 휠/트랙패드 감도. 클수록 조금만 굴려도 크게 확대된다. */
+/* 확대 감도 — 슬라이더는 UI 만 어수선해서 뺐다. 예전 범위(0.4~2.5)의 80% 지점 */
+const ZOOM_SENS = 2.08;
 const ZOOM_STEP = () => 1 + 0.2 * ZOOM_SENS;
 const WHEEL_K   = () => 0.0025 * ZOOM_SENS;
-try{
-  const v=parseFloat(localStorage.getItem('MOCK_ZOOM_SENS'));
-  if(v>=0.4 && v<=2.5) ZOOM_SENS=v;
-}catch(e){ console.error(e); }
 
 /* 폭에 맞추는 배율 */
 function fitZoom(){
@@ -1189,20 +1170,6 @@ $('#preview').addEventListener('wheel',e=>{
   const end=()=>{on=false;pv.style.cursor='';};
   pv.addEventListener('pointerup',end); pv.addEventListener('pointercancel',end);
 })();
-/* ── 확대 감도 슬라이더 ── */
-(function(){
-  const sl=$('#zSens'), lab=$('#zSensVal');
-  if(!sl) return;
-  const show=()=>{ if(lab) lab.textContent=ZOOM_SENS.toFixed(1)+'×'; };
-  sl.value=ZOOM_SENS; show();
-  sl.oninput=e=>{
-    ZOOM_SENS=parseFloat(e.target.value)||1;
-    show();
-    try{ localStorage.setItem('MOCK_ZOOM_SENS', String(ZOOM_SENS)); }
-    catch(err){ console.error(err); }
-  };
-})();
-
 /* ── 테마 ──
    전환 버튼은 PEDAGOGY 본체 상단바에 있다. 여기서는 값을 '따라가기만' 한다.
      · 단독으로 열렸을 때: localStorage(PM_THEME) 를 읽어 적용
