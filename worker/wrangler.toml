@@ -1,0 +1,20 @@
+name = "pedagogy-ai-proxy"
+main = "index.js"
+compatibility_date = "2024-11-01"
+
+[vars]
+FIREBASE_PROJECT_ID = "pedagogy-huryul"
+# 이 Worker 를 호출할 수 있는 출처. 쉼표로 구분.
+ALLOWED_ORIGINS = "https://071205.github.io,http://127.0.0.1:8787,http://localhost:8787"
+# 사용자 한 명당 하루 호출 상한
+DAILY_LIMIT = "50"
+
+# 사용량 카운터용 KV.
+#   npx wrangler kv namespace create RATE
+# 위 명령이 출력한 id 를 아래에 넣는다. (없으면 사용량 제한만 비활성화되고 인증은 동작)
+# [[kv_namespaces]]
+# binding = "RATE"
+# id = "여기에_KV_네임스페이스_ID"
+
+# AI 공급자 키는 여기 적지 말고 Secret 으로 넣을 것:
+#   npx wrangler secret put AI_API_KEY

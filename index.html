@@ -1686,7 +1686,23 @@ function aiBlocksToProblem(p){
 
 async function aiGenerateFromImage(file){
   if(AI_PROXY_URL.includes("YOUR-SUBDOMAIN")){
-    alert("AI 서버 주소가 아직 설정되지 않았습니다.\nindex.html의 AI_PROXY_URL을 배포한 Worker 주소로 바꿔주세요.");
+    toast("AI 서버 주소가 설정되지 않았습니다 (AI_PROXY_URL)","error");
+    return;
+  }
+  /* 로그인한 사용자만 AI 변환을 쓸 수 있다.
+     예전에는 아무 인증 없이 프록시를 호출해서, 주소만 알면 누구나
+     이 계정의 AI 사용량을 쓸 수 있었다. 아래에서 Firebase ID 토큰을 받아
+     Authorization 헤더로 보내고, Worker 가 그 토큰을 검증한다. */
+  if(!currentUser){
+    toast("AI 변환은 로그인 후 사용할 수 있어요","error");
+    return;
+  }
+  let idToken="";
+  try{
+    idToken=await currentUser.getIdToken();
+  }catch(e){
+    console.error(e);
+    toast("로그인 정보를 확인하지 못했어요. 다시 로그인해 주세요.","error");
     return;
   }
   const set=activeSet(); if(!set){ toast("먼저 문제집을 열어주세요","error"); return; }
@@ -1699,10 +1715,15 @@ async function aiGenerateFromImage(file){
     aiStatus("🤖 AI가 문제를 변환하는 중… (몇 초 걸려요)");
     const r=await fetch(AI_PROXY_URL,{
       method:"POST",
-      headers:{"Content-Type":"application/json"},
+      headers:{
+        "Content-Type":"application/json",
+        "Authorization":"Bearer "+idToken,   // Worker 가 이 토큰을 검증한다
+      },
       body:JSON.stringify({imageBase64, mimeType}),
     });
-    const data=await r.json();
+    const data=await r.json().catch(()=>({}));
+    if(r.status===401){ throw new Error("로그인이 만료됐어요. 다시 로그인해 주세요."); }
+    if(r.status===429){ throw new Error(data.error||"오늘 사용량을 다 썼어요. 내일 다시 시도해 주세요."); }
     if(!r.ok || data.error){
       throw new Error(data.detail||data.error||("HTTP "+r.status));
     }
