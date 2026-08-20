@@ -210,7 +210,7 @@ label.btn input{display:none}
 
 /* ── Sidebar ── */
 .sidebar{
-  width:236px;flex:0 0 236px;border-left:1px solid var(--border);
+  width:280px;flex:0 0 280px;border-left:1px solid var(--border);
   background:var(--surface-1);padding:16px 12px;
   display:flex;flex-direction:column;gap:12px;overflow:hidden;
 }
@@ -482,7 +482,7 @@ select:focus{border-color:var(--blue)}
 /* 미리보기는 '한 단' 폭(102.5mm ≒ 387px)만 보여주면 되므로 넓을 필요가 없다.
    기본 600px 로 두고, 가운데 손잡이를 끌어 사용자가 조절한다(값은 기억된다).
    남는 가로 공간은 편집칸이 가져간다 — 원래 배치에서 편집이 가장 넓었던 이유. */
-.previewWrap{flex:0 0 600px;width:600px;min-width:300px;max-width:70vw;
+.previewWrap{flex:0 0 500px;width:500px;min-width:300px;max-width:70vw;
   background:var(--surface-1);display:flex;flex-direction:column;overflow:hidden}
 /* 드래그 손잡이 */
 .pane-split{order:1;flex:0 0 6px;cursor:col-resize;background:transparent;
@@ -1595,6 +1595,13 @@ $("#importAllInput").onchange=e=>{ const f=e.target.files?.[0]; if(!f) return; c
 
 /* ===== Editor ===== */
 function showEditor(setId){
+  // 라이브러리 화면에서 계산된 폭이 굳어 있을 수 있어 진입할 때 한 번 다시 맞춘다
+  setTimeout(()=>{
+    let want=PV_W_DEFAULT;
+    try{ const v=parseInt(localStorage.getItem(PV_W_KEY),10); if(v>=300&&v<=2000) want=v; }
+    catch(e){}
+    if(typeof setPreviewWidth==="function") setPreviewWidth(want,false);
+  },0);
   currentSetId=setId;
   const s=activeSet(); if(!s.problems?.length) s.problems=[newProblem()];
   // 이 문제집에서 마지막으로 보던 문항 복원 (없거나 삭제됐으면 첫 문항)
@@ -2429,7 +2436,7 @@ $("#brandBtn").onclick=()=>showLibrary();
 })();
 
 /* ── 미리보기 / 편집칸 폭 조절 ── */
-const PV_W_KEY="PM_PREVIEW_W", PV_W_DEFAULT=600;
+const PV_W_KEY="PM_PREVIEW_W", PV_W_DEFAULT=500;   // 구조 변경 전 미리보기 폭
 function setPreviewWidth(px,save){
   const w=$(".previewWrap"); if(!w) return;
   const min=300, max=Math.max(min, window.innerWidth-380-236-40);  // 편집 최소폭·목록폭 확보
@@ -2443,6 +2450,15 @@ function setPreviewWidth(px,save){
   try{ const v=parseInt(localStorage.getItem(PV_W_KEY),10); if(v>=300&&v<=2000) saved=v; }
   catch(e){ console.error(e); }
   setPreviewWidth(saved,false);
+
+  // 창 크기가 바뀌면 상한이 달라진다. 다시 적용하지 않으면 좁을 때 계산된 값이
+  // 인라인 스타일로 굳어, 창을 키워도 미리보기가 최소폭에 머문다.
+  window.addEventListener("resize",()=>{
+    let want=PV_W_DEFAULT;
+    try{ const v=parseInt(localStorage.getItem(PV_W_KEY),10); if(v>=300&&v<=2000) want=v; }
+    catch(e){}
+    setPreviewWidth(want,false);
+  });
 
   const sp=$("#paneSplit"); if(!sp) return;
   let startX=0, startW=0, on=false;
