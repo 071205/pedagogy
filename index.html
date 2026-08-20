@@ -1009,13 +1009,21 @@ const sanitize=s=>(s||"").replaceAll("&","&amp;").replaceAll("<","&lt;").replace
 /* 이미지 URL 화이트리스트. 가져온 문제집(.json)에 심어진 javascript: 나
    따옴표 탈출(" onerror=…)이 src 속성에 그대로 들어가는 것을 막는다.
    허용: Firebase Storage 다운로드 URL, data:image/* (비로그인 로컬 저장분) */
+const IMG_HOSTS=new Set(["firebasestorage.googleapis.com","storage.googleapis.com"]);
 function safeUrl(u){
   if(typeof u!=="string") return "";
   const s=u.trim();
-  const ok = s.startsWith("https://firebasestorage.googleapis.com")
-          || s.startsWith("https://storage.googleapis.com")
-          || /^data:image\/(png|jpeg|jpg|gif|webp|svg\+xml);base64,/i.test(s);
-  return ok ? s.replaceAll('"',"&quot;") : "";
+  // data:image 는 그대로 허용
+  if(/^data:image\/(png|jpeg|jpg|gif|webp);base64,[A-Za-z0-9+/=\s]*$/i.test(s))
+    return s.replaceAll('"',"&quot;");
+  // 접두어 비교(startsWith)는 firebasestorage.googleapis.com.evil.example 같은
+  // 남의 호스트를 통과시킨다. 반드시 호스트를 통째로 대조한다.
+  try{
+    const url=new URL(s);
+    if(url.protocol!=="https:") return "";
+    if(!IMG_HOSTS.has(url.hostname)) return "";
+    return s.replaceAll('"',"&quot;");
+  }catch(e){ return ""; }
 }
 const HANGULS=["가","나","다","라","마","바","사","아","자","차","카","타","파","하"];
 const HSMALL=["ㄱ","ㄴ","ㄷ","ㄹ","ㅁ","ㅂ","ㅅ","ㅇ","ㅈ","ㅊ","ㅋ","ㅌ","ㅍ","ㅎ"];

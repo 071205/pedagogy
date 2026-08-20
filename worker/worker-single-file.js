@@ -127,20 +127,34 @@ const json = (obj, status, headers) =>
     headers: { "Content-Type": "application/json; charset=utf-8", ...headers },
   });
 
-/** 사용자별 하루 호출 제한. KV 바인딩이 없으면 제한을 건너뛴다(로컬 개발 편의). */
-async function checkRateLimit(env, uid) {
-  if (!env.RATE) return { ok: true, used: 0, limit: 0 };
-
-  const limit = parseInt(env.DAILY_LIMIT || DEFAULT_DAILY_LIMIT, 10);
+/**
+ * 사용자별 하루 호출 제한.
+ *
+ * ⚠️ KV 는 '읽고 나서 쓰기' 사이를 원자적으로 묶지 못한다. 동시에 들어온 요청들이
+ *    같은 used 를 읽으면 한 번만 증가할 수 있어, 병렬 호출로 상한을 넘길 수 있다.
+ *    비용 폭주를 완전히 막으려면 Durable Object(또는 서버측 원자적 카운터)가 필요하다.
+ *    지금은 '검사'와 '차감'을 나눠, 최소한 실패한 요청이 사용량을 깎지는 않게 한다.
+ */
+function quotaKey(uid) {
   const day = new Date().toISOString().slice(0, 10); // UTC 기준 YYYY-MM-DD
-  const key = `ai:${uid}:${day}`;
-
-  const used = parseInt((await env.RATE.get(key)) || "0", 10);
-  if (used >= limit) return { ok: false, used, limit };
-
+  return `ai:${uid}:${day}`;
+}
+/** 남은 한도가 있는지만 본다(차감하지 않음). */
+async function checkQuota(env, uid) {
+  if (!env.RATE) return { ok: true, used: 0, limit: 0 };
+  const limit = parseInt(env.DAILY_LIMIT || DEFAULT_DAILY_LIMIT, 10);
+  const used = parseInt((await env.RATE.get(quotaKey(uid))) || "0", 10);
+  return { ok: used < limit, used, limit };
+}
+/** AI 호출이 실제로 성공한 뒤에만 1 늘린다. */
+async function consumeQuota(env, uid) {
+  if (!env.RATE) return { used: 0, limit: 0 };
+  const limit = parseInt(env.DAILY_LIMIT || DEFAULT_DAILY_LIMIT, 10);
+  const key = quotaKey(uid);
+  const used = parseInt((await env.RATE.get(key)) || "0", 10) + 1;
   // 넉넉히 이틀 뒤 만료 — 날짜가 바뀌면 키 자체가 바뀐다
-  await env.RATE.put(key, String(used + 1), { expirationTtl: 60 * 60 * 48 });
-  return { ok: true, used: used + 1, limit };
+  await env.RATE.put(key, String(used), { expirationTtl: 60 * 60 * 48 });
+  return { used, limit };
 }
 
 export default {
@@ -177,17 +191,7 @@ export default {
       return json({ error: "로그인이 유효하지 않습니다" }, 401, cors);
     }
 
-    // ── 2. 사용량 제한 ──
-    const rate = await checkRateLimit(env, user.uid);
-    if (!rate.ok) {
-      return json(
-        { error: `오늘 사용량(${rate.limit}회)을 모두 썼습니다. 내일 다시 시도해 주세요.` },
-        429,
-        cors
-      );
-    }
-
-    // ── 3. 본문 검사 ──
+    // ── 2. 본문 검사 (사용량을 깎기 전에 먼저) ──
     const len = parseInt(request.headers.get("Content-Length") || "0", 10);
     if (len && len > MAX_BODY_BYTES) {
       return json({ error: "이미지가 너무 큽니다" }, 413, cors);
@@ -211,12 +215,21 @@ export default {
       return json({ error: "이미지 형식이 아닙니다" }, 400, cors);
     }
 
-    // ── 4. AI 호출 ──
-    // 여기부터는 기존 Worker 의 프롬프트/모델 호출 코드를 그대로 쓰면 된다.
-    // callAI() 안에서 env.AI_API_KEY 를 사용한다. 키는 절대 응답에 담지 말 것.
+    // ── 3. 남은 한도 확인 (아직 깎지 않는다) ──
+    const rate = await checkQuota(env, user.uid);
+    if (!rate.ok) {
+      return json(
+        { error: `오늘 사용량(${rate.limit}회)을 모두 썼습니다. 내일 다시 시도해 주세요.` },
+        429, cors
+      );
+    }
+
+    // ── 4. AI 호출 (키는 env 에서만 읽고 응답에 절대 담지 않는다) ──
     try {
       const problems = await callAI(env, imageBase64, mimeType);
-      return json({ problems, usage: { used: rate.used, limit: rate.limit } }, 200, cors);
+      // 성공했을 때만 차감한다 — 잘못된 요청이나 공급자 오류로는 한도가 줄지 않는다
+      const after = await consumeQuota(env, user.uid);
+      return json({ problems, usage: { used: after.used, limit: after.limit } }, 200, cors);
     } catch (e) {
       console.error("AI 호출 실패:", e);
       return json({ error: "AI 변환에 실패했습니다", detail: String(e.message || e) }, 502, cors);
