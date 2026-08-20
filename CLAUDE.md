@@ -128,29 +128,34 @@ Pages–hosted `index.html` can also call into (via `--allow-origin`).
 
 ## 다음 세션 이어서 할 일 (2026-08-20 기준)
 
-`ANALYSIS.md`에 전체 코드 분석이 있다. 아래는 그중 **아직 안 고친 것**만 추린 목록.
+`ANALYSIS.md`에 전체 코드 분석이 있다. 분석에서 지적된 코드 문제는 대부분 처리했고,
+아래가 **남은 것** 전부다.
 
-### 확인 필요 (코드 밖)
+### 코드 밖 — 반드시 확인할 것 (유일한 미해결 보안 항목)
 - **Firestore/Storage 보안 규칙이 이 저장소에 없다.** 실제 접근 제어 전부가 규칙에
   달려 있는데 버전 관리가 안 되고 있어 리뷰가 불가능하다. Firebase 콘솔에서 확인하고
   `firestore.rules` / `storage.rules` 를 레포에 커밋할 것. 규칙이
   `allow read, write: if request.auth != null` 수준이면 로그인한 아무나
   다른 사용자의 `users/{uid}` 문서를 읽을 수 있다.
+  (앱 코드는 `users/{uid}` 만 읽고 쓰므로, 규칙은 `request.auth.uid == uid` 로
+  좁혀도 기능에 영향이 없다.)
 
-### 미착수 개선
-- **Undo/Redo 전체 스냅샷** (`index.html` `snapshot()`): 한 글자 편집마다 모든
-  문제집을 `JSON.stringify`. 80단계 스택이라 이미지 많은 라이브러리에서 메모리 부담.
-  문항 단위 diff 또는 스택 깊이 축소 검토.
-- **`SETS_KEY="PM_SETS_V7"` 마이그레이션 부재**: V1~V6 키의 구버전 데이터가
-  자동 이관 없이 사라져 보인다.
-- **문제집 복제 시 `problems[].id` 중복**: `renderLibrary()` 의 복제 경로가
-  set id만 재발급하고 문항 id는 원본과 같게 둔다. (가져오기 경로는 `normProblem()`
-  으로 이미 해결됨 — 복제 경로도 같은 방식으로 맞추면 된다.)
-- **모의고사 편집기에 자동저장 없음**: 파일 export 만 있어 브라우저 크래시 시 전부 소실.
-  `beforeunload` 경고로는 부족 — 본체처럼 localStorage 임시저장 권장.
-- **빈 `catch(e){}` 다수**: 최소한 `console.error` 라도 남길 것.
-- **알림 UX 불일치**: 모의고사 편집기는 `alert()`, 본체는 `toast()`.
-- **`serve.py` `Content-Length` 신뢰** (`do_POST`): 과대 선언 시 커넥션이
-  타임아웃까지 블로킹. 로컬 전용이라 우선순위는 낮다.
-- **브랜드 글꼴 파일이 레포에 없다**: `Adobe Caslon Pro Bold.ttf` 를 참조하지만
-  파일이 없어 404. 화이트리스트 등록은 끝났으니 파일을 추가하거나 참조를 제거할 것.
+### 자료 추가 필요
+- **브랜드 글꼴 파일이 레포에 없다**: `Adobe Caslon Pro Bold.ttf`.
+  `serve.py` 화이트리스트 등록과 `local()` 폴백은 끝났으므로, 시스템에 설치돼 있으면
+  이미 정상 표시된다. 파일을 레포에 넣으면 배포본(GitHub Pages)에서도 적용된다.
+  넣지 않을 거면 `index.html` 의 `@font-face` 와 `serve.py` 의 STATIC 항목을 지울 것.
+
+### 더 깊게 손보고 싶다면 (선택)
+- **Undo/Redo 구조**: 총량 상한(`HIST_CHARS_LIMIT`)으로 메모리 폭주는 막았지만,
+  여전히 한 단계마다 `sets` 전체를 `JSON.stringify` 한다. 문제집이 아주 커지면
+  타이핑 지연이 생길 수 있다. 근본 해결은 문항 단위 diff.
+- **모의고사 편집기의 근사 미리보기와 Typst 정본**: `cases` 간격은 맞췄지만
+  두 경로가 여전히 별도 코드다. 새 서식을 추가할 때마다 양쪽을 함께 고쳐야 한다.
+
+### 이번 세션에 처리 완료 (참고)
+가져오기 XSS 차단(`normSet`/`safeUrl`/`sanitize`), `showMock` 버그로 죽어 있던
+모의고사 버튼 복구, Firebase 실패 시 오프라인 degrade, 문제집 복제 시 문항 id 중복,
+구버전 localStorage 키 이관, Undo/Redo 총량 상한, 모의고사 localStorage 자동저장,
+`alert()` → `toast()`, 이미지 업로드 실패 알림, `serve.py` Content-Length 방어,
+빈 `catch` 로깅.
