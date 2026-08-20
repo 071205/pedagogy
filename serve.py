@@ -306,7 +306,9 @@ def main():
     for o in a.allow_origin:
         ALLOW_ORIGINS.add(o.rstrip("/"))
     WORK.mkdir(exist_ok=True)
-    url = f"http://127.0.0.1:{a.port}/"
+    # localhost 로 연다. 127.0.0.1 은 Firebase Auth 의 기본 승인 도메인이 아니라
+    # 구글 로그인이 auth/unauthorized-domain 으로 막힌다(localhost 는 기본 허용).
+    url = f"http://localhost:{a.port}/"
     print("─" * 58)
     print(f"  편집기      {url}")
     print(f"  typst       {TYPST or '없음 →  brew install typst'}")
