@@ -58,6 +58,29 @@ FONT_DIRS = [
 ]
 
 
+FONT_EXTS = {".ttf": "font/ttf", ".otf": "font/otf", ".ttc": "font/collection"}
+
+
+def find_font(name: str) -> Path | None:
+    """FONT_DIRS 안에서 '파일명이 정확히 일치하는' 글꼴만 찾아 돌려준다.
+    경로 구분자나 상위 참조가 섞인 이름은 즉시 거절해 폴더 밖으로 못 나가게 한다."""
+    if not name or "/" in name or "\\" in name or name.startswith("."):
+        return None
+    if Path(name).suffix.lower() not in FONT_EXTS:
+        return None
+    for d in FONT_DIRS:
+        if not d.is_dir():
+            continue
+        f = d / name
+        try:
+            # 심볼릭 링크로 폴더를 벗어나는 경우까지 차단
+            if f.is_file() and f.resolve().parent == d.resolve():
+                return f
+        except OSError:
+            continue
+    return None
+
+
 def find_typst() -> str | None:
     p = shutil.which("typst")
     if p:
@@ -198,8 +221,25 @@ class Handler(BaseHTTPRequestHandler):
         # 화이트리스트 '정확히 일치' 방식이라 디코딩해도 경로 조작은 여전히 불가능하다.
         path = unquote(self.path.split("?", 1)[0])
         if path == "/health":
+            # webfonts: /font/<이름> 으로 받아갈 수 있는 글꼴 파일 목록
+            names = []
+            for d in FONT_DIRS:
+                if d.is_dir():
+                    names += [p.name for p in d.iterdir()
+                              if p.is_file() and p.suffix.lower() in FONT_EXTS]
             return self._json(200, {"ok": TYPST is not None, "typst": TYPST,
-                                    "fonts": [str(d) for d in FONT_DIRS if d.is_dir()]})
+                                    "fonts": [str(d) for d in FONT_DIRS if d.is_dir()],
+                                    "webfonts": sorted(set(names))})
+        # /font/<파일명> — 시험 글꼴을 웹폰트로 내려준다.
+        # 사파리는 보안상 @font-face 의 local() 로 시스템 글꼴을 쓰지 못하게 막는다.
+        # 그래서 로컬 서버가 떠 있으면 글꼴 파일 자체를 건네, 어느 브라우저에서든
+        # 미리보기가 정본과 같은 서체로 보이게 한다. (파일은 이 PC 밖으로 나가지 않는다)
+        if path.startswith("/font/"):
+            f = find_font(path[len("/font/"):])
+            if not f:
+                return self._json(404, {"error": "font not found"})
+            return self._send(200, f.read_bytes(), FONT_EXTS[f.suffix.lower()])
+
         item = STATIC.get(path)
         if not item:
             return self._json(404, {"error": "not found"})

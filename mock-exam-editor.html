@@ -127,6 +127,29 @@ button{background:none;border:none;cursor:pointer}
   padding:12px 14px;color:#FFB4B4;font-size:12px;box-shadow:0 8px 32px rgba(0,0,0,.5)}
 .errbox b{display:block;margin-bottom:6px;color:#F04452}
 
+/* ── 편집칸 아래 수식 미리보기 ──
+   시험지와 같은 서체로 보여줘야 실제 결과를 가늠할 수 있다. */
+.mathpv{display:none}
+.mathpv.on{
+  display:block;margin-top:6px;padding:9px 11px;
+  background:rgba(255,255,255,.035);
+  border:1px solid var(--border);border-left:2px solid var(--accent,#3182F6);
+  border-radius:8px;
+  font-family:'ExamBody','Hamchorom','KoPub Batang',serif;
+  font-size:13.5px;line-height:1.75;color:#E8E8EE;
+  word-break:keep-all;overflow-x:auto;
+}
+.mathpv.on>div{margin:1px 0}
+.mathpv .katex{color:#F4F4F6}
+.mathpv-tag{
+  display:inline-block;font-family:var(--ui-sans,system-ui);
+  font-size:11px;color:var(--text-tertiary);
+  border:1px dashed var(--border);border-radius:5px;padding:1px 7px;
+}
+/* 선지 미리보기는 입력칸 오른쪽에 좁게 */
+.mathpv--ch.on{margin-top:0;margin-left:8px;padding:5px 9px;flex:0 1 auto;
+  max-width:44%;font-size:13px;align-self:center}
+
 /* ── 토스트 알림 (본체 PEDAGOGY 와 동일한 UX) ── */
 #toastHost{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:3000;
   display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none}
@@ -555,16 +578,19 @@ function renderEditor(){
     </div>
     <div class="grp"><label>지문</label>
       <textarea class="ta" id="edStmt" rows="6" placeholder="수식은 $...$ 안에 LaTeX으로">${esc(p.stmt)}</textarea>
+      <div class="mathpv" id="edStmtPv"></div>
       <div class="hint">수식 <code>$\\dfrac{a}{b}$</code> · <code>$\\lim\\limits_{x\\to1}$</code> · <code>$\\overline{AB}$</code><br>
         수식만 있는 줄은 별행 수식이 되고, <code>[조건]</code> · <code>[그림]</code> 을 한 줄에 적으면 그 자리에 조건 박스·그림이 들어갑니다.</div>
     </div>
     <div class="grp">
       <div class="sw"><span>조건 박스 (가)(나)</span><button class="${p.useCond?'on':''}" id="edCondSw"></button></div>
-      ${p.useCond?`<textarea class="ta" id="edConds" rows="3">${esc(p.conds.join('\n'))}</textarea>`:''}
+      ${p.useCond?`<textarea class="ta" id="edConds" rows="3">${esc(p.conds.join('\n'))}</textarea>
+      <div class="mathpv" id="edCondsPv"></div>`:''}
     </div>
     ${isCh?`<div class="grp"><label>선지</label>
       ${p.choices.map((c,i)=>`<div class="row-in"><div class="mk">${MARKS[i]}</div>
-        <textarea class="ta ch-in" data-i="${i}" rows="1">${esc(c)}</textarea></div>`).join('')}
+        <textarea class="ta ch-in" data-i="${i}" rows="1">${esc(c)}</textarea>
+        <div class="mathpv mathpv--ch" id="edChPv${i}"></div></div>`).join('')}
       <div class="gauge"><span>폭</span>
         <div class="bar"><div class="fill ${pct>100?'warn':''}" style="width:${Math.min(pct,100)}%"></div></div>
         <b>${pct}%</b><span class="res">${ln}</span></div></div>
@@ -585,13 +611,42 @@ function renderEditor(){
     </div></div>`;
   bindEd(p);
 }
+/* ── 편집 중 수식 미리보기 ──
+   지문·조건·선지는 textarea 라 LaTeX 원문($\dfrac{a}{b}$ 같은 영문 명령)이 그대로 보인다.
+   입력칸 바로 아래에 KaTeX 로 렌더한 결과를 같이 띄워, 오른쪽 시험지 미리보기까지
+   눈을 옮기지 않고도 수식이 맞게 써졌는지 확인할 수 있게 한다. */
+function mathPreview(elId, text){
+  const box=document.getElementById(elId);
+  if(!box) return;
+  const src=(text||'').trim();
+  if(!src){ box.innerHTML=''; box.classList.remove('on'); return; }
+  box.classList.add('on');
+  // 줄 단위로 렌더. [조건]/[그림] 자리표시자는 그대로 뱃지처럼 보여준다.
+  box.innerHTML=src.split('\n').map(line=>{
+    const t=line.trim();
+    if(!t) return '';
+    if(t==='[조건]'||t==='[그림]') return `<div class="mathpv-tag">${esc(t)}</div>`;
+    return `<div>${tex(line)}</div>`;
+  }).join('');
+}
+
+function refreshMathPreviews(p){
+  mathPreview('edStmtPv', p.stmt);
+  if(p.useCond) mathPreview('edCondsPv', (p.conds||[]).join('\n'));
+  if(p.type==='choice') (p.choices||[]).forEach((c,i)=>mathPreview('edChPv'+i, c));
+}
+
 function bindEd(p){
+  refreshMathPreviews(p);
   $('#edPts').onchange=e=>{p.pts=parseInt(e.target.value);renderPreview();renderOutline();};
-  $('#edStmt').oninput=e=>{p.stmt=e.target.value;renderPreview();renderOutline();};
+  $('#edStmt').oninput=e=>{p.stmt=e.target.value;mathPreview('edStmtPv',p.stmt);renderPreview();renderOutline();};
   $('#edCondSw').onclick=()=>{p.useCond=!p.useCond;renderEditor();renderPreview();};
-  const ce=$('#edConds');if(ce)ce.oninput=e=>{p.conds=e.target.value.split('\n').filter(x=>x.trim());renderPreview();};
+  const ce=$('#edConds');if(ce)ce.oninput=e=>{p.conds=e.target.value.split('\n').filter(x=>x.trim());mathPreview('edCondsPv',p.conds.join('\n'));renderPreview();};
   document.querySelectorAll('.ch-in').forEach(t=>t.oninput=e=>{
-    p.choices[+e.target.dataset.i]=e.target.value;renderPreview();gauge(p);renderOutline();});
+    const i=+e.target.dataset.i;
+    p.choices[i]=e.target.value;
+    mathPreview('edChPv'+i, p.choices[i]);
+    renderPreview();gauge(p);renderOutline();});
   const lay=$('#edLayout');
   if(lay)lay.querySelectorAll('button').forEach(b=>b.onclick=()=>{p.layout=b.dataset.v;renderEditor();renderPreview();});
   $('#edFig').oninput=e=>{p.figure=+e.target.value||0;renderPreview();};
@@ -995,7 +1050,7 @@ function toTypst(){
 /* ══════════ 실시간 렌더 ══════════
    serve.py 가 떠 있으면 정본과 똑같은 typst·글꼴로 컴파일해서 그 결과를 띄운다.
    서버가 없으면 기존 CSS 근사 미리보기로 자동으로 돌아간다. */
-const LIVE={on:false,busy:false,pending:false,timer:null,cache:new Map(),ppi:110,base:''};
+const LIVE={on:false,busy:false,pending:false,timer:null,cache:new Map(),ppi:110,base:'',webfonts:[]};
 /* 로컬 서버가 띄운 페이지면 같은 출처(''), 깃허브 페이지 등에서 열었으면
    내 컴퓨터의 렌더 서버 주소를 직접 부른다. 크롬은 https 페이지에서
    로컬 주소를 부를 때 서버의 허가 헤더를 요구하는데 serve.py 가 붙여 준다. */
@@ -1006,8 +1061,44 @@ async function probe(base){
     const r=await fetch(base+'/health',{headers:{'X-Exam-Client':'1'},signal:c.signal});
     clearTimeout(t);
     if(!r.ok)return false;
-    const d=await r.json();return !!d.ok;
+    const d=await r.json();
+    if(d.ok) LIVE.webfonts=Array.isArray(d.webfonts)?d.webfonts:[];
+    return !!d.ok;
   }catch(e){return false;}
+}
+
+/* ── 시험 글꼴을 로컬 서버에서 웹폰트로 받아오기 ──
+   @font-face 의 local() 로 시스템 글꼴을 쓰는 방식은 사파리에서 막힌다
+   (지문 추적 방지 목적). 그래서 로컬 서버가 떠 있으면 글꼴 파일 자체를 내려받아
+   어느 브라우저에서든 미리보기가 정본과 같은 서체가 되게 한다.
+   서버가 없으면 아무것도 하지 않고 기존 local()/웹폰트 폴백 그대로 둔다. */
+const WEBFONT_MAP=[
+  ['ExamBody',    ['A053SinMyungjo.ttf','A053SinMyungjo95.ttf']],
+  ['ExamGraphic', ['9972E83A5CE718D41B.ttf','SinGraphic.ttf','신그래픽체.ttf']],
+  ['ExamRound',   ['UnDinaru.ttf']],
+];
+let webfontsInjected=false;
+function injectServerWebfonts(){
+  if(webfontsInjected) return;
+  const avail=LIVE.webfonts||[];
+  if(!avail.length) return;
+  const base=LIVE.base||'';
+  const rules=[];
+  for(const [family,candidates] of WEBFONT_MAP){
+    const hit=candidates.find(n=>avail.includes(n));
+    if(!hit) continue;
+    // local() 을 먼저 둬서 크롬처럼 이미 되는 브라우저는 네트워크를 타지 않는다
+    rules.push(`@font-face{font-family:'${family}';font-display:swap;`
+      +`src:local('${family}'),url('${base}/font/${encodeURIComponent(hit)}') format('truetype')}`);
+  }
+  if(!rules.length) return;
+  const st=document.createElement('style');
+  st.id='serverWebfonts';
+  st.textContent=rules.join('\n');
+  document.head.appendChild(st);
+  webfontsInjected=true;
+  // 글꼴이 실제로 준비되면 폭 계산이 달라지므로 다시 그린다
+  if(document.fonts&&document.fonts.ready) document.fonts.ready.then(()=>renderPreview());
 }
 async function pingServer(){
   if(await probe('')){LIVE.base='';return true;}          // 같은 출처 우선
@@ -1201,10 +1292,13 @@ async function boot(){
   offerDraftRestore();          // 저장 없이 끝난 직전 작업이 있으면 복구 제안
   $('#liveBtn').onclick=async()=>{
     if(LIVE.on)return setLive(false);
-    if(await pingServer())setLive(true);
+    if(await pingServer()){ injectServerWebfonts(); setLive(true); }
     else showErr('로컬 렌더 서버가 없습니다.\n터미널에서  python3 serve.py  를 실행한 뒤\nhttp://127.0.0.1:8787 로 열어 주세요.');
   };
-  if(location.protocol.startsWith('http')&&await pingServer())setLive(true);
+  if(location.protocol.startsWith('http')&&await pingServer()){
+    injectServerWebfonts();     // 실시간을 켜지 않아도 서체는 정본과 맞춰 둔다
+    setLive(true);
+  }
   else if(location.protocol.startsWith('http'))
     console.info('로컬 렌더 서버 없음 — 근사 미리보기로 동작합니다.');
 }
