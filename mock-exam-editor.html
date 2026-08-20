@@ -190,6 +190,14 @@ body.embedded .brand-tag{margin-left:0}
   color:inherit;opacity:.55;cursor:pointer;font-size:14px;line-height:1;padding:2px 4px}
 .errbox .errclose:hover{opacity:1}
 
+/* 미리보기 범위 토글 */
+.pv-mode{flex:0 0 auto}
+.pv-mode.stale button[data-v="all"]{color:var(--blue-hover)}
+.pv-mode.stale button[data-v="all"]::after{content:" ●";font-size:8px;vertical-align:2px}
+/* 편집 패널 맨 아래 추가 버튼 줄 */
+.addbar{display:flex;flex-wrap:wrap;gap:5px;margin-top:10px}
+.addbar .btn{height:30px;padding:0 10px;font-size:12px}
+
 /* ── 블록 조립 편집 (N제 편집기와 동일한 UI) ── */
 .blocks{display:flex;flex-direction:column}
 .block{border:1px solid var(--border);border-radius:10px;background:var(--surface-1);overflow:hidden}
@@ -443,6 +451,9 @@ body.embedded .brand-tag{margin-left:0}
     <button class="btn" id="saveBtn">저장</button>
     <label class="btn" for="loadInput" style="cursor:pointer">불러오기</label>
     <input type="file" id="loadInput" accept=".json,application/json" style="display:none">
+    <div class="seg pv-mode" id="pvMode" title="미리보기 범위">
+      <button data-v="one" class="on">이 문항</button><button data-v="all">전체보기</button>
+    </div>
     <button class="btn" id="liveBtn" title="로컬 서버에서 Typst로 실제 렌더링">실시간</button>
     <button class="btn" id="guideBtn">가이드</button>
     <div class="zoom">
@@ -486,7 +497,8 @@ function blank(n){/* figSrc: 그림 파일명 */
       .concat(type==='choice'?[{type:'choices',data:{items:['','','','',''],layout:'auto'}}]:[]),
     layout:'auto',breakAfter:false};
 }
-const state={problems:Array.from({length:30},(_,i)=>blank(i+1)),sel:'p1',zoom:.6,guides:false};
+const state={problems:Array.from({length:30},(_,i)=>blank(i+1)),sel:'p1',zoom:.6,guides:false,
+  pvMode:'one'};   // 'one' = 지금 문항만(실시간) · 'all' = 시험지 전체(누를 때만)
 
 (function seed(){
   const P=state.problems;
@@ -960,6 +972,16 @@ function renderEditor(){
   });
   area.append(insertPoint(blocks.length));
 
+  /* 맨 아래 눈에 보이는 추가 버튼 — 블록 사이 '+' 는 올려야 보여서 처음엔 찾기 어렵다 */
+  const addBar=elx('div','addbar');
+  Object.entries(BLK_LABELS).forEach(([v,label])=>{
+    const b=elx('button','btn',v==='boxed'?'+ 박스':'+ '+label.replace(/^(문제 |답 )/,''));
+    b.title=label+' 블록 추가';
+    b.onclick=()=>{ blocks.push({type:v,data:blankBlockData(v)}); edChanged(p,true); };
+    addBar.append(b);
+  });
+  root.append(addBar);
+
   /* ── 단 나눔 (시험지 고유) ── */
   const grp=elx('div','grp');
   const sw=elx('div','sw'); sw.append(elx('span',null,'이 문항 뒤에서 단 나눔'));
@@ -1030,7 +1052,8 @@ function renderOutline(){
 function bindOutline(){
   let src=null;
   document.querySelectorAll('.ol-i').forEach(el=>{
-    el.onclick=()=>{state.sel=el.dataset.id;renderEditor();renderOutline();};
+    el.onclick=()=>{state.sel=el.dataset.id;renderEditor();renderOutline();
+      if(state.pvMode!=='all') renderPreview();};
     el.ondragstart=()=>{src=el;el.classList.add('drag');};
     el.ondragend=()=>{el.classList.remove('drag');document.querySelectorAll('.ol-i').forEach(x=>x.classList.remove('over'));};
     el.ondragover=e=>{e.preventDefault();if(el!==src)el.classList.add('over');};
@@ -1196,6 +1219,39 @@ function paintThemeSelf(v){
 window.addEventListener('storage',e=>{
   if(e.key===THEME_KEY){ paintThemeSelf(e.newValue); renderPreview(); }
 });
+
+/* ── 미리보기 범위 (이 문항 / 전체보기) ── */
+function markStale(on){
+  const seg=$('#pvMode'); if(!seg) return;
+  seg.classList.toggle('stale', !!on && state.pvMode==='all');
+}
+function setPvMode(v){
+  if(v===state.pvMode && v!=='all') return;
+  state.pvMode=v;
+  const seg=$('#pvMode');
+  if(seg) seg.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
+  markStale(false);
+  LIVE.cache.clear();          // 두 모드의 쪽 크기가 달라 캐시를 섞으면 안 된다
+  if(LIVE.on) requestRenderNow();
+  else renderPreview();
+}
+/* 전체보기는 requestRender 가 막으므로 직접 부른다 */
+function requestRenderNow(){
+  clearTimeout(LIVE.timer);
+  if(LIVE.busy){ LIVE.pending=true; return; }
+  doRender();
+}
+(function(){
+  const seg=$('#pvMode'); if(!seg) return;
+  seg.querySelectorAll('button').forEach(b=>{
+    b.onclick=()=>{
+      if(b.dataset.v==='all' && state.pvMode==='all'){ // 이미 전체보기면 '다시 그리기'
+        markStale(false); if(LIVE.on) requestRenderNow(); return;
+      }
+      setPvMode(b.dataset.v);
+    };
+  });
+})();
 
 $('#errClose').onclick=()=>showErr('');
 $('#guideBtn').onclick=e=>{state.guides=!state.guides;e.target.classList.toggle('on',state.guides);renderPreview();};
@@ -1514,6 +1570,18 @@ function sheetTypst(pg,M,meta,total,round,elec){
   return a.join('\n');
 }
 
+/* ── 한 문항만 렌더하는 소스 ──
+   전체 시험지(8쪽)를 타이핑마다 다시 컴파일하는 건 느리고, 편집 중인 문항을
+   여러 쪽에서 찾아야 해서 불편하다. 평소에는 이 소스로 '지금 문항'만 띄운다.
+   판형·글꼴·단 폭(CW)을 정본과 똑같이 쓰므로 줄바꿈 위치도 정본과 같다. */
+function oneProbTypst(p){
+  const PAD='7mm';
+  return TYPST_FRAME.replace(
+      '#set page(width: PW, height: PH, margin: 0pt)',
+      `#set page(width: CW + 2 * ${PAD}, height: auto, margin: ${PAD})`)
+    + '\n\n' + probTypst(p) + '\n';
+}
+
 function typstSource(){
   const round=$('#round').value,elec=$('#elective').value;
   const pages=buildPages(),meta=pageMeta(pages);
@@ -1637,6 +1705,9 @@ function showNoServer(){
 }
 function requestRender(delay=400){
   if(!LIVE.on)return;
+  // 전체보기는 무거우므로 편집할 때마다 다시 그리지 않는다. '전체보기' 를 다시
+  // 누르면 그때 갱신된다(그 사이에는 마지막으로 그린 시험지가 그대로 남는다).
+  if(state.pvMode==='all'){ markStale(true); return; }
   clearTimeout(LIVE.timer);
   LIVE.timer=setTimeout(()=>{
     if(LIVE.busy){LIVE.pending=true;return;}
@@ -1646,9 +1717,13 @@ function requestRender(delay=400){
 async function doRender(){
   LIVE.busy=true;$('#stage').classList.add('busy');
   try{
+    // 'one' = 지금 문항만(빠름, 실시간) · 'all' = 시험지 전체(버튼을 눌렀을 때만)
+    const one=state.pvMode!=='all';
+    const cur=state.problems.find(x=>x.id===state.sel);
+    const src=(one&&cur)?oneProbTypst(cur):typstSource();
     const r=await fetch(LIVE.base+'/render',{method:'POST',
       headers:{'Content-Type':'application/json','X-Exam-Client':'1'},
-      body:JSON.stringify({typ:typstSource(),ppi:livePpi(),known:[...LIVE.cache.keys()]})});
+      body:JSON.stringify({typ:src,ppi:livePpi(),known:[...LIVE.cache.keys()]})});
     const d=await r.json();
     if(!d.ok){showErr(d.log||d.error||'컴파일 실패');}
     else{
@@ -1659,7 +1734,11 @@ async function doRender(){
         const url=LIVE.cache.get(p.hash);
         const img=document.createElement('img');
         img.className='live-pg';img.src=url||'';img.alt=p.n+'쪽';
-        img.style.width=SPECPG.w+'mm';img.style.height=SPECPG.h+'mm';
+        if(one){ // 한 문항 모드는 높이가 내용에 따라 달라진다 — 폭만 단 폭에 맞춘다
+          img.style.width=(SPEC.colW+14)+'mm'; img.style.height='auto';
+        }else{
+          img.style.width=SPECPG.w+'mm';img.style.height=SPECPG.h+'mm';
+        }
         st.appendChild(img);
       }
       // 캐시가 너무 커지지 않게
