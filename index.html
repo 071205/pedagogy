@@ -990,7 +990,15 @@ document.addEventListener('DOMContentLoaded',()=>{
 <script>
 /* ===== Utils ===== */
 const $=s=>document.querySelector(s);
-const el=(t,c,h)=>{const e=document.createElement(t); if(c) e.className=c; if(h!=null) e.innerHTML=h; return e;};
+/* 요소 만들기 — 내용은 '항상 텍스트'로 넣는다.
+   예전에는 innerHTML 이라, 문제집 이름·문항 제목·번호 라벨·검색어처럼
+   사용자가 정한 문자열이 그대로 HTML 로 실행됐다(저장형 XSS).
+   HTML 을 넣어야 하는 곳은 elHTML() 을 명시적으로 쓴다. */
+const el=(t,c,txt)=>{const e=document.createElement(t); if(c) e.className=c;
+  if(txt!=null) e.textContent=txt; return e;};
+/* 안전이 보장된 마크업만 넣을 것 — 사용자 값은 반드시 sanitize() 를 거친 뒤에 */
+const elHTML=(t,c,h)=>{const e=document.createElement(t); if(c) e.className=c;
+  if(h!=null) e.innerHTML=h; return e;};
 const uid=()=>'q'+Math.random().toString(36).slice(2,9);
 /* HTML 이스케이프. 따옴표까지 막아야 속성값(src="…", class="…") 안에서도 안전하다.
    & 를 가장 먼저 치환해야 이중 이스케이프가 생기지 않는다.
@@ -1117,9 +1125,13 @@ function dataUrlToJpegBlob(dataUrl, maxDim=1800, quality=0.88){
 
 // Blob → Storage 업로드 → 다운로드 URL 반환
 async function uploadBlobToStorage(blob, filename){
+  // 업로드 시작 시점의 uid 를 고정한다 — 도중에 계정이 바뀌어도 남의 폴더로 가지 않는다
+  const owner=currentUser && currentUser.uid;
+  if(!owner) throw new Error("로그인이 필요합니다");
   const id=uid()+"_"+filename.replace(/[^\w.\-]/g,"_");
-  const ref=fbStorage.ref().child(`users/${currentUser.uid}/images/${id}`);
+  const ref=fbStorage.ref().child(`users/${owner}/images/${id}`);
   const snap=await ref.put(blob,{contentType:blob.type||"image/jpeg"});
+  if(!currentUser || currentUser.uid!==owner) throw new Error("업로드 중 계정이 바뀌었습니다");
   return await snap.ref.getDownloadURL();
 }
 
@@ -1180,7 +1192,26 @@ function fileToDataURL(file){
 }
 
 /* ===== Storage ===== */
-const SETS_KEY="PM_SETS_V7";
+/* 로컬 캐시는 계정마다 따로 둔다.
+   예전에는 모두가 PM_SETS_V7 하나를 공유해서, 한 브라우저에서 A 가 로그아웃하고
+   B 가 로그인하면 A 의 문제집이 B 화면에 보이고 B 의 클라우드로 병합·저장될 수 있었다.
+   로그아웃 상태는 'guest' 칸을 쓴다. */
+const SETS_KEY_BASE="PM_SETS_V7";
+function setsKeyFor(uid){ return SETS_KEY_BASE+":"+(uid||"guest"); }
+function setsKey(){ return setsKeyFor(currentUser&&currentUser.uid); }
+
+/* 예전의 공용 키를 지금 쓰는 칸으로 한 번만 옮긴다(기존 사용자 데이터 보존).
+   로그인 상태에서 처음 마주치면 그 계정 칸으로, 비로그인이면 guest 칸으로 간다. */
+function migrateSharedLocalCache(){
+  try{
+    const old=localStorage.getItem(SETS_KEY_BASE);
+    if(old==null) return;
+    const k=setsKey();
+    if(localStorage.getItem(k)==null) localStorage.setItem(k, old);
+    localStorage.removeItem(SETS_KEY_BASE);   // 다른 계정에 새지 않도록 공용 칸은 비운다
+    console.info("공용 로컬 캐시를 "+k+" 로 옮겼습니다.");
+  }catch(e){ console.error("로컬 캐시 이관 실패", e); }
+}
 let sets=[]; let currentSetId=null; let currentQId=null; let orderMode=false;
 let currentUser=null; // 로그인 유저
 let saveTimer=null;   // 디바운스용
@@ -1244,7 +1275,7 @@ function rememberQ(){
    실수로 데이터가 꼬여도 콘솔에서 restorePedagogyBackup() 으로 되돌릴 수 있음. */
 function snapshotLocalBackup(){
   try{
-    const cur=localStorage.getItem(SETS_KEY);
+    const cur=localStorage.getItem(setsKey());
     if(cur) localStorage.setItem('PM_BACKUP', JSON.stringify({sets:JSON.parse(cur), t:Date.now()}));
   }catch(e){ console.error('로컬 백업 실패', e); }
 }
@@ -1265,15 +1296,15 @@ window.restorePedagogyBackup=function(){
 const LEGACY_SETS_KEYS=["PM_SETS_V6","PM_SETS_V5","PM_SETS_V4","PM_SETS_V3","PM_SETS_V2","PM_SETS_V1","PM_SETS"];
 function migrateLegacyLocalSets(){
   try{
-    if(localStorage.getItem(SETS_KEY)) return;          // 이미 현재 키에 데이터가 있음
+    if(localStorage.getItem(setsKey())) return;          // 이미 현재 키에 데이터가 있음
     for(const k of LEGACY_SETS_KEYS){
       const raw=localStorage.getItem(k);
       if(!raw) continue;
       const parsed=JSON.parse(raw);
       if(!Array.isArray(parsed) || !parsed.length) continue;
-      localStorage.setItem(SETS_KEY, raw);
+      localStorage.setItem(setsKey(), raw);
       // 구 키는 지우지 않고 남겨둔다 — 이관이 잘못돼도 되돌릴 수 있게
-      console.info(`구버전 데이터(${k})를 ${SETS_KEY} 로 이관했습니다.`);
+      console.info(`구버전 데이터(${k})를 ${setsKey()} 로 이관했습니다.`);
       return;
     }
   }catch(e){ console.error("구버전 데이터 이관 실패", e); }
@@ -1281,7 +1312,7 @@ function migrateLegacyLocalSets(){
 migrateLegacyLocalSets();
 
 function readLocalSets(){
-  try{ const raw=localStorage.getItem(SETS_KEY); return raw?JSON.parse(raw):[]; }
+  try{ const raw=localStorage.getItem(setsKey()); return raw?JSON.parse(raw):[]; }
   catch(e){ console.error("로컬 데이터를 읽지 못했습니다", e); return []; }
 }
 function loadSetsLocal(){
@@ -1324,7 +1355,7 @@ async function loadSets(){
         const merged=mergeSets(cloud, localWorth);
         sets=merged;
         // 로컬을 클라우드 기준으로 동기화 → 삭제한 문제집이 다음 접속에 되살아나는 일 방지
-        try{ localStorage.setItem(SETS_KEY, JSON.stringify(sets)); }catch(e){ console.error('로컬 저장 실패(용량 초과 가능)', e); }
+        try{ localStorage.setItem(setsKey(), JSON.stringify(sets)); }catch(e){ console.error('로컬 저장 실패(용량 초과 가능)', e); }
         if(merged.length>cloud.length){ saveSets(); }  // 병합으로 늘어난 경우만 클라우드에 반영
         return;
       }
@@ -1387,7 +1418,7 @@ function applySnapshot(snap){
 /* 되돌리기/다시실행 직후의 로컬 저장. 용량 초과로 예외가 나도
    되돌리기 자체는 이미 메모리에 반영됐으므로 흐름을 끊지 않는다. */
 function persistLocalAfterHistory(){
-  try{ localStorage.setItem(SETS_KEY, JSON.stringify(sets)); }
+  try{ localStorage.setItem(setsKey(), JSON.stringify(sets)); }
   catch(e){ console.error("로컬 저장 실패(용량 초과 가능)", e); }
 }
 
@@ -1464,7 +1495,7 @@ function saveSets(){
   pushHistory();
   // 로컬 항상 저장 (백업)
   try{
-    localStorage.setItem(SETS_KEY, JSON.stringify(sets));
+    localStorage.setItem(setsKey(), JSON.stringify(sets));
   }catch(e){
     // localStorage도 용량 초과 가능 (base64 이미지 많을 때)
     console.error("로컬 저장 실패:", e);
@@ -1474,9 +1505,17 @@ function saveSets(){
   if(currentUser){
     setSaveStatus("저장 중…", "var(--text-tertiary)");
     clearTimeout(saveTimer);
+    // 예약 시점의 uid 와 내용을 붙잡아 둔다. 콜백 안에서 전역 currentUser 를 다시 읽으면,
+    // 0.8초 사이에 계정을 바꿨을 때 A 의 문제집이 B 문서에 저장될 수 있다.
+    const uidAtSave=currentUser.uid;
+    const snapAtSave=sets;
     saveTimer=setTimeout(async ()=>{
+      if(!currentUser || currentUser.uid!==uidAtSave){
+        console.warn("저장 예약 뒤 계정이 바뀌어 건너뜁니다.");
+        setSaveStatus(""); return;
+      }
       try{
-        await fbDb.collection('users').doc(currentUser.uid).set({ sets, updatedAt: new Date() });
+        await fbDb.collection('users').doc(uidAtSave).set({ sets:snapAtSave, updatedAt: new Date() });
         setSaveStatus("✓ 저장됨", "#81c784");
         setTimeout(()=>setSaveStatus(""), 2000);
       }catch(e){
@@ -1672,12 +1711,14 @@ function renderQList(){
   const list=$("#qList"); list.innerHTML="";
   const arr=activeProblems();
   const nums=computeNums(arr);
-  const fmtNum=raw=>{ const m=raw.match(/^(.+?)(-\d+)$/); return m?`${m[1]}<span class="sub">${m[2]}</span>`:raw; };
+  // '1-1' 처럼 뒤쪽을 작게 보이려고 마크업을 쓰므로, 사용자 값은 먼저 이스케이프한다
+  const fmtNum=raw=>{ const m=String(raw).match(/^(.+?)(-\d+)$/);
+    return m?`${sanitize(m[1])}<span class="sub">${sanitize(m[2])}</span>`:sanitize(String(raw)); };
   const numOf=q=>{ const n=nums.find(x=>x.q===q); return n?fmtNum(n.num):"??"; };
 
   const mkItem=(q,opts={})=>{
     const item=el("div","q-item"+(q.id===currentQId?" selected":""));
-    const num=el("div","num",numOf(q));
+    const num=elHTML("div","num",numOf(q));   // fmtNum 이 이스케이프해 둔 마크업
     const col=el("div","q-col");
     const name=el("div","name",q.title||"제목 없음");
     col.append(name);
@@ -2384,7 +2425,8 @@ function buildPrintDoc(hideAnswers){
 
   const qs=s.problems.slice();
   const nums=computeNums(qs);
-  const numOf=q=>nums.find(n=>n.q===q)?.num||"??";
+  // 번호는 사용자가 정한 numLabel 이 섞이므로 이스케이프한다(아래 innerHTML 조립에 들어간다)
+  const numOf=q=>sanitize(String(nums.find(n=>n.q===q)?.num ?? "??"));
 
   /* ── 지면 배치 ──
      문항마다 차지하는 크기를 고를 수 있다(spanOf).
@@ -2534,7 +2576,7 @@ $("#previewArea").addEventListener("wheel",e=>{
    여기서 다시 대입하면 그 핸들러를 덮어써서 모의고사 모드가 열리지 않는다. */
 $("#saveBtn").onclick=async ()=>{
   if(!currentUser){
-    try{ localStorage.setItem(SETS_KEY, JSON.stringify(sets)); }catch(e){ console.error(e); }
+    try{ localStorage.setItem(setsKey(), JSON.stringify(sets)); }catch(e){ console.error(e); }
     setSaveStatus("✓ 로컬 저장됨", "#81c784");
     setTimeout(()=>setSaveStatus(""), 2000);
     toast("이 기기에 저장했어요 · 로그인하면 계정에 동기화돼요","success");
@@ -2551,7 +2593,7 @@ $("#saveBtn").onclick=async ()=>{
     try{
       const n=await migrateBase64ToStorage();
       if(n>0){
-        try{ localStorage.setItem(SETS_KEY, JSON.stringify(sets)); }catch(e){ console.error('로컬 저장 실패(용량 초과 가능)', e); }
+        try{ localStorage.setItem(setsKey(), JSON.stringify(sets)); }catch(e){ console.error('로컬 저장 실패(용량 초과 가능)', e); }
         if($("#editorView").style.display!=="none") renderPreview();
       }
     }catch(e){ console.warn("마이그레이션 중 일부 실패:", e); }
@@ -2560,7 +2602,7 @@ $("#saveBtn").onclick=async ()=>{
   setSaveStatus("저장 중…");
   try{
     await fbDb.collection('users').doc(currentUser.uid).set({ sets, updatedAt: new Date() });
-    try{ localStorage.setItem(SETS_KEY, JSON.stringify(sets)); }catch(e){ console.error('로컬 저장 실패(용량 초과 가능)', e); }
+    try{ localStorage.setItem(setsKey(), JSON.stringify(sets)); }catch(e){ console.error('로컬 저장 실패(용량 초과 가능)', e); }
     setSaveStatus("✓ 저장됨", "#81c784");
     setTimeout(()=>setSaveStatus(""), 2000);
     toast("저장했어요","success");
@@ -2778,6 +2820,7 @@ let prevUid=null;            // 직전 콜백의 uid (로그인/로그아웃 전
    라이브러리가 화면에 뜬다(Firebase 없이도 로컬 데이터로 동작). */
 async function bootLibrary(){
   authInitialized=true;
+  migrateSharedLocalCache();
   snapshotLocalBackup();                 // 직전 세션 데이터를 백업으로 보관
   await loadSets();
   lastSnapshot=snapshot(); undoStack=[]; redoStack=[]; updateHistButtons();
@@ -2786,7 +2829,11 @@ async function bootLibrary(){
 }
 
 const onAuth=async (user)=>{
+  // 계정이 바뀌는 순간 예약된 저장을 취소한다 — 이전 계정의 내용이 뒤늦게
+  // 새 계정 문서로 넘어가지 않도록.
+  if(!user || !currentUser || currentUser.uid!==user.uid) clearTimeout(saveTimer);
   currentUser=user;
+  migrateSharedLocalCache();   // 예전 공용 캐시가 있으면 지금 계정 칸으로
   if(user){
     $("#authLoggedOut").style.display="none";
     $("#authLoggedIn").style.display="flex";
