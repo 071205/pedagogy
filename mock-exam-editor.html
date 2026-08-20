@@ -111,10 +111,23 @@ button{background:none;border:none;cursor:pointer}
   border:1px solid var(--border);border-radius:var(--radius-sm);height:36px;overflow:hidden}
 .zoom button{padding:0 11px;height:100%;color:var(--text-secondary);font-size:15px}
 .zoom button:hover{background:var(--surface-hover);color:var(--text-primary)}
-.zoom span{font-size:12px;min-width:46px;text-align:center;color:var(--text-secondary)}
+/* 배율 숫자를 누르면 100% 로 돌아간다 */
+.zoom #zVal{font-size:12px;min-width:52px;text-align:center;color:var(--text-secondary);
+  height:100%;display:flex;align-items:center;justify-content:center;
+  background:transparent;border:0;border-left:1px solid var(--border);
+  border-right:1px solid var(--border);cursor:pointer;font-variant-numeric:tabular-nums}
+.zoom #zVal:hover{background:var(--surface-hover);color:var(--text-primary)}
+
+/* PEDAGOGY 본체 안(iframe)에서는 위쪽 상단바에 이미 로고가 있으므로 중복을 없앤다 */
+body.embedded .brand{display:none}
+body.embedded .brand-tag{margin-left:0}
 
 .panes{display:flex;height:calc(100% - 60px)}
-.preview{flex:1 1 auto;min-width:320px;overflow:auto;padding:24px}
+.preview{flex:1 1 auto;min-width:320px;overflow:auto;padding:24px;
+  overscroll-behavior:contain;scrollbar-width:thin}
+/* 확대는 .stage 에 transform 을 걸고, 이 래퍼가 '확대된 크기'를 그대로 차지해
+   스크롤 범위가 자동으로 맞는다(예전의 음수 마진 보정 방식은 어긋나기 쉬웠다). */
+.stage-wrap{position:relative;margin:0 auto}
 .editor{flex:0 0 430px;background:var(--surface-1);border-left:1px solid var(--border);overflow-y:auto}
 .outline{flex:0 0 176px;background:var(--surface-1);border-left:1px solid var(--border);overflow-y:auto}
 .pane-hd{position:sticky;top:0;z-index:5;background:var(--surface-1);
@@ -327,6 +340,8 @@ button{background:none;border:none;cursor:pointer}
 
 <header class="topbar">
   <div class="tb-l">
+    <!-- iframe 으로 PEDAGOGY 본체 안에 들어가면 위쪽에 이미 같은 로고가 있다.
+         그때는 body.embedded 가 붙어 이 로고를 숨긴다(아래 CSS). -->
     <div class="brand">PEDAGOGY</div>
     <div class="brand-tag">모의고사</div>
     <input class="inp" id="round" value="2027학년도 9월 모의고사 대비 1회" style="margin-left:12px">
@@ -340,14 +355,18 @@ button{background:none;border:none;cursor:pointer}
     <input type="file" id="loadInput" accept=".json,application/json" style="display:none">
     <button class="btn" id="liveBtn" title="로컬 서버에서 Typst로 실제 렌더링">실시간</button>
     <button class="btn" id="guideBtn">가이드</button>
-    <div class="zoom"><button id="zOut">−</button><span id="zVal">60%</span><button id="zIn">+</button></div>
-    <button class="btn" id="zFit">맞춤</button>
+    <div class="zoom">
+      <button id="zOut" title="축소 (⌘−)">−</button>
+      <button id="zVal" title="100% 로 되돌리기 (⌘0)">60%</button>
+      <button id="zIn" title="확대 (⌘+)">+</button>
+    </div>
+    <button class="btn" id="zFit" title="폭에 맞추기 — 다시 누르면 100%">맞춤</button>
     <button class="btn btn-primary" id="exportBtn">Typst 내보내기</button>
   </div>
 </header>
 
 <main class="panes">
-  <section class="preview" id="preview"><div class="stage" id="stage"></div>
+  <section class="preview" id="preview"><div class="stage-wrap" id="stageWrap"><div class="stage" id="stage"></div></div>
     <div class="errbox" id="errbox" hidden><b>Typst 오류</b><pre id="errtxt"></pre></div></section>
   <section class="editor"><div class="pane-hd">문항 편집</div><div id="ed"></div></section>
   <aside class="outline"><div class="pane-hd">순서</div><div class="ol" id="ol"></div></aside>
@@ -697,20 +716,111 @@ function bindOutline(){
 }
 
 /* 좌상단 기준 확대 */
-function applyZoom(){
-  const s=$('#stage');
+/* ══════════ 확대/축소 ══════════
+   .stage 에 transform:scale 을 걸고, 감싸는 .stage-wrap 이 '확대된 크기'를 그대로
+   차지하게 해서 스크롤 범위가 저절로 맞도록 한다.
+   (예전에는 음수 마진으로 크기를 보정해 스크롤이 어긋나고, 항상 좌상단 기준으로만
+    확대돼 마우스가 가리키던 곳이 화면 밖으로 밀려났다.) */
+const ZMIN=.15, ZMAX=3;
+
+let stageNat={w:0,h:0};        // 확대 전(scale 1) 시험지 크기
+
+/* 확대를 잠시 풀고 실제 크기를 잰다. 내용이 바뀌었을 때만 호출하면 된다. */
+function measureStage(){
+  const s=$('#stage'); if(!s) return;
+  s.style.transform='none';
+  stageNat={w:s.offsetWidth, h:s.offsetHeight};
   s.style.transform=`scale(${state.zoom})`;
-  const pw=272*MM*state.zoom, ph=s.scrollHeight*state.zoom;
-  s.style.marginRight=(272*MM-pw)*-1+'px';
-  s.style.marginBottom=(s.scrollHeight-ph)*-1+'px';
-  $('#zVal').textContent=Math.round(state.zoom*100)+'%';
 }
-$('#zIn').onclick=()=>{state.zoom=Math.min(2.5,state.zoom+.1);applyZoom();};
-$('#zOut').onclick=()=>{state.zoom=Math.max(.15,state.zoom-.1);applyZoom();};
-$('#zFit').onclick=()=>{state.zoom=Math.max(.15,($('#preview').clientWidth-48)/(272*MM));applyZoom();};
+
+/* remeasure=false 면 캐시된 크기를 그대로 써서, 휠로 연속 확대할 때
+   매 프레임 리플로가 두 번씩 일어나는 것을 피한다. */
+function applyZoom(remeasure=true){
+  const s=$('#stage'), wrap=$('#stageWrap');
+  if(!s||!wrap) return;
+  if(remeasure||!stageNat.w) measureStage();
+  const z=state.zoom;
+  s.style.transform=`scale(${z})`;
+  wrap.style.width =(stageNat.w*z)+'px';
+  wrap.style.height=(stageNat.h*z)+'px';
+  const v=$('#zVal'); if(v) v.textContent=Math.round(z*100)+'%';
+}
+
+/* 배율을 바꾸되 anchor(미리보기 안의 좌표) 지점이 제자리에 있도록 스크롤을 보정한다.
+   anchor 를 안 주면 화면 중앙을 기준으로 삼는다. */
+function setZoom(z, anchor){
+  const pv=$('#preview'), wrap=$('#stageWrap');
+  z=Math.max(ZMIN,Math.min(ZMAX,z));
+  if(!pv||!wrap||z===state.zoom) return;
+  const pr=pv.getBoundingClientRect();
+  const vx=pr.left+(anchor?anchor.x:pv.clientWidth/2);
+  const vy=pr.top +(anchor?anchor.y:pv.clientHeight/2);
+  const before=wrap.getBoundingClientRect();
+  // 앵커가 가리키는 지점을 '확대 전 문서 좌표'로 환산
+  const docX=(vx-before.left)/state.zoom;
+  const docY=(vy-before.top )/state.zoom;
+  state.zoom=z;
+  applyZoom(false);            // 배율만 바뀌었으니 다시 잴 필요 없다
+  // 같은 문서 좌표가 다시 같은 화면 위치에 오도록 스크롤을 민다
+  const after=wrap.getBoundingClientRect();
+  pv.scrollLeft+=(after.left+docX*z)-vx;
+  pv.scrollTop +=(after.top +docY*z)-vy;
+}
+
+/* 배율 단계는 곱셈으로 움직여야 어느 배율에서든 체감이 일정하다 */
+const zoomBy=(f,anchor)=>setZoom(state.zoom*f,anchor);
+
+/* 폭에 맞추는 배율 */
+function fitZoom(){
+  const pv=$('#preview');
+  if(!pv) return 1;
+  measureStage();
+  const w=stageNat.w||272*MM;
+  return Math.max(ZMIN,Math.min(ZMAX,(pv.clientWidth-48)/w));   // 48 = 좌우 패딩
+}
+function fitWidth(){
+  state.zoom=fitZoom();
+  applyZoom(false);
+  const pv=$('#preview'); pv.scrollTop=0; pv.scrollLeft=0;
+}
+
+$('#zIn').onclick=()=>zoomBy(1.2);
+$('#zOut').onclick=()=>zoomBy(1/1.2);
+$('#zVal').onclick=()=>setZoom(1);
+/* 맞춤: 폭 맞추기 ↔ 100% 를 번갈아 */
+$('#zFit').onclick=()=>{
+  const fit=fitZoom();
+  if(Math.abs(state.zoom-fit)<.01) setZoom(1);
+  else fitWidth();
+};
+
+/* ⌘/Ctrl + 휠 (맥 트랙패드 핀치 포함) — 커서가 가리키는 지점을 기준으로 확대 */
 $('#preview').addEventListener('wheel',e=>{
-  if(!e.ctrlKey&&!e.metaKey)return;e.preventDefault();
-  state.zoom=Math.max(.15,Math.min(2.5,state.zoom-e.deltaY*.002));applyZoom();},{passive:false});
+  if(!e.ctrlKey&&!e.metaKey)return;
+  e.preventDefault();
+  const pr=$('#preview').getBoundingClientRect();
+  zoomBy(Math.exp(-e.deltaY*.0025),{x:e.clientX-pr.left,y:e.clientY-pr.top});
+},{passive:false});
+
+/* 빈 곳을 드래그해서 시험지를 밀어 볼 수 있게 (확대했을 때 편하다) */
+(function enableDragPan(){
+  const pv=$('#preview');
+  if(!pv) return;
+  let on=false,sx=0,sy=0,sl=0,st=0;
+  pv.addEventListener('pointerdown',e=>{
+    if(e.button!==0) return;
+    // 글자 선택이나 버튼 클릭을 방해하지 않도록 여백에서 시작할 때만
+    if(e.target.closest('.pg,.errbox,button,input,textarea,select')) return;
+    on=true;sx=e.clientX;sy=e.clientY;sl=pv.scrollLeft;st=pv.scrollTop;
+    pv.setPointerCapture(e.pointerId); pv.style.cursor='grabbing';
+  });
+  pv.addEventListener('pointermove',e=>{
+    if(!on)return;
+    pv.scrollLeft=sl-(e.clientX-sx); pv.scrollTop=st-(e.clientY-sy);
+  });
+  const end=()=>{on=false;pv.style.cursor='';};
+  pv.addEventListener('pointerup',end); pv.addEventListener('pointercancel',end);
+})();
 $('#guideBtn').onclick=e=>{state.guides=!state.guides;e.target.classList.toggle('on',state.guides);renderPreview();};
 $('#round').oninput=renderPreview;
 $('#elective').onchange=()=>{renderPreview();renderOutline();};
@@ -1261,6 +1371,10 @@ document.addEventListener('keydown',e=>{
   const cmd=e.metaKey||e.ctrlKey;
   if(cmd&&e.key.toLowerCase()==='s'){e.preventDefault();saveJSON();return;}
   if(cmd&&e.key.toLowerCase()==='e'){e.preventDefault();toTypst();return;}
+  // ⌘+ / ⌘− / ⌘0 — 브라우저 자체 확대 대신 시험지 배율을 조절한다
+  if(cmd&&(e.key==='='||e.key==='+')){e.preventDefault();zoomBy(1.2);return;}
+  if(cmd&&(e.key==='-'||e.key==='_')){e.preventDefault();zoomBy(1/1.2);return;}
+  if(cmd&&e.key==='0'){e.preventDefault();setZoom(1);return;}
   if(e.altKey&&(e.key==='ArrowUp'||e.key==='ArrowDown')){
     e.preventDefault();
     const i=state.problems.findIndex(x=>x.id===state.sel);
@@ -1288,6 +1402,11 @@ $('#loadInput').onchange=e=>{
 };
 
 async function boot(){
+  // PEDAGOGY 본체 안에 iframe 으로 들어간 경우 — 위쪽에 이미 같은 로고가 있으므로
+  // 이 문서의 로고는 숨긴다(상단 로고가 두 개로 보이던 문제).
+  try{ if(window.self!==window.top) document.body.classList.add('embedded'); }
+  catch(e){ document.body.classList.add('embedded'); }   // 교차 출처면 iframe 으로 본다
+
   renderPreview();renderEditor();renderOutline();
   offerDraftRestore();          // 저장 없이 끝난 직전 작업이 있으면 복구 제안
   $('#liveBtn').onclick=async()=>{
