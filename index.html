@@ -224,7 +224,22 @@ label.btn input{display:none}
   display:flex;align-items:center;gap:8px;cursor:pointer;
   transition:.12s;
 }
+.q-item{align-items:center}
 .q-item:hover{background:var(--surface-2);border-color:var(--border)}
+/* 조작 버튼은 목록 폭을 차지하지 않도록 오른쪽에 겹쳐 띄우고,
+   올렸을 때·선택됐을 때만 보인다. 뒤 글자가 비치지 않게 배경을 깔아 준다. */
+.q-item{position:relative}
+.q-actions{position:absolute;right:6px;top:50%;transform:translateY(-50%);
+  display:flex;align-items:center;gap:2px;padding-left:14px;
+  opacity:0;transition:opacity .12s;pointer-events:none}
+.q-item:hover .q-actions,
+.q-item.selected .q-actions,
+.q-item:focus-within .q-actions{opacity:1;pointer-events:auto}
+.q-item:hover .q-actions{background:linear-gradient(90deg,transparent,var(--surface-2) 14px)}
+.q-item.selected .q-actions{background:linear-gradient(90deg,transparent,var(--blue-subtle) 14px)}
+/* 순서 변경 모드의 손잡이는 항상 보인다 */
+.q-item .drag-handle{opacity:1}
+.q-actions:has(.drag-handle){opacity:1;pointer-events:auto}
 .q-item.selected{background:var(--blue-subtle);border-color:var(--blue-dim)}
 .q-item .num{
   font-family:var(--num-serif);font-variant-numeric:tabular-nums;
@@ -233,7 +248,17 @@ label.btn input{display:none}
 }
 .q-item.selected .num{color:#7BB8FF}
 .q-item .num .sub{font-size:9px;vertical-align:baseline;opacity:.75}
-.q-item .name{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:13px;color:var(--text-secondary)}
+.q-col{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.q-item .name{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:13px;color:var(--text-secondary)}
+/* 본문 발췌 — 제목만으로는 어떤 문항인지 알기 어려워서 한 줄 더 보여준다 */
+.q-item .excerpt{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  font-size:11px;color:var(--text-tertiary);line-height:1.35}
+.q-item.selected .excerpt{color:var(--text-secondary)}
+/* 정답이 비어 있는 문항 표시 */
+/* 정답 없음 표시 — 제목 줄 오른쪽 끝에 작은 점 */
+.q-item .no-ans{position:absolute;right:8px;top:9px;width:5px;height:5px;
+  border-radius:50%;background:var(--danger);opacity:.6}
+.q-item:hover .no-ans,.q-item.selected .no-ans{opacity:0}
 .q-item.selected .name{color:var(--text-primary)}
 .iconbtn{
   background:transparent;border:none;cursor:pointer;
@@ -1618,6 +1643,22 @@ function makeIndependent(arr, idx){
   }
 }
 
+/* 목록에서 문항을 알아보기 쉽게 — 본문 첫 줄을 수식·마크업 없이 짧게 뽑는다 */
+function qExcerpt(q){
+  const b=(q.blocks||[]).find(x=>x&&x.type==="statement"&&x.data&&x.data.text)
+        || (q.blocks||[]).find(x=>x&&x.data&&x.data.text);
+  let t=b?String(b.data.text):"";
+  if(!t){
+    const li=(q.blocks||[]).find(x=>x&&x.data&&Array.isArray(x.data.items)&&x.data.items.some(Boolean));
+    if(li) t=li.data.items.filter(Boolean)[0]||"";
+  }
+  return t.replace(/\$\$[\s\S]*?\$\$/g," ")     // 별행 수식 제거
+          .replace(/\$[^$]*\$/g," ")               // 인라인 수식 제거
+          .replace(/\\\[\d.]*pt\]/g," ")
+          .replace(/[\\{}]/g," ")
+          .replace(/\s+/g," ").trim().slice(0,28);
+}
+
 function renderQList(){
   const list=$("#qList"); list.innerHTML="";
   const arr=activeProblems();
@@ -1628,21 +1669,32 @@ function renderQList(){
   const mkItem=(q,opts={})=>{
     const item=el("div","q-item"+(q.id===currentQId?" selected":""));
     const num=el("div","num",numOf(q));
+    const col=el("div","q-col");
     const name=el("div","name",q.title||"제목 없음");
-    item.append(num,name);
+    col.append(name);
+    const ex=qExcerpt(q);
+    if(ex) col.append(el("div","excerpt",sanitize(ex)));
+    item.append(num,col);
+    /* 조작 버튼은 목록 폭을 잡아먹지 않게 오른쪽에 겹쳐 띄운다.
+       (opacity 만 0 으로 두면 자리는 그대로 차지해 제목이 39px 까지 눌렸다) */
+    const acts=el("div","q-actions");
+    // 정답이 비어 있으면 표시 — 인쇄 전에 빠진 문항을 찾기 쉽게
+    if(!q.answer && !q.answerImg){
+      const dot=el("span","no-ans",""); dot.title="정답 없음"; col.append(dot);
+    }
     if(orderMode){
-      const grip=el("button","iconbtn drag-handle",""); grip.append(el("span","icon icon-grip","")); item.append(grip);
+      const grip=el("button","iconbtn drag-handle",""); grip.append(el("span","icon icon-grip","")); acts.append(grip);
     }else{
       if(opts.showLink){
         const lb=el("button","iconbtn",""); lb.title="다음 문제와 묶기 (한 단에 2문제)"; lb.append(el("span","icon icon-link",""));
         lb.onclick=(e)=>{e.stopPropagation(); q.paired=true; saveSets(); renderQList(); syncPairedChk();};
-        item.append(lb);
+        acts.append(lb);
       }
       if(opts.showUnlink){
         const ub=el("button","iconbtn",""); ub.title="이 문제를 한 단에 독립 (뒤 문제는 다시 묶임)"; ub.append(el("span","icon icon-unlink",""));
         ub.onclick=(e)=>{e.stopPropagation(); const fi=arr.findIndex(x=>x.id===q.id); if(fi<0) return;
           makeIndependent(arr, fi); saveSets(); renderQList(); syncPairedChk();};
-        item.append(ub);
+        acts.append(ub);
       }
       const dup=el("button","iconbtn",""); dup.title="이 문항 복제"; dup.append(el("span","icon icon-copy",""));
       dup.onclick=(e)=>{e.stopPropagation(); const fi=arr.findIndex(x=>x.id===q.id); if(fi<0) return;
@@ -1652,14 +1704,15 @@ function renderQList(){
         arr.splice(fi+1,0,cp); currentQId=cp.id;
         saveSets(); renderQList(); renderEditor(); renderPreview(); syncPairedChk();
         toast("문항을 복제했어요","success");};
-      item.append(dup);
+      acts.append(dup);
       const del=el("button","iconbtn",""); del.title="삭제"; del.append(el("span","icon icon-trash",""));
       del.onclick=(e)=>{e.stopPropagation(); const fi=arr.findIndex(x=>x.id===q.id); if(fi<0) return;
         if(!confirm("문항을 삭제할까요?")) return;
         if(fi>0 && arr[fi-1].paired) arr[fi-1].paired=false;
         arr.splice(fi,1); if(!arr.length) arr.push(newProblem()); currentQId=arr[0].id; saveSets(); renderQList(); renderPreview(); syncPairedChk();};
-      item.append(del);
+      acts.append(del);
     }
+    item.append(acts);
     item.onclick=()=>{ if(orderMode) return; currentQId=q.id; renderQList(); renderEditor(); renderPreview(); syncPairedChk(); };
     return item;
   };
