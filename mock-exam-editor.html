@@ -278,9 +278,12 @@ body.embedded .brand-tag{margin-left:0}
 .pbox span{position:absolute}
 .pbox .n{left:2.7mm;top:.5mm}
 .pbox .b{right:1.5mm;bottom:.3mm}
+/* 빗금은 왼쪽아래 → 오른쪽위 방향(/). 정본(Typst pfoot)의
+   line(start:(0,7.75mm), end:(17.7mm,0)) 과 같은 방향이어야 한다.
+   그라디언트의 띠는 지정한 축과 '수직'으로 생기므로, / 를 얻으려면
+   축을 to bottom right 로 줘야 한다. (예전 to top right 는 \ 가 나왔다) */
 .pbox::after{content:"";position:absolute;inset:0;
-  background:linear-gradient(to top right,transparent calc(50% - .12mm),#000 50%,transparent calc(50% + .12mm))}
-.pbox .b{font-size:3mm;align-self:flex-end;margin-bottom:.4mm}
+  background:linear-gradient(to bottom right,transparent calc(50% - .12mm),#000 50%,transparent calc(50% + .12mm))}
 
 .paper .katex,.paper .katex *{font-weight:400!important}
 .paper .katex{font-size:calc(var(--eq)*1em);letter-spacing:0}
