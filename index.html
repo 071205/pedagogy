@@ -164,6 +164,11 @@ label.btn input{display:none}
   font:12px/1.6 ui-monospace,Menlo,monospace;color:var(--text-primary)}
 #editorView{height:calc(100vh - 60px)}
 .editor{display:flex;height:100%;overflow:hidden}
+/* 모의고사 편집기와 같은 배치로 통일한다: 미리보기(넓게) | 편집 | 문항 목록.
+   DOM 순서는 그대로 두고 flex order 로만 바꾼다. */
+.previewWrap{order:1}
+.center{order:2}
+.sidebar{order:3}
 
 /* ── Library ── */
 #libraryView{padding:32px;min-height:calc(100vh - 60px)}
@@ -205,7 +210,7 @@ label.btn input{display:none}
 
 /* ── Sidebar ── */
 .sidebar{
-  width:280px;border-right:1px solid var(--border);
+  width:200px;flex:0 0 200px;border-left:1px solid var(--border);
   background:var(--surface-1);padding:16px 12px;
   display:flex;flex-direction:column;gap:12px;overflow:hidden;
 }
@@ -293,7 +298,7 @@ label.btn input{display:none}
 .pair-unlink:hover{background:var(--blue-subtle)}
 
 /* ── Center editor ── */
-.center{flex:1;display:flex;flex-direction:column;padding:20px;gap:14px;overflow:auto;background:var(--bg)}
+.center{flex:0 0 440px;width:440px;display:flex;flex-direction:column;padding:18px;gap:12px;overflow:auto;background:var(--bg);border-left:1px solid var(--border)}
 .blockbar{display:flex;align-items:center;gap:8px}
 select{
   background:var(--surface-2);border:1px solid var(--border);
@@ -371,18 +376,41 @@ select:focus{border-color:var(--blue)}
 #qAnswer:focus{border-color:var(--blue)}
 
 /* ── Preview ── */
-.previewWrap{width:500px;border-left:1px solid var(--border);background:var(--surface-1);display:flex;flex-direction:column;overflow:hidden}
+.previewWrap{flex:1 1 auto;min-width:320px;background:var(--surface-1);display:flex;flex-direction:column;overflow:hidden}
 .previewTop{
   padding:12px 18px;border-bottom:1px solid var(--border);
   font-size:12px;color:var(--text-secondary);
   display:flex;align-items:center;justify-content:space-between;
   background:var(--surface-2);font-weight:600;
 }
-.previewArea{padding:20px;overflow:auto;flex:1;background:var(--bg)}
+.previewArea{padding:24px;overflow:auto;flex:1;background:var(--bg);overscroll-behavior:contain}
+/* 확대는 .preview 에 transform 을 걸고, 이 래퍼가 확대된 크기를 차지해
+   스크롤 범위가 저절로 맞게 한다(모의고사 편집기와 같은 방식). */
+.preview-wrap{position:relative;margin:0 auto}
+.preview{transform-origin:0 0}
+/* 미리보기 상단 바 — 확대 컨트롤 */
+.pv-zoom{display:flex;align-items:center;background:var(--surface-2);
+  border:1px solid var(--border);border-radius:var(--radius-sm);height:30px;overflow:hidden}
+.pv-zoom button{padding:0 10px;height:100%;background:transparent;border:0;
+  color:var(--text-secondary);font-size:14px;border-radius:0}
+.pv-zoom button:hover{background:var(--surface-hover);color:var(--text-primary)}
+.pv-zoom #pvZVal{font-size:11px;min-width:48px;text-align:center;
+  border-left:1px solid var(--border);border-right:1px solid var(--border);
+  font-variant-numeric:tabular-nums;cursor:pointer}
+.pv-sens{display:flex;align-items:center;gap:6px;height:30px;padding:0 9px;
+  background:var(--surface-2);border:1px solid var(--border);
+  border-radius:var(--radius-sm);font-size:11px;color:var(--text-tertiary)}
+.pv-sens input[type=range]{width:54px;accent-color:var(--blue);cursor:pointer}
+/* 미리보기 카드 폭 = 실제 인쇄물의 한 단 폭.
+   .page 가 210mm 에 좌우 13mm 여백, 단 간격 7mm 이므로
+   한 단 = (210 - 13 - 13 - 7) / 2 = 88.5mm.
+   여기에 카드 안쪽 여백(좌우 7mm)을 더해 102.5mm 로 잡으면
+   화면에서 보는 폭이 인쇄될 폭과 같아진다(줄바꿈 위치까지 미리 보인다). */
 .preview{
+  width:102.5mm;box-sizing:border-box;
   background:#fff;color:#111;
   font-family:'KoPub Batang',var(--body-serif);
-  padding:28px;border-radius:var(--radius-xl);
+  padding:7mm;border-radius:var(--radius-lg);
   box-shadow:0 0 0 1px rgba(0,0,0,.06), 0 8px 32px rgba(0,0,0,.12);
 }
 .preview .qnum{
@@ -779,11 +807,25 @@ document.addEventListener('DOMContentLoaded',()=>{
   <div class="previewWrap">
     <div class="previewTop">
       <span id="previewTopTxt" style="font-weight:700;color:var(--text-primary)">미리보기</span>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="pv-zoom">
+          <button id="pvZOut" title="축소">−</button>
+          <button id="pvZVal" title="100% 로 되돌리기">100%</button>
+          <button id="pvZIn" title="확대">+</button>
+        </div>
+        <label class="pv-sens" title="확대 감도">
+          <input id="pvZSens" type="range" min="0.4" max="2.5" step="0.1">
+        </label>
+        <button id="pvZFit" class="btn" style="height:30px;padding:0 10px;font-size:11px"
+                title="폭에 맞추기 — 다시 누르면 100%">맞춤</button>
+      </div>
     </div>
-    <div class="previewArea">
-      <div class="preview">
-        <div class="qnum" id="pvNum">01</div>
-        <div class="content" id="pvContent"></div>
+    <div class="previewArea" id="previewArea">
+      <div class="preview-wrap" id="previewZoomWrap">
+        <div class="preview">
+          <div class="qnum" id="pvNum">01</div>
+          <div class="content" id="pvContent"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -1938,10 +1980,69 @@ function renderPreview(){
     });
   }catch(e){ console.error('번호/제목 수식 렌더 실패', e); }
   // 칸을 넘치는 display 수식(cases 등)을 미리보기에서도 자동 축소
-  requestAnimationFrame(()=>fitMathIn($("#pvContent")));
+  requestAnimationFrame(()=>{
+    fitMathIn($("#pvContent"));
+    // 첫 진입 때는 미리보기 폭에 맞춰 띄운다(카드가 인쇄 단 폭이라 100%면 작게 보인다)
+    if(!pvFitted){
+      const f=pvFitZoom();
+      if(f>0){ pvZoom=Math.min(f,1.8); pvFitted=true; }
+    }
+    pvApply();
+  });
 }
 
 /* 컨테이너 폭을 넘치는 display 수식을 가로 축소 (미리보기/공용) */
+/* ══════════ 미리보기 확대/축소 ══════════
+   모의고사 편집기와 같은 방식. .preview 에 transform:scale 을 걸고
+   .preview-wrap 이 '확대된 크기'를 차지해 스크롤 범위가 저절로 맞는다.
+   커서(또는 화면 중앙)를 고정한 채 확대한다. */
+const PV_ZMIN=.3, PV_ZMAX=3;
+let pvZoom=1, pvNat={w:0,h:0};
+let pvFitted=false;          // 편집기에 처음 들어왔을 때 한 번만 폭 맞춤
+let PV_SENS=1;
+try{
+  const v=parseFloat(localStorage.getItem('PM_PV_SENS'));
+  if(v>=0.4&&v<=2.5) PV_SENS=v;
+}catch(e){ console.error(e); }
+const PV_STEP=()=>1+0.2*PV_SENS;
+const PV_WHEEL=()=>0.0025*PV_SENS;
+
+function pvMeasure(){
+  const el=$(".preview"); if(!el) return;
+  el.style.transform="none";
+  pvNat={w:el.offsetWidth, h:el.offsetHeight};
+  el.style.transform=`scale(${pvZoom})`;
+}
+function pvApply(remeasure=true){
+  const el=$(".preview"), wrap=$("#previewZoomWrap");
+  if(!el||!wrap) return;
+  if(remeasure||!pvNat.w) pvMeasure();
+  el.style.transform=`scale(${pvZoom})`;
+  wrap.style.width =(pvNat.w*pvZoom)+"px";
+  wrap.style.height=(pvNat.h*pvZoom)+"px";
+  const v=$("#pvZVal"); if(v) v.textContent=Math.round(pvZoom*100)+"%";
+}
+function pvSetZoom(z, anchor){
+  const pa=$("#previewArea"), wrap=$("#previewZoomWrap");
+  z=Math.max(PV_ZMIN,Math.min(PV_ZMAX,z));
+  if(!pa||!wrap||z===pvZoom) return;
+  const pr=pa.getBoundingClientRect();
+  const vx=pr.left+(anchor?anchor.x:pa.clientWidth/2);
+  const vy=pr.top +(anchor?anchor.y:pa.clientHeight/2);
+  const before=wrap.getBoundingClientRect();
+  const dx=(vx-before.left)/pvZoom, dy=(vy-before.top)/pvZoom;
+  pvZoom=z; pvApply(false);
+  const after=wrap.getBoundingClientRect();
+  pa.scrollLeft+=(after.left+dx*z)-vx;
+  pa.scrollTop +=(after.top +dy*z)-vy;
+}
+const pvZoomBy=(f,a)=>pvSetZoom(pvZoom*f,a);
+function pvFitZoom(){
+  const pa=$("#previewArea"); if(!pa) return 1;
+  pvMeasure();
+  return Math.max(PV_ZMIN,Math.min(PV_ZMAX,(pa.clientWidth-48)/(pvNat.w||600)));
+}
+
 function fitMathIn(root){
   if(!root) return;
   const avail=root.clientWidth;
@@ -2039,6 +2140,33 @@ function buildPrintDoc(hideAnswers){
 
 /* Actions */
 $("#brandBtn").onclick=()=>showLibrary();
+
+/* ── 미리보기 확대 컨트롤 ── */
+$("#pvZIn").onclick =()=>pvZoomBy(PV_STEP());
+$("#pvZOut").onclick=()=>pvZoomBy(1/PV_STEP());
+$("#pvZVal").onclick=()=>pvSetZoom(1);
+$("#pvZFit").onclick=()=>{
+  const f=pvFitZoom();
+  if(Math.abs(pvZoom-f)<.01) pvSetZoom(1);
+  else { pvZoom=f; pvApply(false); const pa=$("#previewArea"); pa.scrollTop=0; pa.scrollLeft=0; }
+};
+(function(){
+  const sl=$("#pvZSens"); if(!sl) return;
+  sl.value=PV_SENS;
+  sl.title="확대 감도 "+PV_SENS.toFixed(1)+"×";
+  sl.oninput=e=>{
+    PV_SENS=parseFloat(e.target.value)||1;
+    sl.title="확대 감도 "+PV_SENS.toFixed(1)+"×";
+    try{ localStorage.setItem("PM_PV_SENS",String(PV_SENS)); }catch(err){ console.error(err); }
+  };
+})();
+/* ⌘/Ctrl + 휠 (트랙패드 핀치 포함) — 커서 기준 확대 */
+$("#previewArea").addEventListener("wheel",e=>{
+  if(!e.ctrlKey&&!e.metaKey) return;
+  e.preventDefault();
+  const pr=$("#previewArea").getBoundingClientRect();
+  pvZoomBy(Math.exp(-e.deltaY*PV_WHEEL()),{x:e.clientX-pr.left,y:e.clientY-pr.top});
+},{passive:false});
 /* #mockModeBtn 의 클릭 핸들러는 파일 앞쪽 모의고사 IIFE 에서 이미 등록한다.
    여기서 다시 대입하면 그 핸들러를 덮어써서 모의고사 모드가 열리지 않는다. */
 $("#saveBtn").onclick=async ()=>{
