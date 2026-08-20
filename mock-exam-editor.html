@@ -419,7 +419,6 @@ body.embedded .brand-tag{margin-left:0}
       <input id="zSens" type="range" min="0.4" max="2.5" step="0.1">
       <b id="zSensVal">1.0×</b>
     </label>
-    <button class="btn" id="themeBtn" title="테마 — 시스템/밝게/어둡게">🌗</button>
     <button class="btn btn-primary" id="exportBtn">Typst 내보내기</button>
   </div>
 </header>
@@ -906,37 +905,22 @@ $('#preview').addEventListener('wheel',e=>{
   };
 })();
 
-/* ── 테마 (시스템 / 밝게 / 어둡게) ── */
-const THEMES=[
-  {v:'system', icon:'🌗', name:'시스템 설정'},
-  {v:'light',  icon:'☀️', name:'밝게'},
-  {v:'dark',   icon:'🌙', name:'어둡게'},
-];
-let themeCur='system';
-
-/* rerender 는 첫 적용 때 false 로 준다 — 이 시점엔 LIVE 등 아래쪽 const 가
-   아직 초기화 전이라(TDZ) renderPreview 를 부르면 스크립트가 통째로 죽는다. */
-function applyTheme(v, rerender){
-  const root=document.documentElement;
-  if(v==='system') root.removeAttribute('data-theme');
-  else root.setAttribute('data-theme', v);
-  themeCur=v;
-  const t=THEMES.find(x=>x.v===v)||THEMES[0];
-  const b=$('#themeBtn');
-  if(b){ b.textContent=t.icon; b.title='테마: '+t.name+' (눌러서 변경)'; }
-  try{ localStorage.setItem('MOCK_THEME', v); }catch(e){ console.error(e); }
-  // 색이 바뀌면 캔버스 폭 측정이 흔들릴 수 있어 다시 그린다
-  if(rerender) renderPreview();
+/* ── 테마 ──
+   전환 버튼은 PEDAGOGY 본체 상단바에 있다. 여기서는 값을 '따라가기만' 한다.
+     · 단독으로 열렸을 때: localStorage(PM_THEME) 를 읽어 적용
+     · iframe 으로 열렸을 때: 본체가 이 문서의 data-theme 을 직접 걸어 준다
+     · 다른 탭/문서에서 바뀌면 storage 이벤트로 따라간다 */
+const THEME_KEY='PM_THEME';
+function paintThemeSelf(v){
+  const r=document.documentElement;
+  if(!v||v==='system') r.removeAttribute('data-theme'); else r.setAttribute('data-theme',v);
 }
-
-/* 저장된 테마를 '색만' 먼저 입힌다(깜빡임 방지). 버튼 연결은 boot() 에서. */
 (function(){
-  try{ const s=localStorage.getItem('MOCK_THEME'); if(THEMES.some(x=>x.v===s)) themeCur=s; }
-  catch(e){ console.error(e); }
-  const root=document.documentElement;
-  if(themeCur==='system') root.removeAttribute('data-theme');
-  else root.setAttribute('data-theme', themeCur);
+  try{ paintThemeSelf(localStorage.getItem(THEME_KEY)); }catch(e){ console.error(e); }
 })();
+window.addEventListener('storage',e=>{
+  if(e.key===THEME_KEY){ paintThemeSelf(e.newValue); renderPreview(); }
+});
 
 $('#errClose').onclick=()=>showErr('');
 $('#guideBtn').onclick=e=>{state.guides=!state.guides;e.target.classList.toggle('on',state.guides);renderPreview();};
@@ -1557,14 +1541,6 @@ async function boot(){
   catch(e){ document.body.classList.add('embedded'); }   // 교차 출처면 iframe 으로 본다
 
   renderPreview();renderEditor();renderOutline();
-
-  // 테마 버튼 — 여기서 연결해야 아래쪽 const 들이 모두 초기화된 뒤가 된다
-  applyTheme(themeCur, false);
-  const tb=$('#themeBtn');
-  if(tb) tb.onclick=()=>{
-    const i=THEMES.findIndex(x=>x.v===themeCur);
-    applyTheme(THEMES[(i+1)%THEMES.length].v, true);
-  };
 
   offerDraftRestore();          // 저장 없이 끝난 직전 작업이 있으면 복구 제안
   $('#liveBtn').onclick=async()=>{
