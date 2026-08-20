@@ -158,7 +158,10 @@ body.embedded .brand-tag{margin-left:0}
 
 
 .panes{display:flex;height:calc(100% - 60px)}
-.preview{flex:1 1 auto;min-width:320px;overflow:auto;padding:24px;
+/* 미리보기 칸 = 고정 머리(범위 토글) + 스크롤 본문 */
+.preview-pane{flex:1 1 auto;min-width:320px;display:flex;flex-direction:column;
+  overflow:hidden;position:relative}
+.preview{flex:1 1 auto;min-height:0;overflow:auto;padding:24px;
   overscroll-behavior:contain;scrollbar-width:thin}
 /* 확대는 .stage 에 transform 을 걸고, 이 래퍼가 '확대된 크기'를 그대로 차지해
    스크롤 범위가 자동으로 맞는다(예전의 음수 마진 보정 방식은 어긋나기 쉬웠다). */
@@ -182,10 +185,9 @@ body.embedded .brand-tag{margin-left:0}
 .errbox .errclose:hover{opacity:1}
 
 /* 미리보기 범위 토글 */
-/* 미리보기 범위 토글 — 미리보기 영역 위에 떠 있는 큰 2분할 버튼 */
-.pv-mode{position:sticky;top:0;z-index:20;display:flex;gap:6px;
-  margin:-24px -24px 18px;padding:12px 24px;
-  background:linear-gradient(var(--bg) 72%,transparent)}
+/* 미리보기 범위 토글 — 스크롤과 무관하게 칸 맨 위에 고정 */
+.pv-mode{flex:0 0 auto;display:flex;gap:6px;padding:12px 16px 10px;
+  background:var(--bg);border-bottom:1px solid var(--border-subtle)}
 .pv-mode button{flex:1;height:40px;font-size:13.5px;font-weight:600;
   background:var(--surface-2);border:1px solid var(--border);
   border-radius:10px;color:var(--text-secondary);transition:.14s}
@@ -451,12 +453,15 @@ body.embedded .brand-tag{margin-left:0}
 </header>
 
 <main class="panes">
-  <section class="preview" id="preview">
-    <!-- 미리보기 범위 — 미리보기 위에 큼직하게 얹는다 -->
+  <section class="preview-pane">
+    <!-- 미리보기 범위 — 스크롤 영역 '밖'에 둔다.
+         안에 두고 sticky 로 붙이면 가로 스크롤·확대를 따라 밀려서 흔들린다. -->
     <div class="pv-mode" id="pvMode">
       <button data-v="one" class="on">이 문항</button><button data-v="all">전체 시험지</button>
     </div>
-    <div class="stage-wrap" id="stageWrap"><div class="stage" id="stage"></div></div>
+    <div class="preview" id="preview">
+      <div class="stage-wrap" id="stageWrap"><div class="stage" id="stage"></div></div>
+    </div>
     <div class="errbox" id="errbox" hidden><button class="errclose" id="errClose" title="닫기">✕</button><b id="errttl">Typst 오류</b><pre id="errtxt"></pre></div></section>
   <section class="editor"><div class="pane-hd">문항 편집</div><div id="ed"></div></section>
   <aside class="outline"><div class="pane-hd">순서</div><div class="ol" id="ol"></div></aside>
@@ -750,6 +755,7 @@ function renderOneProbPreview(){
   st.innerHTML=`<div class="paper one-prob" style="width:${SPEC.colW+14}mm;min-height:auto;padding:7mm">`
     +`<div class="col">${renderProb(p)}</div></div>`;
   applyZoom();
+  applyPendingFit();
 }
 
 function renderPreview(){
@@ -1133,11 +1139,12 @@ function fitWidth(){
   const pv=$('#preview'); pv.scrollTop=0; pv.scrollLeft=0;
 }
 
-$('#zIn').onclick=()=>zoomBy(ZOOM_STEP());
-$('#zOut').onclick=()=>zoomBy(1/ZOOM_STEP());
-$('#zVal').onclick=()=>setZoom(1);
+$('#zIn').onclick=()=>{pvUserZoomed=true;zoomBy(ZOOM_STEP());};
+$('#zOut').onclick=()=>{pvUserZoomed=true;zoomBy(1/ZOOM_STEP());};
+$('#zVal').onclick=()=>{pvUserZoomed=true;setZoom(1);};
 /* 맞춤: 폭 맞추기 ↔ 100% 를 번갈아 */
 $('#zFit').onclick=()=>{
+  pvUserZoomed=true;
   const fit=fitZoom();
   if(Math.abs(state.zoom-fit)<.01) setZoom(1);
   else fitWidth();
@@ -1147,6 +1154,7 @@ $('#zFit').onclick=()=>{
 $('#preview').addEventListener('wheel',e=>{
   if(!e.ctrlKey&&!e.metaKey)return;
   e.preventDefault();
+  pvUserZoomed=true;
   const pr=$('#preview').getBoundingClientRect();
   zoomBy(Math.exp(-e.deltaY*WHEEL_K()),{x:e.clientX-pr.left,y:e.clientY-pr.top});
 },{passive:false});
@@ -1192,9 +1200,19 @@ function markStale(on){
   const seg=$('#pvMode'); if(!seg) return;
   seg.classList.toggle('stale', !!on && state.pvMode==='all');
 }
+/* 모드마다 보기 좋은 배율이 다르다(한 문항은 크게, 시험지는 쪽 전체가 보이게).
+   전환할 때 이전 배율을 기억해 두고, 처음 들어가는 모드는 폭에 맞춰 띄운다. */
+const PV_ZOOM_MEM={one:null, all:null};
+/* 사용자가 배율을 직접 만지기 전까지는 렌더할 때마다 폭에 맞춘다.
+   렌더 타이밍(근사→정본, 이미지 로드)에 따라 한 번짜리 플래그는 자꾸 어긋났다. */
+let pvUserZoomed=false;
+
 function setPvMode(v){
   if(v===state.pvMode && v!=='all') return;
+  PV_ZOOM_MEM[state.pvMode]=state.zoom;      // 지금 모드의 배율 기억
   state.pvMode=v;
+  if(PV_ZOOM_MEM[v]!=null){ state.zoom=PV_ZOOM_MEM[v]; pvUserZoomed=true; }
+  else pvUserZoomed=false;                   // 처음 들어가는 모드면 폭에 맞춘다
   const seg=$('#pvMode');
   if(seg) seg.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
   markStale(false);
@@ -1202,6 +1220,15 @@ function setPvMode(v){
   if(LIVE.on) requestRenderNow();
   else renderPreview();
 }
+/* 렌더가 끝난 뒤(내용 크기가 정해진 뒤) 폭에 맞춘다.
+   사용자가 배율을 직접 조절한 뒤에는 건드리지 않는다. */
+function applyPendingFit(){
+  if(pvUserZoomed) return;
+  // rAF 는 탭이 숨겨져 있으면(백그라운드·창 최소화) 콜백이 오지 않아
+  // 배율이 영영 안 맞춰진다. 레이아웃이 정해질 시간만 짧게 주고 실행한다.
+  setTimeout(()=>{ if(!pvUserZoomed) fitWidth(); },30);
+}
+
 /* 전체보기는 requestRender 가 막으므로 직접 부른다 */
 function requestRenderNow(){
   clearTimeout(LIVE.timer);
@@ -1639,6 +1666,7 @@ async function pingServer(){
 function setLive(on){
   LIVE.on=on;
   const b=$('#liveBtn');if(b)b.classList.toggle('on',on);
+  pvUserZoomed=false;   // 근사↔정본은 그려지는 크기가 달라 다시 맞춘다
   if(on)requestRender(0); else {LIVE.cache.clear();showErr('');renderPreview();}
 }
 /* 안내 상자. kind='info' 면 오류가 아니라 안내로 보여준다.
@@ -1711,6 +1739,7 @@ async function doRender(){
       // 캐시가 너무 커지지 않게
       if(LIVE.cache.size>60)LIVE.cache.clear();
       applyZoom();
+      applyPendingFit();     // 모드를 처음 열었으면 폭에 맞춰 띄운다
     }
   }catch(e){
     showErr('렌더 서버와 연결이 끊겼습니다. serve.py 가 아직 떠 있는지 확인해 주세요.\n\n'+e,
@@ -1723,9 +1752,15 @@ async function doRender(){
 }
 const SPECPG={w:272,h:394.1};
 /* 화면에 실제로 찍히는 밀도에 맞춘 해상도 — 확대하면 더 선명하게 받는다 */
+/* 실시간 렌더 해상도.
+   화면에 그려질 실제 픽셀(배율 × DPR)에 맞춰야 선명하다. 예전에는 200 에서 잘려,
+   레티나에서 176% 로 키우면 필요한 값의 절반밖에 안 돼 뭉개져 보였다.
+   전체 시험지는 8쪽을 한꺼번에 만들어 무거우므로 상한을 따로 둔다. */
 function livePpi(){
   const dpr=Math.min(window.devicePixelRatio||1,2);
-  return Math.round(Math.max(72,Math.min(200,96*state.zoom*dpr*1.15)));
+  const want=96*state.zoom*dpr*1.15;
+  const cap=state.pvMode==='all'?260:400;   // 한 문항이면 넉넉히
+  return Math.round(Math.max(72,Math.min(cap,want)));
 }
 
 $('#exportBtn').onclick=toTypst;
@@ -1851,9 +1886,9 @@ document.addEventListener('keydown',e=>{
   if(cmd&&e.key.toLowerCase()==='s'){e.preventDefault();saveJSON();return;}
   if(cmd&&e.key.toLowerCase()==='e'){e.preventDefault();toTypst();return;}
   // ⌘+ / ⌘− / ⌘0 — 브라우저 자체 확대 대신 시험지 배율을 조절한다
-  if(cmd&&(e.key==='='||e.key==='+')){e.preventDefault();zoomBy(ZOOM_STEP());return;}
-  if(cmd&&(e.key==='-'||e.key==='_')){e.preventDefault();zoomBy(1/ZOOM_STEP());return;}
-  if(cmd&&e.key==='0'){e.preventDefault();setZoom(1);return;}
+  if(cmd&&(e.key==='='||e.key==='+')){e.preventDefault();pvUserZoomed=true;zoomBy(ZOOM_STEP());return;}
+  if(cmd&&(e.key==='-'||e.key==='_')){e.preventDefault();pvUserZoomed=true;zoomBy(1/ZOOM_STEP());return;}
+  if(cmd&&e.key==='0'){e.preventDefault();pvUserZoomed=true;setZoom(1);return;}
   if(e.altKey&&(e.key==='ArrowUp'||e.key==='ArrowDown')){
     e.preventDefault();
     const i=state.problems.findIndex(x=>x.id===state.sel);
@@ -1881,6 +1916,9 @@ $('#loadInput').onchange=e=>{
 };
 
 async function boot(){
+  // 첫 화면도 폭에 맞춘다. '이 문항' 이 기본 모드라 setPvMode 를 거치지 않아,
+  // 예전에는 기본 배율(60%) 그대로여서 문항 하나가 허공에 뜬 조각처럼 보였다.
+  pvUserZoomed=false;
   // PEDAGOGY 본체 안에 iframe 으로 들어간 경우 — 위쪽에 이미 같은 로고가 있으므로
   // 이 문서의 로고는 숨긴다(상단 로고가 두 개로 보이던 문제).
   try{ if(window.self!==window.top) document.body.classList.add('embedded'); }

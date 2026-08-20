@@ -28,7 +28,7 @@ HERE = Path(__file__).resolve().parent
 WORK = HERE / "work"                 # 그림 등 typst 가 읽어도 되는 유일한 폴더
 MAX_BODY = 4 * 1024 * 1024           # 요청 본문 4MB
 TIMEOUT = 25                         # 컴파일 제한 시간(초)
-PPI_MIN, PPI_MAX = 48, 200
+PPI_MIN, PPI_MAX = 48, 400   # 레티나에서 크게 확대하면 200 으로는 뭉개진다
 
 # 정적 파일 화이트리스트 — 여기 없는 이름은 어떤 경로로도 못 가져간다
 STATIC = {
