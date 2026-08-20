@@ -166,7 +166,7 @@ label.btn input{display:none}
 .editor{display:flex;height:100%;overflow:hidden}
 /* 모의고사 편집기와 같은 배치로 통일한다: 미리보기(넓게) | 편집 | 문항 목록.
    DOM 순서는 그대로 두고 flex order 로만 바꾼다. */
-.previewWrap{order:1}
+.previewWrap{order:0}
 .center{order:2}
 .sidebar{order:3}
 
@@ -210,7 +210,7 @@ label.btn input{display:none}
 
 /* ── Sidebar ── */
 .sidebar{
-  width:200px;flex:0 0 200px;border-left:1px solid var(--border);
+  width:236px;flex:0 0 236px;border-left:1px solid var(--border);
   background:var(--surface-1);padding:16px 12px;
   display:flex;flex-direction:column;gap:12px;overflow:hidden;
 }
@@ -298,7 +298,7 @@ label.btn input{display:none}
 .pair-unlink:hover{background:var(--blue-subtle)}
 
 /* ── Center editor ── */
-.center{flex:0 0 440px;width:440px;display:flex;flex-direction:column;padding:18px;gap:12px;overflow:auto;background:var(--bg);border-left:1px solid var(--border)}
+.center{flex:1 1 auto;min-width:380px;display:flex;flex-direction:column;padding:18px;gap:12px;overflow:auto;background:var(--bg)}
 .blockbar{display:flex;align-items:center;gap:8px}
 select{
   background:var(--surface-2);border:1px solid var(--border);
@@ -435,7 +435,17 @@ select:focus{border-color:var(--blue)}
 #qAnswer:focus{border-color:var(--blue)}
 
 /* ── Preview ── */
-.previewWrap{flex:1 1 auto;min-width:320px;background:var(--surface-1);display:flex;flex-direction:column;overflow:hidden}
+/* 미리보기는 '한 단' 폭(102.5mm ≒ 387px)만 보여주면 되므로 넓을 필요가 없다.
+   기본 600px 로 두고, 가운데 손잡이를 끌어 사용자가 조절한다(값은 기억된다).
+   남는 가로 공간은 편집칸이 가져간다 — 원래 배치에서 편집이 가장 넓었던 이유. */
+.previewWrap{flex:0 0 600px;width:600px;min-width:300px;max-width:70vw;
+  background:var(--surface-1);display:flex;flex-direction:column;overflow:hidden}
+/* 드래그 손잡이 */
+.pane-split{order:1;flex:0 0 6px;cursor:col-resize;background:transparent;
+  position:relative;transition:background .12s}
+.pane-split::after{content:"";position:absolute;inset:0 2px;border-radius:2px;background:var(--border)}
+.pane-split:hover::after,.pane-split.dragging::after{background:var(--blue)}
+body.col-resizing{cursor:col-resize;user-select:none}
 .previewTop{
   padding:12px 18px;border-bottom:1px solid var(--border);
   font-size:12px;color:var(--text-secondary);
@@ -796,6 +806,8 @@ document.addEventListener('DOMContentLoaded',()=>{
 </script>
 
 <div id="editorView" class="editor">
+  <!-- 미리보기 / 편집칸 폭 조절 손잡이 (CSS order 로 둘 사이에 놓인다) -->
+  <div class="pane-split" id="paneSplit" title="드래그해서 미리보기 폭 조절 · 더블클릭하면 기본값"></div>
   <!-- Sidebar -->
   <div class="sidebar">
     <div class="head">
@@ -2307,6 +2319,40 @@ function buildPrintDoc(hideAnswers){
 
 /* Actions */
 $("#brandBtn").onclick=()=>showLibrary();
+
+/* ── 미리보기 / 편집칸 폭 조절 ── */
+const PV_W_KEY="PM_PREVIEW_W", PV_W_DEFAULT=600;
+function setPreviewWidth(px,save){
+  const w=$(".previewWrap"); if(!w) return;
+  const min=300, max=Math.max(min, window.innerWidth-380-236-40);  // 편집 최소폭·목록폭 확보
+  px=Math.max(min,Math.min(max,Math.round(px)));
+  w.style.flex="0 0 "+px+"px"; w.style.width=px+"px";
+  if(save){ try{ localStorage.setItem(PV_W_KEY,String(px)); }catch(e){ console.error(e); } }
+  pvApply();     // 폭이 바뀌면 확대 래퍼 크기도 다시 잡는다
+}
+(function(){
+  let saved=PV_W_DEFAULT;
+  try{ const v=parseInt(localStorage.getItem(PV_W_KEY),10); if(v>=300&&v<=2000) saved=v; }
+  catch(e){ console.error(e); }
+  setPreviewWidth(saved,false);
+
+  const sp=$("#paneSplit"); if(!sp) return;
+  let startX=0, startW=0, on=false;
+  sp.addEventListener("pointerdown",e=>{
+    on=true; startX=e.clientX;
+    startW=$(".previewWrap").getBoundingClientRect().width;
+    sp.setPointerCapture(e.pointerId);
+    sp.classList.add("dragging"); document.body.classList.add("col-resizing");
+  });
+  sp.addEventListener("pointermove",e=>{ if(on) setPreviewWidth(startW+(e.clientX-startX),false); });
+  const end=()=>{
+    if(!on) return; on=false;
+    sp.classList.remove("dragging"); document.body.classList.remove("col-resizing");
+    setPreviewWidth($(".previewWrap").getBoundingClientRect().width,true);
+  };
+  sp.addEventListener("pointerup",end); sp.addEventListener("pointercancel",end);
+  sp.addEventListener("dblclick",()=>setPreviewWidth(PV_W_DEFAULT,true));
+})();
 
 /* ── 미리보기 확대 컨트롤 ── */
 $("#pvZIn").onclick =()=>pvZoomBy(PV_STEP());
