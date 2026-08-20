@@ -1,20 +1,24 @@
-name = "pedagogy-ai-proxy"
+# 기존에 배포돼 있던 Worker 를 그대로 갱신한다.
+# 이름을 바꾸면 주소(dawn-shape-2664.dbruddl79.workers.dev)와 이미 등록된
+# ANTHROPIC_KEY secret 이 따라오지 않으므로 이 이름을 유지할 것.
+name = "dawn-shape-2664"
 main = "index.js"
 compatibility_date = "2024-11-01"
 
 [vars]
 FIREBASE_PROJECT_ID = "pedagogy-huryul"
-# 이 Worker 를 호출할 수 있는 출처. 쉼표로 구분.
-ALLOWED_ORIGINS = "https://071205.github.io,http://127.0.0.1:8787,http://localhost:8787"
+# 이 Worker 를 호출할 수 있는 출처(scheme+host). 쉼표로 구분.
+ALLOWED_ORIGINS = "https://071205.github.io,http://127.0.0.1:8787,http://localhost:8787,http://127.0.0.1:8080,http://localhost:8080"
 # 사용자 한 명당 하루 호출 상한
 DAILY_LIMIT = "50"
+# 모델을 바꾸고 싶으면 여기서 (기본 claude-haiku-4-5)
+# AI_MODEL = "claude-haiku-4-5"
 
-# 사용량 카운터용 KV.
-#   npx wrangler kv namespace create RATE
-# 위 명령이 출력한 id 를 아래에 넣는다. (없으면 사용량 제한만 비활성화되고 인증은 동작)
-# [[kv_namespaces]]
-# binding = "RATE"
-# id = "여기에_KV_네임스페이스_ID"
+# 사용량 카운터용 KV. 아래 id 는 `wrangler kv namespace create RATE` 결과로 채운다.
+# 없으면 인증은 동작하고 사용량 제한만 비활성화된다.
+[[kv_namespaces]]
+binding = "RATE"
+id = "2587852eb285454f900a1738c5cf3ba1"
 
-# AI 공급자 키는 여기 적지 말고 Secret 으로 넣을 것:
-#   npx wrangler secret put AI_API_KEY
+# AI 공급자 키는 이미 이 Worker 에 secret 으로 등록돼 있다(ANTHROPIC_KEY).
+# 새로 넣어야 할 때만:  npx wrangler secret put ANTHROPIC_KEY

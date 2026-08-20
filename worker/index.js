@@ -159,17 +159,92 @@ export default {
   },
 };
 
+const SYSTEM_PROMPT = `너는 한국 수학 문제집 편집기의 입력 도우미다.
+입력 이미지에는 수학 문제 한 개(또는 여러 개)가 들어 있다.
+각 문제를 아래 JSON 구조로 변환하라. 수식은 모두 LaTeX로, $...$ (인라인) 또는 $$...$$ (디스플레이)로 감싼다.
+
+출력은 반드시 다음 형태의 JSON 객체 하나뿐이어야 한다. 코드블록, 설명, 마크다운 금지.
+{
+  "problems": [
+    {
+      "title": "",
+      "blocks": [
+        { "type": "statement",  "text": "문제 발문 (LaTeX 포함)" },
+        { "type": "conditions", "items": ["조건1", "조건2"] },
+        { "type": "examples",   "items": ["ㄱ 내용", "ㄴ 내용", "ㄷ 내용"] },
+        { "type": "choices",    "items": ["①내용","②내용","③내용","④내용","⑤내용"] },
+        { "type": "boxed",      "text": "박스 내용" }
+      ]
+    }
+  ]
+}
+
+규칙:
+- statement 블록은 반드시 포함한다. 나머지는 이미지에 실제로 있을 때만 넣는다.
+- conditions/examples/choices의 items에는 라벨 기호((가),(나),①,②,ㄱ. 등)를 적지 말고 내용만 적는다.
+- choices가 있으면 정확히 5개로 맞춘다 (부족하면 빈 문자열로 채움).
+- 한글은 LaTeX 밖에 그대로 둔다. 수식 안 한글은 \\text{한글}을 쓴다.
+- 적분/시그마/극한이 인라인($...$)에 있으면 \\displaystyle을 붙인다.
+- JSON 외에는 아무것도 출력하지 않는다.`;
+
 /**
- * ⚠️ 여기는 기존 Worker 에 이미 있는 구현으로 교체할 것.
- * 이 저장소에는 원본 Worker 코드가 없어 자리만 잡아 두었다.
- * 반환값은 index.html 의 aiBlocksToProblem() 이 기대하는 모양이어야 한다:
- *
+ * 이미지 → 문항 blocks 변환. 반환값은 index.html 의 aiBlocksToProblem() 이 기대하는 모양:
  *   [{ title?: string,
  *      blocks: [ {type:'statement'|'boxed', text}
  *              | {type:'conditions'|'examples', items:[...]}
  *              | {type:'choices', items:[...5개]} ] }]
+ *
+ * 키 이름은 기존 Worker 와 같은 ANTHROPIC_KEY 를 그대로 쓴다
+ * (이미 이 Worker 에 secret 으로 등록돼 있어 다시 넣을 필요가 없다).
  */
 async function callAI(env, imageBase64, mimeType) {
-  if (!env.AI_API_KEY) throw new Error("AI_API_KEY 가 설정되지 않았습니다");
-  throw new Error("callAI() 를 기존 Worker 구현으로 교체하세요");
+  if (!env.ANTHROPIC_KEY) throw new Error("ANTHROPIC_KEY 가 설정되지 않았습니다");
+
+  const r = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": env.ANTHROPIC_KEY,
+      "anthropic-version": "2023-06-01",
+    },
+    body: JSON.stringify({
+      model: env.AI_MODEL || "claude-haiku-4-5",
+      max_tokens: 4096,
+      system: SYSTEM_PROMPT,
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "image",
+              source: { type: "base64", media_type: mimeType || "image/png", data: imageBase64 },
+            },
+            { type: "text", text: "이 이미지의 문제를 지정된 JSON 구조로 변환해 줘." },
+          ],
+        },
+      ],
+    }),
+  });
+
+  if (!r.ok) {
+    // 공급자 오류 원문에는 키가 섞일 수 있으니 상태 코드만 올린다
+    console.error("Anthropic API 오류:", r.status, await r.text());
+    throw new Error("AI 공급자 오류 (" + r.status + ")");
+  }
+
+  const data = await r.json();
+  const text = data?.content?.[0]?.text || "";
+  const clean = text.replace(/```json|```/g, "").trim();
+
+  let parsed;
+  try {
+    parsed = JSON.parse(clean);
+  } catch {
+    console.error("JSON 파싱 실패. 응답 앞부분:", clean.slice(0, 300));
+    throw new Error("AI 응답을 해석하지 못했습니다");
+  }
+
+  const problems = Array.isArray(parsed) ? parsed : parsed.problems;
+  if (!Array.isArray(problems)) throw new Error("AI 응답에 problems 가 없습니다");
+  return problems;
 }
