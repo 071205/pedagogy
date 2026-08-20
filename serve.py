@@ -112,10 +112,22 @@ def compile_typ(src: str, ppi: int) -> dict:
 class Handler(BaseHTTPRequestHandler):
     server_version = "ExamRender/1.0"
     protocol_version = "HTTP/1.1"
+    # 소켓 자체의 타임아웃(StreamRequestHandler.setup 이 적용). 느리거나 멈춘 커넥션이
+    # 워커 스레드를 무한정 붙잡지 못하게 한다.
+    timeout = 30
 
     # ── 공통 ──
     def log_message(self, fmt, *a):          # 접근 로그 조용히
         pass
+
+    def handle_one_request(self):
+        """느린 클라이언트로 소켓이 타임아웃되면 파이썬 기본 구현이
+        OSError('cannot read from timed out object') 트레이스백을 뱉는다.
+        로컬 개발 서버에서는 소음일 뿐이라 조용히 커넥션만 닫는다."""
+        try:
+            super().handle_one_request()
+        except (TimeoutError, OSError):
+            self.close_connection = True
 
     def _allowed(self) -> set[str]:
         port = self.server.server_address[1]
@@ -155,6 +167,21 @@ class Handler(BaseHTTPRequestHandler):
 
     def _json(self, code: int, obj: dict):
         self._send(code, json.dumps(obj, ensure_ascii=False).encode(), "application/json; charset=utf-8")
+
+    def _read_body(self, n: int) -> bytes | None:
+        """본문을 조각내어 읽는다. Content-Length 를 실제보다 크게 선언하고
+        데이터를 안 보내는 클라이언트가 커넥션을 잡아두지 못하게, 소켓 타임아웃
+        (Handler.timeout) 안에 n 바이트가 다 오지 않으면 None 을 돌려준다."""
+        buf = bytearray()
+        while len(buf) < n:
+            try:
+                chunk = self.rfile.read(min(65536, n - len(buf)))
+            except (TimeoutError, OSError):
+                return None
+            if not chunk:            # 상대가 선언한 길이보다 적게 보내고 끊음
+                return None
+            buf += chunk
+        return bytes(buf)
 
     # ── 사전 요청(preflight) ──
     def do_OPTIONS(self):
@@ -197,8 +224,14 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(400, {"error": "bad length"})
         if n <= 0 or n > MAX_BODY:
             return self._json(413, {"error": "body too large"})
+        body = self._read_body(n)
+        if body is None:
+            # 소켓이 이미 타임아웃/절반만 읽힌 상태다. keep-alive 로 재사용하면
+            # 다음 요청을 읽다가 OSError 가 나므로 이 커넥션은 여기서 끊는다.
+            self.close_connection = True
+            return self._json(408, {"error": "request body timeout"})
         try:
-            req = json.loads(self.rfile.read(n).decode("utf-8"))
+            req = json.loads(body.decode("utf-8"))
         except Exception:
             return self._json(400, {"error": "bad json"})
         src = req.get("typ")
