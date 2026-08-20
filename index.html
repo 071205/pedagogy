@@ -351,6 +351,16 @@ select:focus{border-color:var(--blue)}
 .field-input:focus{border-color:var(--blue);background:var(--surface-3)}
 .field-input::placeholder{color:var(--text-tertiary)}
 
+/* 지면 배치 선택 */
+.seg.span-seg{display:inline-flex;background:var(--surface-2);border:1px solid var(--border);
+  border-radius:var(--radius-md);overflow:hidden}
+.span-seg button{height:32px;padding:0 14px;font-size:12px;background:transparent;border:0;
+  border-radius:0;color:var(--text-secondary);cursor:pointer}
+.span-seg button+button{border-left:1px solid var(--border)}
+.span-seg button:hover:not(:disabled){background:var(--surface-hover);color:var(--text-primary)}
+.span-seg button.on{background:var(--blue);color:#fff;font-weight:600}
+.span-seg button:disabled{cursor:not-allowed}
+
 /* ── 문항 정보 카드 (접기) ── */
 /* .center 가 세로 flex 라 그냥 두면 내용이 많을 때 이 카드가 눌려 사라진다 */
 .meta-card{flex:0 0 auto;background:var(--surface-1);border:1px solid var(--border);
@@ -568,6 +578,18 @@ body.col-resizing{cursor:col-resize;user-select:none}
 .page .ftr-page{position:absolute;left:0;right:0;bottom:8mm;text-align:center;font-size:10pt;color:#333}
 
 .columns{display:grid;grid-template-columns:1fr 1fr;gap:calc(var(--col-gap-mm)*1mm);padding-top:5mm;height:calc(297mm - 12mm - 5mm - 16mm)}
+
+/* ── 한 쪽에 한 문제 ──
+   어려운 문항을 크게 싣는 N제용. 가운데 세로선을 없애고 한 단으로 흘린다.
+   본문이 210mm 폭을 그대로 쓰면 한 줄이 너무 길어 읽기 나쁘므로
+   좌우 여백을 2단 조판(13mm)보다 크게 잡는다. */
+.page--full{padding-left:26mm;padding-right:26mm}
+.page--full .lines-top,.page--full .lines-bot{left:23mm;right:23mm}
+.columns--full{grid-template-columns:1fr;gap:0}
+.columns--full .slot:nth-child(2){padding-left:0}
+/* 한 단이라 글자 크기·줄간격을 조금 키워도 무리가 없다 */
+.page--full .pq .content{font-size:calc(var(--print-fs-pt)*1.06pt);line-height:calc(var(--print-lh)*1.02)}
+.page--full .pq .num{font-size:21pt}
 .slot{display:flex;flex-direction:column;height:100%}
 .slot:nth-child(2){padding-left:4mm}
 .slot--paired .pq{flex:1;min-height:0;overflow-x:hidden}
@@ -893,10 +915,16 @@ document.addEventListener('DOMContentLoaded',()=>{
           <button id="qAnswerImgClear" class="btn-ghost" style="display:none;flex-shrink:0;align-self:flex-start" title="이미지 제거">✕</button>
         </div>
       </div>
-      <!-- 묶기 -->
-      <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-secondary);cursor:pointer;padding-top:2px">
-        <input id="pairedChk" type="checkbox" style="width:15px;height:15px;accent-color:var(--blue)"> 다음 문제와 묶기 <span style="color:var(--text-tertiary);font-size:12px">(한 단에 2문제)</span>
-      </label>
+      <!-- 지면 배치 — 이 문항이 인쇄물에서 차지하는 크기 -->
+      <div>
+        <div class="field-label" style="margin-bottom:5px">지면 배치</div>
+        <div class="seg span-seg" id="spanSeg">
+          <button data-v="pair" title="다음 문제와 함께 한 단에 (2~3문제)">묶기</button>
+          <button data-v="col"  title="한 단을 혼자 사용 (기본)">한 단</button>
+          <button data-v="page" title="한 쪽을 통째로 — 가운데 선 없이 넓게">한 쪽</button>
+        </div>
+        <div id="spanHint" style="font-size:11.5px;color:var(--text-tertiary);margin-top:5px"></div>
+      </div>
       </div>
     </div>
 
@@ -1218,6 +1246,7 @@ function normProblem(p){
     title:str(p.title,300), desc:str(p.desc,300),
     answer:str(p.answer,5000), answerImg:safeUrl(p.answerImg),
     numLabel:str(p.numLabel,40), paired:p.paired===true,
+    span:['pair','col','page'].includes(p.span)?p.span:(p.paired===true?'pair':'col'),
     blocks:blocks.length?blocks:[{type:"statement",data:{text:""}}]
   };
 }
@@ -1641,12 +1670,12 @@ $("#orderBtn").onclick=()=>setOrderMode(!orderMode);
    예: (a,b)(c,d)(e,f)에서 a 독립 → a (b,c) (d,e) f */
 function makeIndependent(arr, idx){
   if(idx<0 || idx>=arr.length) return;
-  arr[idx].paired=false;        // 이 문제를 독립
+  setPair(arr[idx],false);      // 이 문제를 독립
   // idx+1부터 끝까지 앞에서부터 2개씩 새로 짝짓기
   let j=idx+1;
   while(j<arr.length){
-    if(j<arr.length-1){ arr[j].paired=true; arr[j+1].paired=false; j+=2; }
-    else { arr[j].paired=false; j+=1; }
+    if(j<arr.length-1){ setPair(arr[j],true); setPair(arr[j+1],false); j+=2; }
+    else { setPair(arr[j],false); j+=1; }
   }
 }
 
@@ -1694,7 +1723,7 @@ function renderQList(){
     }else{
       if(opts.showLink){
         const lb=el("button","iconbtn",""); lb.title="다음 문제와 묶기 (한 단에 2문제)"; lb.append(el("span","icon icon-link",""));
-        lb.onclick=(e)=>{e.stopPropagation(); q.paired=true; saveSets(); renderQList(); syncPairedChk();};
+        lb.onclick=(e)=>{e.stopPropagation(); setPair(q,true); saveSets(); renderQList(); syncPairedChk();};
         acts.append(lb);
       }
       if(opts.showUnlink){
@@ -1705,9 +1734,9 @@ function renderQList(){
       }
       const dup=el("button","iconbtn",""); dup.title="이 문항 복제"; dup.append(el("span","icon icon-copy",""));
       dup.onclick=(e)=>{e.stopPropagation(); const fi=arr.findIndex(x=>x.id===q.id); if(fi<0) return;
-        const cp=JSON.parse(JSON.stringify(q)); cp.id=uid(); cp.paired=false;
+        const cp=JSON.parse(JSON.stringify(q)); cp.id=uid(); setPair(cp,false);
         // 복제본을 원본 바로 뒤에 삽입. 원본이 묶여있었다면 경계가 깨지지 않게 독립 처리
-        if(arr[fi].paired) arr[fi].paired=false;
+        if(arr[fi].paired) setPair(arr[fi],false);
         arr.splice(fi+1,0,cp); currentQId=cp.id;
         saveSets(); renderQList(); renderEditor(); renderPreview(); syncPairedChk();
         toast("문항을 복제했어요","success");};
@@ -1715,7 +1744,7 @@ function renderQList(){
       const del=el("button","iconbtn",""); del.title="삭제"; del.append(el("span","icon icon-trash",""));
       del.onclick=(e)=>{e.stopPropagation(); const fi=arr.findIndex(x=>x.id===q.id); if(fi<0) return;
         if(!confirm("문항을 삭제할까요?")) return;
-        if(fi>0 && arr[fi-1].paired) arr[fi-1].paired=false;
+        if(fi>0 && arr[fi-1].paired) setPair(arr[fi-1],false);
         arr.splice(fi,1); if(!arr.length) arr.push(newProblem()); currentQId=arr[0].id; saveSets(); renderQList(); renderPreview(); syncPairedChk();};
       acts.append(del);
     }
@@ -1729,7 +1758,7 @@ function renderQList(){
   } else {
     let i=0;
     while(i<arr.length){
-      if(i<arr.length-1 && arr[i].paired){
+      if(i<arr.length-1 && spanOf(arr[i])==='pair'){
         // 2개 or 3개 묶음
         const is3 = i+1<arr.length-1 && arr[i+1].paired && i+2<arr.length;
         const group=el("div","pair-group");
@@ -1738,8 +1767,8 @@ function renderQList(){
         const pairIdx=i;
         ulk.onclick=(e)=>{
           e.stopPropagation();
-          arr[pairIdx].paired=false;
-          if(is3) arr[pairIdx+1].paired=false;
+          setPair(arr[pairIdx],false);
+          if(is3) setPair(arr[pairIdx+1],false);
           saveSets(); renderQList(); syncPairedChk();
         };
         badge.append(ulk); group.append(badge);
@@ -2343,24 +2372,65 @@ function syncMetaSummary(){
   if(q.desc)  bits.push('<span class="dim">'+sanitize(q.desc)+'</span>');
   if(q.answer) bits.push('<span class="dim">정답 '+sanitize(q.answer)+'</span>');
   else if(q.answerImg) bits.push('<span class="dim">정답 이미지</span>');
-  if(q.paired) bits.push('<span class="dim">· 묶음</span>');
+  const sp=spanOf(q);
+  if(sp==='pair') bits.push('<span class="dim">묶음</span>');
+  else if(sp==='page') bits.push('<span class="dim">한 쪽</span>');
   el2.innerHTML = bits.length? bits.join(' <span class="dim">·</span> ')
                             : '<span class="dim">문항 정보 — 번호·제목·정답</span>';
 }
 
+const SPAN_HINT={
+  pair:'다음 문제와 한 단에 나란히 들어갑니다.',
+  col :'한 단을 혼자 씁니다. 한 쪽에 두 문제.',
+  page:'한 쪽을 통째로 씁니다. 가운데 선 없이 좌우 여백을 넓혀 한 단으로.',
+};
 function syncPairedChk(){
-  const q=activeQ(); const chk=$("#pairedChk"); if(!chk) return;
-  const arr=activeProblems(); const idx=arr.indexOf(q);
-  const isLast=idx===arr.length-1;
-  chk.checked=!isLast&&!!q.paired; chk.disabled=isLast;
-  chk.parentElement.style.opacity=isLast?"0.4":"1";
+  const q=activeQ(); const seg=$("#spanSeg"); if(!q||!seg) return;
+  const arr=activeProblems(); const isLast=arr.indexOf(q)===arr.length-1;
+  const cur=spanOf(q);
+  seg.querySelectorAll('button').forEach(b=>{
+    const v=b.dataset.v;
+    b.classList.toggle('on', v===cur);
+    // 마지막 문항은 묶을 상대가 없다
+    b.disabled = (v==='pair' && isLast);
+    b.style.opacity = b.disabled ? '.35' : '';
+  });
+  const h=$("#spanHint");
+  if(h) h.textContent = SPAN_HINT[cur]||'';
 }
-$("#pairedChk").onchange=(e)=>{ const q=activeQ(); if(!q) return; q.paired=e.target.checked; saveSets(); renderQList(); syncMetaSummary(); };
+(function(){
+  const seg=$("#spanSeg"); if(!seg) return;
+  seg.querySelectorAll('button').forEach(b=>{
+    b.onclick=()=>{
+      const q=activeQ(); if(!q||b.disabled) return;
+      q.span=b.dataset.v;
+      q.paired=(q.span==='pair');     // 예전 필드도 맞춰 둔다(호환)
+      saveSets(); syncPairedChk(); renderQList(); syncMetaSummary();
+    };
+  });
+})();
 
 /* Header text */
 $("#headerInput").oninput=(e)=>{ const s=activeSet(); if(!s) return; s.header=e.target.value; saveSets(); };
 
 /* Print builder */
+/* 문항이 지면에서 차지하는 크기. 예전 데이터의 paired 도 그대로 읽는다. */
+/* paired 와 span 을 함께 맞춘다. 두 값이 어긋나면 spanOf 가 엉뚱한 배치를 준다.
+   'page' 로 지정된 문항은 묶기 대상이 아니므로 건드리지 않는다. */
+function setPair(q,on){
+  if(!q) return;
+  if(spanOf(q)==='page' && on) return;
+  q.paired=!!on;
+  if(q.span==='page' && !on) return;
+  q.span = on ? 'pair' : 'col';
+}
+
+function spanOf(q){
+  if(!q) return 'col';
+  if(q.span==='page'||q.span==='pair'||q.span==='col') return q.span;
+  return q.paired ? 'pair' : 'col';
+}
+
 function buildPrintDoc(hideAnswers){
   const s=activeSet(); if(!s) return;
   s.header=$("#headerInput").value||s.header||"";
@@ -2369,29 +2439,43 @@ function buildPrintDoc(hideAnswers){
   const nums=computeNums(qs);
   const numOf=q=>nums.find(n=>n.q===q)?.num||"??";
 
-  // 슬롯 구성
+  /* ── 지면 배치 ──
+     문항마다 차지하는 크기를 고를 수 있다(spanOf).
+       'pair' — 한 단에 2~3문제 (기존 '묶기')
+       'col'  — 한 단 하나 (기본)
+       'page' — 한 쪽을 통째로. 어려운 문항을 크게 싣는 N제용.
+                가운데 세로선을 없애고 좌우 여백을 넓혀 한 단으로 흘린다. */
   const slots=[];
   let i=0;
   while(i<qs.length){
-    if(qs[i].paired && i+1<qs.length){
-      if(qs[i+1].paired && i+2<qs.length){
-        slots.push([qs[i],qs[i+1],qs[i+2]]); i+=3;
+    if(spanOf(qs[i])==='page'){ slots.push({full:true, qs:[qs[i]]}); i++; continue; }
+    if(spanOf(qs[i])==='pair' && i+1<qs.length && spanOf(qs[i+1])!=='page'){
+      if(spanOf(qs[i+1])==='pair' && i+2<qs.length && spanOf(qs[i+2])!=='page'){
+        slots.push({qs:[qs[i],qs[i+1],qs[i+2]]}); i+=3;
       } else {
-        slots.push([qs[i],qs[i+1]]); i+=2;
+        slots.push({qs:[qs[i],qs[i+1]]}); i+=2;
       }
     } else {
-      slots.push([qs[i]]); i++;
+      slots.push({qs:[qs[i]]}); i++;
     }
   }
+  // 한 쪽짜리 문항은 자기 쪽을 통째로 쓰고, 나머지는 두 칸씩 묶어 한 쪽에 넣는다
   const pages=[];
-  for(let j=0;j<slots.length;j+=2) pages.push({left:slots[j], right:slots[j+1]||null});
+  for(let j=0;j<slots.length;j++){
+    if(slots[j].full){ pages.push({full:true, left:slots[j].qs}); continue; }
+    const right=(slots[j+1] && !slots[j+1].full) ? slots[j+1].qs : null;
+    pages.push({left:slots[j].qs, right});
+    if(right) j++;
+  }
 
   const wrap=$("#printDoc"); wrap.innerHTML="";
   pages.forEach((p,pi)=>{
-    const page=el("div","page");
-    page.append(el("div","lines-top"),el("div","lines-mid"),el("div","lines-bot"));
+    const page=el("div","page"+(p.full?" page--full":""));
+    page.append(el("div","lines-top"));
+    if(!p.full) page.append(el("div","lines-mid"));   // 한 쪽 한 문제는 가운데 선 없음
+    page.append(el("div","lines-bot"));
     page.append(el("div","hdr-left",s.header||""),el("div","ftr-brand","PEDAGOGY"),el("div","ftr-page",String(pi+1)));
-    const cols=el("div","columns");
+    const cols=el("div","columns"+(p.full?" columns--full":""));
 
     const renderSlot=(slot)=>{
       const holder=el("div","slot"+(slot&&slot.length>1?" slot--paired":""));
@@ -2407,7 +2491,8 @@ function buildPrintDoc(hideAnswers){
       cols.append(holder);
     };
 
-    renderSlot(p.left); renderSlot(p.right);
+    renderSlot(p.left);
+    if(!p.full) renderSlot(p.right);
     page.append(cols); wrap.append(page);
   });
 
@@ -2587,14 +2672,14 @@ $("#loadInput").onchange=e=>{ const f=e.target.files?.[0]; if(!f) return; const 
   const cloned=newProbs.map(normProblem).filter(Boolean);
   if(!cloned.length){ toast("불러올 문항이 없어요","error"); return; }
   // 삽입된 묶음이 기존과 잘못 이어지지 않도록, 첫 문제 직전 경계 정리: 마지막 삽입 문제는 독립
-  if(cloned.length) cloned[cloned.length-1].paired=false;
+  if(cloned.length) setPair(cloned[cloned.length-1],false);
   // 현재 선택 문제 바로 뒤에 삽입 (없으면 맨 끝)
   const arr=s.problems;
   let at=arr.findIndex(x=>x.id===currentQId);
   at = at<0 ? arr.length : at+1;
   // 삽입 지점 직전 문제가 paired면, 경계가 깨지지 않게 그대로 두되
   // 삽입으로 인해 직전 문제의 짝이 바뀌는 것을 막기 위해 직전 문제 독립 처리
-  if(at>0 && at<=arr.length && arr[at-1] && arr[at-1].paired) arr[at-1].paired=false;
+  if(at>0 && at<=arr.length && arr[at-1] && arr[at-1].paired) setPair(arr[at-1],false);
   arr.splice(at, 0, ...cloned);
   currentQId=cloned[0].id;
   saveSets(); renderQList(); renderEditor(); renderPreview(); syncPairedChk();
