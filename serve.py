@@ -12,7 +12,9 @@
 ── 보안 ──
 이 서버는 로컬 전용이다. 다음을 지킨다.
   · 127.0.0.1 에만 바인딩한다 (같은 와이파이의 다른 기기도 접근 불가)
-  · 브라우저에서 온 요청은 Origin 이 localhost 일 때만 받는다 (DNS 리바인딩 차단)
+  · Host 헤더가 127.0.0.1/localhost 가 아니면 GET·POST 모두 거절한다
+    (DNS 리바인딩 차단 — Origin 검사만으로는 막히지 않는다)
+  · 브라우저에서 온 요청은 Origin 이 허용 목록에 있을 때만 받는다
   · 사용자가 보낸 경로로 파일을 읽거나 쓰지 않는다. 정적 파일은 화이트리스트만
   · typst 는 --root 를 작업 폴더로 묶어 그 밖의 파일을 못 읽게 한다
   · 셸을 거치지 않고(shell=False) 인자 배열로만 실행한다
@@ -190,6 +192,21 @@ class Handler(BaseHTTPRequestHandler):
             return True                       # curl 등 Origin 없는 요청
         return o in self._allowed()
 
+    def _host_ok(self) -> bool:
+        """DNS 리바인딩 차단.
+
+        공격자가 evil.example 을 127.0.0.1 로 재해석시키면, 브라우저는 이 서버를
+        '같은 출처' 로 취급한다. 그러면 Origin 헤더가 아예 붙지 않거나(GET) 같은
+        출처로 붙어서 _origin_ok() 로는 걸러지지 않고, CORS 도 방어가 되지 못한다.
+        반면 Host 헤더에는 브라우저가 찾아간 이름이 그대로 남는다.
+
+        예전에는 do_GET 에 출처 검사가 아예 없어서, 이 경로로 /health(로컬 절대경로)
+        와 /font/*(상용 글꼴 파일 원본)를 그대로 받아갈 수 있었다.
+        """
+        h = (self.headers.get("Host") or "").strip()
+        port = self.server.server_address[1]
+        return h in {f"127.0.0.1:{port}", f"localhost:{port}", f"[::1]:{port}"}
+
     def _cors(self):
         """허용된 출처면 CORS 헤더를 붙인다.
         Access-Control-Allow-Private-Network 는 크롬이 https 페이지에서
@@ -235,6 +252,8 @@ class Handler(BaseHTTPRequestHandler):
 
     # ── 사전 요청(preflight) ──
     def do_OPTIONS(self):
+        if not self._host_ok():
+            return self._json(403, {"error": "forbidden host"})
         if not self._origin_ok():
             return self._json(403, {"error": "forbidden origin"})
         self.send_response(204)
@@ -244,6 +263,10 @@ class Handler(BaseHTTPRequestHandler):
 
     # ── GET ──
     def do_GET(self):
+        if not self._host_ok():
+            return self._json(403, {"error": "forbidden host"})
+        if not self._origin_ok():
+            return self._json(403, {"error": "forbidden origin"})
         # 퍼센트 인코딩을 풀어야 공백이 든 파일명(글꼴)이 화이트리스트 키와 맞는다.
         # 화이트리스트 '정확히 일치' 방식이라 디코딩해도 경로 조작은 여전히 불가능하다.
         path = unquote(self.path.split("?", 1)[0])
@@ -254,8 +277,11 @@ class Handler(BaseHTTPRequestHandler):
                 if d.is_dir():
                     names += [p.name for p in d.iterdir()
                               if p.is_file() and p.suffix.lower() in FONT_EXTS]
-            return self._json(200, {"ok": TYPST is not None, "typst": TYPST,
-                                    "fonts": [str(d) for d in FONT_DIRS if d.is_dir()],
+            # 글꼴 폴더의 '절대 경로'는 돌려주지 않는다 — 홈 디렉터리 경로에 계정명이
+            # 들어 있어 그대로 노출됐다. 편집기는 폴더가 있는지 여부만 쓴다.
+            return self._json(200, {"ok": TYPST is not None,
+                                    "typst": bool(TYPST),
+                                    "fonts": [d.name for d in FONT_DIRS if d.is_dir()],
                                     "webfonts": sorted(set(names))})
         # /font/<파일명> — 시험 글꼴을 웹폰트로 내려준다.
         # 사파리는 보안상 @font-face 의 local() 로 시스템 글꼴을 쓰지 못하게 막는다.
@@ -280,6 +306,8 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         if self.path.split("?", 1)[0] != "/render":
             return self._json(404, {"error": "not found"})
+        if not self._host_ok():
+            return self._json(403, {"error": "forbidden host"})
         if not self._origin_ok():
             return self._json(403, {"error": "forbidden origin"})
         # 커스텀 헤더를 요구해 다른 사이트의 단순 요청(form 등)을 막는다

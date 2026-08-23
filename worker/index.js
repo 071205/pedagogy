@@ -14,7 +14,7 @@
  *
  * ── 배포 ──
  *   cd worker
- *   npx wrangler secret put AI_API_KEY      # AI 공급자 키
+ *   npx wrangler secret put ANTHROPIC_KEY   # AI 공급자 키
  *   npx wrangler kv namespace create RATE   # 사용량 카운터용
  *   npx wrangler deploy
  *
@@ -22,7 +22,7 @@
  *   FIREBASE_PROJECT_ID  예: pedagogy-huryul
  *   ALLOWED_ORIGINS      쉼표로 구분한 허용 출처
  *   DAILY_LIMIT          사용자당 하루 호출 상한 (기본 50)
- *   AI_API_KEY           (Secret) AI 공급자 키
+ *   ANTHROPIC_KEY        (Secret) AI 공급자 키
  *   RATE                 (KV 바인딩) 사용량 카운터
  */
 

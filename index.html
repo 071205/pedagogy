@@ -5,19 +5,69 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>PEDAGOGY — 문제집/문항 에디터</title>
 
+<!-- ══ 콘텐츠 보안 정책 ══
+     이 앱은 인라인 스크립트 블록으로만 이뤄져 있어 'unsafe-inline' 을 뺄 수 없다.
+     다만 CSP 를 걸면 인라인 *이벤트 핸들러 속성*(onerror=, onload=)은 별도로
+     차단된다 — 'unsafe-inline' 은 스크립트 블록만 허용하고 속성 핸들러는
+     'unsafe-hashes' 가 있어야 살아난다. 즉 processText/numLabel 같은 곳에
+     실수로 구멍이 다시 생겨도 주입된 onerror 가 실행되지 않는다.
+     connect-src 는 Firestore/Storage/Auth·AI 프록시·로컬 렌더 서버를 모두 담는다. -->
+<meta http-equiv="Content-Security-Policy" content="
+  default-src 'self';
+  script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://www.gstatic.com;
+  style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
+  font-src 'self' data: https://cdn.jsdelivr.net;
+  img-src 'self' data: blob: https://firebasestorage.googleapis.com https://storage.googleapis.com https://lh3.googleusercontent.com;
+  connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://dawn-shape-2664.dbruddl79.workers.dev http://127.0.0.1:* http://localhost:*;
+  frame-src 'self' https://pedagogy-huryul.firebaseapp.com https://accounts.google.com;
+  worker-src 'self' blob:;
+  object-src 'none';
+  base-uri 'none';
+  form-action 'none'">
+
+<!-- ══ CDN 무결성(SRI) ══
+     해시가 어긋나면 브라우저가 파일을 아예 실행하지 않는다. CDN 이 침해돼
+     내용이 바뀌어도 남의 코드가 이 페이지 권한으로 돌지 못한다.
+     ⚠️ 버전을 올릴 때는 integrity 해시도 반드시 함께 다시 계산할 것.
+        (openssl dgst -sha384 -binary <파일> | openssl base64 -A) -->
 <!-- KaTeX -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
-<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
-<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css"
+      integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+"
+      crossorigin="anonymous">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"
+        integrity="sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4lfFg"
+        crossorigin="anonymous"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+        integrity="sha384-43gviWU0YVjaDtb/GhzOouOXtZMP/7XUzwPTstBeZFe/+rCMvRwr4yROQP43s0Xk"
+        crossorigin="anonymous"></script>
 <!-- KoPub 바탕체 (한국출판인회의 — 수능 신명조 계열 최적 대체) -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-kopub@1.0/kopubbatang.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-kopub@1.0/kopubbatang.min.css"
+      integrity="sha384-ksZQefupLrNFm1FXuYK/oZNmeqxzKwIqoCab90K/t+G+Hk/dJGDmchnP33lPu8Fx"
+      crossorigin="anonymous">
+<!-- Pretendard — 예전에는 아래 <style> 안에서 @import 로 불렀는데, CSS 규격상
+     @import 는 @font-face 보다 앞에 와야 해서 그 규칙이 통째로 무시되고 있었다
+     (본문이 계속 시스템 고딕으로 렌더됐다). <link> 로 옮겨 실제로 적용되게 하고
+     동시에 SRI 도 걸었다. -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
+      integrity="sha384-GIdEBaqGN9mNkDkMkzMHW8EKUqtpPIe/sLj1X7DIrnc9uPtLROJgmuDlh+3rBw0j"
+      crossorigin="anonymous">
 <!-- SortableJS -->
-<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"
+        integrity="sha384-BSxuMLxX+FCbTdYec3TbXlnMGEEM2QXTFdtDaveen71o+jswm2J36+xFqp8k4VHM"
+        crossorigin="anonymous"></script>
 <!-- Firebase -->
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"
+        integrity="sha384-sEVIly94UBRLKWdkYoPpSG7GD/e79YHMrxVyZaOk712Ga7+EAw6w1EFi+xBzBdd+"
+        crossorigin="anonymous"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"
+        integrity="sha384-EkqK+ezBWJuvO3hfrSx2iVqr3YQbhmnzn8kPhOpBZ+0GMVU5oGSgptwIu8D84HjE"
+        crossorigin="anonymous"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"
+        integrity="sha384-M481iNZJtbpypKgvlvZ+78Giq0BsewFLk5r2k+MOcGXlwKCc27DQRZ+WCV/zpmpC"
+        crossorigin="anonymous"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js"
+        integrity="sha384-6I0gWsz4FIAr30c0TxIxJnPQuJiZ1FfILdZrgJdjxTH3R8dgPGTvexbyqTvReV6Z"
+        crossorigin="anonymous"></script>
 
 <style>
 /* 브랜드 글꼴. 시스템에 설치돼 있으면 local() 로 바로 쓰고, 없으면 같은 폴더의
@@ -29,7 +79,8 @@
       url('./Adobe Caslon Pro Bold.ttf') format('truetype');
   font-weight:700; font-style:normal; font-display:swap;
 }
-@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css');
+/* Pretendard 는 위 <head> 의 <link> 로 옮겼다 — 여기에 @import 로 두면
+   CSS 규격상 @font-face 뒤라서 규칙 자체가 무시된다. */
 
 /* ===== Toss Design System ===== */
 :root{
@@ -1250,11 +1301,13 @@ function normBlock(b){
                      size:IMG_SIZES.includes(d.size)?d.size:"full"}};
 }
 
-function normProblem(p){
+/* keepId=true 는 '내 클라우드에서 읽어온 내 데이터'에 쓴다.
+   가져오기(남의 파일)는 항상 id 를 새로 발급해 기존 문항과 충돌하지 않게 한다. */
+function normProblem(p, keepId){
   if(!p||typeof p!=="object") return null;
   const blocks=(Array.isArray(p.blocks)?p.blocks:[]).slice(0,50).map(normBlock).filter(Boolean);
   return {
-    id:uid(),                       // 항상 새 id — 기존 문항과의 충돌 방지
+    id:(keepId && typeof p.id==="string" && p.id) ? p.id : uid(),
     title:str(p.title,300), desc:str(p.desc,300),
     answer:str(p.answer,5000), answerImg:safeUrl(p.answerImg),
     numLabel:str(p.numLabel,40), paired:p.paired===true,
@@ -1263,19 +1316,54 @@ function normProblem(p){
   };
 }
 
-function normSet(s){
+/* maxProblems 기본값 500 은 '남이 준 파일'에 대한 방어선이다.
+   ⚠️ 내 클라우드 데이터를 읽을 때 이 값을 쓰면 안 된다 — N제 문제집은 문항이
+   500개를 넘길 수 있고, 그러면 읽을 때마다 조용히 잘려 나간다.
+   그래서 loadSets() 는 CLOUD_MAX_PROBLEMS 를 넘겨 준다. */
+const CLOUD_MAX_PROBLEMS=20000;
+function normSet(s, opts){
   if(!s||typeof s!=="object"||!Array.isArray(s.problems)) return null;
-  const problems=s.problems.slice(0,500).map(normProblem).filter(Boolean);
-  return { id:uid(), name:str(s.name,200)||"제목 없음", header:str(s.header,200), problems };
+  const max=(opts&&opts.maxProblems)||500;
+  const keepId=!!(opts&&opts.keepId);
+  const problems=s.problems.slice(0,max).map(p=>normProblem(p,keepId)).filter(Boolean);
+  return { id:(keepId&&typeof s.id==="string"&&s.id)?s.id:uid(),
+           name:str(s.name,200)||"제목 없음", header:str(s.header,200), problems };
 }
+
+/* ── 계정별로 갈라 두는 로컬 키 ──
+   문제집 본문(setsKey)은 예전부터 계정마다 칸이 나뉘어 있었는데, 백업과
+   '마지막으로 보던 문항'은 전역 키를 그대로 써서 계정 사이로 샜다.
+   한 브라우저에서 A 가 로그아웃하고 B 가 로그인한 뒤 restorePedagogyBackup()
+   을 부르면 A 의 문제집이 B 화면에 뜨고 B 의 클라우드로 저장됐다.
+   두 키도 uid 를 붙여 같은 규칙으로 맞춘다. */
+const BACKUP_KEY_BASE='PM_BACKUP', LASTQ_KEY_BASE='PM_LAST_Q';
+function backupKey(){ return BACKUP_KEY_BASE+":"+((currentUser&&currentUser.uid)||"guest"); }
+function lastQKey(){  return LASTQ_KEY_BASE +":"+((currentUser&&currentUser.uid)||"guest"); }
 
 /* 문제집별 '마지막으로 보던 문항' 기억 (새로고침 후에도 유지) */
 let lastQIdBySet={};
-try{ lastQIdBySet=JSON.parse(localStorage.getItem('PM_LAST_Q')||'{}')||{}; }catch{ lastQIdBySet={}; }
+function loadLastQ(){
+  try{ lastQIdBySet=JSON.parse(localStorage.getItem(lastQKey())||'{}')||{}; }
+  catch{ lastQIdBySet={}; }
+}
+loadLastQ();
 function rememberQ(){
   if(currentSetId && currentQId){
     lastQIdBySet[currentSetId]=currentQId;
-    try{ localStorage.setItem('PM_LAST_Q', JSON.stringify(lastQIdBySet)); }catch(e){ console.error('마지막 문항 기억 실패', e); }
+    try{ localStorage.setItem(lastQKey(), JSON.stringify(lastQIdBySet)); }catch(e){ console.error('마지막 문항 기억 실패', e); }
+  }
+}
+
+/* 전역 키로 남아 있던 예전 값을 지금 계정 칸으로 한 번만 옮긴다.
+   (다른 계정에 새지 않도록 전역 칸은 비운다) */
+function migrateSharedAuxKeys(){
+  for(const [base, keyFn] of [[BACKUP_KEY_BASE, backupKey],[LASTQ_KEY_BASE, lastQKey]]){
+    try{
+      const old=localStorage.getItem(base);
+      if(old==null) continue;
+      if(localStorage.getItem(keyFn())==null) localStorage.setItem(keyFn(), old);
+      localStorage.removeItem(base);
+    }catch(e){ console.error('보조 키 이관 실패: '+base, e); }
   }
 }
 
@@ -1284,12 +1372,12 @@ function rememberQ(){
 function snapshotLocalBackup(){
   try{
     const cur=localStorage.getItem(setsKey());
-    if(cur) localStorage.setItem('PM_BACKUP', JSON.stringify({sets:JSON.parse(cur), t:Date.now()}));
+    if(cur) localStorage.setItem(backupKey(), JSON.stringify({sets:JSON.parse(cur), t:Date.now()}));
   }catch(e){ console.error('로컬 백업 실패', e); }
 }
 window.restorePedagogyBackup=function(){
   try{
-    const b=JSON.parse(localStorage.getItem('PM_BACKUP')||'null');
+    const b=JSON.parse(localStorage.getItem(backupKey())||'null');
     if(!b||!Array.isArray(b.sets)){ console.log('복구할 백업이 없습니다.'); return false; }
     sets=b.sets; saveSets();
     if(typeof showLibrary==="function") showLibrary();
@@ -1336,42 +1424,210 @@ function setHasContent(s){
     if(q.title || q.desc || q.answer || q.answerImg || q.numLabel) return true;
     return (q.blocks||[]).some(b=>{
       const d=b.data||{};
-      return (d.text&&d.text.trim()) || (d.items&&d.items.length) || (d.src);
+      /* 이미지 블록의 주소 필드는 이 파일에서 'dataUrl' 이다. 예전에는 여기서만
+         모의고사 편집기 쪽 이름인 'src' 를 보고 있어서 항상 undefined 였고,
+         그 결과 '이미지만 있는 문제집'이 내용 없음으로 판정돼 로그인할 때
+         병합 대상에서 빠지고 로컬까지 덮어써져 사라졌다.
+         두 이름을 다 받아 예전 파일에서 넘어온 데이터도 인식한다.
+
+         이 판정은 '병합할 가치가 있는가'를 묻는 것이라, 애매하면 '있다' 쪽으로
+         기운다. 잘못 포함하면 빈 문제집이 하나 남을 뿐이지만 잘못 제외하면
+         사용자 데이터가 사라진다. */
+      return (d.text&&d.text.trim()) || (d.items&&d.items.length) || d.dataUrl || d.src;
     });
   });
 }
 function localSetsWorthMerging(localSets){
   return (localSets||[]).filter(setHasContent);
 }
-// 클라우드 sets에 로컬 sets 병합 (중복 id는 클라우드 우선, 새 id만 추가)
-function mergeSets(cloudSets, localSets){
-  const ids=new Set(cloudSets.map(s=>s.id));
-  const added=localSets.filter(s=>!ids.has(s.id));
-  return cloudSets.concat(added);
+
+/* ══════════════════════════════════════════════════════════════════
+   클라우드 동기화 — 문제집 단위
+   ══════════════════════════════════════════════════════════════════
+   예전 구조: users/{uid} 문서 하나에 sets 배열 전체를 통째로 set() 했다.
+   여기서 세 가지가 동시에 터졌다.
+     · 1MB 문서 한도 — 실측으로 문항 약 1,800개면 저장이 막힌다
+     · 탭/기기 두 곳에서 편집하면 나중 저장이 먼저 것을 통째로 덮어썼다
+     · updatedAt 을 쓰기만 하고 비교하지 않아, 오래된 클라우드본이
+       오프라인에서 새로 고친 로컬본을 이겼다
+
+   새 구조: users/{uid}/sets/{setId} — 문제집 하나가 문서 하나다.
+     · 한도는 문제집 단위가 되고(현실적으로 도달 불가)
+     · 서로 다른 문제집을 고치는 탭끼리는 아예 충돌하지 않으며
+     · 문제집마다 updatedAt 이 있어 어느 쪽이 최신인지 판단할 수 있다
+     · 삭제는 tombstone(deleted:true)로 남긴다 — 지운 문제집이 다른 기기의
+       오래된 로컬본 때문에 되살아나는 일을 막는다
+
+   구버전 users/{uid} 문서는 지우지 않고 그대로 둔다(안전망). */
+
+const SETS_COL = uidStr => fbDb.collection('users').doc(uidStr).collection('sets');
+
+/* 마지막으로 클라우드와 맞춘 내용. 바뀐 문제집만 골라 올리는 데 쓴다.
+   (이게 있어야 탭 A 가 문제집 1을 고칠 때 문제집 2를 건드리지 않는다) */
+let cloudSynced=new Map();          // setId → JSON 문자열
+let deletedIds=new Map();           // setId → 삭제 시각(ms) · tombstone 로컬 사본
+let setsUnsub=null;                 // onSnapshot 해제 함수
+
+const setJSON = s => JSON.stringify({name:s.name,header:s.header,problems:s.problems});
+
+/* 문제집 하나를 클라우드 문서 모양으로 */
+function setToDoc(s, order){
+  // 보안 규칙이 '문서 id == data.id' 를 확인하므로 양쪽 다 문자열로 맞춘다
+  // (예전 데이터에 숫자 id 가 섞여 있으면 여기서 어긋나 저장이 거부된다)
+  return { id:String(s.id), name:s.name||"", header:s.header||"", problems:s.problems||[],
+           order:Number(order)||0, deleted:false, updatedAt:Date.now() };
+}
+
+/* 클라우드 문서 → 앱 모양 (신뢰 경계: 클라우드도 한 번 정규화한다.
+   과거에 오염된 데이터가 들어갔더라도 여기서 걸러진다) */
+function docToSet(d){
+  if(!d || d.deleted) return null;
+  // keepId: 문제집·문항 id 를 그대로 살려야 병합과 '마지막 보던 문항'이 이어진다
+  // maxProblems: 내 데이터라 자르면 안 된다 (기본 500 은 가져오기 전용 방어선)
+  const s=normSet({id:d.id, name:d.name, header:d.header, problems:d.problems},
+                  {keepId:true, maxProblems:CLOUD_MAX_PROBLEMS});
+  if(!s) return null;
+  if(typeof d.id==="string" && d.id) s.id=d.id;
+  return s;
+}
+
+/* 두 곳의 문제집을 updatedAt 으로 합친다.
+   - 양쪽에 있으면 updatedAt 이 큰 쪽
+   - 한쪽에만 있으면 그대로 채택 (단, tombstone 이면 버린다)
+   - 순서는 클라우드 order 를 기준으로 하고, 없는 것은 뒤에 붙인다 */
+function mergeSets(cloudEntries, localSets, localStamps){
+  const out=new Map();
+  const stampOf=(id)=>Number(localStamps&&localStamps[id])||0;
+
+  for(const e of cloudEntries){
+    if(e.deleted){ deletedIds.set(e.id, e.updatedAt||Date.now()); continue; }
+    const s=docToSet(e);
+    if(s) out.set(s.id, {set:s, order:Number(e.order)||0, stamp:Number(e.updatedAt)||0});
+  }
+  let tail=out.size;
+  for(const ls of (localSets||[])){
+    if(!ls || !ls.id) continue;
+    const tomb=deletedIds.get(ls.id);
+    const lstamp=stampOf(ls.id);
+    if(tomb && tomb>=lstamp) continue;               // 클라우드에서 지운 것 — 되살리지 않는다
+    const cur=out.get(ls.id);
+    if(!cur){ out.set(ls.id,{set:ls, order:tail++, stamp:lstamp}); continue; }
+    // 양쪽에 있다 → 더 최근 것을 남긴다 (예전에는 무조건 클라우드가 이겼다)
+    if(lstamp>cur.stamp) out.set(ls.id,{set:ls, order:cur.order, stamp:lstamp});
+  }
+  return [...out.values()].sort((a,b)=>a.order-b.order).map(x=>x.set);
+}
+
+/* 로컬 문제집별 수정 시각. sets 안에 넣으면 내보내기 JSON·되돌리기 스냅샷까지
+   오염되므로 별도 키에 둔다. */
+function stampsKey(){ return "PM_STAMPS:"+((currentUser&&currentUser.uid)||"guest"); }
+function readStamps(){
+  try{ return JSON.parse(localStorage.getItem(stampsKey())||'{}')||{}; }catch{ return {}; }
+}
+function writeStamps(m){
+  try{ localStorage.setItem(stampsKey(), JSON.stringify(m)); }catch(e){ console.error('수정 시각 저장 실패', e); }
+}
+let localStamps=readStamps();
+function touchSet(id){
+  if(!id) return;
+  localStamps[id]=Date.now();
+  writeStamps(localStamps);
 }
 
 async function loadSets(){
   if(currentUser){
+    const owner=currentUser.uid;
     try{
-      const doc=await fbDb.collection('users').doc(currentUser.uid).get();
-      const cloud=(doc.exists && Array.isArray(doc.data().sets))?doc.data().sets:[];
-      const localWorth=localSetsWorthMerging(readLocalSets());
+      const snap=await SETS_COL(owner).get();
+      const cloudEntries=snap.docs.map(d=>d.data()).filter(Boolean);
 
-      if(cloud.length){
-        // 클라우드를 기준으로 사용. 클라우드에 없는 id의 로컬 문제집만 자동으로 더함
-        // (묻지 않음 / 데이터를 절대 버리지 않음)
-        const merged=mergeSets(cloud, localWorth);
+      // ── 구버전(users/{uid}.sets 배열)에서 한 번만 이관 ──
+      if(!cloudEntries.length){
+        const legacy=await fbDb.collection('users').doc(owner).get();
+        const arr=(legacy.exists && Array.isArray(legacy.data().sets))?legacy.data().sets:[];
+        if(arr.length){
+          console.info(`구버전 클라우드 문서에서 문제집 ${arr.length}개를 서브컬렉션으로 이관합니다.`);
+          const batch=fbDb.batch();
+          arr.forEach((s,i)=>{
+            if(!s||!s.id) return;
+            batch.set(SETS_COL(owner).doc(String(s.id)), setToDoc(s,i));
+            cloudEntries.push(setToDoc(s,i));
+          });
+          // 구버전 문서는 지우지 않는다 — 이관이 잘못돼도 되돌릴 수 있게 남긴다
+          batch.set(fbDb.collection('users').doc(owner),{migratedAt:Date.now()},{merge:true});
+          await batch.commit();
+        }
+      }
+
+      const localWorth=localSetsWorthMerging(readLocalSets());
+      const merged=mergeSets(cloudEntries, localWorth, localStamps);
+
+      if(merged.length){
         sets=merged;
-        // 로컬을 클라우드 기준으로 동기화 → 삭제한 문제집이 다음 접속에 되살아나는 일 방지
-        try{ localStorage.setItem(setsKey(), JSON.stringify(sets)); }catch(e){ console.error('로컬 저장 실패(용량 초과 가능)', e); }
-        if(merged.length>cloud.length){ saveSets(); }  // 병합으로 늘어난 경우만 클라우드에 반영
+        cloudSynced=new Map(cloudEntries.filter(e=>!e.deleted)
+          .map(e=>{ const s=docToSet(e); return s?[s.id,setJSON(s)]:null; }).filter(Boolean));
+        persistLocal();
+        // 병합으로 로컬에만 있던 게 올라가야 하면 저장
+        if(merged.some(s=>cloudSynced.get(s.id)!==setJSON(s))) saveSets();
+        watchCloud();
         return;
       }
-      if(localWorth.length){ sets=localWorth; saveSets(); return; }  // 클라우드 비었으면 로컬을 업로드
-      // 둘 다 비어있으면 아래 기본 문제집
-    }catch(e){ console.warn('Firestore 로드 실패, 로컬 사용:', e); }
+    }catch(e){
+      console.warn('Firestore 로드 실패, 로컬 사용:', e);
+      toast("클라우드에 연결하지 못했어요 · 이 기기 데이터로 계속합니다","error");
+    }
   }
   loadSetsLocal();
+  // 클라우드가 비어 있던 새 계정도 구독은 걸어 둔다 — 다른 기기에서 만든
+  // 문제집이 나중에 올라오면 이 탭에도 바로 반영되게.
+  if(currentUser) watchCloud();
+}
+
+/* ── 다른 탭·기기의 변경 감지 ──
+   예전에는 문서를 통째로 덮어써서 다른 탭의 작업이 조용히 사라졌다.
+   이제는 문제집 단위라 충돌 자체가 드물지만, 같은 문제집을 두 곳에서 열면
+   여전히 나중 저장이 이긴다. 그 경우만 사용자에게 알린다. */
+function watchCloud(){
+  if(setsUnsub){ setsUnsub(); setsUnsub=null; }
+  if(!currentUser || !fbReady) return;
+  const owner=currentUser.uid;
+  try{
+    setsUnsub=SETS_COL(owner).onSnapshot(snap=>{
+      if(!currentUser || currentUser.uid!==owner) return;
+      let changed=false, warnedEditing=false;
+      snap.docChanges().forEach(ch=>{
+        const d=ch.doc.data(); if(!d||!d.id) return;
+        const mine=sets.find(s=>s.id===d.id);
+        // 내가 방금 올린 것과 같으면 무시
+        if(!d.deleted){
+          const incoming=docToSet(d);
+          if(!incoming) return;
+          if(mine && setJSON(mine)===setJSON(incoming)) { cloudSynced.set(d.id,setJSON(incoming)); return; }
+          const localStamp=Number(localStamps[d.id])||0;
+          if(mine && localStamp>(Number(d.updatedAt)||0)) return;  // 내 로컬이 더 최신
+          if(mine && d.id===currentSetId && !warnedEditing){
+            warnedEditing=true;
+            toast("다른 기기에서 이 문제집이 바뀌어 최신 내용으로 맞췄어요","error");
+          }
+          if(mine) Object.assign(mine, incoming);
+          else sets.push(incoming);
+          cloudSynced.set(d.id,setJSON(incoming));
+          changed=true;
+        }else{
+          deletedIds.set(d.id, Number(d.updatedAt)||Date.now());
+          const i=sets.findIndex(s=>s.id===d.id);
+          if(i>=0 && (Number(localStamps[d.id])||0) <= (Number(d.updatedAt)||0)){
+            sets.splice(i,1); cloudSynced.delete(d.id); changed=true;
+          }
+        }
+      });
+      if(changed){
+        if(!sets.length) sets=[{id:uid(), name:"새 문제집", header:"", problems:[newProblem()]}];
+        persistLocal();
+        refreshAfterHistory();
+      }
+    },err=>console.warn('클라우드 구독 실패:', err));
+  }catch(e){ console.warn('클라우드 구독을 걸지 못했습니다:', e); }
 }
 
 /* ===== Undo / Redo 히스토리 =====
@@ -1391,12 +1647,18 @@ let lastSnapshot=null;          // 직전에 기록한 스냅샷(중복 방지)
 
 function snapshot(){ return JSON.stringify({sets, currentSetId, currentQId}); }
 
-/* 단계 수·총량 상한을 함께 적용해 오래된 기록부터 버린다 */
+/* 단계 수·총량 상한을 함께 적용해 오래된 기록부터 버린다.
+   두 스택을 '합쳐서' 센다 — 예전에는 undoStack 만 총량 검사를 해서,
+   redoStack 은 단계 수(80) 제한만 받고 용량은 사실상 무제한이었다.
+   되돌리기를 많이 눌러 둔 상태에서 base64 이미지가 섞이면 상한이 두 배로 샜다. */
 function trimHistory(){
   while(undoStack.length>HIST_LIMIT) undoStack.shift();
-  let chars=0;
-  for(let i=0;i<undoStack.length;i++) chars+=undoStack[i].length;
-  // 최소 1단계는 남긴다 — 되돌리기가 아예 불가능해지지 않도록
+  while(redoStack.length>HIST_LIMIT) redoStack.shift();
+  const total=a=>a.reduce((n,s)=>n+s.length,0);
+  let chars=total(undoStack)+total(redoStack);
+  // 되돌리기가 아예 불가능해지지 않도록 undo 는 최소 1단계 남긴다.
+  // 다시실행(redo)은 없어도 작업에 지장이 없으므로 먼저 버린다.
+  while(redoStack.length && chars>HIST_CHARS_LIMIT) chars-=redoStack.shift().length;
   while(undoStack.length>1 && chars>HIST_CHARS_LIMIT) chars-=undoStack.shift().length;
 }
 
@@ -1423,11 +1685,20 @@ function applySnapshot(snap){
   return true;
 }
 
-/* 되돌리기/다시실행 직후의 로컬 저장. 용량 초과로 예외가 나도
-   되돌리기 자체는 이미 메모리에 반영됐으므로 흐름을 끊지 않는다. */
-function persistLocalAfterHistory(){
-  try{ localStorage.setItem(setsKey(), JSON.stringify(sets)); }
-  catch(e){ console.error("로컬 저장 실패(용량 초과 가능)", e); }
+/* 되돌리기/다시실행 직후의 저장.
+   예전에는 로컬에만 썼다. 그 결과 (1) 되돌린 내용이 클라우드로 안 올라가고,
+   (2) 되돌리기 직전에 예약돼 있던 저장 타이머가 뒤늦게 터지면서 '되돌리기 전'
+   상태를 클라우드에 올려 로컬과 어긋났다. 이제 예약을 취소하고 다시 예약한다. */
+function persistAfterHistory(){
+  persistLocal();
+  // 되돌리기로 바뀐 문제집들의 수정 시각을 갱신해야 병합에서 최신으로 인정된다
+  sets.forEach(s=>{ if(cloudSynced.get(s.id)!==setJSON(s)) touchSet(s.id); });
+  if(currentUser){
+    clearTimeout(saveTimer);
+    const uidAtSave=currentUser.uid;
+    setSaveStatus("저장 중…", "var(--text-tertiary)");
+    saveTimer=setTimeout(()=>flushToCloud(uidAtSave), 800);
+  }
 }
 
 function doUndo(){
@@ -1437,10 +1708,10 @@ function doUndo(){
   const cur=snapshot();
   const prev=undoStack.pop();
   redoStack.push(cur);
-  if(redoStack.length>HIST_LIMIT) redoStack.shift();   // redo 스택도 무제한으로 자라지 않게
+  trimHistory();
   applySnapshot(prev);
   lastSnapshot=snapshot();
-  persistLocalAfterHistory();
+  persistAfterHistory();
   // 화면 갱신
   refreshAfterHistory();
   isRestoring=false;
@@ -1457,7 +1728,7 @@ function doRedo(){
   trimHistory();
   applySnapshot(next);
   lastSnapshot=snapshot();
-  persistLocalAfterHistory();
+  persistAfterHistory();
   refreshAfterHistory();
   isRestoring=false;
   updateHistButtons();
@@ -1498,46 +1769,140 @@ function setSaveStatus(txt, color){
   el.style.color=color||"var(--text-tertiary)";
 }
 
+/* 로컬 저장은 항상 동기로 즉시 — 브라우저가 갑자기 닫혀도 여기까진 남는다.
+   용량 초과는 조용히 넘기면 안 된다(예전엔 상태 표시만 바뀌어 놓치기 쉬웠다). */
+let quotaWarned=false;
+function persistLocal(){
+  try{
+    localStorage.setItem(setsKey(), JSON.stringify(sets));
+    quotaWarned=false;
+    return true;
+  }catch(e){
+    console.error("로컬 저장 실패:", e);
+    setSaveStatus("⚠ 로컬 저장 실패", "#e57373");
+    if(!quotaWarned){
+      quotaWarned=true;
+      toast("이 기기의 저장 공간이 가득 찼어요 · 로그인하면 이미지가 클라우드로 올라가 공간이 확보됩니다","error");
+    }
+    return false;
+  }
+}
+
+/* 아직 클라우드로 못 올린 변경이 있는가 (창 닫기 경고용) */
+function hasUnsavedCloudWork(){
+  if(!currentUser) return false;
+  return sets.some(s=>cloudSynced.get(s.id)!==setJSON(s));
+}
+
+/* 바뀐 문제집만 골라 올린다.
+   예전에는 sets 배열 전체를 users/{uid} 문서 하나에 통째로 set() 했다 —
+   다른 탭이 같은 순간에 저장하면 그쪽 작업이 통째로 사라졌고, 1MB 한도도
+   문제집을 몇십 권 모으면 걸렸다. 이제 문제집 하나가 문서 하나다. */
+async function flushToCloud(uidAtSave){
+  if(!currentUser || currentUser.uid!==uidAtSave){
+    console.warn("저장 예약 뒤 계정이 바뀌어 건너뜁니다.");
+    setSaveStatus(""); return;
+  }
+  const dirty=sets.map((s,i)=>({s,i})).filter(({s})=>cloudSynced.get(s.id)!==setJSON(s));
+  // 순서만 바뀐 경우도 반영해야 하므로 order 가 어긋난 것도 포함
+  if(!dirty.length){ setSaveStatus(""); return; }
+  try{
+    // 500개는 배치 상한. 한 번에 그만큼 바뀌는 일은 없지만 안전하게 나눠 보낸다
+    for(let off=0; off<dirty.length; off+=400){
+      const batch=fbDb.batch();
+      dirty.slice(off,off+400).forEach(({s,i})=>{
+        batch.set(SETS_COL(uidAtSave).doc(String(s.id)), setToDoc(s,i));
+      });
+      await batch.commit();
+      if(!currentUser || currentUser.uid!==uidAtSave) return;   // 도중 계정 전환
+    }
+    dirty.forEach(({s})=>cloudSynced.set(s.id, setJSON(s)));
+    setSaveStatus("✓ 저장됨", "#81c784");
+    setTimeout(()=>setSaveStatus(""), 2000);
+  }catch(e){
+    console.error('Firestore 저장 실패:', e);
+    let msg="⚠ 저장 실패";
+    const es=String(e?.message||e);
+    if(/permission|insufficient|PERMISSION/i.test(es)){
+      msg="⚠ 권한 오류";
+      toast("클라우드 저장 권한이 없어요 · Firestore 보안 규칙을 확인해 주세요","error");
+    }
+    else if(/longer than|exceeds|too large|1048487|maximum/i.test(es)){
+      msg="⚠ 용량 초과";
+      toast("문제집 하나가 1MB를 넘었어요 · 이미지를 줄이거나 문제집을 나눠 주세요","error");
+    }
+    else toast("클라우드 저장에 실패했어요 · 이 기기에는 저장돼 있습니다","error");
+    setSaveStatus(msg, "#e57373");
+  }
+}
+
+/* ── 삭제 ──
+   문제집을 지울 때 해야 할 일이 셋이다.
+     1) 클라우드 문서를 tombstone 으로 바꾼다 (그냥 지우면 다른 기기의 오래된
+        로컬 사본이 다음 병합에서 되살린다)
+     2) 그 문제집이 쓰던 Storage 이미지를 지운다 (예전엔 그대로 남아 고아 파일이 됐다)
+     3) 로컬 tombstone 도 기록해 이 기기에서도 되살아나지 않게 한다 */
+function storagePathsOf(s){
+  const urls=[];
+  (s.problems||[]).forEach(q=>{
+    if(isStorageUrl(q.answerImg)) urls.push(q.answerImg);
+    (q.blocks||[]).forEach(b=>{ if(b&&b.data&&isStorageUrl(b.data.dataUrl)) urls.push(b.data.dataUrl); });
+  });
+  return urls;
+}
+/* 같은 이미지를 다른 문제집도 쓰고 있으면 지우지 않는다(복제본 등) */
+function stillReferenced(url, exceptSetId){
+  return sets.some(s=>s.id!==exceptSetId && storagePathsOf(s).includes(url));
+}
+async function deleteSetEverywhere(removed){
+  if(!removed || !currentUser || !fbReady) return;
+  const owner=currentUser.uid;
+  deletedIds.set(removed.id, Date.now());
+  try{
+    await SETS_COL(owner).doc(String(removed.id)).set({
+      id:String(removed.id), deleted:true, updatedAt:Date.now(), order:0,
+      name:"", header:"", problems:[]
+    });
+    cloudSynced.delete(removed.id);
+  }catch(e){ console.warn('클라우드 삭제 실패:', e); }
+  // 이미지 정리는 실패해도 조용히 넘어간다(용량만 남을 뿐 기능엔 영향 없음)
+  for(const url of storagePathsOf(removed)){
+    if(stillReferenced(url, removed.id)) continue;
+    try{ await fbStorage.refFromURL(url).delete(); }
+    catch(e){ console.warn('이미지 정리 실패(무시):', e && e.code); }
+  }
+}
+
 function saveSets(){
   // 변경 사항을 히스토리에 기록 (디바운스)
   pushHistory();
-  // 로컬 항상 저장 (백업)
-  try{
-    localStorage.setItem(setsKey(), JSON.stringify(sets));
-  }catch(e){
-    // localStorage도 용량 초과 가능 (base64 이미지 많을 때)
-    console.error("로컬 저장 실패:", e);
-    setSaveStatus("⚠ 로컬 저장 실패", "#e57373");
-  }
+  // 지금 보고 있는 문제집의 수정 시각을 남긴다 — 병합에서 최신 판정에 쓰인다
+  touchSet(currentSetId);
+  persistLocal();
   // 로그인 시 Firestore에 디바운스 저장 (0.8초 대기 후)
   if(currentUser){
     setSaveStatus("저장 중…", "var(--text-tertiary)");
     clearTimeout(saveTimer);
-    // 예약 시점의 uid 와 내용을 붙잡아 둔다. 콜백 안에서 전역 currentUser 를 다시 읽으면,
-    // 0.8초 사이에 계정을 바꿨을 때 A 의 문제집이 B 문서에 저장될 수 있다.
     const uidAtSave=currentUser.uid;
-    const snapAtSave=sets;
-    saveTimer=setTimeout(async ()=>{
-      if(!currentUser || currentUser.uid!==uidAtSave){
-        console.warn("저장 예약 뒤 계정이 바뀌어 건너뜁니다.");
-        setSaveStatus(""); return;
-      }
-      try{
-        await fbDb.collection('users').doc(uidAtSave).set({ sets:snapAtSave, updatedAt: new Date() });
-        setSaveStatus("✓ 저장됨", "#81c784");
-        setTimeout(()=>setSaveStatus(""), 2000);
-      }catch(e){
-        console.error('Firestore 저장 실패:', e);
-        // 에러 종류 구분
-        let msg="⚠ 저장 실패";
-        const es=String(e?.message||e);
-        if(/permission|insufficient|PERMISSION/i.test(es)) msg="⚠ 권한 오류";
-        else if(/longer than|exceeds|too large|1048487|maximum/i.test(es)) msg="⚠ 용량 초과";
-        setSaveStatus(msg, "#e57373");
-      }
-    }, 800);
+    saveTimer=setTimeout(()=>flushToCloud(uidAtSave), 800);
   }
 }
+
+/* 창을 닫기 전 마지막 한 번 — 디바운스(0.8초)가 끝나기 전에 닫으면
+   로컬엔 남지만 클라우드엔 안 올라간 상태가 된다. 예전에는 이 경고가 없어서
+   다른 기기에서 열었을 때 마지막 편집이 통째로 빠져 있었다. */
+window.addEventListener('beforeunload',(e)=>{
+  if(!hasUnsavedCloudWork()) return;
+  e.preventDefault();
+  e.returnValue='';
+});
+/* 탭을 숨기거나 앱을 전환할 때는 경고 없이 곧바로 올린다(모바일에서 중요) */
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='hidden' && currentUser && hasUnsavedCloudWork()){
+    clearTimeout(saveTimer);
+    flushToCloud(currentUser.uid);
+  }
+});
 const activeSet=()=>sets.find(s=>s.id===currentSetId);
 const activeProblems=()=>activeSet()?.problems||[];
 const activeQ=()=>activeProblems().find(q=>q.id===currentQId);
@@ -1608,7 +1973,17 @@ function renderLibrary(){
       cp.name=(s.name||"문제집")+" 복제";
       sets.splice(idx+1,0,cp); saveSets(); renderLibrary(); toast("문제집을 복제했어요","success");};
     bExp.onclick=(e)=>{e.stopPropagation(); const blob=new Blob([JSON.stringify(s,null,2)],{type:"application/json"}); const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=(s.name||"set")+".json"; a.click(); };
-    bDel.onclick=(e)=>{e.stopPropagation(); if(!confirm(`'${s.name||"제목 없음"}' 문제집을 삭제할까요?`)) return; sets.splice(idx,1); if(!sets.length) sets=[{id:uid(),name:"새 문제집",header:"",problems:[newProblem()]}]; saveSets(); renderLibrary(); toast("문제집을 삭제했어요"); };
+    bDel.onclick=async (e)=>{
+      e.stopPropagation();
+      if(!confirm(`'${s.name||"제목 없음"}' 문제집을 삭제할까요?`)) return;
+      const removed=s;
+      sets.splice(idx,1);
+      if(!sets.length) sets=[{id:uid(),name:"새 문제집",header:"",problems:[newProblem()]}];
+      saveSets(); renderLibrary(); toast("문제집을 삭제했어요");
+      // 클라우드에서도 지운다 — tombstone 을 남겨야 다른 기기의 오래된 사본이
+      // 다음 접속에 이 문제집을 되살리지 않는다. 이미지도 함께 정리한다.
+      await deleteSetEverywhere(removed);
+    };
 
     grid.append(card);
   });
@@ -1622,9 +1997,23 @@ const _setSearchEl=$("#setSearch");
 if(_setSearchEl){ _setSearchEl.oninput=(e)=>{ setSearchTerm=e.target.value||""; renderLibrary(); }; }
 $("#newSetBtn").onclick=()=>{ const ns={id:uid(), name:"새 문제집", header:"", problems:[newProblem()]}; sets.push(ns); setSearchTerm=""; const se=$("#setSearch"); if(se) se.value=""; saveSets(); showEditor(ns.id); };
 $("#exportAllBtn").onclick=()=>{ const blob=new Blob([JSON.stringify(sets,null,2)],{type:"application/json"}); const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="pedagogy_sets.json"; a.click(); };
-$("#importAllInput").onchange=e=>{ const f=e.target.files?.[0]; if(!f) return; const r=new FileReader(); r.onload=()=>{ try{
+/* 가져오기 상한. 남이 준 파일이 브라우저를 멈추게 하지 못하도록.
+   (normSet 이 문제집 안쪽은 제한하지만, '문제집 개수'와 '파일 크기'는 여기서 막는다) */
+const MAX_IMPORT_BYTES=24*1024*1024;   // 24MB
+const MAX_IMPORT_SETS=200;
+function importTooBig(f){
+  if(f && f.size>MAX_IMPORT_BYTES){
+    toast(`파일이 너무 커요 (${Math.round(f.size/1024/1024)}MB · 최대 ${MAX_IMPORT_BYTES/1024/1024}MB)`,"error");
+    return true;
+  }
+  return false;
+}
+
+$("#importAllInput").onchange=e=>{ const f=e.target.files?.[0]; if(!f) return;
+  if(importTooBig(f)){ e.target.value=""; return; }
+  const r=new FileReader(); r.onload=()=>{ try{
   const data=JSON.parse(r.result);
-  const incoming=Array.isArray(data)?data:[data];
+  const incoming=(Array.isArray(data)?data:[data]).slice(0,MAX_IMPORT_SETS);
   if(!incoming.length){ toast("불러올 문제집이 없어요","error"); return; }
   // 각 문제집을 새 id로 라이브러리에 추가 (기존 유지)
   let added=0;
@@ -2084,22 +2473,31 @@ function fileToBase64(file){
 }
 
 // AI 응답(JSON)을 편집기 블록 구조로 변환
+/* AI 응답도 신뢰 경계 바깥이다 — 사진 속 글자에 지시문을 심어 넣는 식으로
+   원하는 문자열을 돌려받게 만들 수 있다. 예전에는 여기서 바로 문항을 만들어
+   normProblem() 의 길이 제한·타입 강제·URL 검사를 전부 건너뛰었다.
+   AI 응답의 {type,text,items} 모양을 편집기 블록 모양으로만 옮기고,
+   최종 검사는 가져오기와 똑같이 normProblem() 에 맡긴다. */
 function aiBlocksToProblem(p){
+  const raw=(p&&Array.isArray(p.blocks))?p.blocks:[];
   const blocks=[];
-  (p.blocks||[]).forEach(b=>{
+  raw.forEach(b=>{
+    if(!b||typeof b!=="object") return;
+    const items=Array.isArray(b.items)?b.items.map(x=>String(x==null?"":x)):null;
     if(b.type==="statement"||b.type==="boxed"){
-      blocks.push({type:b.type, data:{text:b.text||""}});
+      blocks.push({type:b.type, data:{text:String(b.text==null?"":b.text)}});
     }else if(b.type==="conditions"||b.type==="examples"){
-      const items=(b.items&&b.items.length)?b.items:[""];
-      blocks.push({type:b.type, data:{items}});
+      blocks.push({type:b.type, data:{items:(items&&items.length)?items:[""]}});
     }else if(b.type==="choices"){
-      const items=(b.items||[]).slice(0,5);
-      while(items.length<5) items.push("");
-      blocks.push({type:"choices", data:{items, layout:"horizontal"}});
+      const a=(items||[]).slice(0,5);
+      while(a.length<5) a.push("");
+      blocks.push({type:"choices", data:{items:a, layout:"horizontal"}});
     }
   });
   if(!blocks.length) blocks.push({type:"statement", data:{text:""}});
-  return { id:uid(), title:p.title||"", desc:"", answer:"", answerImg:"", numLabel:"", paired:false, blocks };
+  // normProblem 이 id 재발급·길이 상한·블록 타입 고정까지 해 준다
+  return normProblem({ title:(p&&p.title)||"", desc:"", answer:"", answerImg:"",
+                       numLabel:"", paired:false, blocks });
 }
 
 async function aiGenerateFromImage(file){
@@ -2215,9 +2613,19 @@ function processText(raw){
     else html+=`<span class="vspace" style="display:block;height:${chunk}"></span>`;
   });
 
-  // ③ 플레이스홀더를 .pdm 래퍼로 복원 (KaTeX가 $$ 처리)
+  // ③ 플레이스홀더를 .pdm 래퍼로 복원
+  /* ⚠️ 여기가 이 파일에서 가장 조심해야 하는 지점이다.
+     예전에는 displayBlocks[i] 를 '원본 그대로' 되돌려 넣었다. 본문은 sanitize()
+     를 거치는데 $$...$$ 안쪽만 그 검사를 통째로 건너뛰었고, 그래서
+        $$</div><img src=x onerror=...>$$
+     한 줄이면 innerHTML 대입 시점에 태그가 진짜 요소로 파싱돼 실행됐다.
+     (가져온 .json / AI 응답 / 클라우드 데이터 어느 쪽으로도 들어올 수 있었다)
+
+     sanitize() 를 한 번 더 통과시켜도 수식은 깨지지 않는다 — KaTeX 는
+     textContent 를 읽으므로 &amp; → & 로 되돌아가고, cases 정렬용 &,
+     부등호 < >, array 표까지 모두 그대로 렌더된다. */
   html=html.replace(/\x01PDM(\d+)\x01/g,(m,i)=>{
-    return `<div class="pdm">$$${displayBlocks[+i]}$$</div>`;
+    return `<div class="pdm">$$${sanitize(displayBlocks[+i])}$$</div>`;
   });
 
   return html;
@@ -2253,7 +2661,11 @@ function blockHTML(blk){
 function renderPreview(){
   const q=activeQ(); if(!q) return;
   const nums=computeNums(activeProblems());
-  const displayNum=nums.find(n=>n.q===q)?.num||"??";
+  /* numLabel 은 사용자가 자유롭게 정하는 값이라 반드시 이스케이프한다.
+     인쇄(buildPrintDoc의 numOf)와 목록(renderQList의 fmtNum)은 예전부터
+     이스케이프했는데 이 미리보기 경로만 빠져 있어서, 40자 안에 들어가는
+     <img src=x onerror=...> 로 스크립트가 실행됐다. */
+  const displayNum=sanitize(String(nums.find(n=>n.q===q)?.num ?? "??"));
   // 번호 오른쪽에 제목/부제목
   $("#pvNum").innerHTML=`${displayNum}${q.title||q.desc?`<span style="font-family:var(--body-serif);font-size:13px;font-weight:500;color:#555;margin-left:8px">${sanitize(q.title)}${q.desc?` <span style="color:#888;font-weight:400">· ${sanitize(q.desc)}</span>`:""}</span>`:""}`;
   const ansHtml=(q.answer||q.answerImg)?`<div style="margin-top:10px;font-size:12px;color:#444;border-top:1px solid #ddd;padding-top:6px">${q.answer?`<span>정답: ${sanitize(q.answer)}</span>`:""}${safeUrl(q.answerImg)?`<img src="${safeUrl(q.answerImg)}" style="max-height:40px;display:block;margin-top:4px">`:"" }</div>`:"";
@@ -2584,7 +2996,7 @@ $("#previewArea").addEventListener("wheel",e=>{
    여기서 다시 대입하면 그 핸들러를 덮어써서 모의고사 모드가 열리지 않는다. */
 $("#saveBtn").onclick=async ()=>{
   if(!currentUser){
-    try{ localStorage.setItem(setsKey(), JSON.stringify(sets)); }catch(e){ console.error(e); }
+    persistLocal();
     setSaveStatus("✓ 로컬 저장됨", "#81c784");
     setTimeout(()=>setSaveStatus(""), 2000);
     toast("이 기기에 저장했어요 · 로그인하면 계정에 동기화돼요","success");
@@ -2601,28 +3013,20 @@ $("#saveBtn").onclick=async ()=>{
     try{
       const n=await migrateBase64ToStorage();
       if(n>0){
-        try{ localStorage.setItem(setsKey(), JSON.stringify(sets)); }catch(e){ console.error('로컬 저장 실패(용량 초과 가능)', e); }
+        sets.forEach(s=>touchSet(s.id));
+        persistLocal();
         if($("#editorView").style.display!=="none") renderPreview();
       }
     }catch(e){ console.warn("마이그레이션 중 일부 실패:", e); }
   }
 
   setSaveStatus("저장 중…");
-  try{
-    await fbDb.collection('users').doc(currentUser.uid).set({ sets, updatedAt: new Date() });
-    try{ localStorage.setItem(setsKey(), JSON.stringify(sets)); }catch(e){ console.error('로컬 저장 실패(용량 초과 가능)', e); }
-    setSaveStatus("✓ 저장됨", "#81c784");
-    setTimeout(()=>setSaveStatus(""), 2000);
-    toast("저장했어요","success");
-  }catch(e){
-    console.error("Firestore 저장 실패:", e);
-    const es=String(e?.message||e);
-    let detail="알 수 없는 오류";
-    if(/permission|insufficient|PERMISSION/i.test(es)) detail="권한 오류 — Firestore 보안 규칙을 확인하세요.";
-    else if(/longer than|exceeds|too large|1048487|maximum/i.test(es)) detail="문서 용량이 1MB를 초과했습니다.\n이미지 마이그레이션이 완료되지 않았을 수 있어요. 다시 저장해보세요.";
-    setSaveStatus("⚠ 저장 실패", "#e57373");
-    alert("계정 저장 실패:\n"+detail);
-  }
+  // 수동 저장은 '전부 다시 올린다'는 뜻이므로 동기화 표식을 비워 강제 업로드한다
+  const uidAtSave=currentUser.uid;
+  cloudSynced.clear();
+  await flushToCloud(uidAtSave);
+  persistLocal();
+  if(!hasUnsavedCloudWork()) toast("저장했어요","success");
 };
 $("#loadBtn").onclick=()=>$("#loadInput").click();
 $("#importAllBtn").onclick=()=>$("#importAllInput").click();
@@ -2650,12 +3054,15 @@ document.addEventListener("keydown",(e)=>{
   if(k==="z"&&!e.shiftKey){ if(inField) return; e.preventDefault(); doUndo(); }
   else if((k==="z"&&e.shiftKey)||k==="y"){ if(inField&&k==="z") return; e.preventDefault(); doRedo(); }
 });
-$("#loadInput").onchange=e=>{ const f=e.target.files?.[0]; if(!f) return; const r=new FileReader(); r.onload=()=>{ try{
+$("#loadInput").onchange=e=>{ const f=e.target.files?.[0]; if(!f) return;
+  if(importTooBig(f)){ e.target.value=""; return; }
+  const r=new FileReader(); r.onload=()=>{ try{
   const data=JSON.parse(r.result);
-  const incoming=Array.isArray(data)?data:[data];
-  // 불러온 모든 문제집의 문제를 한 줄로 모음
+  const incoming=(Array.isArray(data)?data:[data]).slice(0,MAX_IMPORT_SETS);
+  // 불러온 모든 문제집의 문제를 한 줄로 모음 (한 번에 들일 문항 수도 제한)
   const newProbs=[];
   incoming.forEach(s=>{ if(s&&Array.isArray(s.problems)) s.problems.forEach(p=>newProbs.push(p)); });
+  newProbs.splice(2000);
   if(!newProbs.length){ toast("불러올 문항이 없어요","error"); return; }
   const s=activeSet();
   if(!s){ toast("먼저 문제집을 열어주세요","error"); return; }
@@ -2859,6 +3266,8 @@ let prevUid=null;            // 직전 콜백의 uid (로그인/로그아웃 전
 async function bootLibrary(){
   authInitialized=true;
   migrateSharedLocalCache();
+  migrateSharedAuxKeys();                // 백업·마지막문항 키도 계정 칸으로
+  loadLastQ(); localStamps=readStamps();
   snapshotLocalBackup();                 // 직전 세션 데이터를 백업으로 보관
   await loadSets();
   lastSnapshot=snapshot(); undoStack=[]; redoStack=[]; updateHistButtons();
@@ -2869,9 +3278,15 @@ async function bootLibrary(){
 const onAuth=async (user)=>{
   // 계정이 바뀌는 순간 예약된 저장을 취소한다 — 이전 계정의 내용이 뒤늦게
   // 새 계정 문서로 넘어가지 않도록.
-  if(!user || !currentUser || currentUser.uid!==user.uid) clearTimeout(saveTimer);
+  if(!user || !currentUser || currentUser.uid!==user.uid){
+    clearTimeout(saveTimer);
+    if(setsUnsub){ setsUnsub(); setsUnsub=null; }   // 이전 계정 구독 해제
+    cloudSynced.clear(); deletedIds.clear();
+  }
   currentUser=user;
   migrateSharedLocalCache();   // 예전 공용 캐시가 있으면 지금 계정 칸으로
+  migrateSharedAuxKeys();
+  loadLastQ(); localStamps=readStamps();
   if(user){
     $("#authLoggedOut").style.display="none";
     $("#authLoggedIn").style.display="flex";

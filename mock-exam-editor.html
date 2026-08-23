@@ -5,8 +5,28 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>PEDAGOGY — 모의고사 편집기</title>
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
-<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<!-- 본체(index.html)와 같은 기준의 CSP.
+     이 편집기는 로컬 렌더 서버(serve.py)에 /health·/render 를 부르고 글꼴도
+     거기서 받아오므로 connect-src·font-src 에 로컬 주소를 넣는다.
+     img-src 에 data: 가 필요한 이유는 정본 미리보기를 base64 PNG 로 받기 때문이다. -->
+<meta http-equiv="Content-Security-Policy" content="
+  default-src 'self';
+  script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
+  style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
+  font-src 'self' data: https://cdn.jsdelivr.net http://127.0.0.1:* http://localhost:*;
+  img-src 'self' data: blob:;
+  connect-src 'self' http://127.0.0.1:* http://localhost:*;
+  object-src 'none';
+  base-uri 'none';
+  form-action 'none'">
+
+<!-- CDN 무결성(SRI) — 버전을 올릴 때 해시도 반드시 함께 다시 계산할 것 -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css"
+      integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+"
+      crossorigin="anonymous">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"
+        integrity="sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4lfFg"
+        crossorigin="anonymous"></script>
 
 <style>
 @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css');
@@ -510,7 +530,11 @@ const state={problems:Array.from({length:30},(_,i)=>blank(i+1)),sel:'p1',zoom:.6
 })();
 
 const $=s=>document.querySelector(s);
-const esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+/* 따옴표까지 막는다. 지금은 사용자 값이 HTML '속성' 자리에 들어가는 곳이 없어
+   & < > 만으로도 충분하지만, 나중에 style="…" 이나 title="…" 안에 값을 넣는
+   코드가 생기면 그때는 이미 늦는다. 본체 index.html 의 sanitize() 와 정책을 맞춘다. */
+const esc=s=>String(s).replace(/[&<>"']/g,c=>(
+  {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 function tex(src){
   if(!src) return '';
@@ -1026,14 +1050,9 @@ function renderEditor(){
    지문·조건·선지는 textarea 라 LaTeX 원문($\dfrac{a}{b}$ 같은 영문 명령)이 그대로 보인다.
    입력칸 바로 아래에 KaTeX 로 렌더한 결과를 같이 띄워, 오른쪽 시험지 미리보기까지
    눈을 옮기지 않고도 수식이 맞게 써졌는지 확인할 수 있게 한다. */
-function gauge(p){
-  const g=document.querySelector('.gauge');if(!g)return;
-  const pct=Math.round(measureCh(p.choices).ratio*100),L=layoutOf(p);
-  const f=g.querySelector('.fill');
-  f.style.width=Math.min(pct,100)+'%';f.classList.toggle('warn',pct>100);
-  g.querySelector('b').textContent=pct+'%';
-  g.querySelector('.res').textContent=L==='1'?'1줄 5개':L==='2'?'2줄 3+2':'세로';
-}
+/* (예전에 있던 gauge() 는 지웠다. 부르는 곳이 없는 죽은 코드였고, 블록 모델로
+   바뀌면서 사라진 p.choices 를 참조하고 있어 되살리면 즉시 TypeError 가 났다.
+   선지 폭 표시는 renderEditor() 안에서 measureCh() 로 직접 그린다.) */
 
 function renderOutline(){
   let h='',last='';
@@ -1483,7 +1502,13 @@ const TYPST_FRAME = `#import "@preview/mitex:0.2.7": mi, mitex
 
 /* ── Typst 마크업 이스케이프 ──
    Typst에서 특별한 뜻을 갖는 문자를 본문 텍스트로 내보낼 때 막아준다. */
-function tq(s){return String(s).replace(/([\\#$\[\]*_`<>@~])/g,'\\$1');}
+/* Typst 마크업 안에서 특별한 뜻을 갖는 글자를 모두 막는다.
+   '/' 가 빠져 있었다 — Typst 에서 '//' 는 줄 주석이라, 본문에 "a // b" 처럼
+   쓰면 그 줄의 나머지가 통째로 주석이 되면서 내용 블록을 닫는 ']' 까지
+   먹어 버렸다. 결과는 `error: unclosed delimiter` — 정본 출력 자체가 실패.
+   ('/*' 는 '*' 가 이미 이스케이프돼 우연히 막혀 있었지만, 명시적으로 함께 막는다)
+   '#' 를 막기 때문에 사용자 텍스트가 Typst 함수 호출로 실행될 수는 없다. */
+function tq(s){return String(s).replace(/([\\#$\[\]*_`<>@~\/])/g,'\\$1');}
 /* Typst 문자열 리터럴("...") 안에 넣을 때 */
 function tqs(s){return String(s).replace(/\\/g,'\\\\').replace(/"/g,'\\"');}
 /* LaTeX → MiTeX 호출. disp=true면 별행(디스플레이) 수식 */
