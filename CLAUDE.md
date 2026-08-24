@@ -233,6 +233,29 @@ Pages–hosted `index.html` can also call into (via `--allow-origin`).
 - **본체 인쇄 경로와 미리보기의 축소 로직**이 여전히 별개다
   (`fitPrintDoc()` vs `fitMathIn()`) — 선지 줄바꿈 보정은 인쇄에만 있다.
 
+### 2026-08-25 (6차) — 라이트하우스 (모바일)
+`Performance 69 / A11y 90 / Best Practices 73 / SEO 91` 에서 출발.
+
+- **렌더 차단 제거가 제일 컸다(실측 2,010ms).** Firebase SDK 4개와 SortableJS 가
+  `defer` 없이 `<script src>` 라 파싱을 막고 있었다. LCP 요소는 '문제집 라이브러리'
+  라는 h2 한 줄인데 6.3초가 걸렸다.
+  ⚠️ **`defer` 를 붙이면 인라인 스크립트가 SDK 보다 먼저 돈다.** 그래서
+  `firebase.initializeApp` 을 `initFirebase()` 로 빼고 `DOMContentLoaded` 에서
+  `startApp()` 이 부른다. 이걸 안 하면 항상 오프라인 모드로 떨어진다.
+- **흰 글자 위 파란 배경**(`#3182F6`)이 대비 3.71:1 로 AA(4.5:1) 미달이었다.
+  `--blue-on-white-text:#2B6FD6`(4.83:1)를 따로 두고 글자가 얹히는 4곳에만 쓴다.
+  테두리·포커스링은 브랜드색 `--blue` 를 그대로 둔다.
+- `<main id="appMain">` 으로 세 뷰를 묶었다(랜드마크 없음 지적). `#printDoc` 은 밖.
+- `meta description` 추가, 없는 `Adobe Caslon Pro Bold.ttf` 의 `url()` 제거
+  (404 콘솔 오류 + 낭비 요청).
+
+**고칠 수 없는 것 — 점수만 보고 쫓지 말 것**
+- `third-party-cookies` 10개는 전부 `apis.google.com` 것이다. Firebase 구글 로그인이
+  쓰는 iframe 이라 **인증 도메인을 자체 도메인으로 옮기지 않는 한 없앨 수 없다.**
+- 콘솔 오류 3건 중 2건은 **크롬 확장 프로그램**이 blob: 스크립트를 주입하려다
+  우리 CSP 에 막힌 것이다. 우리 코드 문제가 아니다(시크릿 창에서 재측정하면 사라진다).
+  CSP 에 `blob:` 을 열어 주는 건 확장 하나 때문에 방어를 푸는 것이라 하지 않았다.
+
 ### 2026-08-25 (5차) — 성능 (실측 기반)
 숫자는 전부 브라우저에서 잰 것이다. 추정치가 아니다.
 
