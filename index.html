@@ -1601,6 +1601,8 @@ async function loadSets(){
         const arr=(legacy.exists && Array.isArray(legacy.data().sets))?legacy.data().sets:[];
         if(arr.length){
           console.info(`구버전 클라우드 문서에서 문제집 ${arr.length}개를 서브컬렉션으로 이관합니다.`);
+          // 이관은 문제집 수만큼 쓰기가 일어나 몇 초 걸릴 수 있다. 진행 중임을 알린다.
+          showLibraryLoading(`처음 로그인이라 문제집 ${arr.length}개를 정리하고 있어요 · 잠시만요`);
           const batch=fbDb.batch();
           arr.forEach((s,i)=>{
             if(!s||!s.id) return;
@@ -1908,6 +1910,35 @@ function storagePathsOf(s){
 function stillReferenced(url, exceptSetId){
   return sets.some(s=>s.id!==exceptSetId && storagePathsOf(s).includes(url));
 }
+
+/* ── 이미지 한 장 정리 ──
+   블록을 지우거나 이미지 블록을 다른 종류로 바꾸면 Firestore 에서는 URL 이
+   사라지지만, 예전에는 Storage 의 원본 파일이 그대로 남아 영영 요금만 먹었다
+   (문제집 통째 삭제만 정리했고, 블록 단위는 아무도 치우지 않았다).
+   지금 열려 있는 어느 문제집도 그 주소를 안 쓸 때만 지운다 — 복제본이
+   같은 파일을 가리키고 있을 수 있기 때문이다.
+   실패해도 조용히 넘어간다(용량만 남을 뿐 기능에는 영향이 없다). */
+function releaseImage(url){
+  if(!isStorageUrl(url) || !currentUser || !fbReady) return;
+  // sets 전체에서 아직 쓰이는지 확인 (지운 직후 호출되므로 남아 있으면 다른 곳)
+  const used=sets.some(s=>storagePathsOf(s).includes(url));
+  if(used) return;
+  Promise.resolve()
+    .then(()=>fbStorage.refFromURL(url).delete())
+    .then(()=>console.info("사용하지 않는 이미지를 정리했습니다"))
+    .catch(e=>console.warn("이미지 정리 실패(무시):", e && e.code));
+}
+/* 블록 하나가 품고 있는 Storage 이미지를 모두 반납 */
+function releaseBlockImages(blk){
+  if(!blk||!blk.data) return;
+  if(blk.type==="image" && isStorageUrl(blk.data.dataUrl)) releaseImage(blk.data.dataUrl);
+}
+/* 문항 하나가 품고 있는 것 전부 (블록 이미지 + 정답 이미지) */
+function releaseProblemImages(q){
+  if(!q) return;
+  if(isStorageUrl(q.answerImg)) releaseImage(q.answerImg);
+  (q.blocks||[]).forEach(releaseBlockImages);
+}
 async function deleteSetEverywhere(removed){
   if(!removed || !currentUser || !fbReady) return;
   const owner=currentUser.uid;
@@ -2049,6 +2080,23 @@ function renderLibrary(){
 function showLibrary(){ $("#libraryView").style.display="block"; $("#editorView").style.display="none";
   $("#mockView").style.display="none"; if(window.__mockClose) window.__mockClose();
   $("#topActions").style.visibility="hidden"; rememberSet(null); renderLibrary(); }
+
+/* 클라우드에서 문제집을 가져오는 동안 보여 줄 화면.
+   예전에는 이 상태가 없어서, 로그인 직후 불러오는 몇 초 동안 '아직 문제집이
+   없어요' 라는 빈 화면이 떴다. 처음 로그인할 때는 구버전 데이터를 서브컬렉션으로
+   옮기느라 더 오래 걸려서, 사용자는 데이터가 사라진 줄 알고 새로고침을 하게 된다.
+   (실제로는 잘 불러오고 있었다) */
+function showLibraryLoading(sub){
+  $("#libraryView").style.display="block"; $("#editorView").style.display="none";
+  $("#mockView").style.display="none"; if(window.__mockClose) window.__mockClose();
+  $("#topActions").style.visibility="hidden";
+  const grid=$("#setGrid"); if(!grid) return;
+  grid.innerHTML="";
+  const es=el("div","empty-state");
+  es.append(el("div","es-title","문제집을 불러오는 중…"));
+  es.append(el("div","es-sub", sub||"클라우드에서 가져오고 있어요"));
+  grid.append(es);
+}
 
 
 const _setSearchEl=$("#setSearch");
@@ -2220,7 +2268,11 @@ function renderQList(){
       del.onclick=(e)=>{e.stopPropagation(); const fi=arr.findIndex(x=>x.id===q.id); if(fi<0) return;
         if(!confirm("문항을 삭제할까요?")) return;
         if(fi>0 && arr[fi-1].paired) setPair(arr[fi-1],false);
-        arr.splice(fi,1); if(!arr.length) arr.push(newProblem()); currentQId=arr[0].id; saveSets(); renderQList(); renderPreview(); syncPairedChk();};
+        const goneQ=arr[fi];
+        arr.splice(fi,1); if(!arr.length) arr.push(newProblem()); currentQId=arr[0].id;
+        saveSets(); renderQList(); renderPreview(); syncPairedChk();
+        releaseProblemImages(goneQ);   // 문항이 품고 있던 이미지도 함께 정리
+        };
       acts.append(del);
     }
     item.append(acts);
@@ -2379,8 +2431,13 @@ function renderEditor(){
     type.onchange=()=>{
       const to=type.value;
       if(to===blk.type) return;
+      // 이미지 → 다른 종류로 바꾸면 Storage 원본이 갈 곳을 잃는다. 먼저 주소를
+      // 확보해 두고, 데이터를 바꾼 뒤에 정리한다(바꾸기 전에 지우면 아직
+      // 참조 중이라 판단해 안 지워진다).
+      const dropped = (blk.type==="image") ? blk.data && blk.data.dataUrl : null;
       blk.data=convertBlock(blk,to); blk.type=to;
       saveSets(); renderEditor(); renderPreview();
+      if(dropped) releaseImage(dropped);
     };
     head.append(handle,type);
 
@@ -2415,7 +2472,13 @@ function renderEditor(){
     head.append(dup);
 
     const del=el("button","iconbtn",""); del.append(el("span","icon icon-trash","")); del.title="블록 삭제";
-    del.onclick=()=>{ q.blocks.splice(idx,1); if(!q.blocks.length) q.blocks.push({type:"statement",data:{text:""}}); saveSets(); renderEditor(); renderPreview(); };
+    del.onclick=()=>{
+      const gone=q.blocks[idx];
+      q.blocks.splice(idx,1);
+      if(!q.blocks.length) q.blocks.push({type:"statement",data:{text:""}});
+      saveSets(); renderEditor(); renderPreview();
+      releaseBlockImages(gone);      // 지운 블록이 품고 있던 Storage 이미지 정리
+    };
     head.append(del);
 
     const sep=el("div","blk-sep");
@@ -2647,14 +2710,38 @@ async function aiGenerateFromImage(file){
     const problems=data.problems||[];
     if(!problems.length){ throw new Error("문제를 찾지 못했습니다"); }
 
-    // 변환된 문제들을 현재 문제집에 추가
+    /* ── 변환이 끝났다. 그 사이 화면이 옮겨졌을 수 있다 ──
+       AI 변환은 몇 초 걸리는데 그동안 사용자가 다른 문제집으로 넘어가거나
+       그 문제집을 지웠을 수 있다. 예전에는 그 검사 없이
+           set.problems.push(...); currentQId = 새 문항;
+       을 그대로 해서, 보고 있는 건 B 문제집인데 currentQId 는 A 문제집의
+       문항을 가리키는 상태가 됐다(activeQ() 가 undefined 가 되어 목록·편집기가
+       어긋났다). 결과가 어디로 갔는지 알 방법도 없었다.
+
+       결과는 '사진을 떨어뜨릴 때 열려 있던 문제집' 에 넣는 게 맞다. 다만
+       포커스는 지금 그 문제집을 보고 있을 때만 옮기고, 아니면 어디에 들어갔는지
+       알려 준다. */
+    const stillExists=sets.some(s=>s.id===set.id);
+    if(!stillExists){
+      aiStatus("", false);
+      toast(`'${set.name||"문제집"}' 이 사라져서 변환 결과를 넣지 못했어요`,"error");
+      return;
+    }
     const newQs=problems.map(aiBlocksToProblem);
     set.problems.push(...newQs);
-    currentQId=newQs[0].id; // 첫 새 문제로 포커스
-    saveSets(); renderQList(); renderEditor(); renderPreview(); syncPairedChk();
 
-    aiStatus(`✅ 문제 ${newQs.length}개 추가됨`);
-    setTimeout(()=>aiStatus("", false), 2500);
+    if(currentSetId===set.id){
+      currentQId=newQs[0].id;              // 같은 문제집을 보고 있을 때만 포커스 이동
+      saveSets(); renderQList(); renderEditor(); renderPreview(); syncPairedChk();
+      aiStatus(`✅ 문제 ${newQs.length}개 추가됨`);
+      setTimeout(()=>aiStatus("", false), 2500);
+    }else{
+      touchSet(set.id);                    // 그 문제집이 바뀌었음을 저장 계층에 알린다
+      saveSets();
+      if($("#libraryView").style.display!=="none") renderLibrary();
+      aiStatus("", false);
+      toast(`변환한 문제 ${newQs.length}개를 '${set.name||"문제집"}' 에 넣었어요`,"success");
+    }
   }catch(err){
     console.error(err);
     aiStatus("", false);
@@ -3405,6 +3492,7 @@ async function bootLibrary(){
   migrateSharedAuxKeys();                // 백업·마지막문항 키도 계정 칸으로
   loadLastQ(); localStamps=readStamps();
   snapshotLocalBackup();                 // 직전 세션 데이터를 백업으로 보관
+  if(currentUser) showLibraryLoading();  // 불러오는 동안 '없어요' 대신 '불러오는 중'
   await loadSets();
   lastSnapshot=snapshot(); undoStack=[]; redoStack=[]; updateHistButtons();
   currentSetId=null; currentQId=null;
@@ -3448,6 +3536,7 @@ const onAuth=async (user)=>{
   }else if(userChanged){
     // 이후 로그인/로그아웃/계정전환이 실제로 일어났을 때만 재로드
     // (토큰 갱신처럼 uid 그대로면 화면 안 건드림 → 작업 중 덮어쓰기 방지)
+    if(user) showLibraryLoading(user.displayName ? user.displayName+" 님의 문제집을 가져오고 있어요" : null);
     await loadSets();
     lastSnapshot=snapshot(); undoStack=[]; redoStack=[]; updateHistButtons();
     currentSetId=null; currentQId=null;
