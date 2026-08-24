@@ -879,9 +879,33 @@ function convertBlock(blk,to){
   return nd;
 }
 
+/* ── 타이핑 1회가 유발하는 일 ──
+   실측(30문항 기준):
+     · '이 문항' 모드  renderPreview 0.6ms + renderOutline 6.6ms  → 8.2ms  (한 프레임 안)
+     · '전체보기' 모드 8쪽을 통째로 다시 조립           → 78ms  (명백한 끊김)
+   전체보기는 한 글자마다 30문항을 전부 KaTeX 로 다시 그리는 셈이라,
+   실시간(LIVE) 모드가 이미 하듯 '바로 그리지 않고 미뤄' 두어야 한다.
+   타이핑이 멈춘 뒤 한 번만 그린다. */
+let previewTimer=null;
+function schedulePreview(delay){
+  clearTimeout(previewTimer);
+  previewTimer=setTimeout(()=>{ previewTimer=null; renderPreview(); }, delay);
+}
+/* 순서도도 문항마다 measureCh() 로 선지 폭을 재느라(30문항 = KaTeX 105회)
+   타이핑마다 돌리기엔 무겁다. 같이 미룬다. */
+let outlineTimer=null;
+function scheduleOutline(delay){
+  clearTimeout(outlineTimer);
+  outlineTimer=setTimeout(()=>{ outlineTimer=null; renderOutline(); }, delay);
+}
+
 function edChanged(p,full){
   DIRTY=true; scheduleDraft();
-  renderPreview(); renderOutline();
+  // '이 문항' 모드는 가벼우니 즉시 그려 반응을 유지하고,
+  // 전체 시험지를 다시 조립해야 하는 '전체보기' 만 미룬다.
+  if(state.pvMode==='all' && !LIVE.on) schedulePreview(220);
+  else renderPreview();
+  scheduleOutline(220);
   if(full) renderEditor();
 }
 
