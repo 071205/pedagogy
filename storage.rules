@@ -19,10 +19,18 @@ service firebase.storage {
       allow read: if request.auth != null
                   && request.auth.uid == uid;
 
-      // 올리기/덮어쓰기: 본인 폴더에만, 이미지 파일만, 10MB 이하
+      // 올리기/덮어쓰기: 본인 폴더에만, 이미지 파일만, 5MB 이하
+      //
+      // 이 규칙이 용량 폭탄에 대한 '최종' 방어선이다. 클라이언트도 같은 5MB 로
+      // 막지만(index.html 의 MAX_UPLOAD_BYTES), 그건 헛되이 올렸다가 거절당하지
+      // 않게 하는 편의일 뿐 방어가 아니다 — 개발자 도구로 얼마든지 우회된다.
+      // ⚠️ 이 숫자를 바꾸면 index.html 의 MAX_UPLOAD_BYTES 도 함께 바꿀 것.
+      //
+      // 참고: 편집기는 업로드 전에 canvas 로 1800px JPEG 로 줄이므로 정상 사진은
+      // 보통 1MB 를 넘지 않는다. 5MB 에 걸린다면 비정상적인 파일이다.
       allow write: if request.auth != null
                    && request.auth.uid == uid
-                   && request.resource.size < 10 * 1024 * 1024
+                   && request.resource.size < 5 * 1024 * 1024
                    && request.resource.contentType.matches('image/.*');
 
       // 지우기: 본인 파일만

@@ -1006,7 +1006,8 @@ function renderEditor(){
       src.placeholder='파일명 (예: fig-14.png) — 비우면 자리만 표시';
       src.oninput=e=>{ blk.data.src=e.target.value.trim().replace(/["\\]/g,''); edChanged(p,false); };
       body.append(src);
-      body.append(elx('div','hint','.typ 파일과 같은 폴더에 두면 됩니다.'));
+      body.append(elx('div','hint','실시간 미리보기는 serve.py 옆 work/ 폴더에, '
+        +'내보낸 .typ 은 그 파일과 같은 폴더에 그림을 두세요.'));
     }
 
     wrap.append(body); area.append(wrap);
@@ -1563,8 +1564,14 @@ function probTypst(p){
     else if(u.k==='cond') push(`#condbox(${u.items.map(c=>`\n       [${tline(c)}],`).join('')}\n     )`);
     else if(u.k==='ex')   push(`#exbox(${u.items.map((c,j)=>`\n       [${tq(HGND[j%HGND.length])}. ${tline(c)}],`).join('')}\n     )`);
     else if(u.k==='boxed')push(`#condbox(\n       [${tline(u.t)}],\n     )`);
+    /* 그림 경로 앞의 '/' 는 Typst 에서 '루트 기준 절대경로' 라는 뜻이다.
+       상대경로로 두면 실시간 렌더에서 그림을 절대 못 찾는다 — serve.py 가
+       main.typ 을 work/ 밑 '임시 폴더' 에 쓰기 때문에 work/fig.png 에 파일을
+       둬도 work/tmpXXXX/fig.png 를 뒤진다(실제로 file not found 가 났다).
+       '/' 를 붙이면 실시간에서는 --root 인 work/ 를, 내보낸 .typ 을 직접
+       컴파일할 때는 그 .typ 이 있는 폴더를 가리켜 양쪽 다 맞는다. */
     else if(u.k==='fig')  push(u.src
-        ? `#figbox[#image("${tqs(u.src)}", width: ${u.w}mm)]`
+        ? `#figbox[#image("/${tqs(u.src)}", width: ${u.w}mm)]`
         // 안내 주석은 반드시 '앞줄'에 둔다. 뒤에 붙이면 Typst 의 // 주석이
         // 줄 끝까지 먹어서, 이 항목을 닫는 ], 까지 주석 처리돼 컴파일이 깨진다.
         : `// 그림 파일을 지정하면 #figbox[#image("...", width: ${u.w}mm)] 로 바뀝니다\n     `

@@ -6,3 +6,7 @@
 # wrangler 로컬 캐시 — 계정 id/이름이 담겨 공개 저장소에 둘 이유가 없다
 .wrangler/
 worker/.wrangler/
+
+# 파이썬 캐시 — serve.py 를 import 해서 테스트할 때 생긴다
+__pycache__/
+*.pyc

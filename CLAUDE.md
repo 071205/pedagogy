@@ -35,6 +35,11 @@ python3 serve.py --open
 - `/` serves `index.html` if present, else falls back to `mock-exam-editor.html`.
 - `--port <n>` to change the port; `--allow-origin <https://...>` to allow an additional
   https origin to call `/render` (localhost is always allowed).
+- `--lan` 은 같은 와이파이의 다른 기기(아이패드 등)에서 쓰려고 `0.0.0.0` 에 여는 옵션이다.
+  **임의 호스트명은 그때도 계속 거절하고**, 이 PC 의 사설 IP 만 Host/Origin 허용에 더한다
+  (그렇게 해야 DNS 리바인딩 방어가 유지된다). 이 모드에서는 상용 글꼴을 내보내는
+  `/font/` 가 꺼진다. 구글 로그인·AI 변환을 LAN 에서 쓰려면 Firebase '승인된 도메인' 과
+  Worker 의 `ALLOWED_ORIGINS` 에 그 IP 를 각각 추가해야 한다(기동 배너가 안내한다).
 - Requires `typst` (`brew install typst`) for the `/render` endpoint to actually compile.
   Without it, `/health` still responds but rendering fails with a message telling the user
   to install it.
@@ -83,6 +88,14 @@ pieces to know before editing:
   lazily upgrades old base64-embedded images to Storage URLs on next save.
   `isStorageUrl()`/`isDataUrl()` distinguish the two representations wherever images are read.
   Answer images and block images (`type:"image"`) both go through this path.
+  **업로드 상한은 5MB 이고 `storage.rules` 의 값과 반드시 같아야 한다**
+  (`MAX_UPLOAD_BYTES` ↔ 규칙의 `request.resource.size`). 클라이언트 검사는 편의일 뿐
+  실제 방어선은 규칙이다. 압축(`dataUrlToJpegBlob`)이 실패하면 **원본을 올리지 않고
+  거절한다** — 예전엔 폴백으로 원본을 그대로 올려서, 확장자만 이미지인 파일이나
+  크롬이 못 읽는 HEIC 가 크기 제한 없이 Storage 로 들어갔다.
+  AI 로 보낼 때는 `prepImageForAI()` 가 긴 변 1568px·JPEG 0.8 로 줄인다. 1568 은
+  모델이 실제로 보는 해상도 상한이라 그 이상 보내도 화질·토큰이 같고 업로드 시간만
+  버린다. canvas 를 거치므로 아이폰 HEIC 도 JPEG 로 바뀌어 공급자가 받는다.
   ​Never inline real API keys/secrets for third-party services other than the already-public
   Firebase web config; the `AI_PROXY_URL` Cloudflare Worker endpoint exists specifically so
   the actual AI provider key stays server-side.
@@ -143,6 +156,11 @@ own save/load — does not share PEDAGOGY's Firebase storage).
   Both paths must stay in sync with the state model; the Typst path is the one that produces
   the actual exportable/printable document, the CSS path is only an approximation for when
   the local server isn't running.
+- **그림 경로**: `probTypst()` 는 `#image("/파일명")` 처럼 **앞에 `/` 를 붙여** 낸다.
+  Typst 에서 `/` 는 '루트 기준' 이라, 실시간 렌더에서는 `--root` 인 `work/` 를,
+  내보낸 `.typ` 을 직접 컴파일할 때는 그 `.typ` 이 있는 폴더를 가리켜 **양쪽 다 맞는다**.
+  상대경로로 두면 실시간에서 절대 못 찾는다 — `serve.py` 가 `main.typ` 을 `work/` 밑
+  **임시 폴더**에 쓰기 때문에 `work/fig.png` 를 둬도 `work/tmpXXXX/fig.png` 를 뒤진다.
 - Keyboard shortcuts: ⌘S save JSON, ⌘E export Typst, ⌥↑/↓ move between problems.
 
 ### serve.py
@@ -214,6 +232,13 @@ Pages–hosted `index.html` can also call into (via `--allow-origin`).
   병렬 호출로 상한을 넘길 수 있다. 근본 해결은 Durable Object.
 - **본체 인쇄 경로와 미리보기의 축소 로직**이 여전히 별개다
   (`fitPrintDoc()` vs `fitMathIn()`) — 선지 줄바꿈 보정은 인쇄에만 있다.
+
+### 2026-08-25 추가 반영
+AI 전송 이미지 자동 축소(`prepImageForAI`, 1568px/JPEG 0.8 — 모델 해상도 상한과 일치,
+HEIC 도 함께 해결), Storage 업로드 5MB 상한 + 압축 실패 시 원본 업로드 차단,
+`storage.rules` 10MB→5MB, 가져오기에서 외부 이미지가 조용히 사라지던 문제에 안내 추가
+(`normDropped`/`reportNormDropped`), 모의고사 그림이 실시간 렌더에서 아예 안 나오던
+버그(`#image` 경로) 수정, `serve.py --lan` (사설 IP 만 허용 · `/font/` 차단 · 경고 배너).
 
 ### 2026-08-24 감사에서 처리 완료
 `$$` 블록 XSS 차단(가장 위험했던 항목), `numLabel` 미리보기 XSS, CSP + CDN SRI 전면 적용,

@@ -12,6 +12,9 @@
 ── 보안 ──
 이 서버는 로컬 전용이다. 다음을 지킨다.
   · 127.0.0.1 에만 바인딩한다 (같은 와이파이의 다른 기기도 접근 불가)
+    └ --lan 을 주면 0.0.0.0 으로 열고, 이 PC 의 '사설 IP' 만 허용 목록에 더한다.
+      임의 호스트명은 그때도 계속 거절하므로 리바인딩 방어는 유지된다.
+      대신 상용 글꼴을 내보내는 /font/ 는 그 모드에서 꺼진다.
   · Host 헤더가 127.0.0.1/localhost 가 아니면 GET·POST 모두 거절한다
     (DNS 리바인딩 차단 — Origin 검사만으로는 막히지 않는다)
   · 브라우저에서 온 요청은 Origin 이 허용 목록에 있을 때만 받는다
@@ -21,7 +24,7 @@
   · 본문 크기 상한과 컴파일 시간 상한을 둔다
 """
 from __future__ import annotations
-import argparse, base64, hashlib, json, os, shutil, signal, subprocess, sys, tempfile, threading, webbrowser
+import argparse, base64, hashlib, ipaddress, json, os, shutil, signal, socket, subprocess, sys, tempfile, threading, webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import unquote
@@ -64,6 +67,49 @@ FONT_DIRS = [
 
 
 FONT_EXTS = {".ttf": "font/ttf", ".otf": "font/otf", ".ttc": "font/collection"}
+
+# ── LAN 모드 ──
+# 기본은 꺼져 있다. --lan 을 주면 같은 와이파이의 다른 기기(아이패드 등)에서
+# 접속할 수 있게 0.0.0.0 에 바인딩하고, 아래 LAN_IPS 를 Host/Origin 허용에 더한다.
+#
+# ⚠️ 여기서 '아무 호스트명이나 허용'으로 완화하면 안 된다. 그러면 DNS 리바인딩
+#    방어가 그대로 무너진다(공격자 도메인이 내 IP 로 재해석되어도 Host 는 그
+#    도메인으로 남는데, 이름을 허용해 버리면 통과한다).
+#    그래서 '이 PC 가 실제로 가진 사설 IP' 만 골라 허용 목록에 넣는다.
+LAN_MODE = False
+LAN_IPS: set[str] = set()
+
+
+def private_ips() -> set[str]:
+    """이 PC 가 가진 사설 대역(10/8, 172.16/12, 192.168/16) IPv4 주소만 모은다.
+    공인 IP 나 링크로컬(169.254)은 넣지 않는다."""
+    found: set[str] = set()
+
+    def keep(ip: str):
+        try:
+            a = ipaddress.ip_address(ip)
+        except ValueError:
+            return
+        if a.version == 4 and a.is_private and not a.is_loopback and not a.is_link_local:
+            found.add(str(a))
+
+    # 바깥으로 나가는 인터페이스의 주소 (패킷은 실제로 보내지 않는다)
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.connect(("192.0.2.1", 9))       # TEST-NET-1 — 라우팅만 조회된다
+        keep(s.getsockname()[0])
+    except OSError:
+        pass
+    finally:
+        s.close()
+
+    # 호스트명으로 잡히는 주소들도 함께 (인터페이스가 여럿일 때)
+    try:
+        for info in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET):
+            keep(info[4][0])
+    except OSError:
+        pass
+    return found
 
 
 def find_font(name: str) -> Path | None:
@@ -183,7 +229,12 @@ class Handler(BaseHTTPRequestHandler):
 
     def _allowed(self) -> set[str]:
         port = self.server.server_address[1]
-        return ALLOW_ORIGINS | {f"http://127.0.0.1:{port}", f"http://localhost:{port}"}
+        base = ALLOW_ORIGINS | {f"http://127.0.0.1:{port}", f"http://localhost:{port}"}
+        if LAN_MODE:
+            # 아이패드가 http://192.168.0.5:8787 로 열면 POST /render 의 Origin 이
+            # 그 주소다. 여기에 더해 두지 않으면 Host 검사를 통과해도 403 이 난다.
+            base |= {f"http://{ip}:{port}" for ip in LAN_IPS}
+        return base
 
     def _origin_ok(self) -> bool:
         """Origin 이 로컬이거나 ALLOW_ORIGINS 에 있을 때만 허용."""
@@ -205,7 +256,12 @@ class Handler(BaseHTTPRequestHandler):
         """
         h = (self.headers.get("Host") or "").strip()
         port = self.server.server_address[1]
-        return h in {f"127.0.0.1:{port}", f"localhost:{port}", f"[::1]:{port}"}
+        ok = {f"127.0.0.1:{port}", f"localhost:{port}", f"[::1]:{port}"}
+        if LAN_MODE:
+            # 임의 호스트명은 계속 거절하고, 이 PC 의 실제 사설 IP 만 더한다.
+            # (이름까지 허용하면 리바인딩 방어가 사라진다)
+            ok |= {f"{ip}:{port}" for ip in LAN_IPS}
+        return h in ok
 
     def _cors(self):
         """허용된 출처면 CORS 헤더를 붙인다.
@@ -273,10 +329,14 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/health":
             # webfonts: /font/<이름> 으로 받아갈 수 있는 글꼴 파일 목록
             names = []
-            for d in FONT_DIRS:
-                if d.is_dir():
-                    names += [p.name for p in d.iterdir()
-                              if p.is_file() and p.suffix.lower() in FONT_EXTS]
+            # LAN 모드에서는 /font/ 를 막아 뒀으므로 목록도 비워 보낸다.
+            # (편집기가 받아갈 수 없는 글꼴로 @font-face 를 만들지 않게 하고,
+            #  설치된 글꼴 이름이 같은 와이파이에 새어 나가지도 않게 한다)
+            if not LAN_MODE:
+                for d in FONT_DIRS:
+                    if d.is_dir():
+                        names += [p.name for p in d.iterdir()
+                                  if p.is_file() and p.suffix.lower() in FONT_EXTS]
             # 글꼴 폴더의 '절대 경로'는 돌려주지 않는다 — 홈 디렉터리 경로에 계정명이
             # 들어 있어 그대로 노출됐다. 편집기는 폴더가 있는지 여부만 쓴다.
             return self._json(200, {"ok": TYPST is not None,
@@ -288,6 +348,13 @@ class Handler(BaseHTTPRequestHandler):
         # 그래서 로컬 서버가 떠 있으면 글꼴 파일 자체를 건네, 어느 브라우저에서든
         # 미리보기가 정본과 같은 서체로 보이게 한다. (파일은 이 PC 밖으로 나가지 않는다)
         if path.startswith("/font/"):
+            # LAN 모드에서는 글꼴 파일을 내보내지 않는다.
+            # 이 글꼴들은 상용 라이선스 대상이고, FONT-LICENSE.md 의 견적 전제가
+            # "글꼴 파일 자체는 사용자에게 전송되지 않는다" 이다. 같은 와이파이의
+            # 아무 기기나 원본을 받아갈 수 있게 되면 그 전제가 깨진다.
+            # 미리보기 서체만 폴백되고 정본(PNG/PDF) 출력은 그대로 나온다.
+            if LAN_MODE:
+                return self._json(403, {"error": "font serving disabled in LAN mode"})
             f = find_font(path[len("/font/"):])
             if not f:
                 return self._json(404, {"error": "font not found"})
@@ -356,7 +423,15 @@ def main():
     ap.add_argument("--open", action="store_true", help="브라우저를 자동으로 연다")
     ap.add_argument("--allow-origin", action="append", default=[],
                     help="이 로컬 서버를 부를 수 있는 https 사이트 주소 (여러 번 지정 가능)")
+    ap.add_argument("--lan", action="store_true",
+                    help="같은 와이파이의 다른 기기(아이패드 등)에서 접속할 수 있게 연다 "
+                         "— 보안이 약해지므로 개인 와이파이에서만 사용")
     a = ap.parse_args()
+
+    global LAN_MODE, LAN_IPS
+    LAN_MODE = a.lan
+    if LAN_MODE:
+        LAN_IPS = private_ips()
 
     for o in a.allow_origin:
         ALLOW_ORIGINS.add(o.rstrip("/"))
@@ -364,17 +439,44 @@ def main():
     # localhost 로 연다. 127.0.0.1 은 Firebase Auth 의 기본 승인 도메인이 아니라
     # 구글 로그인이 auth/unauthorized-domain 으로 막힌다(localhost 는 기본 허용).
     url = f"http://localhost:{a.port}/"
+    bind = "0.0.0.0" if LAN_MODE else "127.0.0.1"
+
     print("─" * 58)
     print(f"  편집기      {url}")
     print(f"  typst       {TYPST or '없음 →  brew install typst'}")
     for d in FONT_DIRS:
         print(f"  글꼴        {'○' if d.is_dir() else '×'} {d}")
-    print(f"  그림 폴더   {WORK}   (그림 파일은 여기에 두세요)")
+    print(f"  그림 폴더   {WORK}   (그림은 여기에 두고 파일명만 입력하세요)")
     for o in sorted(ALLOW_ORIGINS):
         print(f"  허용 사이트 {o}")
     print("  Ctrl+C 로 종료")
     print("─" * 58)
-    srv = ThreadingHTTPServer(("127.0.0.1", a.port), Handler)   # 로컬에만 바인딩
+
+    if LAN_MODE:
+        if not LAN_IPS:
+            print("  ⚠️  LAN 모드를 켰지만 사설 IP 를 찾지 못했습니다.")
+            print("      와이파이에 연결돼 있는지 확인해 주세요. 지금은 이 PC 에서만 열립니다.")
+            print("─" * 58)
+        else:
+            first = sorted(LAN_IPS)[0]
+            print("  ⚠️  LAN 모드 — 같은 와이파이의 모든 기기가 이 서버에 접근할 수 있습니다")
+            print("      카페·학교·회사 등 공용 와이파이에서는 절대 켜지 마세요.")
+            print("      신뢰할 수 있는 개인 와이파이에서만 사용하세요.")
+            print()
+            for ip in sorted(LAN_IPS):
+                print(f"      접속 주소   http://{ip}:{a.port}/")
+            print()
+            print("      이 모드에서 알아 둘 것")
+            print(f"      · 구글 로그인을 쓰려면 Firebase 콘솔 → Authentication →")
+            print(f"        '승인된 도메인' 에 {first} 를 추가해야 합니다")
+            print(f"        (추가 전에는 auth/unauthorized-domain 으로 막힙니다)")
+            print(f"      · AI 변환을 쓰려면 worker/wrangler.toml 의 ALLOWED_ORIGINS 에")
+            print(f"        http://{first}:{a.port} 를 추가하고 다시 배포해야 합니다")
+            print("      · 글꼴 파일 제공(/font/)은 라이선스 보호를 위해 꺼집니다")
+            print("        (미리보기 서체만 폴백되고 정본 출력은 그대로입니다)")
+            print("─" * 58)
+
+    srv = ThreadingHTTPServer((bind, a.port), Handler)
     if a.open:
         threading.Timer(0.6, lambda: webbrowser.open(url)).start()
     try:
