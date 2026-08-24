@@ -540,6 +540,14 @@ select:focus{border-color:var(--blue)}
 .previewWrap{flex:0 0 500px;width:500px;min-width:300px;max-width:70vw;
   background:var(--surface-1);display:flex;flex-direction:column;overflow:hidden}
 /* 드래그 손잡이 */
+/* 좁은 화면 전용 탭 전환 바 — 데스크톱(≥1024px)에서는 항상 숨김.
+   실제로 보이게 하는 규칙은 아래 @media (max-width:1023px) 블록에 있다. */
+.pane-tabs{display:none;order:-1;gap:6px;padding:8px 10px;
+  border-bottom:1px solid var(--border);background:var(--surface-1)}
+.pane-tab{flex:1 1 0;height:38px;background:transparent;border:1px solid var(--border);
+  border-radius:var(--radius-md);color:var(--text-secondary);font-size:13px;font-weight:600}
+.pane-tab.active{background:var(--blue-on-white-text);border-color:transparent;color:#fff}
+
 .pane-split{order:1;flex:0 0 6px;cursor:col-resize;background:transparent;
   position:relative;transition:background .12s}
 .pane-split::after{content:"";position:absolute;inset:0 2px;border-radius:2px;background:var(--border)}
@@ -681,6 +689,70 @@ body.hide-answers .answer-block{display:none!important}
 
 /* ── Pair sidebar ── */
 /* (already above) */
+
+/* ══════════════════════════════════════════════════════════════
+   반응형 — 아이패드·폴드·폰·좁은 노트북 대응
+   진짜 데스크톱(Mac/Windows, 넓은 모니터)은 위 규칙이 그대로 적용된다 —
+   이 블록들은 전부 추가 규칙이고 기존 선택자를 지우거나 바꾸지 않는다.
+   같은 특이도의 선택자는 나중에 나온 쪽이 이기므로, 이 블록을 파일
+   뒤쪽에 두는 것만으로 데스크톱 규칙을 건드리지 않고 좁은 화면만 바꾼다.
+   (.previewWrap 의 폭은 JS 가 인라인 스타일로도 정하므로, CSS 만으로는
+   못 이긴다 — setPreviewWidth() 안에 폭 <1024 가드를 따로 넣었다.)
+
+   두 단계로 나눈 이유: 상단바는 원래 자연폭이 약 1166px 이라 1024~1279px
+   구간(아이패드 가로, 13인치 노트북 반쪽 화면 등)에서도 이미 넘친다.
+   반면 3단 편집 레이아웃은 previewWrap 이 JS 로 자동 축소돼 1024px 부터는
+   그럭저럭 맞는다. 그래서 상단바 줄바꿈은 더 넓은 폭까지 적용한다. ── */
+@media (max-width:1279px){
+  /* 상단바 — 버튼이 많아 한 줄에 다 안 들어가면 줄바꿈한다.
+     예전엔 height:60px 고정이라 넘치는 버튼이 그냥 잘려 안 보였다. */
+  .topbar{
+    height:auto;min-height:56px;
+    flex-wrap:wrap;row-gap:8px;
+    padding:8px 14px;
+  }
+  .actions{flex-wrap:wrap;row-gap:6px}
+  .actions input[type="text"]{width:auto;flex:1 1 120px;min-width:90px}
+  #authArea{margin-left:0!important}
+  #mockModeBtn{margin-left:8px!important}
+  #themeBtn{margin-left:8px!important}
+}
+
+@media (max-width:1023px){
+  /* 라이브러리 헤더 — 제목이 좁은 칸에 눌려 한글자씩 세로로 쪼개지던 문제.
+     flex 기본값(min-width:auto)은 한글처럼 공백 없는 글에서 '한 글자'
+     까지 줄어들 수 있다. 줄바꿈을 허용해 제목이 제 폭을 갖게 한다. */
+  .lib-header{flex-wrap:wrap;row-gap:12px}
+  .lib-header h2{flex-shrink:0}
+  #libraryView{padding:20px 16px}
+
+  /* 에디터 3단(미리보기·편집·문항목록) — 아이패드 세로(768px)조차
+     세 칸의 최소폭 합(300+380+280=960px)을 감당 못 해 가로 스크롤이
+     생기고 겹쳤다. 좁은 화면에서는 한 번에 한 칸만 보여주고
+     위쪽 탭(.pane-tabs)으로 전환한다. */
+  .pane-tabs{display:flex}
+  .editor{flex-direction:column;height:auto;min-height:calc(100vh - 56px);overflow:visible}
+  .pane-split{display:none}
+  .previewWrap,.center,.sidebar{
+    width:100%;max-width:none;min-width:0;flex:1 1 auto;
+    display:none;order:0;
+  }
+  .center{padding:14px}
+  .sidebar{border-left:none;border-top:1px solid var(--border);flex:0 0 auto;max-height:none}
+  .editor[data-pane="preview"] .previewWrap{display:flex}
+  .editor[data-pane="edit"] .center{display:flex}
+  .editor[data-pane="list"] .sidebar{display:flex}
+  .previewArea{padding:16px}
+}
+
+/* 폰 · 접는 화면 접었을 때(갤럭시 Z 폴드 등, ~340~430px) — 여백을 더 줄인다 */
+@media (max-width:480px){
+  #libraryView{padding:16px 12px}
+  .lib-grid{grid-template-columns:1fr}
+  .topbar{padding:8px 10px}
+  .brand{font-size:19px}
+  .lib-header h2{font-size:20px}
+}
 
 @media print{
   body{background:#fff}
@@ -929,7 +1001,14 @@ document.addEventListener('DOMContentLoaded',()=>{
 })();
 </script>
 
-<div id="editorView" class="editor">
+<div id="editorView" class="editor" data-pane="edit">
+  <!-- 좁은 화면(<1024px) 전용 탭 — 미리보기·편집·문항목록을 한 번에 하나씩 보여준다.
+       데스크톱에서는 CSS 로 숨겨진다(.pane-tabs{display:none} 기본값). -->
+  <div class="pane-tabs" id="paneTabs">
+    <button class="pane-tab" data-pane="preview" type="button">👁 미리보기</button>
+    <button class="pane-tab active" data-pane="edit" type="button">✏️ 편집</button>
+    <button class="pane-tab" data-pane="list" type="button">📋 문항</button>
+  </div>
   <!-- 미리보기 / 편집칸 폭 조절 손잡이 (CSS order 로 둘 사이에 놓인다) -->
   <div class="pane-split" id="paneSplit" title="드래그해서 미리보기 폭 조절 · 더블클릭하면 기본값"></div>
   <!-- Sidebar -->
@@ -2273,6 +2352,9 @@ function showEditor(setId){
   $("#mockView").style.display="none"; if(window.__mockClose) window.__mockClose();
   $("#editorView").style.display="flex";
   $("#topActions").style.visibility="visible";
+  // 좁은 화면(탭 전환 레이아웃)에서 문제집에 새로 들어올 때마다 '편집' 탭으로.
+  // 데스크톱에서는 CSS 가 탭을 숨기므로 아무 영향이 없다.
+  if(typeof setActivePane==="function") setActivePane("edit");
 
   $("#setTitle").textContent=s.name||"문제집";
   $("#previewTopTxt").textContent=s.name||"";
@@ -3280,9 +3362,22 @@ $("#brandBtn").onclick=()=>showLibrary();
 
 /* ── 미리보기 / 편집칸 폭 조절 ── */
 const PV_W_KEY="PM_PREVIEW_W", PV_W_DEFAULT=500;   // 구조 변경 전 미리보기 폭
+/* CSS 의 @media (max-width:1023px) 와 반드시 같은 값을 써야 한다.
+   이 폭 밑에서는 3단이 탭 전환 방식으로 바뀌어 previewWrap 이 폭 100% 를
+   차지해야 하는데, JS 가 인라인 style 로 폭을 매번 다시 정해 버리면
+   (인라인 스타일이 스타일시트보다 우선한다) CSS 만으로는 못 이긴다. */
+const COMPACT_BREAKPOINT=1024;
 function setPreviewWidth(px,save){
   const w=$(".previewWrap"); if(!w) return;
-  const min=300, max=Math.max(min, window.innerWidth-380-236-40);  // 편집 최소폭·목록폭 확보
+  if(window.innerWidth<COMPACT_BREAKPOINT){
+    // 좁은 화면 — 폭을 고정하지 않는다. CSS 가 100% 로 채운다(탭 전환 레이아웃).
+    w.style.flex=""; w.style.width="";
+    return;
+  }
+  // 편집 최소폭(380) · 문항목록 실제폭(280, 예전엔 236 이라는 옛 값이 남아 있어
+  // sidebar 실폭과 안 맞았다 — 1024~1080px 폭에서 그 차이(44px)만큼 가로 스크롤이
+  // 실제로 생겼다) · 손잡이·테두리 여유(40) 를 뺀 나머지가 미리보기가 쓸 수 있는 폭.
+  const min=300, max=Math.max(min, window.innerWidth-380-280-40);
   px=Math.max(min,Math.min(max,Math.round(px)));
   w.style.flex="0 0 "+px+"px"; w.style.width=px+"px";
   if(save){ try{ localStorage.setItem(PV_W_KEY,String(px)); }catch(e){ console.error(e); } }
@@ -3324,6 +3419,27 @@ function setPreviewWidth(px,save){
   sp.addEventListener("pointerup",end); sp.addEventListener("pointercancel",end);
   sp.addEventListener("dblclick",()=>setPreviewWidth(PV_W_DEFAULT,true));
 })();
+
+/* ── 좁은 화면 탭 전환 (미리보기 / 편집 / 문항목록) ──
+   데스크톱에서는 CSS 가 .pane-tabs 를 숨기므로 이 버튼들이 안 보이고,
+   .editor 의 data-pane 속성도 아무 효과가 없다(해당 CSS 가 미디어쿼리 안에만 있음). */
+function setActivePane(name){
+  const ed=$("#editorView"); if(!ed) return;
+  ed.setAttribute("data-pane", name);
+  document.querySelectorAll(".pane-tab").forEach(b=>b.classList.toggle("active", b.dataset.pane===name));
+  if(name==="preview"){
+    /* 미리보기 칸이 숨겨진 동안(display:none) 처음 폭 맞춤이 일어나면
+       clientWidth 가 0 이라 pvFitZoom() 이 최소 배율(30%)로 굳어 버린다
+       (pvFitted 플래그가 true 로 잠겨 다시는 안 돌아간다 — 실제로 이 상태를
+       확인했다). 이 탭으로 올 때마다 플래그를 지워 renderPreview() 의
+       '첫 진입 폭 맞춤' 로직이 지금 실제 폭으로 다시 돌게 한다. */
+    pvFitted=false;
+    if(typeof renderPreview==="function") renderPreview();
+  }
+}
+document.querySelectorAll(".pane-tab").forEach(b=>{
+  b.onclick=()=>setActivePane(b.dataset.pane);
+});
 
 /* ── 미리보기 확대 컨트롤 ── */
 $("#pvZIn").onclick =()=>pvZoomBy(PV_STEP());

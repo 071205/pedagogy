@@ -177,6 +177,14 @@ body.embedded .brand{display:none}
 body.embedded .brand-tag{margin-left:0}
 
 
+/* 좁은 화면 전용 탭 전환 바 — 데스크톱(≥1024px)에서는 항상 숨김.
+   실제로 보이게 하는 규칙은 @media (max-width:1023px) 블록에 있다. */
+.mock-pane-tabs{display:none;gap:6px;padding:8px 10px;
+  border-bottom:1px solid var(--border);background:var(--surface-1)}
+.mock-pane-tab{flex:1 1 0;height:38px;background:transparent;border:1px solid var(--border);
+  border-radius:9px;color:var(--text-secondary);font-size:13px;font-weight:600}
+.mock-pane-tab.on{background:var(--blue);border-color:transparent;color:#fff}
+
 .panes{display:flex;height:calc(100% - 60px)}
 /* 미리보기 칸 = 고정 머리(범위 토글) + 스크롤 본문 */
 .preview-pane{flex:1 1 auto;min-width:320px;display:flex;flex-direction:column;
@@ -443,6 +451,43 @@ body.embedded .brand-tag{margin-left:0}
 .ol-i.filled .bar{background:#3A3A46}
 .ol-i .p{font-size:10.5px;color:var(--text-tertiary)}
 .ol-i .w{color:var(--danger);font-size:11px}
+
+/* ══════════════════════════════════════════════════════════════
+   반응형 — 아이패드·폴드·폰 대응 (뷰포트 < 1024px)
+   본체(index.html)와 같은 기준(1024px)을 쓴다. 데스크톱은 위 규칙
+   그대로 — 이 블록은 전부 추가 규칙이고 기존 선택자를 바꾸지 않는다.
+   .editor(430px 고정)·.outline(176px 고정)·.preview-pane(min 320px)
+   세 칸의 최소폭 합이 926px 라 아이패드 세로(768px)에서도 못 맞는다.
+   좁은 화면에서는 한 번에 한 칸만 보여주고 탭으로 전환한다. ── */
+@media (max-width:1023px){
+  /* 상단바 — 예전에도 좁아지면 오른쪽 버튼을 가로 스크롤시키는 시도는
+     있었지만(.tb-r{overflow-x:auto}) 왼쪽 제목 입력·과목 선택은 줄어들다
+     못해 겹쳤다(실측: '모의고사' 와 회차명이 겹쳐 보임). 아예 줄바꿈한다. */
+  .topbar{height:auto;min-height:56px;flex-wrap:wrap;row-gap:8px;
+    padding:8px 12px;overflow:visible}
+  .tb-l{flex-wrap:wrap;row-gap:6px;flex:1 1 100%}
+  .tb-l .inp{width:auto;flex:1 1 160px;min-width:120px}
+  .tb-r{overflow-x:visible;flex-wrap:wrap;row-gap:6px;flex:1 1 100%}
+
+  /* 3단(미리보기·문항편집·순서) — 위쪽 탭(.mock-pane-tabs)으로 전환 */
+  .mock-pane-tabs{display:flex}
+  .panes{flex-direction:column;height:auto;min-height:calc(100% - 56px)}
+  .preview-pane,.editor,.outline{
+    width:100%;min-width:0;flex:1 1 auto;display:none;border-left:none;
+  }
+  .outline{border-top:1px solid var(--border)}
+  .editor{border-top:1px solid var(--border)}
+  .panes[data-pane="preview"] .preview-pane{display:flex}
+  .panes[data-pane="edit"] .editor{display:block}
+  .panes[data-pane="outline"] .outline{display:block}
+}
+
+/* 폰 · 접는 화면 접었을 때(~340~430px) */
+@media (max-width:480px){
+  .topbar{padding:8px 10px}
+  .brand{font-size:19px}
+  .tb-l .inp{min-width:100px}
+}
 </style>
 </head>
 <body>
@@ -475,7 +520,13 @@ body.embedded .brand-tag{margin-left:0}
   </div>
 </header>
 
-<main class="panes">
+<main class="panes" data-pane="edit">
+  <!-- 좁은 화면(<1024px) 전용 탭 — 데스크톱에서는 CSS 로 숨겨진다. -->
+  <div class="mock-pane-tabs" id="mockPaneTabs">
+    <button class="mock-pane-tab" data-pane="preview" type="button">👁 미리보기</button>
+    <button class="mock-pane-tab on" data-pane="edit" type="button">✏️ 문항편집</button>
+    <button class="mock-pane-tab" data-pane="outline" type="button">📋 순서</button>
+  </div>
   <section class="preview-pane">
     <!-- 미리보기 범위 — 스크롤 영역 '밖'에 둔다.
          안에 두고 sticky 로 붙이면 가로 스크롤·확대를 따라 밀려서 흔들린다. -->
@@ -1281,6 +1332,21 @@ const PV_ZOOM_MEM={one:null, all:null};
 /* 사용자가 배율을 직접 만지기 전까지는 렌더할 때마다 폭에 맞춘다.
    렌더 타이밍(근사→정본, 이미지 로드)에 따라 한 번짜리 플래그는 자꾸 어긋났다. */
 let pvUserZoomed=false;
+
+/* ── 좁은 화면 탭 전환 (미리보기 / 문항편집 / 순서) ──
+   데스크톱에서는 CSS 가 .mock-pane-tabs 를 숨기므로 이 버튼들이 안 보이고,
+   .panes 의 data-pane 속성도 아무 효과가 없다. */
+function setActiveMockPane(name){
+  const p=$('.panes'); if(!p) return;
+  p.setAttribute('data-pane', name);
+  document.querySelectorAll('.mock-pane-tab').forEach(b=>b.classList.toggle('on', b.dataset.pane===name));
+  // 미리보기 칸이 숨겨져 있는 동안(display:none) 배율 계산은 폭을 0으로 읽어 어긋난다.
+  // 다시 보이게 될 때만 폭에 맞춰 다시 잰다.
+  if(name==='preview'){ pvUserZoomed=false; setTimeout(()=>{ if(!pvUserZoomed) fitWidth(); },30); }
+}
+document.querySelectorAll('.mock-pane-tab').forEach(b=>{
+  b.onclick=()=>setActiveMockPane(b.dataset.pane);
+});
 
 function setPvMode(v){
   if(v===state.pvMode && v!=='all') return;
