@@ -1918,9 +1918,23 @@ function currentData(){
   return {v:1,round:$('#round').value,elective:$('#elective').value,problems:state.problems};
 }
 
+/* 임시저장 실패는 한 번만 알린다 — 1초마다 도는 함수라 매번 띄우면 화면이 덮인다 */
+let draftWarned=false;
+function warnDraftOnce(){
+  if(draftWarned) return;
+  draftWarned=true;
+  toast('임시저장을 하지 못하고 있어요 · 저장 공간이 가득 찼을 수 있습니다. 작업을 잃지 않으려면 저장 버튼으로 .json 을 받아 두세요','error');
+}
+
 function saveDraft(){
-  try{ localStorage.setItem(DRAFT_KEY, JSON.stringify({...currentData(), savedAt:Date.now()})); }
-  catch(e){ console.error('임시저장 실패(용량 초과 가능)', e); }
+  try{ localStorage.setItem(DRAFT_KEY, JSON.stringify({...currentData(), savedAt:Date.now()})); draftWarned=false; }
+  catch(e){
+    console.error('임시저장 실패(용량 초과 가능)', e);
+    /* 임시저장은 '크래시 대비 안전망' 이다. 이게 안 되고 있는데 조용하면
+       사용자는 안전망이 있다고 믿은 채 계속 작업한다. 한 번은 반드시 알린다.
+       (저장 자체는 .json 내보내기로 계속 가능하다) */
+    warnDraftOnce();
+  }
 }
 
 /* 편집이 멈춘 뒤 1초 후 임시저장 — 타이핑마다 직렬화하지 않는다 */
@@ -1944,7 +1958,10 @@ function applyData(d){
 function offerDraftRestore(){
   let d=null;
   try{ d=JSON.parse(localStorage.getItem(DRAFT_KEY)||'null'); }
-  catch(e){ console.error('임시저장 데이터를 읽지 못했습니다', e); }
+  catch(e){
+    console.error('임시저장 데이터를 읽지 못했습니다', e);
+    toast('임시저장본을 읽지 못했어요 · 손상된 것 같습니다','error');
+  }
   if(!d||!Array.isArray(d.problems)||!d.problems.length) return;
   const when=d.savedAt?new Date(d.savedAt).toLocaleString('ko-KR'):'이전';
   if(confirm(`저장하지 않고 종료된 작업이 있습니다.\n(${when})\n\n복구할까요?`)){

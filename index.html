@@ -1122,6 +1122,17 @@ const HSMALL=["ㄱ","ㄴ","ㄷ","ㄹ","ㅁ","ㅂ","ㅅ","ㅇ","ㅈ","ㅊ","ㅋ",
 const condLabel=i=>`(${HANGULS[i%HANGULS.length]})`;
 const circled=n=>"①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳".split("")[n-1]||n+'.';
 
+/* ── 같은 경고를 반복해서 띄우지 않기 ──
+   렌더나 저장은 초당 몇 번씩 돌기 때문에, 실패할 때마다 토스트를 띄우면
+   화면이 경고로 덮인다. 종류별로 한 번만 알리고, 성공하면 다시 열어 둔다. */
+const warnedOnce=new Set();
+function warnOnce(key,msg){
+  if(warnedOnce.has(key)) return;
+  warnedOnce.add(key);
+  toast(msg,"error");
+}
+function clearWarn(key){ warnedOnce.delete(key); }
+
 /* 비침습 토스트 알림 (alert 대체용). type: ''|'success'|'error' */
 function toast(msg, type=""){
   let host=document.getElementById("toastHost");
@@ -1270,6 +1281,9 @@ async function storeImageFile(file){
       return await uploadBlobToStorage(blob, file.name||"image.jpg");
     }catch(e){
       console.warn("Storage 업로드 실패, 로컬 압축으로 대체:", e);
+      /* 클라우드에 못 올려 이 기기에만 남는다. 다른 기기에서는 이 이미지가
+         보이지 않으므로 반드시 알려야 한다(예전엔 조용히 넘어갔다). */
+      toast("이미지를 클라우드에 올리지 못해 이 기기에만 저장했어요 · 다른 기기에서는 안 보입니다","error");
       return await compressDataUrl(await fileToDataURL(file));
     }
   }
@@ -1469,7 +1483,10 @@ function snapshotLocalBackup(){
   try{
     const cur=localStorage.getItem(setsKey());
     if(cur) localStorage.setItem(backupKey(), JSON.stringify({sets:JSON.parse(cur), t:Date.now()}));
-  }catch(e){ console.error('로컬 백업 실패', e); }
+  }catch(e){
+    console.error('로컬 백업 실패', e);
+    warnOnce("backup","안전용 백업을 만들지 못했어요 · 이 기기의 저장 공간이 부족한 것 같습니다");
+  }
 }
 window.restorePedagogyBackup=function(){
   try{
@@ -1499,13 +1516,27 @@ function migrateLegacyLocalSets(){
       console.info(`구버전 데이터(${k})를 ${setsKey()} 로 이관했습니다.`);
       return;
     }
-  }catch(e){ console.error("구버전 데이터 이관 실패", e); }
+  }catch(e){
+    console.error("구버전 데이터 이관 실패", e);
+    warnOnce("legacyMigrate","예전 버전 데이터를 옮기지 못했어요 · 원본은 지우지 않았으니 알려 주세요");
+  }
 }
 migrateLegacyLocalSets();
 
 function readLocalSets(){
-  try{ const raw=localStorage.getItem(setsKey()); return raw?JSON.parse(raw):[]; }
-  catch(e){ console.error("로컬 데이터를 읽지 못했습니다", e); return []; }
+  try{
+    const raw=localStorage.getItem(setsKey());
+    const v=raw?JSON.parse(raw):[];
+    clearWarn("readLocal");
+    return v;
+  }catch(e){
+    console.error("로컬 데이터를 읽지 못했습니다", e);
+    /* 여기서 빈 배열을 돌려주면 화면엔 '아직 문제집이 없어요' 가 뜬다. 실제로는
+       데이터가 깨졌거나 못 읽은 것이므로 반드시 알려야 한다 — 사용자가 '사라졌다'
+       고 오해하고 새로 만들기 시작하면 진짜로 덮어써진다. */
+    warnOnce("readLocal","이 기기에 저장된 데이터를 읽지 못했어요 · 새로 만들기 전에 백업 복구를 먼저 눌러 보세요");
+    return [];
+  }
 }
 function loadSetsLocal(){
   sets=readLocalSets();
@@ -1724,8 +1755,14 @@ function watchCloud(){
         flushLocal();          // 다른 기기에서 온 변경 — 즉시 확정
         refreshAfterHistory();
       }
-    },err=>console.warn('클라우드 구독 실패:', err));
-  }catch(e){ console.warn('클라우드 구독을 걸지 못했습니다:', e); }
+    },err=>{
+      console.warn('클라우드 구독 실패:', err);
+      warnOnce("watch","다른 기기의 변경을 실시간으로 받지 못해요 · 새로고침하면 최신 내용이 보입니다");
+    });
+  }catch(e){
+    console.warn('클라우드 구독을 걸지 못했습니다:', e);
+    warnOnce("watch","다른 기기의 변경을 실시간으로 받지 못해요 · 새로고침하면 최신 내용이 보입니다");
+  }
 }
 
 /* ===== Undo / Redo 히스토리 =====
@@ -1779,7 +1816,11 @@ function applySnapshot(snap){
   try{
     const o=JSON.parse(snap);
     sets=o.sets; currentSetId=o.currentSetId; currentQId=o.currentQId;
-  }catch(e){ console.error("되돌리기 상태 복원 실패", e); return false; }
+  }catch(e){
+    console.error("되돌리기 상태 복원 실패", e);
+    toast("되돌리기에 실패했어요 · 기록이 손상된 것 같습니다","error");
+    return false;
+  }
   return true;
 }
 
@@ -2014,7 +2055,10 @@ async function deleteSetEverywhere(removed){
       name:"", header:"", problems:[]
     });
     cloudSynced.delete(removed.id);
-  }catch(e){ console.warn('클라우드 삭제 실패:', e); }
+  }catch(e){
+    console.warn('클라우드 삭제 실패:', e);
+    toast("이 기기에서는 지웠지만 클라우드에는 남아 있어요 · 다른 기기에서 되살아날 수 있습니다","error");
+  }
   // 이미지 정리는 실패해도 조용히 넘어간다(용량만 남을 뿐 기능엔 영향 없음)
   for(const url of storagePathsOf(removed)){
     if(stillReferenced(url, removed.id)) continue;
@@ -2930,7 +2974,14 @@ function renderPreview(){
       delimiters:[{left:"$$",right:"$$",display:true},{left:"\\[",right:"\\]",display:true},{left:"$",right:"$",display:true}],
       throwOnError:false
     });
-  }catch(e){ console.error('미리보기 수식 렌더 실패', e); }
+  }catch(e){
+    console.error('미리보기 수식 렌더 실패', e);
+    /* KaTeX 가 CDN 차단 등으로 없으면 수식이 통째로 원문($x^2$)으로 보인다.
+       왜 그런지 모르면 사용자는 자기가 잘못 쓴 줄 안다. */
+    warnOnce("katex", typeof renderMathInElement==="undefined"
+      ? "수식 엔진(KaTeX)을 불러오지 못했어요 · 네트워크를 확인하고 새로고침해 주세요"
+      : "수식을 그리는 중 오류가 났어요 · 수식 문법을 확인해 주세요");
+  }
   // 정답 텍스트의 pvNum 내 LaTeX도 렌더
   try{
     renderMathInElement($("#pvNum"),{
@@ -3204,7 +3255,11 @@ function buildPrintDoc(hideAnswers){
       delimiters:[{left:"$$",right:"$$",display:true},{left:"\\[",right:"\\]",display:true},{left:"$",right:"$",display:true}],
       throwOnError:false
     });
-  }catch(e){ console.error('인쇄 문서 수식 렌더 실패', e); }
+  }catch(e){
+    console.error('인쇄 문서 수식 렌더 실패', e);
+    // 수식 없이 인쇄되면 시험지로 못 쓴다. 인쇄 전에 반드시 알린다.
+    toast("인쇄본의 수식을 그리지 못했어요 · 이대로 인쇄하면 수식이 빠집니다","error");
+  }
 }
 
 /* Actions */
@@ -3447,6 +3502,14 @@ async function ensureKatexFonts(){
 
 async function doPrint(hideAnswers){
   closeModal(modal);
+  /* 수식 엔진이 없으면 수식이 전부 원문으로 인쇄된다. 종이가 아깝기도 하고,
+     인쇄 대화상자가 뜬 뒤에는 되돌릴 수 없으니 시작 전에 확인받는다. */
+  if(typeof renderMathInElement!=="function"){
+    if(!confirm("수식 엔진(KaTeX)을 불러오지 못했습니다.\n이대로 인쇄하면 수식이 $x^2$ 처럼 원문으로 나옵니다.\n\n계속할까요?")){
+      toast("인쇄를 취소했어요 · 새로고침 후 다시 시도해 주세요");
+      return;
+    }
+  }
   buildPrintDoc(hideAnswers);
   // KaTeX 수식 폰트를 모두 깨운 뒤 렌더/측정해야 인쇄에서 누락 없음
   await ensureKatexFonts();
