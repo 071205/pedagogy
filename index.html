@@ -11,15 +11,21 @@
      차단된다 — 'unsafe-inline' 은 스크립트 블록만 허용하고 속성 핸들러는
      'unsafe-hashes' 가 있어야 살아난다. 즉 processText/numLabel 같은 곳에
      실수로 구멍이 다시 생겨도 주입된 onerror 가 실행되지 않는다.
-     connect-src 는 Firestore/Storage/Auth·AI 프록시·로컬 렌더 서버를 모두 담는다. -->
+     connect-src 는 Firestore/Storage/Auth·AI 프록시·로컬 렌더 서버를 모두 담는다.
+
+     ⚠️ 구글 로그인은 apis.google.com 의 gapi 를 불러 숨은 iframe 으로 팝업과
+     통신한다. script-src/frame-src 에서 이 호스트를 빠뜨리면 브라우저가
+        "Refused to load https://apis.google.com/js/api.js ..."
+     로 막아 로그인이 실패한다(이미 로그인돼 있던 세션은 살아 있어서 눈치채기
+     어렵다 — 새 로그인만 깨진다). 실제로 한 번 그랬으니 손대지 말 것. -->
 <meta http-equiv="Content-Security-Policy" content="
   default-src 'self';
-  script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://www.gstatic.com;
+  script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com;
   style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
   font-src 'self' data: https://cdn.jsdelivr.net;
-  img-src 'self' data: blob: https://firebasestorage.googleapis.com https://storage.googleapis.com https://lh3.googleusercontent.com;
+  img-src 'self' data: blob: https://firebasestorage.googleapis.com https://storage.googleapis.com https://lh3.googleusercontent.com https://*.googleusercontent.com;
   connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://dawn-shape-2664.dbruddl79.workers.dev http://127.0.0.1:* http://localhost:*;
-  frame-src 'self' https://pedagogy-huryul.firebaseapp.com https://accounts.google.com;
+  frame-src 'self' https://pedagogy-huryul.firebaseapp.com https://accounts.google.com https://apis.google.com;
   worker-src 'self' blob:;
   object-src 'none';
   base-uri 'none';
