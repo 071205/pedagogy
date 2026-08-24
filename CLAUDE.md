@@ -233,6 +233,38 @@ Pages–hosted `index.html` can also call into (via `--allow-origin`).
 - **본체 인쇄 경로와 미리보기의 축소 로직**이 여전히 별개다
   (`fitPrintDoc()` vs `fitMathIn()`) — 선지 줄바꿈 보정은 인쇄에만 있다.
 
+### 2026-08-25 (4차) — 인쇄 보정이 아예 동작하지 않던 문제
+**가장 큰 것: `fitPrintDoc()` 은 지금까지 한 번도 실행된 적이 없었다.**
+`#printDoc` 은 평소 `display:none` 이고 `@media print` 에서만 `block` 이 되는데,
+`doPrint()` 는 `window.print()` **전에** 폭·높이를 잰다. `display:none` 이면
+`clientHeight`·`scrollWidth`·`getBoundingClientRect()` 가 전부 0 이라 모든
+보정이 조용히 건너뛰어졌다(실측 확인). 그래서 넘치는 수식·긴 문항이
+`overflow:hidden` 에 그냥 잘려 나갔다.
+→ 잴 때만 `#printDoc.measuring` 으로 화면 밖(`left:-10000px`)에 실제 크기로
+   펼친 뒤 측정하고, `finally` 로 반드시 되돌린다.
+
+그 위에 얹힌 문제 둘:
+- **가로 넘침 판정이 틀렸다.** `getBoundingClientRect().width` 는 '칸에 맞춰
+  이미 잘린 폭' 이라 칸 폭을 절대 넘지 않는다(실측: rect 334 / 실제 555).
+  `scrollWidth` 로 재야 한다. 화면용 `fitMathIn()` 은 원래 맞게 하고 있었고
+  인쇄용만 틀렸다 — 미리보기와 인쇄가 달랐던 이유. 이제 두 경로가
+  **`shrinkWideMath()` 하나**를 공유한다.
+- **축소만 하면 내용이 잘린다.** `scale` 은 그리는 크기만 줄이므로 박스 폭이
+  칸에 묶여 있으면 내용은 여전히 그 폭에서 잘린다. 실제 내용 폭을 `width` 로
+  준 뒤 `scale` 해야 전체가 보인다. 높이는 `scale` 만큼 다시 지정해 유령 여백을 없앤다.
+- **세로 넘침도 못 잡았다.** `.slot` 이 flex 컨테이너라 자식이 `flex-shrink` 로
+  눌려 `slot.scrollHeight === clientHeight` 가 된다(실측: 둘 다 979, 실제 3565).
+  자식들의 `scrollHeight` 합으로 재고, 하한(72%)으로도 안 담기면 **토스트로 알린다**
+  — 예전엔 잘린 시험지가 아무 말 없이 인쇄됐다.
+- `@page` 에 `size:A4` 명시(없으면 Letter 기본 환경에서 빈 쪽이 딸려 나온다),
+  인쇄 모달에 용지·배율·여백·머리글 설정 안내, `doPrint()` 에 강제 reflow +
+  120ms 대기(폰트 적용 전 측정 방지).
+
+⚠️ **자동 페이지네이션은 넣지 않았다.** 이 앱은 문항별 `span`(pair/col/page)으로
+사용자가 배치를 직접 정하는 모델이라, 넘칠 때 다음 단으로 자동 이월하면 그
+의도를 덮어쓴다. 대신 담기지 않으면 '한 쪽 배치로 바꾸거나 내용을 나누라' 고
+안내한다. 자동 이월을 원하면 배치 모델 자체를 바꾸는 결정이 먼저다.
+
 ### 2026-08-25 (3차) — 경합·데이터 소실 방어
 - **AI 변환 중 화면 이동**: `aiGenerateFromImage()` 가 요청 시점의 문제집을 캡처해
   두고 완료 시 그대로 밀어 넣어, 그 사이 다른 문제집으로 옮기면 `currentSetId` 와
