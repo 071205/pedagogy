@@ -73,7 +73,7 @@ pieces to know before editing:
   변경을 받아 반영한다.
   `snapshotLocalBackup()`/`window.restorePedagogyBackup()` keep an extra local safety copy.
   **로컬 키는 전부 계정별로 갈라져 있다** — `setsKey()`, `backupKey()`, `lastQKey()`,
-  `stampsKey()`. 새 로컬 키를 추가할 때도 반드시 uid 를 붙일 것(공용 키로 두면 한 브라우저에서
+  `stampsKey()`, `lastSetKey()`. 새 로컬 키를 추가할 때도 반드시 uid 를 붙일 것(공용 키로 두면 한 브라우저에서
   계정을 바꿨을 때 데이터가 샌다).
   Firebase project config (`firebaseConfig`) is a public web API key, not a secret.
   ⚠️ **`firestore.rules` 의 필드 화이트리스트를 함께 고칠 것** — `sets/{setId}` 문서에
@@ -232,6 +232,14 @@ Pages–hosted `index.html` can also call into (via `--allow-origin`).
   병렬 호출로 상한을 넘길 수 있다. 근본 해결은 Durable Object.
 - **본체 인쇄 경로와 미리보기의 축소 로직**이 여전히 별개다
   (`fitPrintDoc()` vs `fitMathIn()`) — 선지 줄바꿈 보정은 인쇄에만 있다.
+
+### 2026-08-25 (2차)
+새로고침하면 편집 중이던 문제집에서 라이브러리로 튕기던 동작 수정.
+`lastSetKey()` 로 마지막에 연 문제집을 계정별로 기억하고 `bootLibrary()` 가
+복원한다. 라이브러리로 나가면(`showLibrary()`) 기억을 지우므로, 로고를 눌러
+나간 뒤 새로고침하면 라이브러리로 남는다. 문제집이 사라졌으면 안전하게
+라이브러리로 떨어진다(`showEditor()` 가 `activeSet()` 없음을 먼저 확인 —
+예전엔 여기서 TypeError 로 화면이 빈 채 멈출 수 있었다).
 
 ### 2026-08-25 추가 반영
 AI 전송 이미지 자동 축소(`prepImageForAI`, 1568px/JPEG 0.8 — 모델 해상도 상한과 일치,
