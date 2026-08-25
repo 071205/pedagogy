@@ -10,3 +10,6 @@ worker/.wrangler/
 # 파이썬 캐시 — serve.py 를 import 해서 테스트할 때 생긴다
 __pycache__/
 *.pyc
+
+# firebase CLI 디버그 로그 — 명령을 실행할 때마다 새로 쓰인다(내용은 매번 바뀜)
+*-debug.log
