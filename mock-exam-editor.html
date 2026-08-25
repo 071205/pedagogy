@@ -182,7 +182,9 @@ body.embedded .brand-tag{margin-left:0}
 .mock-pane-tabs{display:none;gap:6px;padding:8px 10px;
   border-bottom:1px solid var(--border);background:var(--surface-1)}
 .mock-pane-tab{flex:1 1 0;height:38px;background:transparent;border:1px solid var(--border);
-  border-radius:9px;color:var(--text-secondary);font-size:13px;font-weight:600}
+  border-radius:9px;color:var(--text-secondary);font-size:13px;font-weight:600;
+  display:inline-flex;align-items:center;justify-content:center;gap:5px}
+.mock-pane-tab svg{width:14px;height:14px;flex-shrink:0}
 .mock-pane-tab.on{background:var(--blue);border-color:transparent;color:#fff}
 
 .panes{display:flex;height:calc(100% - 60px)}
@@ -523,9 +525,9 @@ body.embedded .brand-tag{margin-left:0}
 <main class="panes" data-pane="edit">
   <!-- 좁은 화면(<1024px) 전용 탭 — 데스크톱에서는 CSS 로 숨겨진다. -->
   <div class="mock-pane-tabs" id="mockPaneTabs">
-    <button class="mock-pane-tab" data-pane="preview" type="button">👁 미리보기</button>
-    <button class="mock-pane-tab on" data-pane="edit" type="button">✏️ 문항편집</button>
-    <button class="mock-pane-tab" data-pane="outline" type="button">📋 순서</button>
+    <button class="mock-pane-tab" data-pane="preview" type="button"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 10s3-5.8 8.5-5.8 8.5 5.8 8.5 5.8-3 5.8-8.5 5.8-8.5-5.8-8.5-5.8z"/><circle cx="10" cy="10" r="2.5"/></svg>미리보기</button>
+    <button class="mock-pane-tab on" data-pane="edit" type="button"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 16.5l.7-3.4L13.4 3.9a1.5 1.5 0 0 1 2.1 0l.6.6a1.5 1.5 0 0 1 0 2.1L7.9 15.8l-4.4.7z"/><path d="M12 5.5l2.5 2.5"/></svg>문항편집</button>
+    <button class="mock-pane-tab" data-pane="outline" type="button"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7.5 5h9M7.5 10h9M7.5 15h9"/><circle cx="3.2" cy="5" r="0.9" fill="currentColor" stroke="none"/><circle cx="3.2" cy="10" r="0.9" fill="currentColor" stroke="none"/><circle cx="3.2" cy="15" r="0.9" fill="currentColor" stroke="none"/></svg>순서</button>
   </div>
   <section class="preview-pane">
     <!-- 미리보기 범위 — 스크롤 영역 '밖'에 둔다.

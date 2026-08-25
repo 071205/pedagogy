@@ -545,7 +545,9 @@ select:focus{border-color:var(--blue)}
 .pane-tabs{display:none;order:-1;gap:6px;padding:8px 10px;
   border-bottom:1px solid var(--border);background:var(--surface-1)}
 .pane-tab{flex:1 1 0;height:38px;background:transparent;border:1px solid var(--border);
-  border-radius:var(--radius-md);color:var(--text-secondary);font-size:13px;font-weight:600}
+  border-radius:var(--radius-md);color:var(--text-secondary);font-size:13px;font-weight:600;
+  display:inline-flex;align-items:center;justify-content:center;gap:5px}
+.pane-tab svg{width:15px;height:15px;flex-shrink:0}
 .pane-tab.active{background:var(--blue-on-white-text);border-color:transparent;color:#fff}
 
 .pane-split{order:1;flex:0 0 6px;cursor:col-resize;background:transparent;
@@ -838,12 +840,12 @@ input:focus-visible,textarea:focus-visible{outline:none}
 <!-- Topbar -->
 <div class="topbar">
   <div class="brand" id="brandBtn">PEDAGOGY</div>
-  <button id="mockModeBtn" class="btn" style="margin-left:14px" title="평가원 양식 시험지 편집기">📝 모의고사</button>
+  <button id="mockModeBtn" class="btn" style="margin-left:14px" title="평가원 양식 시험지 편집기">모의고사</button>
   <div class="actions" id="topActions">
     <button id="undoBtn" class="btn-ghost histbtn" title="실행취소 (Cmd/Ctrl+Z)" disabled><span class="icon icon-undo"></span></button>
     <button id="redoBtn" class="btn-ghost histbtn" title="다시실행 (Cmd/Ctrl+Shift+Z)" disabled><span class="icon icon-redo"></span></button>
     <input id="headerInput" type="text" placeholder="상단 문구 (좌상단 인쇄용)">
-    <button id="promptBtn" class="btn" title="AI 변환 프롬프트">🤖 AI 프롬프트</button>
+    <button id="promptBtn" class="btn" title="AI 변환 프롬프트">AI 프롬프트</button>
     <button id="printBtn" class="btn-accent">인쇄</button>
     <button id="exportJsonBtn" class="btn">내보내기</button>
     <button id="saveBtn">저장</button>
@@ -987,17 +989,17 @@ document.addEventListener('DOMContentLoaded',()=>{
     }
   }
   function back(){
-    V.style.display='none'; B.classList.remove('on'); B.textContent='📝 모의고사';
+    V.style.display='none'; B.classList.remove('on'); B.textContent='모의고사';
     if(typeof window.showLibrary==='function'){ window.showLibrary(); return; }
     var l=document.getElementById('libraryView'); if(l) l.style.display='block';
   }
   B.onclick=function(){ V.style.display==='block'?back():open(); };
   /* 본체가 다른 뷰로 전환할 때 버튼 상태를 되돌리기 위해 노출 */
-  window.__mockClose=function(){ B.classList.remove('on'); B.textContent='📝 모의고사'; };
+  window.__mockClose=function(){ B.classList.remove('on'); B.textContent='모의고사'; };
   /* 본체가 라이브러리/편집기로 전환할 때 이 뷰도 확실히 닫는다 */
   var brand=document.getElementById('brandBtn');
   if(brand) brand.addEventListener('click', function(){
-    V.style.display='none'; B.classList.remove('on'); B.textContent='📝 모의고사'; });
+    V.style.display='none'; B.classList.remove('on'); B.textContent='모의고사'; });
 })();
 </script>
 
@@ -1005,9 +1007,9 @@ document.addEventListener('DOMContentLoaded',()=>{
   <!-- 좁은 화면(<1024px) 전용 탭 — 미리보기·편집·문항목록을 한 번에 하나씩 보여준다.
        데스크톱에서는 CSS 로 숨겨진다(.pane-tabs{display:none} 기본값). -->
   <div class="pane-tabs" id="paneTabs">
-    <button class="pane-tab" data-pane="preview" type="button">👁 미리보기</button>
-    <button class="pane-tab active" data-pane="edit" type="button">✏️ 편집</button>
-    <button class="pane-tab" data-pane="list" type="button">📋 문항</button>
+    <button class="pane-tab" data-pane="preview" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>미리보기</button>
+    <button class="pane-tab active" data-pane="edit" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l.9-4.2L15.9 4.8a1.8 1.8 0 0 1 2.5 0l.8.8a1.8 1.8 0 0 1 0 2.5L8.2 19.1 4 20z"/><path d="M14.3 6.4l3.3 3.3"/></svg>편집</button>
+    <button class="pane-tab" data-pane="list" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4" cy="6" r="1" fill="currentColor" stroke="none"/><circle cx="4" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="4" cy="18" r="1" fill="currentColor" stroke="none"/></svg>문항</button>
   </div>
   <!-- 미리보기 / 편집칸 폭 조절 손잡이 (CSS order 로 둘 사이에 놓인다) -->
   <div class="pane-split" id="paneSplit" title="드래그해서 미리보기 폭 조절 · 더블클릭하면 기본값"></div>
