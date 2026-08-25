@@ -237,11 +237,16 @@ label.btn input{display:none}
 .sidebar{order:3}
 
 /* ── Library ── */
-#libraryView{padding:32px;min-height:calc(100vh - 60px)}
+/* display:flex + .lib-grid 의 flex:1 로 푸터를 뷰포트 하단에 붙인다(내용이 짧을 때도) —
+   #libraryView 는 JS 에서도 "flex" 로 켜야 한다(showLibrary()/showLibraryLoading() 등,
+   inline style 가 이 규칙보다 우선하므로 여기만 고치면 무시된다). */
+#libraryView{padding:32px;min-height:calc(100vh - 60px);display:flex;flex-direction:column}
 .lib-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:28px}
 .lib-header h2{margin:0;font-size:24px;font-weight:700;color:var(--text-primary)}
 .lib-actions{display:flex;gap:8px}
-.lib-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px}
+.lib-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;flex:1}
+.lib-footer{margin-top:32px;padding-top:20px;border-top:1px solid var(--border);
+  text-align:center;font-size:12px;color:var(--text-tertiary)}
 .set-card{
   position:relative;background:var(--surface-1);
   border:1px solid var(--border);border-radius:var(--radius-xl);
@@ -726,7 +731,12 @@ body.hide-answers .answer-block{display:none!important}
      까지 줄어들 수 있다. 줄바꿈을 허용해 제목이 제 폭을 갖게 한다. */
   .lib-header{flex-wrap:wrap;row-gap:12px}
   .lib-header h2{flex-shrink:0}
-  #libraryView{padding:20px 16px}
+  /* 이 폭에서는 상단바가 줄바꿈돼 높이가 늘어난다(실측 139px, 기본 규칙은 60px
+     가정). 그 차이만큼 min-height 가 과대평가돼 문제집이 적을 때도 푸터가
+     화면 아래로 밀려 스크롤이 필요했다(실측 79px). 상단바 높이는 로그인
+     상태·문구 길이에 따라 또 달라지므로 상수로 못 맞춘다 — 이 폭에서는
+     강제하지 않고 내용 높이를 그대로 따르게 한다. */
+  #libraryView{padding:20px 16px;min-height:auto}
 
   /* 에디터 3단(미리보기·편집·문항목록) — 아이패드 세로(768px)조차
      세 칸의 최소폭 합(300+380+280=960px)을 감당 못 해 가로 스크롤이
@@ -888,7 +898,9 @@ input:focus-visible,textarea:focus-visible{outline:none}
   </div>
   <div class="lib-search"><input id="setSearch" type="text" placeholder="문제집 검색"></div>
   <div id="setGrid" class="lib-grid"></div>
+  <footer class="lib-footer">© <span id="footerYear"></span> PEDAGOGY · 모든 권리 보유</footer>
 </div>
+<script>document.getElementById('footerYear').textContent=new Date().getFullYear();</script>
 
 
 
@@ -991,7 +1003,7 @@ document.addEventListener('DOMContentLoaded',()=>{
   function back(){
     V.style.display='none'; B.classList.remove('on'); B.textContent='모의고사';
     if(typeof window.showLibrary==='function'){ window.showLibrary(); return; }
-    var l=document.getElementById('libraryView'); if(l) l.style.display='block';
+    var l=document.getElementById('libraryView'); if(l) l.style.display='flex';
   }
   B.onclick=function(){ V.style.display==='block'?back():open(); };
   /* 본체가 다른 뷰로 전환할 때 버튼 상태를 되돌리기 위해 노출 */
@@ -2269,7 +2281,7 @@ function renderLibrary(){
     grid.append(card);
   });
 }
-function showLibrary(){ $("#libraryView").style.display="block"; $("#editorView").style.display="none";
+function showLibrary(){ $("#libraryView").style.display="flex"; $("#editorView").style.display="none";
   $("#mockView").style.display="none"; if(window.__mockClose) window.__mockClose();
   $("#topActions").style.visibility="hidden"; rememberSet(null); renderLibrary(); }
 
@@ -2279,7 +2291,7 @@ function showLibrary(){ $("#libraryView").style.display="block"; $("#editorView"
    옮기느라 더 오래 걸려서, 사용자는 데이터가 사라진 줄 알고 새로고침을 하게 된다.
    (실제로는 잘 불러오고 있었다) */
 function showLibraryLoading(sub){
-  $("#libraryView").style.display="block"; $("#editorView").style.display="none";
+  $("#libraryView").style.display="flex"; $("#editorView").style.display="none";
   $("#mockView").style.display="none"; if(window.__mockClose) window.__mockClose();
   $("#topActions").style.visibility="hidden";
   const grid=$("#setGrid"); if(!grid) return;
