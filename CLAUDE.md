@@ -5,9 +5,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## What this is
 
 PEDAGOGY — a Korean math problem-set / mock-exam (모의고사) editor. No build system, no
-package manager, no framework: three standalone files. Each `.html` file is a single-page
-app with all CSS/JS inlined and dependencies pulled from CDNs (KaTeX, SortableJS, Firebase
-compat SDK, Pretendard/KoPub webfonts).
+package manager, no framework: the product is two standalone files (plus a dev server and a
+test harness, below). Each `.html` file is a single-page app with all CSS/JS inlined and
+dependencies pulled from CDNs (KaTeX, SortableJS, Firebase compat SDK, Pretendard/KoPub
+webfonts).
 
 - [`index.html`](index.html) — PEDAGOGY main app: problem-set library + block editor.
 - [`mock-exam-editor.html`](mock-exam-editor.html) — 모의고사(mock CSAT exam) editor, embedded
@@ -18,6 +19,9 @@ compat SDK, Pretendard/KoPub webfonts).
 - [`serve.py`](serve.py) — optional local Python dev server that compiles the mock editor's
   generated Typst source to PNG page previews with the real exam font/layout, so the
   in-browser approximate preview can be swapped for a pixel-accurate one.
+- [`regression-test.html`](regression-test.html) — browser-based regression suite covering
+  both apps (see "Testing" below). Not part of the shipped product; only reachable through
+  `serve.py`.
 
 Git remote: `origin` → https://github.com/071205/pedagogy (branch `main`, GitHub Pages로
 `https://071205.github.io` 에 배포됨 — `serve.py`의 `ALLOW_ORIGINS`가 이 주소를 허용한다).
@@ -46,7 +50,53 @@ python3 serve.py --open
 - Exam fonts are picked up from `~/exam-fonts` and the Hancom HWP app bundle if installed
   (see `FONT_DIRS` in [serve.py](serve.py)); without them, `mock-exam-editor.html` falls
   back to bundled webfonts (Hamchorom) for its in-browser approximate preview.
-- No test suite, linter, or formatter exists in this repo.
+- No linter or formatter exists in this repo. There is a regression suite — see "Testing" below.
+
+## Testing
+
+[`regression-test.html`](regression-test.html) loads `index.html` and `mock-exam-editor.html`
+each in their own `<iframe>` and re-runs, in one pass, the checks that were previously done
+by hand in the terminal/browser-console during review (security/XSS, trust-boundary
+normalization, account-scoped storage keys, choices-preservation logic, responsive
+breakpoints, dead-code-should-stay-dead). Run it via:
+
+```bash
+python3 serve.py --port 8799
+```
+
+then open `http://127.0.0.1:8799/regression-test.html`. **Opening the file directly (`file://`)
+does not work** — Chrome treats `file://` documents as cross-origin from each other, so the
+test page can't reach into the iframes; it shows a banner explaining this instead of failing
+silently. (If you ever rename this file, update its entry in `STATIC` in `serve.py` too — that
+whitelist is exact-match, so a stale entry just 404s.)
+
+Two non-obvious design points, both discovered by writing this file (not designed in from the
+start — the first draft of this suite reported all-green while testing nothing):
+
+- **`const`/`let` top-level bindings in `index.html`/`mock-exam-editor.html` are invisible via
+  `iframe.contentWindow.xxx`** — only `var`/`function` declarations become `window` properties;
+  `const sanitize=...`, `const MAX_UPLOAD_BYTES=...`, `const ICON=...` etc. live in a lexical
+  scope private to that document's own scripts. `eval`-ing inside the iframe to reach them is
+  not an option either — both apps' CSP has no `unsafe-eval` (deliberately; do not add it for
+  testing convenience). The working fix, `installHooks()` in `regression-test.html`: inject a
+  real `<script>` element into the iframe's own document (allowed — CSP `script-src` already
+  has `'unsafe-inline'`, which is a separate grant from the event-handler-attribute block) that
+  assigns the names it can see into `window.__HOOKS__`, then read that object from the parent.
+- **XSS-probe `<img onerror>` markers need the test `<div>` attached to `document` *and* a short
+  `await` before checking the flag.** A detached `div.innerHTML = "<img onerror=...>"` never
+  fires in current Chrome (image loading is deferred until the element is connected), and even
+  once attached, `onerror` arrives asynchronously — checking the marker synchronously right
+  after the assignment always reads `0`. Both were verified by deliberately feeding the helper
+  a real unescaped payload and confirming it correctly reported "unsafe" before trusting it to
+  test the app.
+
+The suite never calls anything that persists (`saveSets`, `flushToCloud`, `saveJSON`, ...), so
+it's safe to run against a signed-in profile with real data — it only calls pure functions
+(`sanitize`, `normSet`, `processText`, `tex`, ...) or mutates throwaway fixture objects
+(`blank(1)` in the mock editor), never the live `sets` / `state.problems` arrays. The one
+exception is `showLibrary()` (used for a layout check), which is a pure navigation call with no
+data side effect beyond clearing the "last opened set" pointer — the same thing that happens
+when a real user clicks the logo.
 
 ## Architecture
 

@@ -1,0 +1,409 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>PEDAGOGY 회귀 테스트</title>
+<style>
+  :root{--bg:#f7f7f9;--surface:#fff;--border:#e3e3e8;--text:#1a1a1f;--text2:#6b6b76;
+        --good:#1a9c5b;--bad:#d13438;--bad-bg:#fff5f5;--warn-bg:#fff8e1;--warn-bd:#f0d878;--warn-tx:#7a5b00}
+  *{box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Pretendard","Segoe UI",sans-serif;
+       margin:0;padding:28px;background:var(--bg);color:var(--text)}
+  h1{font-size:20px;margin:0 0 4px}
+  .sub{color:var(--text2);font-size:13px;margin-bottom:18px;max-width:720px;line-height:1.5}
+  .bar{display:flex;align-items:center;gap:10px;margin-bottom:18px}
+  button{font-size:13px;padding:9px 16px;border-radius:8px;border:1px solid var(--border);
+         background:var(--surface);cursor:pointer;font-weight:600}
+  button:hover{background:#f0f0f4}
+  button:disabled{opacity:.5;cursor:default}
+  #status{font-size:13px;color:var(--text2)}
+  .banner{border:1px solid var(--warn-bd);background:var(--warn-bg);color:var(--warn-tx);
+          padding:12px 16px;border-radius:8px;margin-bottom:16px;font-size:13px;line-height:1.6;display:none}
+  .banner code{background:rgba(0,0,0,.06);padding:1px 5px;border-radius:4px}
+  .summary{font-size:15px;font-weight:700;margin:4px 0 16px}
+  .summary .ok{color:var(--good)}
+  .summary .ng{color:var(--bad)}
+  .group{background:var(--surface);border:1px solid var(--border);border-radius:10px;
+         margin-bottom:14px;overflow:hidden}
+  .group h2{font-size:13px;margin:0;padding:10px 16px;background:#eef0f4;
+            border-bottom:1px solid var(--border);font-weight:700}
+  .row{display:flex;align-items:baseline;gap:8px;padding:8px 16px;border-bottom:1px solid #f2f2f5;font-size:13px}
+  .row:last-child{border-bottom:none}
+  .row.fail{background:var(--bad-bg)}
+  .row .mark{flex-shrink:0;font-weight:700;width:16px}
+  .row.pass .mark{color:var(--good)}
+  .row.fail .mark{color:var(--bad)}
+  .row .name{flex-shrink:0}
+  .row .note{color:var(--text2);font-size:12px}
+  .row.fail .note{color:var(--bad)}
+  iframe{position:absolute;left:-9999px;top:0;width:1440px;height:900px;border:0;background:#fff}
+</style>
+</head>
+<body>
+
+<h1>PEDAGOGY 회귀 테스트</h1>
+<div class="sub">
+  index.html · mock-exam-editor.html 을 각각 iframe 으로 띄워, 그동안 리뷰·수정하며 수기로
+  확인해 온 항목을 한 번에 재확인합니다. <b>저장/클라우드 관련 함수(saveSets, flushToCloud 등)는
+  호출하지 않습니다</b> — 실제 데이터를 건드리지 않으므로 로그인한 상태에서 열어도 안전하게
+  반복 실행할 수 있습니다.
+</div>
+
+<div class="banner" id="corsBanner">
+  ⚠️ iframe 내부를 읽을 수 없습니다 — <code>file://</code> 로 직접 열면 브라우저가 두 파일을
+  서로 다른 출처로 보고 막습니다(교차 출처 제한). 저장소 폴더에서
+  <code>python3 serve.py</code> 를 실행한 뒤, 그 서버 주소(예: http://127.0.0.1:8787/regression-test.html)로
+  이 페이지를 다시 열어주세요.
+</div>
+
+<div class="bar">
+  <button id="runBtn">테스트 실행</button>
+  <span id="status">준비됨</span>
+</div>
+
+<div class="summary" id="summary"></div>
+<div id="output"></div>
+
+<iframe id="mainFrame"></iframe>
+<iframe id="mockFrame"></iframe>
+
+<script>
+const $ = sel => document.querySelector(sel);
+const mainFrame = $("#mainFrame");
+const mockFrame = $("#mockFrame");
+
+function waitFor(getter, timeoutMs=8000){
+  return new Promise((resolve,reject)=>{
+    const start = Date.now();
+    (function poll(){
+      let v; try{ v = getter(); }catch(e){ v = undefined; }
+      if(v) return resolve(v);
+      if(Date.now()-start > timeoutMs) return reject(new Error("시간 초과 — 스크립트가 아직 안 실행됐거나 CDN(폰트/KaTeX 등)을 못 받아온 상태일 수 있어요"));
+      setTimeout(poll, 50);
+    })();
+  });
+}
+
+function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+
+async function loadFrame(iframe, src, readyGetter){
+  await new Promise((resolve,reject)=>{
+    iframe.onload = resolve;
+    iframe.onerror = () => reject(new Error("파일을 못 불러왔어요: "+src));
+    iframe.src = src;
+  });
+  let win;
+  try{ win = iframe.contentWindow; void win.document.title; }
+  catch(e){ throw new Error("CROSS_ORIGIN"); }
+  await waitFor(() => readyGetter(win));
+  return win;
+}
+
+/* index.html/mock-exam-editor.html 의 핵심 함수·상수는 const/let 으로 선언돼 있어
+   (예: const sanitize=..., const MAX_UPLOAD_BYTES=...) iframe.contentWindow.xxx 로는
+   안 보인다 — var/함수선언만 window 프로퍼티가 되고, const/let 최상위 선언은 그
+   문서 내부의 스크립트끼리만 공유하는 렉시컬 스코프에 남기 때문이다(사양대로의
+   동작이다). 그렇다고 eval 로 우회하면 두 파일 모두 CSP 에 unsafe-eval 이 없어
+   막힌다(의도적인 보안 설정 — 테스트를 위해 풀면 안 된다).
+   대신 <script> 태그를 그 iframe 문서에 직접 넣는다. 같은 문서 안의 스크립트는
+   렉시컬 스코프를 공유하므로 이름으로 바로 참조할 수 있고, CSP 의 script-src 에
+   이미 있는 'unsafe-inline' 로 정상 실행된다(막히는 건 onerror= 같은 인라인
+   "이벤트 핸들러 속성"뿐 — 별개의 CSP 항목이다). 그렇게 모은 참조를 window 의
+   진짜 프로퍼티(__HOOKS__)에 얹어서 부모 쪽에서 읽는다. */
+function installHooks(win, names){
+  const s = win.document.createElement("script");
+  s.textContent = "window.__HOOKS__={" + names.join(",") + "};";
+  win.document.head.appendChild(s);
+  s.remove();
+  if(!win.__HOOKS__) throw new Error("훅 설치 실패 — 이름이 바뀌었거나 CSP 에 막혔을 수 있어요");
+  return win.__HOOKS__;
+}
+
+/* 부모 문서(이 파일)에서 innerHTML 을 실행해 본다 — index.html/mock 자체의 CSP 를
+   우회하려는 게 아니라, 반대로 그 CSP 를 "2차 방어선"으로 깔고 가지 않기 위해서다.
+   1차 방어(sanitize/escape)가 깨져도 CSP 가 조용히 막아 버리면 이 테스트가 항상
+   통과해 버려 회귀를 못 잡는다. 그래서 CSP 가 없는 이 페이지에서 직접 실행해 본다.
+
+   ⚠️ 두 가지를 놓치면 위험한 페이로드조차 "안전함"으로 나온다(둘 다 직접
+   재현해서 확인했다 — 고치기 전엔 실제로 이렇게 나왔다).
+   ① div 를 document 에 붙이지 않으면(detached) 최신 크롬은 <img> 요청 자체를
+      미룬다. 화면 밖으로 치워 두되(iframe 과 같은 방식) body 에는 붙여야 한다.
+   ② img 의 로드 실패(onerror)는 비동기다 — innerHTML 대입 직후 마커를 바로
+      읽으면 아직 이벤트가 오기 전이라 항상 "안 터짐"으로 보인다. 짧게라도
+      기다려야 한다(렌더 후 확인할 때 항상 delay 를 뒀던 것과 같은 이유). */
+async function firesOnInnerHTML(html, marker){
+  window[marker] = 0;
+  const div = document.createElement("div");
+  div.style.cssText = "position:absolute;left:-9999px;top:0;width:1px;height:1px;overflow:hidden";
+  document.body.appendChild(div);
+  try{ div.innerHTML = html; }catch(e){ /* 파싱 자체가 막히는 것도 안전 */ }
+  await sleep(150);
+  const fired = window[marker] === 1;
+  div.remove();
+  delete window[marker];
+  return !fired;
+}
+
+const results = []; // {group, name, pass, note}
+function record(group, name, pass, note){ results.push({group, name, pass, note}); }
+
+async function check(group, name, fn){
+  try{
+    const r = await fn();
+    if(r && typeof r === "object" && "pass" in r) record(group, name, !!r.pass, r.note);
+    else record(group, name, !!r, undefined);
+  }catch(e){
+    record(group, name, false, "예외: "+(e && e.message || e));
+  }
+}
+
+async function runIndexTests(){
+  const G = "index.html";
+  let win, H;
+  try{
+    win = await loadFrame(mainFrame, "index.html",
+      w => w.safeUrl && w.normSet && w.normProblem && w.setActivePane && w.showLibrary);
+    H = installHooks(win, ["sanitize","MAX_UPLOAD_BYTES","CLOUD_MAX_PROBLEMS","AI_MAX_DIM","AI_QUALITY"]);
+  }catch(e){
+    if(e.message === "CROSS_ORIGIN"){ $("#corsBanner").style.display="block"; }
+    record(G, "iframe 로드", false, e.message);
+    return;
+  }
+
+  // ── 보안: sanitize / safeUrl ──
+  await check(G, "sanitize() 특수문자 이스케이프", () =>
+    H.sanitize(`<>&"'`) === "&lt;&gt;&amp;&quot;&#39;");
+
+  await check(G, "safeUrl() data:image 허용", () =>
+    win.safeUrl("data:image/png;base64,aGVsbG8=").startsWith("data:image/png"));
+
+  await check(G, "safeUrl() Storage 호스트 허용", () =>
+    win.safeUrl("https://firebasestorage.googleapis.com/v0/b/x/o/y.png").includes("firebasestorage"));
+
+  await check(G, "safeUrl() javascript: 차단", () =>
+    win.safeUrl("javascript:alert(1)") === "");
+
+  await check(G, "safeUrl() 가짜 호스트 차단(접두어 우회 시도)", () =>
+    win.safeUrl("https://firebasestorage.googleapis.com.evil.example/x.png") === "");
+
+  await check(G, "safeUrl() http(비-https) 차단", () =>
+    win.safeUrl("http://storage.googleapis.com/x.png") === "");
+
+  // ── 보안: processText() 의 $$ 복원 단계 (역대 가장 위험했던 지점) ──
+  await check(G, "processText() `$$` 블록 XSS 차단", async () => {
+    const marker = "__pt_xss_"+Date.now();
+    const payload = "$$</div><img src=x onerror=window."+marker+"=1>$$";
+    const html = win.processText(payload);
+    return { pass: await firesOnInnerHTML(html, marker) };
+  });
+
+  // ── 신뢰 경계: normSet / normProblem / normBlock ──
+  await check(G, "normProblem() answerImg 도 safeUrl 통과", () =>
+    win.normProblem({answerImg:"javascript:alert(1)"}, false).answerImg === "");
+
+  await check(G, "normBlock() 모르는 블록 타입 폐기", () =>
+    win.normBlock({type:"evil-type", data:{}}) === null);
+
+  await check(G, "normSet() 기본 상한 500(가져오기 방어선)", () => {
+    const big = { name:"x", problems: Array.from({length:600}, ()=>({})) };
+    return win.normSet(big, {}).problems.length === 500;
+  });
+
+  await check(G, "normSet() CLOUD_MAX_PROBLEMS 로는 안 잘림", () => {
+    const big = { name:"x", problems: Array.from({length:600}, ()=>({})) };
+    return win.normSet(big, {maxProblems: H.CLOUD_MAX_PROBLEMS}).problems.length === 600;
+  });
+
+  // ── 계정별로 갈라야 하는 로컬 키 (게스트 기준값만 확인 — 로그인을 흉내내지 않는다) ──
+  await check(G, "계정별 로컬 키 5종이 guest 로 끝남", () => {
+    const keys = [win.setsKey(), win.backupKey(), win.lastQKey(), win.stampsKey(), win.lastSetKey()];
+    return keys.every(k => typeof k === "string" && k.endsWith(":guest"));
+  });
+
+  // ── 규칙 파일과 반드시 같이 바뀌어야 하는 상수 ──
+  await check(G, "MAX_UPLOAD_BYTES = 5MB (storage.rules 와 동기화 필요)", () =>
+    H.MAX_UPLOAD_BYTES === 5*1024*1024);
+
+  await check(G, "AI 전송 이미지 상수 1568px/JPEG 0.8", () =>
+    H.AI_MAX_DIM === 1568 && H.AI_QUALITY === 0.8);
+
+  // ── Storage 정리 / 히스토리 함수 (존재만 확인 — 실제 Storage 호출은 하지 않는다) ──
+  await check(G, "Storage 고아 이미지 정리 함수 3종 존재", () =>
+    ["releaseImage","releaseBlockImages","releaseProblemImages"].every(n => typeof win[n]==="function"));
+
+  await check(G, "실행취소/다시실행 함수 존재(trimHistory 포함)", () =>
+    ["pushHistory","doUndo","doRedo","trimHistory"].every(n => typeof win[n]==="function"));
+
+  // ── 죽은 코드가 되살아나지 않았는지 ──
+  await check(G, "제거된 gauge() 미복귀", () => typeof win.gauge === "undefined");
+
+  // ── 이모지 정리(최근 단계) ──
+  await check(G, "모의고사 버튼 텍스트에 이모지 없음", () =>
+    win.document.getElementById("mockModeBtn").textContent.trim() === "모의고사");
+
+  await check(G, "AI 프롬프트 버튼 텍스트에 이모지 없음", () =>
+    win.document.getElementById("promptBtn").textContent.trim() === "AI 프롬프트");
+
+  // ── 저작권 푸터(최근 단계) ──
+  await check(G, "라이브러리 푸터 존재 + 올해 연도 포함", () => {
+    const ft = win.document.querySelector(".lib-footer");
+    const year = new Date().getFullYear().toString();
+    return !!ft && ft.textContent.includes("PEDAGOGY") && ft.textContent.includes(year);
+  });
+
+  // ── 반응형(3단계) — 데스크톱 폭 ──
+  mainFrame.style.width = "1440px"; mainFrame.style.height = "900px";
+  await check(G, "1440px 데스크톱: 탭바 숨김", () =>
+    win.getComputedStyle(win.document.querySelector(".pane-tabs")).display === "none");
+  await check(G, "1440px 데스크톱: 가로 스크롤 없음", () =>
+    win.document.documentElement.scrollWidth <= win.innerWidth);
+
+  // ── 반응형 — 컴팩트 폭(아이패드 세로) ──
+  mainFrame.style.width = "768px"; mainFrame.style.height = "1024px";
+  await check(G, "768px: 탭바 보임 + setActivePane 동작", () => {
+    const tabs = win.document.querySelector(".pane-tabs");
+    if(win.getComputedStyle(tabs).display === "none") return {pass:false, note:"탭바가 여전히 숨김"};
+    win.setActivePane("preview");
+    const active = win.document.querySelector('.pane-tab[data-pane="preview"]').classList.contains("active");
+    win.setActivePane("edit");
+    return { pass: active };
+  });
+  await check(G, "768px: 가로 스크롤 없음", () =>
+    win.document.documentElement.scrollWidth <= win.innerWidth);
+  await check(G, "768px: 라이브러리 화면 세로 오버플로우 없음(min-height 과대평가 버그)", () => {
+    win.showLibrary();
+    const overflow = win.document.documentElement.scrollHeight - win.innerHeight;
+    return { pass: overflow <= 2, note: overflow>2 ? `${overflow}px 초과` : undefined };
+  });
+
+  // ── 반응형 — 폰/폴드 ──
+  mainFrame.style.width = "375px"; mainFrame.style.height = "812px";
+  await check(G, "375px: 가로 스크롤 없음", () =>
+    win.document.documentElement.scrollWidth <= win.innerWidth);
+
+  mainFrame.style.width = "1440px"; mainFrame.style.height = "900px"; // 기본값 복원
+}
+
+async function runMockTests(){
+  const G = "mock-exam-editor.html";
+  let win, H;
+  try{
+    win = await loadFrame(mockFrame, "mock-exam-editor.html",
+      w => w.tex && w.tq && w.blank && w.renderProb && w.setActiveMockPane);
+    H = installHooks(win, ["ICON"]);
+  }catch(e){
+    if(e.message === "CROSS_ORIGIN"){ $("#corsBanner").style.display="block"; }
+    record(G, "iframe 로드", false, e.message);
+    return;
+  }
+
+  // ── 보안: tex() (esc 경로) ──
+  await check(G, "tex() 텍스트 구간 XSS 차단", async () => {
+    const marker = "__tex_xss_"+Date.now();
+    const payload = "</div><img src=x onerror=window."+marker+"=1>";
+    const html = win.tex(payload);
+    return { pass: await firesOnInnerHTML(html, marker) };
+  });
+
+  // ── 보안: tq() Typst 이스케이프 (// 주석 버그) ──
+  await check(G, "tq() 가 `//` 를 이스케이프(Typst 주석 버그 재발 방지)", () =>
+    !/(^|[^\\])\/\//.test(win.tq("a // b")));
+
+  // ── 데이터 무결성: 선지 보존 (격리된 fixture 객체 사용, state.problems 는 건드리지 않음) ──
+  await check(G, "단답형 전환 시 선지 블록 보존(삭제 아닌 숨김)", () => {
+    const p = win.blank(1); // state 밖에서 새로 만든 독립 객체
+    p.type = "choice"; win.syncChoicesBlock(p);
+    const cb = win.blocksOf(p).find(b => b.type === "choices");
+    cb.data.items = ["$1$","$2$","$3$","$4$","$5$"];
+    p.type = "short"; win.syncChoicesBlock(p);
+    const kept = win.blocksOf(p).find(b => b.type === "choices");
+    return !!kept && kept.data.items[0] === "$1$";
+  });
+
+  // ── 아이콘 시스템(이모지 정리 단계) ──
+  await check(G, "ICON 객체(copy/trash/grip) 유지", () =>
+    H.ICON && !!H.ICON.copy && !!H.ICON.trash && !!H.ICON.grip);
+
+  await check(G, "탭 버튼에 컬러 이모지 없음(SVG 아이콘으로 교체됨)", () => {
+    const emojiRe = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u;
+    const tabs = [...win.document.querySelectorAll(".mock-pane-tab")];
+    return tabs.length === 3 && tabs.every(b => !emojiRe.test(b.textContent));
+  });
+
+  // ── 죽은 코드 (호출 가능한 gauge() 함수만 확인 — 동명의 .gauge CSS 클래스는
+  //    실제 사용 중인 별개의 것이라 여기서 같이 지워지면 안 된다) ──
+  await check(G, "제거된 gauge() 함수 미복귀", () => typeof win.gauge === "undefined");
+
+  // ── 렌더 파이프라인 살아있는지(격리된 fixture 로 sanity check) ──
+  await check(G, "renderProb() 이 예외 없이 HTML 문자열을 반환", () => {
+    const p = win.blank(1);
+    p.stmt = "$x^2$"; p.choices = ["$1$","$2$","$3$","$4$","$5$"];
+    const html = win.renderProb(p);
+    return typeof html === "string" && html.includes("prob");
+  });
+
+  // ── 반응형 ──
+  mockFrame.style.width = "1440px"; mockFrame.style.height = "900px";
+  await check(G, "1440px 데스크톱: 탭바 숨김", () =>
+    win.getComputedStyle(win.document.querySelector(".mock-pane-tabs")).display === "none");
+  await check(G, "1440px 데스크톱: 가로 스크롤 없음", () =>
+    win.document.documentElement.scrollWidth <= win.innerWidth);
+
+  mockFrame.style.width = "768px"; mockFrame.style.height = "1024px";
+  await check(G, "768px: 탭바 보임 + setActiveMockPane 동작", () => {
+    const tabs = win.document.querySelector(".mock-pane-tabs");
+    if(win.getComputedStyle(tabs).display === "none") return {pass:false, note:"탭바가 여전히 숨김"};
+    win.setActiveMockPane("outline");
+    const on = win.document.querySelector('.mock-pane-tab[data-pane="outline"]').classList.contains("on");
+    win.setActiveMockPane("edit");
+    return { pass: on };
+  });
+  await check(G, "768px: 가로 스크롤 없음", () =>
+    win.document.documentElement.scrollWidth <= win.innerWidth);
+
+  mockFrame.style.width = "375px"; mockFrame.style.height = "812px";
+  await check(G, "375px: 가로 스크롤 없음", () =>
+    win.document.documentElement.scrollWidth <= win.innerWidth);
+
+  mockFrame.style.width = "1440px"; mockFrame.style.height = "900px"; // 기본값 복원
+}
+
+function render(){
+  const out = $("#output"); out.innerHTML = "";
+  const groups = [...new Set(results.map(r=>r.group))];
+  let pass=0, fail=0;
+  groups.forEach(g=>{
+    const box = document.createElement("div"); box.className="group";
+    const h2 = document.createElement("h2"); h2.textContent = g; box.appendChild(h2);
+    results.filter(r=>r.group===g).forEach(r=>{
+      r.pass ? pass++ : fail++;
+      const row = document.createElement("div"); row.className = "row " + (r.pass?"pass":"fail");
+      row.innerHTML = `<span class="mark">${r.pass?"✅":"❌"}</span><span class="name">${r.name}</span>` +
+                       (r.note ? `<span class="note">— ${r.note}</span>` : "");
+      box.appendChild(row);
+    });
+    out.appendChild(box);
+  });
+  $("#summary").innerHTML = fail===0
+    ? `<span class="ok">${pass} / ${pass+fail} 통과</span>`
+    : `<span class="ng">${fail}건 실패</span> · <span class="ok">${pass}건 통과</span> (총 ${pass+fail})`;
+}
+
+async function runAll(){
+  $("#corsBanner").style.display = "none";
+  $("#runBtn").disabled = true;
+  $("#status").textContent = "index.html 확인 중…";
+  results.length = 0;
+  await runIndexTests();
+  $("#status").textContent = "mock-exam-editor.html 확인 중…";
+  await runMockTests();
+  render();
+  $("#status").textContent = "완료 · " + new Date().toLocaleTimeString("ko-KR");
+  $("#runBtn").disabled = false;
+}
+
+$("#runBtn").addEventListener("click", runAll);
+runAll();
+</script>
+</body>
+</html>

@@ -48,6 +48,10 @@ STATIC = {
     # 모의고사 모드에서 /render 를 그대로 부를 수 있다)
     "/index.html": ("index.html", "text/html; charset=utf-8"),
     "/mock": ("mock-exam-editor.html", "text/html; charset=utf-8"),
+    # index.html/mock-exam-editor.html 을 iframe 으로 띄워 함수 단위로 재확인하는
+    # 회귀 테스트. iframe 내부를 읽으려면 이 파일도 같은 출처로 떠야 하므로
+    # file:// 로는 안 되고 반드시 이 화이트리스트를 거쳐야 한다.
+    "/regression-test.html": ("regression-test.html", "text/html; charset=utf-8"),
     # index.html 이 @font-face 로 참조하는 브랜드 글꼴. 화이트리스트에 없으면 404 가 나
     # 로고가 폴백 서체로 나온다. 파일이 없으면 아래 do_GET 이 알아서 404 를 돌려준다.
     "/Adobe Caslon Pro Bold.ttf": ("Adobe Caslon Pro Bold.ttf", "font/ttf"),
