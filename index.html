@@ -247,6 +247,27 @@ label.btn input{display:none}
 .lib-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;flex:1}
 .lib-footer{margin-top:32px;padding-top:20px;border-top:1px solid var(--border);
   text-align:center;font-size:12px;color:var(--text-tertiary)}
+
+/* ── 데이터 관리 모달 ──
+   되돌릴 수 있는 것(백업 복구)과 없는 것(삭제)을 눈으로 구분되게 나눈다.
+   위험 구역은 빨간 테두리로 감싸고, 확인 문구를 정확히 입력해야 버튼이 켜진다. */
+.dm-sec{border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px 18px}
+.dm-sec h4{margin:0 0 6px;font-size:14px;font-weight:700;color:var(--text-primary)}
+.dm-sec p{margin:0 0 12px;font-size:12.5px;line-height:1.65;color:var(--text-secondary)}
+.dm-sec p:last-of-type{margin-bottom:12px}
+.dm-danger{border-color:var(--danger)}
+.dm-danger-title{font-size:12px;font-weight:700;color:var(--danger);
+  letter-spacing:.02em;margin-bottom:10px}
+.dm-danger .dm-sec{border-color:#5a2a2e}
+.dm-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.dm-row input[type="text"]{flex:1 1 150px;min-width:0;height:38px;padding:0 12px;
+  border:1px solid var(--border);border-radius:var(--radius-md);
+  background:var(--bg);color:var(--text-primary);font-size:13px}
+.dm-note{font-size:11.5px;color:var(--text-tertiary);margin-top:8px;line-height:1.6}
+.btn-danger{background:var(--danger);border:1px solid transparent;color:#fff;
+  height:38px;padding:0 14px;border-radius:var(--radius-md);font-size:13px;font-weight:700;
+  white-space:nowrap}
+.btn-danger:disabled{opacity:.42;cursor:not-allowed}
 .set-card{
   position:relative;background:var(--surface-1);
   border:1px solid var(--border);border-radius:var(--radius-xl);
@@ -731,6 +752,9 @@ body.hide-answers .answer-block{display:none!important}
      까지 줄어들 수 있다. 줄바꿈을 허용해 제목이 제 폭을 갖게 한다. */
   .lib-header{flex-wrap:wrap;row-gap:12px}
   .lib-header h2{flex-shrink:0}
+  /* 버튼이 넷(새 문제집·전체 내보내기·가져오기·데이터 관리)이라 좁은 폭에서는
+     한 줄에 안 들어간다 — 줄바꿈을 허용하지 않으면 가로로 밀려 넘친다. */
+  .lib-actions{flex-wrap:wrap}
   /* 이 폭에서는 상단바가 줄바꿈돼 높이가 늘어난다(실측 139px, 기본 규칙은 60px
      가정). 그 차이만큼 min-height 가 과대평가돼 문제집이 적을 때도 푸터가
      화면 아래로 밀려 스크롤이 필요했다(실측 79px). 상단바 높이는 로그인
@@ -893,6 +917,7 @@ input:focus-visible,textarea:focus-visible{outline:none}
       <button id="newSetBtn" class="btn-accent">+ 새 문제집</button>
       <button id="exportAllBtn">전체 내보내기</button>
       <button id="importAllBtn">가져오기</button>
+      <button id="dataMgmtBtn" title="백업 복구 · 데이터 삭제">데이터 관리</button>
       <input id="importAllInput" type="file" accept="application/json" style="display:none">
     </div>
   </div>
@@ -1169,6 +1194,65 @@ document.addEventListener('DOMContentLoaded',()=>{
       <button id="closePrompt2" class="btn" style="height:40px">닫기</button>
       <button id="copyPrompt" class="btn-primary" style="height:40px;font-weight:700;padding:0 20px">📋 복사</button>
     </div>
+  </div>
+</div>
+
+<!-- 데이터 관리 모달 (백업 복구 · 삭제) -->
+<div id="dataModal" role="dialog" aria-modal="true" aria-labelledby="dataModalTitle" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:2000;align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--surface-1);border:1px solid var(--border);border-radius:24px;padding:26px 26px 22px;width:100%;max-width:520px;max-height:88vh;overflow-y:auto;display:flex;flex-direction:column;gap:16px;box-shadow:0 24px 64px rgba(0,0,0,.6)">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+      <div>
+        <div id="dataModalTitle" style="font-size:18px;font-weight:800;color:var(--text-primary);letter-spacing:-.02em">데이터 관리</div>
+        <div id="dmWhose" style="font-size:12px;color:var(--text-secondary);margin-top:3px"></div>
+      </div>
+      <button id="dmClose" class="btn-ghost" style="width:36px;height:36px;padding:0;border-radius:50%;font-size:18px;flex-shrink:0">✕</button>
+    </div>
+
+    <!-- 되돌릴 수 있는 것 -->
+    <div class="dm-sec">
+      <h4>백업에서 되돌리기</h4>
+      <p id="dmBackupInfo">확인 중…</p>
+      <div class="dm-row">
+        <button id="dmRestoreBtn" class="btn" style="height:38px" disabled>되돌리기</button>
+      </div>
+      <div class="dm-note">되돌리기 직전 상태도 백업으로 바꿔 두므로, 잘못 눌렀으면 한 번 더 눌러 원래대로 돌아올 수 있어요.</div>
+    </div>
+
+    <!-- 되돌릴 수 없는 것 -->
+    <div>
+      <div class="dm-danger-title">⚠ 위험 구역</div>
+      <div class="dm-danger" style="display:flex;flex-direction:column;gap:12px;border:1px solid var(--danger);border-radius:var(--radius-lg);padding:12px">
+
+        <div class="dm-sec">
+          <h4>모든 문제집 삭제</h4>
+          <p>이 계정의 문제집을 전부 지웁니다. <b style="color:var(--text-primary)">계정은 그대로 둡니다.</b>
+             되돌리기용 사본이 이 기기에 남아 위 '되돌리기'로 복구할 수 있어요.
+             다만 <b style="color:var(--text-primary)">첨부한 이미지는 함께 지워져 되돌려도 돌아오지 않습니다.</b></p>
+          <div class="dm-row">
+            <input id="dmWipeConfirm" type="text" placeholder="삭제" autocomplete="off" aria-label="확인 문구 입력">
+            <button id="dmWipeBtn" class="btn-danger" disabled>모든 문제집 삭제</button>
+          </div>
+          <!-- '왼쪽 칸' 같은 위치 표현은 쓰지 않는다 — 좁은 화면에서는 입력칸이
+               버튼 위로 줄바꿈돼 위치가 달라진다. -->
+          <div class="dm-note">확인을 위해 <b style="color:var(--text-secondary)">삭제</b> 라고 입력하세요.</div>
+        </div>
+
+        <div class="dm-sec" id="dmAccountSec">
+          <h4>계정 삭제</h4>
+          <p>문제집·이미지·설정을 모두 지우고 이 계정을 없앱니다.
+             <b style="color:var(--danger)">되돌릴 수 없습니다.</b>
+             먼저 '전체 내보내기'로 파일을 받아 두세요.</p>
+          <div class="dm-row">
+            <input id="dmDelConfirm" type="text" placeholder="" autocomplete="off" aria-label="확인 문구 입력">
+            <button id="dmDelBtn" class="btn-danger" disabled>계정 삭제</button>
+          </div>
+          <div class="dm-note" id="dmDelHint"></div>
+        </div>
+
+      </div>
+    </div>
+
+    <div id="dmBusy" style="display:none;font-size:12.5px;color:var(--text-secondary);text-align:center"></div>
   </div>
 </div>
 
@@ -1581,15 +1665,16 @@ function snapshotLocalBackup(){
     warnOnce("backup","안전용 백업을 만들지 못했어요 · 이 기기의 저장 공간이 부족한 것 같습니다");
   }
 }
+/* 콘솔용 입구. 실제 동작은 화면의 '데이터 관리 → 되돌리기' 와 똑같은
+   restoreFromBackup() 하나로 모아 둔다 — 예전에는 이 콘솔판이 따로 구현돼 있어서
+   되돌리기 직전 상태를 백업하지 않았고(잘못 부르면 그대로 끝), 되살린 문제집의
+   수정 시각도 안 찍어서 로그인 상태면 클라우드가 곧바로 도로 덮어썼다. */
 window.restorePedagogyBackup=function(){
-  try{
-    const b=JSON.parse(localStorage.getItem(backupKey())||'null');
-    if(!b||!Array.isArray(b.sets)){ console.log('복구할 백업이 없습니다.'); return false; }
-    sets=b.sets; saveSets();
-    if(typeof showLibrary==="function") showLibrary();
-    console.log('백업 복구 완료 (저장 시각:', new Date(b.t).toLocaleString(), ')');
-    return true;
-  }catch(e){ console.log('복구 실패:', e); return false; }
+  const b=readBackupInfo();
+  if(!b){ console.log('복구할 백업이 없습니다.'); return false; }
+  const ok=restoreFromBackup();
+  if(ok) console.log('백업 복구 완료 (저장 시각:', new Date(b.t).toLocaleString(), ')');
+  return ok;
 };
 
 /* 구버전 키(PM_SETS_V1~V6)에서 한 번만 이관한다.
@@ -2012,6 +2097,15 @@ let quotaWarned=false;
    — 타이핑이 눈에 띄게 밀린다.
    150ms 로 묶되, '창을 닫을 때·탭을 숨길 때·되돌리기·수동 저장' 은
    flushLocal() 로 즉시 쓴다. 그래야 디바운스가 데이터 안전을 해치지 않는다. */
+/* ── 삭제 작업 중 잠금 ──
+   '모든 문제집 삭제'·'계정 삭제'가 도는 동안 켜진다. 이게 없으면 지우는 도중에
+   디바운스 저장(saveTimer/localTimer), 탭 전환(visibilitychange), 창 닫기
+   (beforeunload) 가 끼어들어 방금 지운 내용을 로컬이나 클라우드에 도로 써 버린다
+   (특히 계정 삭제 중이면 곧 사라질 uid 앞으로 문서를 새로 만들어 고아가 된다).
+   로컬 쓰기는 writeLocalNow(), 클라우드 쓰기는 flushToCloud() 하나로 모이므로
+   그 둘과 진입점인 saveSets() 만 막으면 모든 경로가 닫힌다. */
+let wiping=false;
+
 let localTimer=null, localDirty=false;
 function persistLocal(){
   localDirty=true;
@@ -2027,6 +2121,7 @@ function flushLocal(){
   return writeLocalNow();
 }
 function writeLocalNow(){
+  if(wiping) return true;      // 삭제 중 — 지운 내용을 도로 쓰지 않는다
   try{
     localStorage.setItem(setsKey(), JSON.stringify(sets));
     quotaWarned=false;
@@ -2053,6 +2148,7 @@ function hasUnsavedCloudWork(){
    다른 탭이 같은 순간에 저장하면 그쪽 작업이 통째로 사라졌고, 1MB 한도도
    문제집을 몇십 권 모으면 걸렸다. 이제 문제집 하나가 문서 하나다. */
 async function flushToCloud(uidAtSave){
+  if(wiping) return;               // 삭제 중 — 지운 문제집을 되올리지 않는다
   flushLocal();                    // 로컬부터 확정하고 올린다
   if(!currentUser || currentUser.uid!==uidAtSave){
     console.warn("저장 예약 뒤 계정이 바뀌어 건너뜁니다.");
@@ -2160,7 +2256,322 @@ async function deleteSetEverywhere(removed){
   }
 }
 
+/* ══════════════════════════════════════════════════════════════
+   데이터 관리 — 백업 되돌리기 · 전체 삭제 · 계정 삭제
+
+   되돌릴 수 있는 것과 없는 것을 UI 에서도 코드에서도 갈라 둔다.
+     · 모든 문제집 삭제 → 계정은 남기고, 이 기기에 복구용 백업을 남긴다(작업 정리)
+     · 계정 삭제       → 백업까지 포함해 전부 지우고 계정을 없앤다(되돌릴 수 없음)
+
+   지우는 동안 지켜야 할 것 세 가지 (하나라도 빠지면 지운 게 되살아난다):
+     ① wiping 플래그로 모든 저장 경로를 막는다 (위 wiping 주석 참고)
+     ② onSnapshot 구독을 먼저 끊는다 — 안 끊으면 우리가 쓰는 tombstone 을
+        도로 읽어 sets 를 건드리고, 마지막에 '비었으니 새 문제집 하나' 로직이
+        돌아 빈 문제집이 되살아난다
+     ③ 예약된 타이머(saveTimer/localTimer)를 취소한다 — 삭제 직전에 친 타이핑이
+        0.8초 뒤에 되살아나 클라우드로 올라간다
+   ══════════════════════════════════════════════════════════════ */
+
+/* 계정별 로컬 키 이름을 '지금' 확정해 둔다.
+   계정 삭제는 마지막에 currentUser 를 없애므로, 그 뒤에 setsKey() 를 부르면
+   이미 ':guest' 를 가리켜 엉뚱한 칸을 지운다. 반드시 시작 시점에 잡아 둘 것. */
+function accountLocalKeys(){
+  return { sets:setsKey(), backup:backupKey(), lastQ:lastQKey(),
+           stamps:stampsKey(), lastSet:lastSetKey() };
+}
+
+function readBackupInfo(){
+  try{
+    const b=JSON.parse(localStorage.getItem(backupKey())||'null');
+    if(!b||!Array.isArray(b.sets)) return null;
+    return { sets:b.sets, t:Number(b.t)||0 };
+  }catch(e){ console.warn('백업을 읽지 못했습니다', e); return null; }
+}
+
+/* 클라우드에 실제로 있는 문제집 id 를 읽어 온다.
+   로컬 sets 만 보고 지우면, 다른 기기에서 만들고 아직 이 기기로 안 내려온
+   문제집이 클라우드에 그대로 남는다(계정 삭제인데 데이터가 남는 셈). */
+async function cloudSetDocIds(uid, {includeTombstones}){
+  const snap=await SETS_COL(uid).get();
+  return snap.docs
+    .filter(d=>includeTombstones || !((d.data()||{}).deleted))
+    .map(d=>d.id);
+}
+
+/* Firestore 는 배치 하나에 500개까지만 담긴다. 넉넉히 400개씩 끊는다. */
+async function wipeCloudSets(uid, ids, {realDelete}){
+  const CHUNK=400;
+  for(let i=0;i<ids.length;i+=CHUNK){
+    const batch=fbDb.batch();
+    ids.slice(i,i+CHUNK).forEach(id=>{
+      const ref=SETS_COL(uid).doc(String(id));
+      if(realDelete) batch.delete(ref);
+      else batch.set(ref,{ id:String(id), deleted:true, updatedAt:Date.now(),
+                           order:0, name:"", header:"", problems:[] });
+    });
+    await batch.commit();
+    if(!realDelete) ids.slice(i,i+CHUNK).forEach(id=>deletedIds.set(id, Date.now()));
+  }
+}
+
+/* 이 계정이 올린 이미지를 폴더째 비운다.
+   sets 안의 URL 만 훑으면, 블록을 지웠지만 정리에 실패해 남은 고아 파일이
+   그대로 남는다. 폴더를 직접 나열해야 '이 계정 것 전부' 가 된다.
+   실패는 치명적이지 않으므로(용량만 남는다) 개수만 세어 알린다. */
+async function wipeStorageImages(uid){
+  let failed=0;
+  try{
+    const res=await fbStorage.ref('users/'+uid+'/images').listAll();
+    for(const item of res.items){
+      try{ await item.delete(); }
+      catch(e){ failed++; console.warn('이미지 삭제 실패:', item.fullPath, e&&e.code); }
+    }
+  }catch(e){
+    console.warn('이미지 목록을 읽지 못했습니다:', e&&e.code);
+    return -1;                       // 목록 자체를 못 읽음
+  }
+  return failed;
+}
+
+function clearLocalKeys(keys, {keepBackup}){
+  Object.entries(keys).forEach(([name,k])=>{
+    if(name==='backup' && keepBackup) return;
+    try{ localStorage.removeItem(k); }catch(e){ console.warn('로컬 키 삭제 실패: '+k, e); }
+  });
+}
+
+/* ── 모든 문제집 삭제 (계정 유지) ── */
+async function deleteAllSets(){
+  const keys=accountLocalKeys();
+  const uid=currentUser&&currentUser.uid;
+  const online=!!(uid && fbReady);
+
+  wiping=true;
+  clearTimeout(saveTimer); clearTimeout(localTimer);
+  if(setsUnsub){ setsUnsub(); setsUnsub=null; }
+
+  try{
+    // 복구용 백업을 먼저 남긴다 — 지운 뒤에는 만들 원본이 없다
+    try{
+      localStorage.setItem(keys.backup, JSON.stringify({sets:sets, t:Date.now()}));
+    }catch(e){
+      console.error('삭제 전 백업 실패', e);
+      throw new Error('되돌리기용 백업을 만들지 못해 삭제를 멈췄어요 · 저장 공간을 확보한 뒤 다시 시도해 주세요');
+    }
+
+    if(online){
+      dmSetBusy('클라우드에서 지우는 중…');
+      const ids=await cloudSetDocIds(uid,{includeTombstones:false});
+      await wipeCloudSets(uid, ids, {realDelete:false});   // tombstone — 다른 기기에서 되살아나지 않게
+      dmSetBusy('이미지를 지우는 중…');
+      const failed=await wipeStorageImages(uid);
+      if(failed>0) toast(`이미지 ${failed}장은 지우지 못했어요 · 저장 용량에만 남습니다`,"error");
+    }
+
+    // 로컬 — 백업은 남긴다(복구 수단)
+    clearLocalKeys(keys,{keepBackup:true});
+    sets=[]; cloudSynced.clear();
+    localStamps={}; lastQIdBySet={};
+    currentSetId=null; currentQId=null;
+    undoStack=[]; redoStack=[]; lastSnapshot=snapshot(); updateHistButtons();
+  }finally{
+    wiping=false;
+    if(currentUser && fbReady) watchCloud();     // 구독 복구
+  }
+
+  showLibrary();
+  toast(online ? "모든 문제집을 지웠어요 · '데이터 관리 → 되돌리기'로 복구할 수 있어요"
+               : "이 기기의 모든 문제집을 지웠어요 · '데이터 관리 → 되돌리기'로 복구할 수 있어요");
+}
+
+/* ── 계정 삭제 (되돌릴 수 없음) ──
+   순서가 중요하다. 재인증을 '맨 앞' 에 둔다 — Firebase 는 로그인한 지 오래되면
+   user.delete() 를 거부하는데(auth/requires-recent-login), 데이터를 먼저 지운 뒤
+   여기서 막히면 '데이터는 날아갔는데 계정은 남은' 최악의 상태가 된다.
+   그리고 계정(auth)은 반드시 '마지막' 에 지운다 — 계정이 먼저 사라지면 보안 규칙의
+   request.auth.uid 가 안 맞아 남은 데이터를 영영 못 지운다. */
+async function deleteAccountEverything(){
+  if(!currentUser || !fbReady) throw new Error('로그인 상태에서만 계정을 삭제할 수 있어요');
+  const user=currentUser;
+  const uid=user.uid;
+  const keys=accountLocalKeys();
+
+  // ① 재인증 — 파괴적인 작업을 시작하기 전에 실패할 수 있는 것을 끝내 둔다
+  dmSetBusy('본인 확인 중… (구글 창에서 계속 진행해 주세요)');
+  try{
+    await user.reauthenticateWithPopup(new firebase.auth.GoogleAuthProvider());
+  }catch(e){
+    const c=e&&e.code;
+    if(c==='auth/popup-closed-by-user'||c==='auth/cancelled-popup-request')
+      throw new Error('본인 확인이 취소돼 아무것도 지우지 않았어요');
+    if(c==='auth/popup-blocked')
+      throw new Error('브라우저가 확인 창을 막았어요 · 팝업을 허용한 뒤 다시 시도해 주세요 (아무것도 지우지 않았습니다)');
+    throw new Error('본인 확인에 실패해 아무것도 지우지 않았어요: '+((e&&e.message)||c||''));
+  }
+
+  wiping=true;
+  clearTimeout(saveTimer); clearTimeout(localTimer);
+  if(setsUnsub){ setsUnsub(); setsUnsub=null; }
+
+  try{
+    // ② 이미지 → ③ 문제집 문서 → ④ 사용자 문서 순으로 지운다
+    dmSetBusy('이미지를 지우는 중…');
+    const failed=await wipeStorageImages(uid);
+
+    dmSetBusy('문제집을 지우는 중…');
+    const ids=await cloudSetDocIds(uid,{includeTombstones:true});
+    await wipeCloudSets(uid, ids, {realDelete:true});   // 계정이 사라지므로 tombstone 불필요
+
+    try{ await fbDb.collection('users').doc(uid).delete(); }
+    catch(e){ console.warn('사용자 문서 삭제 실패:', e&&e.code); }
+
+    // ⑤ 로컬 — 백업까지 전부
+    clearLocalKeys(keys,{keepBackup:false});
+    sets=[]; cloudSynced.clear(); deletedIds.clear();
+    localStamps={}; lastQIdBySet={};
+    currentSetId=null; currentQId=null;
+    undoStack=[]; redoStack=[];
+
+    // ⑥ 마지막으로 계정 자체
+    dmSetBusy('계정을 지우는 중…');
+    await user.delete();
+
+    if(failed>0) console.warn(`이미지 ${failed}장 삭제 실패`);
+    return { imagesFailed: failed };
+  }finally{
+    wiping=false;
+  }
+}
+
+/* ── 백업 되돌리기 ──
+   콘솔 전용이던 restorePedagogyBackup() 을 화면으로 끌어올린 것.
+   콘솔판에 없던 두 가지를 더 한다.
+     · 되돌리기 '직전' 상태를 백업 자리에 넣는다 → 잘못 눌러도 한 번 더 눌러 원복
+     · 되살린 문제집마다 수정 시각을 지금으로 찍는다 → 안 찍으면 클라우드의
+       updatedAt 이 더 최신이라 병합에서 곧바로 도로 덮여 되돌린 게 사라진다 */
+function restoreFromBackup(){
+  const b=readBackupInfo();
+  if(!b) return false;
+
+  const before=sets.slice();
+  sets=b.sets.map(s=>normSet(s,{keepId:true, maxProblems:CLOUD_MAX_PROBLEMS})).filter(Boolean);
+
+  // 되돌리기 직전 상태를 백업으로 — 이 동작 자체를 되돌릴 수 있게
+  try{ localStorage.setItem(backupKey(), JSON.stringify({sets:before, t:Date.now()})); }
+  catch(e){ console.warn('직전 상태 백업 실패(되돌리기는 계속합니다)', e); }
+
+  const now=Date.now();
+  sets.forEach(s=>{ localStamps[s.id]=now; });
+  writeStamps(localStamps);
+
+  currentSetId=null; currentQId=null;
+  flushLocal(); writeLocalNow();
+  if(currentUser){ clearTimeout(saveTimer); flushToCloud(currentUser.uid); }
+  undoStack=[]; redoStack=[]; lastSnapshot=snapshot(); updateHistButtons();
+  showLibrary();
+  return true;
+}
+
+/* ── 데이터 관리 모달 ── */
+const dataModal=$("#dataModal");
+const DM_WIPE_PHRASE="삭제";
+
+function dmSetBusy(msg){
+  const box=$("#dmBusy"); if(!box) return;   // el 은 전역 헬퍼 이름이라 쓰지 않는다
+  box.textContent=msg||"";
+  box.style.display=msg?"block":"none";
+  [...dataModal.querySelectorAll("button,input")].forEach(b=>{ b.disabled=!!msg; });
+  if(!msg) dmSyncButtons();
+}
+
+/* 확인 문구가 정확히 맞을 때만 삭제 버튼을 켠다 */
+function dmSyncButtons(){
+  const b=readBackupInfo();
+  $("#dmRestoreBtn").disabled = !b;
+  $("#dmWipeBtn").disabled = ($("#dmWipeConfirm").value.trim() !== DM_WIPE_PHRASE);
+  const need=$("#dmDelConfirm").dataset.phrase||"";
+  $("#dmDelBtn").disabled = !need || ($("#dmDelConfirm").value.trim() !== need);
+}
+
+function openDataModal(){
+  const b=readBackupInfo();
+  $("#dmWhose").textContent = currentUser
+    ? (currentUser.email || currentUser.displayName || "로그인됨")
+    : "로그인하지 않음 · 이 기기에 저장된 데이터";
+  $("#dmBackupInfo").textContent = b
+    ? `마지막 백업: ${new Date(b.t).toLocaleString("ko-KR")} · 문제집 ${b.sets.length}권`
+    : "아직 백업이 없어요. 접속할 때마다 직전 상태가 하나 보관됩니다.";
+
+  // 계정 삭제는 로그인 상태에서만
+  const acct=$("#dmAccountSec");
+  if(currentUser && fbReady){
+    acct.style.display="";
+    const phrase=currentUser.email || "계정 삭제";
+    $("#dmDelConfirm").dataset.phrase=phrase;
+    $("#dmDelConfirm").placeholder=phrase;
+    $("#dmDelHint").textContent=`확인을 위해 ${phrase} 라고 입력하세요.`;
+  }else{
+    acct.style.display="none";
+    $("#dmDelConfirm").dataset.phrase="";
+  }
+
+  $("#dmWipeConfirm").value=""; $("#dmDelConfirm").value="";
+  dmSetBusy("");
+  openModal(dataModal);
+}
+
+$("#dataMgmtBtn").onclick=openDataModal;
+$("#dmClose").onclick=()=>closeModal(dataModal);
+dataModal.addEventListener("click",e=>{ if(e.target===dataModal) closeModal(dataModal); });
+$("#dmWipeConfirm").oninput=dmSyncButtons;
+$("#dmDelConfirm").oninput=dmSyncButtons;
+
+$("#dmRestoreBtn").onclick=()=>{
+  const b=readBackupInfo(); if(!b) return;
+  if(!confirm(`${new Date(b.t).toLocaleString("ko-KR")} 시점(문제집 ${b.sets.length}권)으로 되돌릴까요?\n\n지금 내용은 백업으로 바뀌므로, 되돌린 뒤 한 번 더 누르면 원래대로 돌아옵니다.`)) return;
+  if(restoreFromBackup()){
+    closeModal(dataModal);
+    toast("백업으로 되돌렸어요");
+  }else{
+    toast("되돌릴 백업이 없어요","error");
+  }
+};
+
+$("#dmWipeBtn").onclick=async ()=>{
+  if($("#dmWipeConfirm").value.trim()!==DM_WIPE_PHRASE) return;
+  if(!confirm("이 계정의 문제집을 모두 지웁니다.\n\n· 계정은 그대로 둡니다\n· 되돌리기용 백업이 이 기기에 남습니다\n· 첨부 이미지는 함께 지워져 되돌려도 돌아오지 않습니다\n\n계속할까요?")) return;
+  try{
+    await deleteAllSets();
+    closeModal(dataModal);
+  }catch(e){
+    console.error("전체 삭제 실패:", e);
+    toast((e&&e.message)||"삭제하지 못했어요","error");
+  }finally{
+    dmSetBusy("");
+  }
+};
+
+$("#dmDelBtn").onclick=async ()=>{
+  const need=$("#dmDelConfirm").dataset.phrase||"";
+  if(!need || $("#dmDelConfirm").value.trim()!==need) return;
+  if(!confirm("계정과 모든 데이터를 영구히 삭제합니다.\n\n되돌릴 수 없습니다. 필요한 파일은 '전체 내보내기'로 미리 받아 두셨나요?\n\n계속하려면 확인을 누르세요.")) return;
+  try{
+    const r=await deleteAccountEverything();
+    closeModal(dataModal);
+    alert(r.imagesFailed>0
+      ? "계정을 삭제했습니다. (이미지 일부는 지우지 못했지만 접근할 수 없는 상태입니다)"
+      : "계정과 모든 데이터를 삭제했습니다. 그동안 이용해 주셔서 감사합니다.");
+  }catch(e){
+    console.error("계정 삭제 실패:", e);
+    toast((e&&e.message)||"계정을 삭제하지 못했어요","error");
+  }finally{
+    dmSetBusy("");
+  }
+};
+
 function saveSets(){
+  // 삭제 작업 중에는 아무것도 쓰지 않는다 — 아래 wiping 주석 참고
+  if(wiping) return;
   // 변경 사항을 히스토리에 기록 (디바운스)
   pushHistory();
   // 지금 보고 있는 문제집의 수정 시각을 남긴다 — 병합에서 최신 판정에 쓰인다

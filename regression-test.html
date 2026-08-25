@@ -90,7 +90,10 @@ async function loadFrame(iframe, src, readyGetter){
   await new Promise((resolve,reject)=>{
     iframe.onload = resolve;
     iframe.onerror = () => reject(new Error("파일을 못 불러왔어요: "+src));
-    iframe.src = src;
+    /* 매번 다른 쿼리를 붙여 캐시를 피한다. 이게 없으면 방금 고친 내용이 아니라
+       브라우저에 남아 있던 예전 index.html 을 테스트하게 된다 — 실제로 코드를
+       고쳤는데도 결과가 안 바뀌어 한참 헤맸다. 테스트는 '지금 파일' 을 봐야 한다. */
+    iframe.src = src + "?t=" + Date.now();
   });
   let win;
   try{ win = iframe.contentWindow; void win.document.title; }
@@ -243,6 +246,80 @@ async function runIndexTests(){
 
   await check(G, "AI 프롬프트 버튼 텍스트에 이모지 없음", () =>
     win.document.getElementById("promptBtn").textContent.trim() === "AI 프롬프트");
+
+  /* ── 데이터 관리: 백업 복구 · 전체 삭제 · 계정 삭제 ──
+     ⚠️ 실제 삭제 함수(deleteAllSets / deleteAccountEverything)는 절대 부르지 않는다.
+     로그인한 프로필로 이 스위트를 돌려도 안전해야 하므로, 여기서는 '안전장치가
+     제자리에 있는지' 만 확인한다 — 잠금 플래그가 저장을 실제로 막는지, 확인
+     문구가 정확할 때만 버튼이 열리는지, 비로그인 시 계정 삭제가 숨는지. */
+  await check(G, "데이터 관리 함수·UI 존재", () =>
+    ["deleteAllSets","deleteAccountEverything","restoreFromBackup","readBackupInfo","accountLocalKeys"]
+      .every(n => typeof win[n]==="function")
+    && !!win.document.getElementById("dataMgmtBtn")
+    && !!win.document.getElementById("dataModal"));
+
+  /* ⚠️ 이 검사는 '값이 안 바뀌었다' 로만 보면 안 된다 — 메모리의 sets 가 이미
+     localStorage 의 내용과 같으면, 잠금이 없어도 결과가 같아 그냥 통과해 버린다.
+     그래서 sets 에 절대 안 겹칠 표식을 심어 두고 그게 새어 나갔는지로 판정한다
+     (심은 값은 원래대로 되돌린다). */
+  await check(G, "wiping 잠금이 로컬 쓰기를 실제로 막는다", () => {
+    const H2 = installHooks(win, ["wiping"]);
+    if(typeof H2.wiping !== "boolean") return {pass:false, note:"wiping 플래그를 못 찾음"};
+    if(H2.wiping !== false) return {pass:false, note:"평소에 잠겨 있으면 안 됨"};
+
+    const key = win.setsKey();
+    const before = win.localStorage.getItem(key);
+    /* 표식은 실행할 때마다 달라야 한다. 고정 문자열이면, 한 번 실패해 값이 실제로
+       새어 나간 뒤 그 잔재가 남아 다음 실행부터 계속 실패로 뜬다. */
+    const MARK = "__WIPE_PROBE_" + Date.now() + "_" + Math.random().toString(36).slice(2) + "__";
+    const s = win.document.createElement("script");
+    s.textContent =
+      "(function(){ var keep=sets;" +
+      "  sets=[{id:'__probe__',name:" + JSON.stringify(MARK) + ",header:'',problems:[]}];" +
+      "  wiping=true; try{ writeLocalNow(); } finally { wiping=false; sets=keep; } })();";
+    win.document.head.appendChild(s); s.remove();
+
+    const after = win.localStorage.getItem(key);
+    const leaked = (after||"").includes(MARK);
+
+    /* ⚠️ 잠금이 깨져 있으면 방금 그 probe 가 '진짜 사용자 데이터 칸' 을 덮어쓴다.
+       이 스위트는 로그인한 실제 데이터에 돌려도 안전해야 하므로, 통과하든
+       실패하든 원래 값을 반드시 되돌려 놓는다. (되돌리지 않으면 테스트가
+       사용자의 문제집을 날리는 셈이고, 잔재 때문에 다음 실행도 오염된다) */
+    if(leaked || before !== after){
+      try{
+        if(before === null) win.localStorage.removeItem(key);
+        else win.localStorage.setItem(key, before);
+      }catch(e){ console.error("probe 원복 실패", e); }
+    }
+
+    return { pass: !leaked && before === after,
+             note: leaked ? "잠금 중인데 로컬에 써졌다(원래 값은 되돌려 놓음)"
+                          : (before===after ? undefined : "로컬 값이 바뀜") };
+  });
+
+  await check(G, "확인 문구가 정확할 때만 삭제 버튼이 열린다", () => {
+    win.document.getElementById("dataMgmtBtn").click();
+    const inp = win.document.getElementById("dmWipeConfirm");
+    const btn = win.document.getElementById("dmWipeBtn");
+    const type = v => { inp.value=v; inp.dispatchEvent(new win.Event("input")); return btn.disabled; };
+    const blocked = type("") && type("삭") && type("삭제해");
+    const opens   = (type("삭제") === false);
+    type("");
+    win.closeModal(win.document.getElementById("dataModal"));
+    return { pass: blocked && opens,
+             note: blocked ? (opens?undefined:"정확히 입력해도 안 열림") : "틀린 문구인데 열림" };
+  });
+
+  await check(G, "비로그인 상태에서는 계정 삭제 칸이 숨는다", () => {
+    win.document.getElementById("dataMgmtBtn").click();
+    const sec = win.document.getElementById("dmAccountSec");
+    const hidden = win.getComputedStyle(sec).display === "none";
+    win.closeModal(win.document.getElementById("dataModal"));
+    // 이 스위트를 로그인 상태로 돌리면 보이는 게 정상이므로 그때는 건너뛴다
+    return { pass: win.currentUser ? true : hidden,
+             note: win.currentUser ? "로그인 상태라 확인 생략" : undefined };
+  });
 
   // ── 저작권 푸터(최근 단계) ──
   await check(G, "라이브러리 푸터 존재 + 올해 연도 포함", () => {

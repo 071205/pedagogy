@@ -70,8 +70,9 @@ test page can't reach into the iframes; it shows a banner explaining this instea
 silently. (If you ever rename this file, update its entry in `STATIC` in `serve.py` too — that
 whitelist is exact-match, so a stale entry just 404s.)
 
-Two non-obvious design points, both discovered by writing this file (not designed in from the
-start — the first draft of this suite reported all-green while testing nothing):
+**A check that always passes is worse than no check.** Every trap below was found by
+deliberately breaking the thing under test and confirming the suite went red — do that for any
+new check you add, because three separate "all-green while testing nothing" bugs happened here:
 
 - **`const`/`let` top-level bindings in `index.html`/`mock-exam-editor.html` are invisible via
   `iframe.contentWindow.xxx`** — only `var`/`function` declarations become `window` properties;
@@ -89,6 +90,16 @@ start — the first draft of this suite reported all-green while testing nothing
   after the assignment always reads `0`. Both were verified by deliberately feeding the helper
   a real unescaped payload and confirming it correctly reported "unsafe" before trusting it to
   test the app.
+- **A probe that writes must use a value unique per run, and must restore what it overwrote.**
+  The `wiping` check works by setting the flag, calling `writeLocalNow()`, and asserting nothing
+  reached `localStorage`. Two ways that went wrong: a *fixed* marker string meant that once the
+  guard genuinely broke and the marker leaked, the leftover kept the check red on every later
+  run even after the fix (looked like a caching problem for a while); and the leaked probe had
+  overwritten the real `PM_SETS_V7:*` key — a test that destroys user data when it fails. It now
+  uses a timestamped marker and restores the original value in every path.
+- **The iframes are loaded with a `?t=<now>` cache-buster.** Without it the suite happily
+  re-tests a stale cached copy of `index.html`, so edits appear to have no effect.
+  (`serve.py` strips the query string before its exact-match `STATIC` lookup, so this is safe.)
 
 The suite never calls anything that persists (`saveSets`, `flushToCloud`, `saveJSON`, ...), so
 it's safe to run against a signed-in profile with real data — it only calls pure functions
@@ -122,6 +133,30 @@ pieces to know before editing:
   JSON 과 되돌리기 스냅샷까지 오염된다). `watchCloud()` 가 `onSnapshot` 으로 다른 탭·기기
   변경을 받아 반영한다.
   `snapshotLocalBackup()`/`window.restorePedagogyBackup()` keep an extra local safety copy.
+- **데이터 관리 (라이브러리 → '데이터 관리' 버튼 · `#dataModal`)**: 백업 되돌리기 ·
+  모든 문제집 삭제 · 계정 삭제. 되돌릴 수 있는 것과 없는 것을 UI 에서도 코드에서도
+  갈라 둔다 — **'모든 문제집 삭제'는 계정을 남기고 로컬 백업을 남겨 복구 가능**,
+  **'계정 삭제'는 백업까지 지우고 Auth 계정까지 없앤다(복구 불가)**.
+  건드릴 때 반드시 지켜야 하는 것들:
+  - ⚠️ **`wiping` 플래그**. 삭제 중 `saveSets()`/`writeLocalNow()`/`flushToCloud()` 를
+    전부 막는다. 없으면 디바운스 저장·`visibilitychange`·`beforeunload` 가 끼어들어
+    방금 지운 걸 도로 쓴다(계정 삭제 중이면 곧 사라질 uid 앞으로 문서를 만들어 고아가 된다).
+    새 저장 경로를 추가하면 이 가드도 같이 걸 것.
+  - ⚠️ **삭제 전에 `setsUnsub()` 로 구독을 끊는다.** 안 끊으면 우리가 쓴 tombstone 을
+    `watchCloud()` 가 도로 읽어 `sets` 를 건드리고, 끝에 '비었으니 새 문제집 하나'
+    로직이 돌아 빈 문제집이 되살아난다. `finally` 에서 다시 구독한다.
+  - ⚠️ **계정 삭제 순서**: 재인증 → 이미지 → 문제집 문서 → `users/{uid}` → **Auth 계정(마지막)**.
+    재인증을 맨 앞에 두는 이유는 `auth/requires-recent-login` 이 데이터를 지운 *뒤에*
+    터지면 '데이터는 날아갔는데 계정은 남은' 상태가 되기 때문이고, Auth 를 마지막에
+    두는 이유는 계정이 먼저 사라지면 규칙의 `request.auth.uid` 가 안 맞아 남은 데이터를
+    영영 못 지우기 때문이다.
+  - 삭제 대상은 **로컬 `sets` 가 아니라 클라우드 컬렉션을 실제로 읽어서** 정한다
+    (다른 기기에서 만들고 아직 안 내려온 문제집이 남지 않게). Firestore 배치는 400개씩 끊는다.
+  - 이미지는 `sets` 안의 URL 이 아니라 `users/{uid}/images` 를 `listAll()` 로 훑어 지운다
+    (정리에 실패해 남은 고아 파일까지 포함하려면 폴더를 직접 봐야 한다).
+  - ⚠️ **`firestore.rules` 의 `users/{uid}` 는 `create, update` 와 `delete` 를 나눠 뒀다.**
+    예전처럼 `allow write` 하나로 묶으면 삭제 요청에는 `request.resource` 가 null 이라
+    `hasOnly(...)` 가 평가되지 못해 거부된다 — 계정 삭제가 이 문서만 못 지우고 남긴다.
   **로컬 키는 전부 계정별로 갈라져 있다** — `setsKey()`, `backupKey()`, `lastQKey()`,
   `stampsKey()`, `lastSetKey()`. 새 로컬 키를 추가할 때도 반드시 uid 를 붙일 것(공용 키로 두면 한 브라우저에서
   계정을 바꿨을 때 데이터가 샌다).
@@ -243,6 +278,16 @@ Pages–hosted `index.html` can also call into (via `--allow-origin`).
   배포 후 반드시 이 순서로 확인할 것:
   로그인 → 문제집 저장(✓ 저장됨 확인) → 이미지 첨부 → 새로고침 후 내용 유지 →
   문제집 삭제 → 새로고침해도 되살아나지 않는지.
+
+  ⚠️ **'계정 삭제' 기능을 넣으면서 `firestore.rules` 가 또 바뀌었다.**
+  `users/{uid}` 의 `allow write` 를 `allow create, update` + `allow delete` 로 쪼갰다
+  (이유는 위 '데이터 관리' 항목 참고 — 안 쪼개면 계정 삭제가 이 문서를 못 지운다).
+  **이 규칙을 배포하기 전까지는 계정 삭제가 `users/{uid}` 문서 하나를 남긴다.**
+  문제집·이미지·Auth 계정은 정상적으로 지워지므로 데이터가 새지는 않지만,
+  빈 문서가 콘솔에 남는다. 배포 후 확인:
+  계정 삭제 → Firestore 콘솔에서 `users/{그 uid}` 가 통째로 사라졌는지 · Storage
+  `users/{그 uid}/images` 가 비었는지 · 그 구글 계정으로 다시 로그인하면 새 계정처럼
+  빈 상태로 시작하는지.
 
 - **첫 로그인 시 자동 이관이 일어난다.** 기존 `users/{uid}.sets` 배열을 읽어
   서브컬렉션으로 복사한다. **구버전 문서는 지우지 않는다**(안전망).
