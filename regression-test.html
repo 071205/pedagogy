@@ -321,6 +321,31 @@ async function runIndexTests(){
              note: win.currentUser ? "로그인 상태라 확인 생략" : undefined };
   });
 
+  /* ── 법적 고지 ──
+     푸터 링크가 실제로 열리는 파일을 가리키는지까지 본다. 링크만 확인하면
+     legal.html 을 지우거나 이름을 바꿔도(=serve.py STATIC 에서 빠져도) 통과한다. */
+  await check(G, "푸터에 이용약관·개인정보처리방침 링크", () => {
+    const hrefs = [...win.document.querySelectorAll(".lib-footer-links a")]
+                    .map(a => a.getAttribute("href"));
+    return hrefs.includes("legal.html#terms") && hrefs.includes("legal.html#privacy");
+  });
+
+  await check(G, "legal.html 이 실제로 열리고 두 문서를 담고 있다", async () => {
+    const res = await fetch("legal.html?t=" + Date.now());
+    if(!res.ok) return {pass:false, note:"HTTP " + res.status + " — serve.py STATIC 확인"};
+    const html = await res.text();
+    const hasBoth = html.includes('id="terms"') && html.includes('id="privacy"');
+    return { pass: hasBoth, note: hasBoth ? undefined : "약관/방침 앵커가 없음" };
+  });
+
+  await check(G, "공개 문구에 기관명('평가원')을 쓰지 않는다", () => {
+    const desc = win.document.querySelector('meta[name="description"]');
+    const btn  = win.document.getElementById("mockModeBtn");
+    const bad = (desc && desc.content.includes("평가원")) ||
+                (btn && (btn.title||"").includes("평가원"));
+    return { pass: !bad, note: bad ? "검색결과·툴팁에 기관명이 남아 있음" : undefined };
+  });
+
   // ── 저작권 푸터(최근 단계) ──
   await check(G, "라이브러리 푸터 존재 + 올해 연도 포함", () => {
     const ft = win.document.querySelector(".lib-footer");

@@ -4,7 +4,10 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>PEDAGOGY — 문제집/문항 에디터</title>
-<meta name="description" content="수학 문제집과 평가원 모의고사 형식 시험지를 만들고 LaTeX 수식과 함께 A4로 인쇄·PDF 저장하는 편집기.">
+<!-- 검색결과에 그대로 노출되는 문구다. '평가원' 은 기관명이라 쓰지 않는다 —
+     제휴·인증 관계로 오해될 수 있고, 이 서비스는 그 기관과 아무 관련이 없다.
+     (코드 주석 안의 '평가원' 은 조판 규격 설명이라 그대로 둔다) -->
+<meta name="description" content="수학 문제집과 수능 모의고사 형식 시험지를 만들고 LaTeX 수식과 함께 A4로 인쇄·PDF 저장하는 편집기.">
 <meta name="color-scheme" content="dark light">
 
 <!-- ══ 콘텐츠 보안 정책 ══
@@ -246,7 +249,12 @@ label.btn input{display:none}
 .lib-actions{display:flex;gap:8px}
 .lib-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;flex:1}
 .lib-footer{margin-top:32px;padding-top:20px;border-top:1px solid var(--border);
-  text-align:center;font-size:12px;color:var(--text-tertiary)}
+  text-align:center;font-size:12px;color:var(--text-tertiary);
+  display:flex;flex-direction:column;align-items:center;gap:7px}
+.lib-footer-links{display:flex;gap:16px;flex-wrap:wrap;justify-content:center}
+.lib-footer-links a{color:var(--text-secondary);text-decoration:none;font-weight:600}
+.lib-footer-links a:hover{color:var(--blue-on-white-text);text-decoration:underline}
+.lib-footer-consent{max-width:420px;line-height:1.6}
 
 /* ── 데이터 관리 모달 ──
    되돌릴 수 있는 것(백업 복구)과 없는 것(삭제)을 눈으로 구분되게 나눈다.
@@ -874,7 +882,7 @@ input:focus-visible,textarea:focus-visible{outline:none}
 <!-- Topbar -->
 <div class="topbar">
   <div class="brand" id="brandBtn">PEDAGOGY</div>
-  <button id="mockModeBtn" class="btn" style="margin-left:14px" title="평가원 양식 시험지 편집기">모의고사</button>
+  <button id="mockModeBtn" class="btn" style="margin-left:14px" title="수능 모의고사 양식 시험지 편집기">모의고사</button>
   <div class="actions" id="topActions">
     <button id="undoBtn" class="btn-ghost histbtn" title="실행취소 (Cmd/Ctrl+Z)" disabled><span class="icon icon-undo"></span></button>
     <button id="redoBtn" class="btn-ghost histbtn" title="다시실행 (Cmd/Ctrl+Shift+Z)" disabled><span class="icon icon-redo"></span></button>
@@ -923,7 +931,16 @@ input:focus-visible,textarea:focus-visible{outline:none}
   </div>
   <div class="lib-search"><input id="setSearch" type="text" placeholder="문제집 검색"></div>
   <div id="setGrid" class="lib-grid"></div>
-  <footer class="lib-footer">© <span id="footerYear"></span> PEDAGOGY · 모든 권리 보유</footer>
+  <footer class="lib-footer">
+    <div class="lib-footer-links">
+      <a href="legal.html#terms">이용약관</a>
+      <a href="legal.html#privacy">개인정보처리방침</a>
+    </div>
+    <!-- 구글 로그인 버튼이 상단바에 있어 그 옆에 안내를 붙이면 좁은 화면에서 상단바가
+         또 넘친다. 동의 안내는 로그인 전에도 늘 보이는 이 자리에 둔다. -->
+    <div class="lib-footer-consent">로그인하면 이용약관과 개인정보처리방침에 동의하는 것으로 봅니다.</div>
+    <div>© <span id="footerYear"></span> PEDAGOGY · 모든 권리 보유</div>
+  </footer>
 </div>
 <script>document.getElementById('footerYear').textContent=new Date().getFullYear();</script>
 

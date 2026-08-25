@@ -52,6 +52,8 @@ STATIC = {
     # 회귀 테스트. iframe 내부를 읽으려면 이 파일도 같은 출처로 떠야 하므로
     # file:// 로는 안 되고 반드시 이 화이트리스트를 거쳐야 한다.
     "/regression-test.html": ("regression-test.html", "text/html; charset=utf-8"),
+    # 이용약관 · 개인정보처리방침. 본문 푸터에서 링크하므로 로컬에서도 열려야 한다.
+    "/legal.html": ("legal.html", "text/html; charset=utf-8"),
     # index.html 이 @font-face 로 참조하는 브랜드 글꼴. 화이트리스트에 없으면 404 가 나
     # 로고가 폴백 서체로 나온다. 파일이 없으면 아래 do_GET 이 알아서 404 를 돌려준다.
     "/Adobe Caslon Pro Bold.ttf": ("Adobe Caslon Pro Bold.ttf", "font/ttf"),
