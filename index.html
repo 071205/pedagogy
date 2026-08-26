@@ -141,6 +141,13 @@
   --radius-md:12px;
   --radius-lg:16px;
   --radius-xl:20px;
+
+  /* 문항목록(사이드바) 폭. 직접 끌어서 정한 값(창 1470px 기준 531/659/268).
+     ⚠️ JS 의 setPreviewWidth() 도 이 값을 알아야 미리보기 최대폭을 맞게 계산한다.
+     예전에 그 자리에 숫자를 따로 적어 뒀다가 사이드바 실폭과 어긋나(236 vs 280)
+     특정 창 폭에서 가로 스크롤이 생겼다. 그래서 한 곳에서만 정의하고
+     JS 는 getComputedStyle 로 이 값을 읽는다. */
+  --sidebar-w:268px;
 }
 
 /* ══════════ 테마 ══════════
@@ -315,7 +322,7 @@ label.btn input{display:none}
 
 /* ── Sidebar ── */
 .sidebar{
-  width:280px;flex:0 0 280px;border-left:1px solid var(--border);
+  width:var(--sidebar-w);flex:0 0 var(--sidebar-w);border-left:1px solid var(--border);
   background:var(--surface-1);padding:16px 12px;
   display:flex;flex-direction:column;gap:12px;overflow:hidden;
 }
@@ -595,20 +602,6 @@ select:focus{border-color:var(--blue)}
 .pane-split:hover::after,.pane-split.dragging::after{background:var(--blue)}
 body.col-resizing{cursor:col-resize;user-select:none}
 
-/* ▼▼▼ TEMP-RATIO — 3단 비율 측정용 임시 도구. 값이 정해지면 이 블록을 통째로 지운다.
-       (같은 표시가 붙은 곳: 이 CSS · #paneSplit2 마크업 · TEMP-RATIO 스크립트) ▼▼▼ */
-.pane-split-2{order:2}          /* .center(2) 와 .sidebar(3) 사이 */
-#ratioHUD{
-  position:fixed;left:14px;bottom:14px;z-index:3000;
-  background:var(--surface-1);border:1px solid var(--blue);border-radius:var(--radius-lg);
-  padding:12px 14px;font-size:12px;line-height:1.75;color:var(--text-secondary);
-  box-shadow:0 8px 32px rgba(0,0,0,.45);min-width:230px
-}
-#ratioHUD b{color:var(--text-primary);font-variant-numeric:tabular-nums}
-#ratioHUD .hud-t{font-size:11px;font-weight:700;color:var(--blue);letter-spacing:.03em;
-  display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
-#ratioHUD button{height:28px;font-size:11.5px;padding:0 10px;margin-top:8px;width:100%}
-/* ▲▲▲ TEMP-RATIO 끝 ▲▲▲ */
 .previewTop{
   padding:12px 18px;border-bottom:1px solid var(--border);
   font-size:12px;color:var(--text-secondary);
@@ -1188,11 +1181,6 @@ document.addEventListener('DOMContentLoaded',()=>{
       </div>
     </div>
   </div>
-  <!-- ▼ TEMP-RATIO — 편집칸/문항목록 사이 손잡이. #editorView 의 '마지막 자식' 이어야
-       한다: order 가 .center 와 같은 2 라서, 같은 값끼리는 DOM 순서로 갈린다
-       (center 가 위에 있으므로 이게 뒤 → 결과적으로 center 와 sidebar 사이).
-       측정이 끝나면 이 한 줄을 지운다. -->
-  <div class="pane-split pane-split-2" id="paneSplit2" title="드래그해서 문항목록 폭 조절"></div>
 </div>
 
 <!-- Print container -->
@@ -3828,7 +3816,9 @@ $("#brandBtn").onclick=()=>showLibrary();
 })();
 
 /* ── 미리보기 / 편집칸 폭 조절 ── */
-const PV_W_KEY="PM_PREVIEW_W", PV_W_DEFAULT=500;   // 구조 변경 전 미리보기 폭
+/* 직접 끌어서 정한 기본 폭 (창 1470px 에서 미리보기 531 / 편집 659 / 목록 268).
+   편집칸은 flex:1 이라 남는 폭을 알아서 가져가므로 따로 지정하지 않는다. */
+const PV_W_KEY="PM_PREVIEW_W", PV_W_DEFAULT=531;
 /* CSS 의 @media (max-width:1023px) 와 반드시 같은 값을 써야 한다.
    이 폭 밑에서는 3단이 탭 전환 방식으로 바뀌어 previewWrap 이 폭 100% 를
    차지해야 하는데, JS 가 인라인 style 로 폭을 매번 다시 정해 버리면
@@ -3841,10 +3831,14 @@ function setPreviewWidth(px,save){
     w.style.flex=""; w.style.width="";
     return;
   }
-  // 편집 최소폭(380) · 문항목록 실제폭(280, 예전엔 236 이라는 옛 값이 남아 있어
-  // sidebar 실폭과 안 맞았다 — 1024~1080px 폭에서 그 차이(44px)만큼 가로 스크롤이
-  // 실제로 생겼다) · 손잡이·테두리 여유(40) 를 뺀 나머지가 미리보기가 쓸 수 있는 폭.
-  const min=300, max=Math.max(min, window.innerWidth-380-280-40);
+  /* 편집 최소폭(380) · 문항목록 폭 · 손잡이·테두리 여유(40) 를 뺀 나머지가
+     미리보기가 쓸 수 있는 폭이다.
+     ⚠️ 문항목록 폭은 숫자를 적지 말고 --sidebar-w 를 읽는다. 예전에 여기에
+     236 이라는 옛 값이 박혀 있었는데 실제 사이드바는 280 이라, 그 차이(44px)만큼
+     1024~1080px 구간에서 가로 스크롤이 실제로 생겼다. 한 곳에서만 정의한다. */
+  const sbw=parseFloat(getComputedStyle(document.documentElement)
+              .getPropertyValue("--sidebar-w")) || 268;
+  const min=300, max=Math.max(min, window.innerWidth-380-sbw-40);
   px=Math.max(min,Math.min(max,Math.round(px)));
   w.style.flex="0 0 "+px+"px"; w.style.width=px+"px";
   if(save){ try{ localStorage.setItem(PV_W_KEY,String(px)); }catch(e){ console.error(e); } }
@@ -3887,81 +3881,6 @@ function setPreviewWidth(px,save){
   sp.addEventListener("dblclick",()=>setPreviewWidth(PV_W_DEFAULT,true));
 })();
 
-/* ══════════ TEMP-RATIO ══════════════════════════════════════════
-   3단 비율을 직접 끌어서 정하기 위한 '임시' 도구.
-   원하는 비율이 나오면 왼쪽 아래 상자의 값을 알려주면 그 값으로 고정하고,
-   이 블록 + 같은 표시가 붙은 CSS · #paneSplit2 마크업을 통째로 지운다.
-
-   지금 기본값:  미리보기 500 / 편집 나머지 / 문항목록 280
-   ─────────────────────────────────────────────────────────────── */
-(function tempRatioTool(){
-  const SB_KEY="PM_TMP_SIDEBAR_W";
-  const sb=$(".sidebar"), sp2=$("#paneSplit2"), ed=$("#editorView");
-  if(!sb||!sp2||!ed) return;
-
-  function setSidebarWidth(px){
-    const min=180, max=Math.max(min, window.innerWidth-300-380-40);
-    px=Math.max(min,Math.min(max,Math.round(px)));
-    sb.style.flex="0 0 "+px+"px"; sb.style.width=px+"px";
-    try{ localStorage.setItem(SB_KEY,String(px)); }catch(e){}
-    hud();
-  }
-  // 손잡이를 왼쪽으로 끌면 목록이 넓어진다(오른쪽 끝에 붙어 있으므로 부호가 반대)
-  let sx=0, sw=0, on=false;
-  sp2.addEventListener("pointerdown",e=>{
-    on=true; sx=e.clientX; sw=sb.getBoundingClientRect().width;
-    sp2.setPointerCapture(e.pointerId);
-    sp2.classList.add("dragging"); document.body.classList.add("col-resizing");
-  });
-  sp2.addEventListener("pointermove",e=>{ if(on) setSidebarWidth(sw-(e.clientX-sx)); });
-  const end2=()=>{ if(!on) return; on=false;
-    sp2.classList.remove("dragging"); document.body.classList.remove("col-resizing"); };
-  sp2.addEventListener("pointerup",end2); sp2.addEventListener("pointercancel",end2);
-  sp2.addEventListener("dblclick",()=>setSidebarWidth(280));
-
-  // ── 왼쪽 아래 측정값 상자 ──
-  const box=document.createElement("div"); box.id="ratioHUD";
-  box.innerHTML=
-    '<div class="hud-t"><span>3단 비율 측정 (임시)</span><span id="hudVW"></span></div>'+
-    '<div>미리보기 <b id="hudP"></b> · <b id="hudPp"></b></div>'+
-    '<div>편집칸 &nbsp;&nbsp;<b id="hudC"></b> · <b id="hudCp"></b></div>'+
-    '<div>문항목록 <b id="hudS"></b> · <b id="hudSp"></b></div>'+
-    '<button class="btn" id="hudCopy">이 값 복사하기</button>';
-  document.body.appendChild(box);
-
-  function hud(){
-    if(!ed || ed.style.display==="none"){ box.style.display="none"; return; }
-    box.style.display = window.innerWidth<1024 ? "none" : "block";   // 좁은 화면은 탭 전환이라 의미 없음
-    const p=$(".previewWrap").getBoundingClientRect().width;
-    const c=$(".center").getBoundingClientRect().width;
-    const s=sb.getBoundingClientRect().width;
-    const tot=p+c+s;
-    const pc=x=>(x/tot*100).toFixed(1)+"%";
-    $("#hudVW").textContent="창 "+window.innerWidth+"px";
-    $("#hudP").textContent=Math.round(p)+"px"; $("#hudPp").textContent=pc(p);
-    $("#hudC").textContent=Math.round(c)+"px"; $("#hudCp").textContent=pc(c);
-    $("#hudS").textContent=Math.round(s)+"px"; $("#hudSp").textContent=pc(s);
-  }
-  window.__ratioHUD=hud;
-  $("#hudCopy").onclick=()=>{
-    const p=Math.round($(".previewWrap").getBoundingClientRect().width);
-    const c=Math.round($(".center").getBoundingClientRect().width);
-    const s=Math.round(sb.getBoundingClientRect().width);
-    const txt=`3단 비율 확정값 → 미리보기 ${p}px / 편집칸 ${c}px / 문항목록 ${s}px (창 ${window.innerWidth}px)`;
-    navigator.clipboard.writeText(txt)
-      .then(()=>{ const b=$("#hudCopy"); b.textContent="복사됨 — 붙여넣어 알려주세요"; setTimeout(()=>b.textContent="이 값 복사하기",2200); })
-      .catch(()=>{ prompt("아래 줄을 복사해 알려주세요", txt); });
-  };
-  window.addEventListener("resize",hud);
-  document.addEventListener("pointerup",()=>setTimeout(hud,30));
-
-  /* 저장해 둔 폭 복원은 '반드시 HUD 를 만든 뒤' 에 한다 —
-     setSidebarWidth 가 끝에서 hud() 를 부르는데, 그때 box 가 아직 없으면
-     const 초기화 전 접근(TDZ)으로 스크립트가 통째로 죽는다. */
-  try{ const v=parseInt(localStorage.getItem(SB_KEY),10); if(v>=180&&v<=900) setSidebarWidth(v); }catch(e){}
-  setTimeout(hud,300);
-})();
-/* ══════════ TEMP-RATIO 끝 ══════════ */
 
 /* ── 좁은 화면 탭 전환 (미리보기 / 편집 / 문항목록) ──
    데스크톱에서는 CSS 가 .pane-tabs 를 숨기므로 이 버튼들이 안 보이고,
