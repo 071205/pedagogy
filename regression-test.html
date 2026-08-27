@@ -475,6 +475,77 @@ async function runIndexTests(){
     return { pass: await firesOnInnerHTML(html, marker) };
   });
 
+  /* ── 과목별 블록 팔레트 · 화작/언매 블록 ── */
+  await check(G, "과목에 따라 블록 메뉴가 걸러진다", () => {
+    const H2 = installHooks(win, ["SUBJECTS"]);
+    const of = v => (H2.SUBJECTS.find(s=>s.v===v)||{}).blocks || [];
+    const math = of("math"), korean = of("korean");
+    return { pass: !math.includes("passage") && korean.includes("passage")
+                   && korean.includes("dialogue") && !math.includes("dialogue"),
+             note: math.includes("passage") ? "수학 메뉴에 지문이 들어감" : undefined };
+  });
+
+  await check(G, "과목은 메뉴만 거를 뿐 블록을 지우지 않는다(방어선은 normBlock)", () => {
+    // 수학 문제집이라도 이미 들어 있는 지문·대화문 블록은 살아 있어야 한다
+    const s = win.normSet({name:"x", subject:"math", problems:[
+      {blocks:[{type:"passage",data:{parts:[{text:"지문"}]}},
+               {type:"dialogue",data:{items:[{who:"학생 1",text:"말"}]}}]}]}, {});
+    const kinds = s.problems[0].blocks.map(b=>b.type);
+    return kinds.includes("passage") && kinds.includes("dialogue");
+  });
+
+  await check(G, "대화문·표가 렌더된다", () => {
+    const d = win.blockHTML(win.normBlock({type:"dialogue",
+      data:{items:[{who:"학생 1", text:"말"}]}}), {});
+    const t = win.blockHTML(win.normBlock({type:"table",
+      data:{header:true, rows:[["머리","글"],["가","나"]]}}), {});
+    return d.includes("dlg-who") && d.includes("학생 1")
+        && (t.match(/<th>/g)||[]).length===2 && (t.match(/<td>/g)||[]).length===2;
+  });
+
+  await check(G, "표는 행마다 칸 수가 달라도 맞춰 채운다", () => {
+    const t = win.blockHTML(win.normBlock({type:"table",
+      data:{header:false, rows:[["a","b","c"],["d"]]}}), {});
+    // 두 행 모두 3칸이어야 격자가 깨지지 않는다
+    return (t.match(/<td>/g)||[]).length===6;
+  });
+
+  await check(G, "대화문·표에 넣은 스크립트가 실행되지 않는다", async () => {
+    const marker = "__hw_xss_"+Date.now();
+    const evil = `</div><img src=x onerror=window.${marker}=1>`;
+    const html = [
+      win.blockHTML(win.normBlock({type:"dialogue", data:{items:[{who:evil, text:evil}]}}), {}),
+      win.blockHTML(win.normBlock({type:"table", data:{rows:[[evil,evil]]}}), {}),
+    ].join("");
+    return { pass: await firesOnInnerHTML(html, marker) };
+  });
+
+  await check(G, "지문·표만 있는 문제집도 '내용 있음' 으로 본다", () => {
+    // 여기서 false 가 나오면 병합에서 빠져 데이터가 사라진다(과거 사고와 같은 유형)
+    const onlyPassage = {name:"새 문제집", problems:[{blocks:[
+      {type:"passage", data:{parts:[{text:"지문만 있는 문제집"}]}}]}]};
+    const onlyTable = {name:"새 문제집", problems:[{blocks:[
+      {type:"table", data:{rows:[["가","나"]]}}]}]};
+    return win.setHasContent(onlyPassage) && win.setHasContent(onlyTable);
+  });
+
+  await check(G, "문항 목록 요약이 모든 블록 모양을 견딘다", () => {
+    // 대화문 items 는 객체 배열이라, 문자열로 가정하면 목록이 통째로 죽는다(실제로 죽었다)
+    const shapes = [
+      {blocks:[{type:"dialogue", data:{items:[{who:"학생 1", text:"대화 내용"}]}}]},
+      {blocks:[{type:"table",    data:{rows:[["표 내용","x"]]}}]},
+      {blocks:[{type:"passage",  data:{parts:[{text:"지문 내용"}]}}]},
+      {blocks:[{type:"choices",  data:{items:["선지 내용"]}}]},
+      {blocks:[{type:"image",    data:{dataUrl:""}}]},
+    ];
+    try{
+      const out = shapes.map(q => win.qExcerpt(q));
+      return { pass: out[0].includes("대화") && out[1].includes("표")
+                     && out[2].includes("지문") && out[3].includes("선지")
+                     && typeof out[4]==="string" };
+    }catch(e){ return {pass:false, note:"예외: "+e.message}; }
+  });
+
   // ── 저작권 푸터(최근 단계) ──
   await check(G, "라이브러리 푸터 존재 + 올해 연도 포함", () => {
     const ft = win.document.querySelector(".lib-footer");

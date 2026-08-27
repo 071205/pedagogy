@@ -53,7 +53,7 @@ service cloud.firestore {
         allow create, update: if isOwner()
                               && request.resource.data.keys().hasOnly(
                                    ['id','name','header','problems','order',
-                                    'deleted','updatedAt','lineColor'])
+                                    'deleted','updatedAt','lineColor','subject'])
                               && request.resource.data.id == setId
                               && request.resource.data.problems is list
                               && request.resource.data.deleted is bool
