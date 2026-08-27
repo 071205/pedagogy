@@ -773,27 +773,93 @@ function probIsEmpty(p){ return !probUnits(p).units.some(u=>u.k!=='choices'); }
 
 /* stmtLines() 는 probUnits() 안으로 흡수됐다(블록 전환). */
 
-function renderProb(p){
-  const {units,ptsAt}=probUnits(p);
-  if(probIsEmpty(p))
-    return `<div class="prob"><div class="stmt"><span class="no">${p.num}.</span><span class="empty">—</span></div></div>`;
-  let h=`<div class="prob">`, first=true;
+/* ══════════ 문항 칠하기 ══════════
+   화면 근사 미리보기와 Typst 정본이 '유닛을 훑는 순서·조건' 을 각자 갖고 있었다.
+   probUnits()/buildPages() 로 구조와 배치는 이미 공유하고 있었지만, 마지막
+   순회만 두 벌이라 새 서식을 넣을 때마다 같은 로직을 양쪽에 똑같이 써야 했다.
+
+   이제 순회는 paintProblem() 한 곳에만 있고, 각 렌더러는 '칠하는 법'(팔레트)만
+   내놓는다. 새 유닛 종류가 생기면 팔레트에 메서드 하나씩만 더하면 된다.
+
+   ⚠️ 최종 마크업까지 합칠 수는 없다 — HTML 과 Typst 는 문법이 다른 조판
+   엔진이라 한 문자열이 양쪽에서 동작하지 않는다. 합칠 수 있는 건 여기까지다. */
+function paintProblem(p, R){
+  const {units, ptsAt} = probUnits(p);
+  if(probIsEmpty(p)) return R.empty(p);
+  /* 본문이 딱 한 줄뿐이면 번호·배점을 한 줄에 붙인다(Typst 의 #prob).
+     HTML 은 이 구분이 필요 없어 팔레트가 그냥 무시한다. */
+  const single = units.filter(u=>u.k!=='choices').length===1
+              && units[0] && units[0].k==='text';
+  const out=[];
+  let first=true;
   units.forEach((u,i)=>{
-    const pts=i===ptsAt?`<span class="pts">[${p.pts}점]</span>`:'';
+    const pts = (i===ptsAt);
+    let piece='';
     if(u.k==='text'){
-      if(first){ h+=`<div class="stmt"><span class="no">${p.num}.</span>${tex(u.t)}${pts}</div>`; first=false; }
-      else h+=`<div class="cont">${tex(u.t)}${pts}</div>`;
+      piece = first ? R.head(p,u.t,pts,single) : R.cont(p,u.t,pts);
+      first = false;
     }
-    else if(u.k==='eq')   h+=`<div class="dispeq">${tex(u.t)}${pts}</div>`;
-    else if(u.k==='cond') h+=`<div class="condbox">${u.items.map(c=>`<div>${tex(c)}</div>`).join('')}</div>`;
-    else if(u.k==='ex')   h+=`<div class="condbox exbox">${u.items.map((c,j)=>
-      `<div><span class="exmk">${HGND[j%HGND.length]}.</span> ${tex(c)}</div>`).join('')}</div>`;
-    else if(u.k==='boxed')h+=`<div class="condbox">${tex(u.t)}</div>`;
-    else if(u.k==='fig')  h+=`<div class="figbox" style="width:${Math.min(u.w,110)}mm;height:${Math.round(u.w*.68)}mm">${u.src?esc(u.src):'그림'}</div>`;
-    else if(u.k==='choices') h+=renderChoices(p,u);
+    else if(u.k==='eq')      piece = R.eq(p,u.t,pts);
+    else if(u.k==='cond')    piece = R.cond(p,u.items);
+    else if(u.k==='ex')      piece = R.ex(p,u.items);
+    else if(u.k==='boxed')   piece = R.boxed(p,u.t);
+    else if(u.k==='fig')     piece = R.fig(p,u);
+    else if(u.k==='choices') piece = R.choices(p,u);
+    if(piece) out.push(piece);
   });
-  return h+`</div>`;
+  return R.join(out, p);
 }
+
+/* ── 팔레트 ① 화면 근사 미리보기 (HTML) ── */
+const PAINT_HTML = {
+  empty: p => `<div class="prob"><div class="stmt"><span class="no">${p.num}.</span><span class="empty">—</span></div></div>`,
+  head: (p,t,pts) => `<div class="stmt"><span class="no">${p.num}.</span>${tex(t)}${pts?ptsHTML(p):''}</div>`,
+  cont: (p,t,pts) => `<div class="cont">${tex(t)}${pts?ptsHTML(p):''}</div>`,
+  eq:   (p,t,pts) => `<div class="dispeq">${tex(t)}${pts?ptsHTML(p):''}</div>`,
+  cond: (p,items) => `<div class="condbox">${items.map(c=>`<div>${tex(c)}</div>`).join('')}</div>`,
+  ex:   (p,items) => `<div class="condbox exbox">${items.map((c,j)=>
+          `<div><span class="exmk">${HGND[j%HGND.length]}.</span> ${tex(c)}</div>`).join('')}</div>`,
+  boxed:(p,t)     => `<div class="condbox">${tex(t)}</div>`,
+  fig:  (p,u)     => `<div class="figbox" style="width:${Math.min(u.w,110)}mm;height:${Math.round(u.w*.68)}mm">${u.src?esc(u.src):'그림'}</div>`,
+  choices: (p,u)  => renderChoices(p,u),
+  join: (out) => `<div class="prob">${out.join('')}</div>`,
+};
+const ptsHTML = p => `<span class="pts">[${p.pts}점]</span>`;
+
+/* ── 팔레트 ② Typst 정본 ── */
+const TYP_IND='\n     ';
+const PAINT_TYPST = {
+  empty: p => `// ${p.num}번 — 발문 비어 있음${TYP_IND}#probhead(${p.num})[ ]`,
+  head: (p,t,pts,single) => single
+        ? `#prob(${p.num}, ${p.pts})[${tline(t)}]`
+        : `#probhead(${p.num})[${tline(t)}${pts?' #ptsmark('+p.pts+')':''}]`,
+  cont: (p,t,pts) => `#contline[${tline(t)}${pts?' #ptsmark('+p.pts+')':''}]`,
+  eq:   (p,t,pts) => `#dispeq[${texToTypst(t.slice(1,-1),true)}${pts?' #ptsmark('+p.pts+')':''}]`,
+  cond: (p,items) => `#condbox(${items.map(c=>`\n       [${tline(c)}],`).join('')}\n     )`,
+  ex:   (p,items) => `#exbox(${items.map((c,j)=>`\n       [${tq(HGND[j%HGND.length])}. ${tline(c)}],`).join('')}\n     )`,
+  boxed:(p,t)     => `#condbox(\n       [${tline(t)}],\n     )`,
+  /* 그림 경로 앞의 '/' 는 Typst 에서 '루트 기준 절대경로' 라는 뜻이다.
+     상대경로로 두면 실시간 렌더에서 그림을 절대 못 찾는다 — serve.py 가
+     main.typ 을 work/ 밑 '임시 폴더' 에 쓰기 때문에 work/fig.png 에 파일을
+     둬도 work/tmpXXXX/fig.png 를 뒤진다(실제로 file not found 가 났다).
+     '/' 를 붙이면 실시간에서는 --root 인 work/ 를, 내보낸 .typ 을 직접
+     컴파일할 때는 그 .typ 이 있는 폴더를 가리켜 양쪽 다 맞는다. */
+  fig: (p,u) => u.src
+        ? `#figbox[#image("/${tqs(u.src)}", width: ${u.w}mm)]`
+        // 안내 주석은 반드시 '앞줄'에 둔다. 뒤에 붙이면 Typst 의 // 주석이
+        // 줄 끝까지 먹어서, 이 항목을 닫는 ], 까지 주석 처리돼 컴파일이 깨진다.
+        : `// 그림 파일을 지정하면 #figbox[#image("...", width: ${u.w}mm)] 로 바뀝니다\n     `
+          +`#figplace(${u.w}mm)[그림 ${p.num}]`,
+  choices: (p,u) => {
+    const L=layoutOf(p), fn=L==='1'?'ch1':L==='2'?'ch2':'chv';
+    return `#${fn}(${u.items.map((c,j)=>`[${MARKS[j]} ${tline(c)}]`).join(', ')})`;
+  },
+  join: (out) => out.join(TYP_IND),
+};
+
+function renderProb(p){ return paintProblem(p, PAINT_HTML); }
+function probTypst(p){ return paintProblem(p, PAINT_TYPST); }
+
 
 /* ══════════ 쪽 구성 ══════════
    · 한 단 SPEC.perCol문항 · breakAfter로 강제 단 나눔
@@ -1654,47 +1720,6 @@ function tline(s){
 }
 
 /* 한 문항 → Typst 조각 (sheet의 left-items/right-items 원소 안에 들어간다) */
-function probTypst(p){
-  const PM=`#ptsmark(${p.pts})`, IND='\n     ';
-  const {units,ptsAt}=probUnits(p);
-  if(probIsEmpty(p))
-    return `// ${p.num}번 — 발문 비어 있음${IND}#probhead(${p.num})[ ]`;
-  // 본문이 딱 한 줄뿐이면 번호·배점을 한 줄에 붙이는 #prob 를 쓴다(기존 동작 유지)
-  const single = units.filter(u=>u.k!=='choices').length===1 && units[0] && units[0].k==='text';
-  const out=[], push=x=>{ if(x) out.push(x); };
-  let first=true;
-  units.forEach((u,i)=>{
-    const tail = i===ptsAt ? ' '+PM : '';
-    if(u.k==='text'){
-      if(first){
-        push(single ? `#prob(${p.num}, ${p.pts})[${tline(u.t)}]`
-                    : `#probhead(${p.num})[${tline(u.t)}${tail}]`);
-        first=false;
-      } else push(`#contline[${tline(u.t)}${tail}]`);
-    }
-    else if(u.k==='eq')   push(`#dispeq[${texToTypst(u.t.slice(1,-1),true)}${tail}]`);
-    else if(u.k==='cond') push(`#condbox(${u.items.map(c=>`\n       [${tline(c)}],`).join('')}\n     )`);
-    else if(u.k==='ex')   push(`#exbox(${u.items.map((c,j)=>`\n       [${tq(HGND[j%HGND.length])}. ${tline(c)}],`).join('')}\n     )`);
-    else if(u.k==='boxed')push(`#condbox(\n       [${tline(u.t)}],\n     )`);
-    /* 그림 경로 앞의 '/' 는 Typst 에서 '루트 기준 절대경로' 라는 뜻이다.
-       상대경로로 두면 실시간 렌더에서 그림을 절대 못 찾는다 — serve.py 가
-       main.typ 을 work/ 밑 '임시 폴더' 에 쓰기 때문에 work/fig.png 에 파일을
-       둬도 work/tmpXXXX/fig.png 를 뒤진다(실제로 file not found 가 났다).
-       '/' 를 붙이면 실시간에서는 --root 인 work/ 를, 내보낸 .typ 을 직접
-       컴파일할 때는 그 .typ 이 있는 폴더를 가리켜 양쪽 다 맞는다. */
-    else if(u.k==='fig')  push(u.src
-        ? `#figbox[#image("/${tqs(u.src)}", width: ${u.w}mm)]`
-        // 안내 주석은 반드시 '앞줄'에 둔다. 뒤에 붙이면 Typst 의 // 주석이
-        // 줄 끝까지 먹어서, 이 항목을 닫는 ], 까지 주석 처리돼 컴파일이 깨진다.
-        : `// 그림 파일을 지정하면 #figbox[#image("...", width: ${u.w}mm)] 로 바뀝니다\n     `
-          +`#figplace(${u.w}mm)[그림 ${p.num}]`);
-    else if(u.k==='choices'){
-      const L=layoutOf(p), fn=L==='1'?'ch1':L==='2'?'ch2':'chv';
-      push(`#${fn}(${u.items.map((c,j)=>`[${MARKS[j]} ${tline(c)}]`).join(', ')})`);
-    }
-  });
-  return out.join(IND);
-}
 
 /* 한 쪽 → #sheet(...) 호출 */
 function sheetTypst(pg,M,meta,total,round,elec){

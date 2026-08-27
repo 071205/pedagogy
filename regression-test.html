@@ -671,6 +671,47 @@ async function runMockTests(){
     return typeof html === "string" && html.includes("prob");
   });
 
+  /* ── 렌더 경로 통합 (paintProblem + 팔레트) ──
+     화면 HTML 과 Typst 정본이 '유닛 순회' 를 한 곳에서 공유하는지 본다.
+     둘이 다시 갈라지면(각자 순회하기 시작하면) 새 서식마다 양쪽을 고치는
+     예전 상태로 돌아간다. */
+  await check(G, "두 렌더러가 순회를 공유한다 (paintProblem)", () => {
+    const H2 = installHooks(win, ["PAINT_HTML","PAINT_TYPST"]);
+    const same = ["empty","head","cont","eq","cond","ex","boxed","fig","choices","join"];
+    const okH = same.every(k=>typeof H2.PAINT_HTML[k]==="function");
+    const okT = same.every(k=>typeof H2.PAINT_TYPST[k]==="function");
+    return { pass: typeof win.paintProblem==="function" && okH && okT,
+             note: okH&&okT ? undefined : "팔레트에 빠진 메서드가 있음" };
+  });
+
+  await check(G, "팔레트만 갈아 끼우면 같은 문항이 두 형식으로 나온다", () => {
+    const p = win.blank(3);
+    p.blocks = [{type:"statement", data:{text:"발문 한 줄"}},
+                {type:"conditions", data:{items:["조건1","조건2"]}}];
+    const html = win.paintProblem(p, win.__HOOKS__.PAINT_HTML);
+    const typ  = win.paintProblem(p, win.__HOOKS__.PAINT_TYPST);
+    // 같은 내용이 각자 형식으로 나와야 한다
+    return html.includes("발문 한 줄") && html.includes('class="condbox"')
+        && typ.includes("발문 한 줄")  && typ.includes("#condbox(")
+        && !typ.includes("<div");            // Typst 쪽에 HTML 이 새면 안 된다
+  });
+
+  await check(G, "renderProb/probTypst 가 paintProblem 을 거친다", () => {
+    const p = win.blank(5);
+    p.blocks=[{type:"statement", data:{text:"확인용"}}];
+    return win.renderProb(p)===win.paintProblem(p, win.__HOOKS__.PAINT_HTML)
+        && win.probTypst(p)===win.paintProblem(p, win.__HOOKS__.PAINT_TYPST);
+  });
+
+  await check(G, "단답형이면 선지가 시험지에 실리지 않는다(두 형식 모두)", () => {
+    const p = win.blank(16);
+    p.type = "short";
+    p.blocks=[{type:"statement", data:{text:"단답형"}},
+              {type:"choices", data:{items:["$1$","$2$","$3$","$4$","$5$"]}}];
+    const html = win.renderProb(p), typ = win.probTypst(p);
+    return !html.includes("①") && !typ.includes("①");
+  });
+
   // ── 반응형 ──
   mockFrame.style.width = "1440px"; mockFrame.style.height = "900px";
   await check(G, "1440px 데스크톱: 탭바 숨김", () =>
