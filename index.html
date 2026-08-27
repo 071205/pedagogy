@@ -695,6 +695,15 @@ body.col-resizing{cursor:col-resize;user-select:none}
 .preview .psg-mid{text-align:center;margin:.5em 0}
 .preview .psg-source{text-align:right;font-size:.92em;margin-top:.5em}
 .preview .psg-note{font-size:.85em;margin-top:.35em;line-height:1.5}
+/* 개념어 네모 — 글자에 딱 붙는 얇은 상자 */
+.preview .wbox{border:1px solid #333;padding:0 .25em;border-radius:2px;
+  display:inline-block;line-height:1.35}
+/* 구간 표시 — 오른쪽에 세로 괄호와 [A] 라벨 */
+.preview .psg-range{position:relative;padding-right:2.6em;margin:.15em 0}
+.preview .psg-range::before{content:"";position:absolute;right:1.7em;top:.3em;bottom:.3em;
+  width:.42em;border:1px solid #333;border-left:0}
+.preview .psg-range-tag{position:absolute;right:0;top:50%;transform:translateY(-50%);
+  font-size:.9em;white-space:nowrap}
 /* <보기> — 라벨이 테두리 위에 걸쳐 앉는다(실물 모양) */
 .preview .bogi{border:1px solid #333;border-radius:3px;margin:12px 0;
   padding:14px 14px 12px;position:relative}
@@ -801,6 +810,13 @@ body.col-resizing{cursor:col-resize;user-select:none}
 .pq .psg-mid{text-align:center;margin:.5em 0}
 .pq .psg-source{text-align:right;font-size:.92em;margin-top:.5em}
 .pq .psg-note{font-size:.85em;margin-top:.3em;line-height:1.5}
+.pq .wbox{border:0.4pt solid #000;padding:0 .25em;border-radius:0.4mm;
+  display:inline-block;line-height:1.35}
+.pq .psg-range{position:relative;padding-right:2.6em;margin:.15em 0}
+.pq .psg-range::before{content:"";position:absolute;right:1.7em;top:.3em;bottom:.3em;
+  width:.42em;border:0.4pt solid #000;border-left:0}
+.pq .psg-range-tag{position:absolute;right:0;top:50%;transform:translateY(-50%);
+  font-size:.9em;white-space:nowrap}
 .pq .bogi{border:0.4pt solid #000;border-radius:1mm;margin:3mm 0;
   padding:3.2mm 3mm 2.6mm;position:relative}
 .pq .bogi-label{position:absolute;top:-0.72em;left:50%;transform:translateX(-50%);
@@ -3468,20 +3484,48 @@ function renderEditor(){
         wrap.append(ta);
         ta.addEventListener("input",e=>{ pt.text=e.target.value; autoSizeTA(ta); renderPreview(); saveSets(); });
 
+        /* 선택한 글자를 감싸거나(굵게·밑줄·네모), 커서 자리에 끼워 넣는다(기호).
+           고른 글이 없으면 표시만 넣고 그 사이에 커서를 둔다 — 바로 타이핑하면 된다. */
+        const applyMark=(open,close)=>{
+          const s=ta.selectionStart??ta.value.length, e2=ta.selectionEnd??s;
+          const picked=ta.value.slice(s,e2);
+          ta.value=ta.value.slice(0,s)+open+picked+close+ta.value.slice(e2);
+          pt.text=ta.value; autoSizeTA(ta);
+          ta.focus();
+          const at=s+open.length+picked.length;
+          ta.setSelectionRange(picked?at+close.length:at, picked?at+close.length:at);
+          renderPreview(); saveSets();
+        };
+        const insert=txt=>applyMark(txt,"");
+
+        const fmtRow=el("div","psg-syms");
+        fmtRow.append(el("span","psg-syms-t","서식"));
+        [["굵게","**","**"],["밑줄","__","__"],["네모","[[","]]"]].forEach(([label,o,cl])=>{
+          const b=el("button","btn psg-sym",label); b.type="button";
+          b.title=label+" — 글자를 고르고 누르면 감쌉니다";
+          b.onclick=()=>applyMark(o,cl);
+          fmtRow.append(b);
+        });
+        // 구간 표시는 줄 단위라 여는 줄·닫는 줄을 통째로 넣는다
+        [["구간 A","\n<<A\n","\n>>\n"],["구간 B","\n<<B\n","\n>>\n"],["구간 C","\n<<C\n","\n>>\n"]]
+          .forEach(([label,o,cl])=>{
+            const b=el("button","btn psg-sym",label); b.type="button";
+            b.title=label+" — 여러 줄을 고르고 누르면 오른쪽에 세로 괄호가 붙습니다";
+            b.onclick=()=>applyMark(o,cl);
+            fmtRow.append(b);
+          });
+        wrap.append(fmtRow);
+
         const symRow=el("div","psg-syms");
         symRow.append(el("span","psg-syms-t","기호"));
-        ["㉠","㉡","㉢","㉣","㉤","㉥","ⓐ","ⓑ","ⓒ","ⓓ","ⓔ","[A]","[B]","(중략)"].forEach(sym=>{
+        ["㉠","㉡","㉢","㉣","㉤","㉥","ⓐ","ⓑ","ⓒ","ⓓ","ⓔ","*","(중략)"].forEach(sym=>{
           const b=el("button","btn psg-sym",sym); b.type="button";
-          b.onclick=()=>{
-            const s=ta.selectionStart??ta.value.length, e2=ta.selectionEnd??s;
-            ta.value=ta.value.slice(0,s)+sym+ta.value.slice(e2);
-            pt.text=ta.value; autoSizeTA(ta);
-            ta.focus(); ta.setSelectionRange(s+sym.length,s+sym.length);
-            renderPreview(); saveSets();
-          };
+          b.onclick=()=>insert(sym);
           symRow.append(b);
         });
         wrap.append(symRow);
+        wrap.append(el("div","dm-note",
+          "글자를 고르고 서식 단추를 누르면 감쌉니다. 기호는 밑줄 밖에 둡니다 — 예: ㉠__뱃머리__"));
 
         const kr=el("div","row"); kr.style.marginTop="8px";
         kr.append(el("div","label","종류"));
@@ -3919,6 +3963,24 @@ function addCasesRowGap(src){
   });
 }
 
+/* ── 지문 안 인라인 서식 ──
+   실제 N제(이감 간쓸개 등)를 보면 지문 안에서 이 세 가지가 계속 쓰인다.
+     **굵게**   → 강조할 시어·구절
+     __밑줄__   → ㉠㉡ 기호로 가리키는 부분 (기호 자체는 밑줄 밖에 둔다: ㉠__뱃머리__)
+     [[네모]]   → 개념어를 상자로 묶어 강조 (예: 항상적 연접성)
+
+   ⚠️ 반드시 sanitize() 를 통과한 '이미 이스케이프된' 문자열에만 적용할 것.
+   그래야 <b> 같은 태그를 새로 만들어도 본문에서 온 < > 가 이미 &lt; &gt; 로
+   바뀐 뒤라 주입이 불가능하다. 순서를 바꾸면(마크업 먼저, 이스케이프 나중)
+   우리가 만든 태그까지 이스케이프돼 서식이 글자로 보인다.
+   여는/닫는 표시 사이에 줄바꿈 표시가 끼면 안 되므로 한 조각 안에서만 맞춘다. */
+function inlineMarks(esc){
+  return String(esc)
+    .replace(/\[\[([^\[\]\n]{1,80})\]\]/g, '<span class="wbox">$1</span>')
+    .replace(/\*\*([^*\n]{1,200})\*\*/g,     '<b>$1</b>')
+    .replace(/__([^_\n]{1,200})__/g,          '<u>$1</u>');
+}
+
 function processText(raw){
   const text=addCasesRowGap(autoDisplayStyle(raw||""));
 
@@ -3935,7 +3997,7 @@ function processText(raw){
   const parts=normalized.split(/\\{1,2}\[(\d+(?:\.\d+)?pt)\]/);
   let html='';
   parts.forEach((chunk,i)=>{
-    if(i%2===0) html+=sanitize(chunk);
+    if(i%2===0) html+=inlineMarks(sanitize(chunk));
     else html+=`<span class="vspace" style="display:block;height:${chunk}"></span>`;
   });
 
@@ -3967,28 +4029,69 @@ function processText(raw){
    빈 줄에서만 연 간격을 준다. 각 행은 그대로 processText 를 태워서
    이스케이프와 수식 처리를 똑같이 받는다. */
 function verseHTML(raw){
-  const lines=String(raw||"").split(/\r?\n/);
-  return lines.map(l=>{
+  const paint = l => {
     if(!l.trim()) return '<div class="v-gap"></div>';
     if(isEllipsisLine(l)) return `<div class="psg-mid">${sanitize(l.trim())}</div>`;
     return `<div class="v-line">${processText(l)}</div>`;
+  };
+  return splitRanges(String(raw||"").split(/\r?\n/)).map(seg=>{
+    const inner=seg.lines.map(paint).join("");
+    return seg.label===null ? inner : rangeWrap(inner, seg.label);
   }).join("");
 }
 
 /* 한 줄이 통째로 (중략)·(하략)·(전략) 이면 가운데 정렬한다 — 실제 시험지가
    장편을 줄일 때 늘 이렇게 조판한다(2025 수능 국어 10쪽에서 확인). */
 function isEllipsisLine(l){ return /^\(\s*(중략|하략|전략)\s*\)$/.test(String(l).trim()); }
+
+/* ── 구간 표시 ([A] [B] [C]) ──
+   실물 N제에서 여러 줄을 오른쪽 세로 괄호로 묶고 옆에 [A] 를 단다.
+   문항이 "[A]에서 …" 하고 그 구간을 가리키는 형식이 국어에 아주 흔하다.
+   한 줄이 통째로 <<A 면 시작, >> 면 끝이다 — 한 줄이 정확히 이 모양일 일은
+   없어서 본문과 충돌하지 않는다. 라벨은 영숫자 3자까지만 받는다. */
+function rangeOpen(l){ const m=/^<<\s*([A-Za-z0-9]{1,3})\s*$/.exec(String(l).trim()); return m?m[1]:null; }
+function isRangeClose(l){ return /^>>$/.test(String(l).trim()); }
+
+/* 줄 목록을 <<A … >> 기준으로 토막 낸다 → [{label, lines}]
+   label 이 null 이면 보통 구간, 아니면 그 라벨로 묶인 구간이다.
+   닫는 표시가 없으면 끝까지를 그 구간으로 본다(입력하다 만 상태에서도
+   화면이 깨지지 않게). 산문·운문이 이 함수를 함께 쓰므로 '어디서 끊을지' 는
+   한 곳에만 있다. */
+function splitRanges(lines){
+  const segs=[{label:null, lines:[]}];
+  lines.forEach(l=>{
+    const open=rangeOpen(l);
+    if(open!==null){ segs.push({label:open, lines:[]}); return; }
+    if(isRangeClose(l)){ segs.push({label:null, lines:[]}); return; }
+    segs[segs.length-1].lines.push(l);
+  });
+  return segs.filter(s=>s.lines.length);
+}
+/* 구간 하나를 오른쪽 세로 괄호로 감싼다 */
+function rangeWrap(inner, label){
+  return `<div class="psg-range">${inner}<span class="psg-range-tag">[${sanitize(label)}]</span></div>`;
+}
+
 function proseHTML(raw){
   const lines=String(raw||"").split(/\r?\n/);
-  if(!lines.some(isEllipsisLine)) return processText(raw);   // 없으면 기존 경로 그대로
-  let out="", buf=[];
-  const flush=()=>{ if(buf.length){ out+=processText(buf.join("\n")); buf=[]; } };
-  lines.forEach(l=>{
-    if(isEllipsisLine(l)){ flush(); out+=`<div class="psg-mid">${sanitize(l.trim())}</div>`; }
-    else buf.push(l);
-  });
-  flush();
-  return out;
+  const plain = !lines.some(l=>isEllipsisLine(l)||rangeOpen(l)!==null||isRangeClose(l));
+  if(plain) return processText(raw);          // 표시가 없으면 기존 경로 그대로
+  /* 산문은 줄바꿈이 '문단' 이라 줄을 낱개로 조판하면 문단 간격이 달라진다.
+     그래서 (중략) 을 뺀 나머지는 덩어리째 모아 한 번에 processText 를 태운다. */
+  const paintSeg = segLines => {
+    let out="", buf=[];
+    const flush=()=>{ if(buf.length){ out+=processText(buf.join("\n")); buf=[]; } };
+    segLines.forEach(l=>{
+      if(isEllipsisLine(l)){ flush(); out+=`<div class="psg-mid">${sanitize(l.trim())}</div>`; }
+      else buf.push(l);
+    });
+    flush();
+    return out;
+  };
+  return splitRanges(lines).map(seg=>{
+    const inner=paintSeg(seg.lines);
+    return seg.label===null ? inner : rangeWrap(inner, seg.label);
+  }).join("");
 }
 
 function blockHTML(blk, ctx){

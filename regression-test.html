@@ -605,6 +605,53 @@ async function runIndexTests(){
                    : "과목 배지가 없거나 내용이 다름(" + r.first + ")" };
   });
 
+  /* ── 지문 안 인라인 서식 · 구간 표시 (실물 N제 기준) ── */
+  await check(G, "굵게·밑줄·네모 서식이 태그로 바뀐다", () => {
+    const h = win.processText("**굵게** __밑줄__ [[네모]]");
+    return h.includes("<b>굵게</b>") && h.includes("<u>밑줄</u>")
+        && h.includes('<span class="wbox">네모</span>');
+  });
+
+  await check(G, "구간 표시가 오른쪽 괄호로 묶인다", () => {
+    const h = win.proseHTML("앞줄\n<<A\n안쪽1\n안쪽2\n>>\n뒷줄");
+    const tags = (h.match(/psg-range-tag/g)||[]).length;
+    return { pass: h.includes('class="psg-range"') && h.includes("[A]") && tags===1,
+             note: tags===1 ? undefined : "구간 라벨 "+tags+"개" };
+  });
+
+  await check(G, "구간 앞뒤 글이 순서대로 나온다", () => {
+    /* 구간을 처리하면서 앞 문단을 늦게 흘려보내면 순서가 뒤집힌다(실제로 그랬다).
+       '앞줄 → 구간 → 뒷줄' 순서가 유지되는지 위치로 확인한다. */
+    const h = win.proseHTML("앞줄\n<<A\n안쪽\n>>\n뒷줄");
+    const a=h.indexOf("앞줄"), m=h.indexOf("안쪽"), b=h.indexOf("뒷줄");
+    return { pass: a>=0 && m>a && b>m, note: (a>=0&&m>a&&b>m)?undefined:"순서가 뒤집힘" };
+  });
+
+  await check(G, "구간 라벨은 영숫자 3자까지만 받는다", () => {
+    return win.rangeOpen("<<A")==="A" && win.rangeOpen("<<B1")==="B1"
+        && win.rangeOpen('<<"onload=x')===null && win.rangeOpen("<<ABCD")===null
+        && win.rangeOpen("보통 글줄")===null;
+  });
+
+  await check(G, "서식 표시로는 태그를 만들 수 없다(주입 차단)", async () => {
+    const marker = "__mk_xss_"+Date.now();
+    const evil = `window.${marker}=1`;
+    const html = [
+      `[[<img src=x onerror=${evil}>]]`,
+      `**</b><img src=x onerror=${evil}>**`,
+      `__" onmouseover="${evil}__`,
+      `<<A\n<img src=x onerror=${evil}>\n>>`,
+    ].map(t=>win.proseHTML(t)).join("");
+    return { pass: await firesOnInnerHTML(html, marker) };
+  });
+
+  await check(G, "인라인 서식은 이스케이프 '뒤' 에 적용된다", () => {
+    /* 순서가 뒤집히면(마크업 먼저) 우리가 만든 태그까지 이스케이프돼
+       서식이 글자로 보이고, 반대로 본문의 < > 가 살아남아 주입이 뚫린다. */
+    const h = win.processText("[[<b>]]");
+    return h.includes('<span class="wbox">') && h.includes("&lt;b&gt;");
+  });
+
   // ── 저작권 푸터(최근 단계) ──
   await check(G, "라이브러리 푸터 존재 + 올해 연도 포함", () => {
     const ft = win.document.querySelector(".lib-footer");
