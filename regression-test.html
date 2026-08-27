@@ -346,6 +346,24 @@ async function runIndexTests(){
     return { pass: !bad, note: bad ? "검색결과·툴팁에 기관명이 남아 있음" : undefined };
   });
 
+  /* ── 시험지 선 색 ──
+     이 값은 style 속성(--sheet-line)으로 들어가므로 열거값 고정이 방어선이다.
+     목록 밖 값이 통과하면 가져온 .json 하나로 임의 CSS 가 섞인다. */
+  await check(G, "시험지 선 색 — 목록 밖 값은 기본으로 되돌린다", () => {
+    const bad = ["red;background:url(x)", '#fff" onload="x', "expression(1)", 123, null, {}];
+    const allSafe = bad.every(v => win.normSheetColor(v) === "indigo");
+    const keeps   = win.normSheetColor("green") === "green";
+    return { pass: allSafe && keeps,
+             note: allSafe ? (keeps?undefined:"정상값이 안 지켜짐") : "목록 밖 값이 통과함" };
+  });
+
+  await check(G, "시험지 선 색이 저장·정규화를 통과해 보존된다", () => {
+    const s = win.normSet({name:"x", lineColor:"teal", problems:[{}]}, {keepId:false});
+    const doc = win.setToDoc(s, 0);
+    return { pass: s.lineColor==="teal" && doc.lineColor==="teal",
+             note: doc.lineColor==="teal" ? undefined : "클라우드 문서에 안 실림" };
+  });
+
   // ── 저작권 푸터(최근 단계) ──
   await check(G, "라이브러리 푸터 존재 + 올해 연도 포함", () => {
     const ft = win.document.querySelector(".lib-footer");
