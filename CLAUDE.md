@@ -470,6 +470,19 @@ Pages–hosted `index.html` can also call into (via `--allow-origin`).
   더 길다) '아직 문제집이 없어요' 가 떠서 데이터가 날아간 줄 알았다.
   `showLibraryLoading()` 으로 '불러오는 중' 을 보여 준다.
 
+### 마지막 문제집 기억은 sessionStorage 다
+`rememberSet()`/`readLastSet()` 만 **sessionStorage** 를 쓴다(나머지 로컬 키는 전부
+localStorage). 원하는 동작이 '새로고침은 이어서, 탭 닫았다 들어오면 라이브러리' 인데,
+그 둘을 가르는 경계가 정확히 sessionStorage 의 수명이기 때문이다.
+localStorage 로 두면 며칠 뒤 다시 들어와도 편집기로 바로 떨어진다(그랬다).
+계정 삭제의 `clearLocalKeys()` 는 두 저장소를 모두 훑는다.
+
+### 본문 글꼴 굵기 — KoPub 의 400 은 Regular 가 아니다
+KoPub Batang 은 **300=Light · 400=Medium · 700=Bold** 다. `font-weight:400` 이
+'보통' 일 거라 생각하고 두면 Medium 이 나와 본문이 두껍게 조판된다(실제로 그랬다).
+실제 시험지(신명조 계열)에 가까운 건 Light 라 `.preview .content` 와 `.pq .content`
+모두 **300** 을 쓴다. 미리보기와 인쇄는 같은 값을 유지할 것.
+
 ### 2026-08-25 (2차)
 새로고침하면 편집 중이던 문제집에서 라이브러리로 튕기던 동작 수정.
 `lastSetKey()` 로 마지막에 연 문제집을 계정별로 기억하고 `bootLibrary()` 가

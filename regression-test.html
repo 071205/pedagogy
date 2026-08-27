@@ -546,6 +546,33 @@ async function runIndexTests(){
     }catch(e){ return {pass:false, note:"예외: "+e.message}; }
   });
 
+  /* ── 마지막 문제집 기억 · 본문 굵기 ── */
+  await check(G, "마지막 문제집은 sessionStorage 에 둔다(탭 닫으면 라이브러리)", () => {
+    /* localStorage 면 며칠 뒤 다시 들어와도 편집기로 떨어진다.
+       sessionStorage 여야 '새로고침은 유지, 탭 닫으면 초기화' 가 된다. */
+    const key = win.lastSetKey();
+    const beforeS = win.sessionStorage.getItem(key);
+    const beforeL = win.localStorage.getItem(key);
+    win.rememberSet("__probe__");
+    const inSession = win.sessionStorage.getItem(key) === "__probe__";
+    const notInLocal = win.localStorage.getItem(key) === null;
+    const readsBack = win.readLastSet() === "__probe__";
+    // 원래대로 되돌린다
+    win.rememberSet(null);
+    if(beforeS !== null) win.sessionStorage.setItem(key, beforeS);
+    if(beforeL !== null) win.localStorage.setItem(key, beforeL);
+    return { pass: inSession && notInLocal && readsBack,
+             note: inSession ? (notInLocal ? undefined : "localStorage 에도 남음") : "sessionStorage 에 안 들어감" };
+  });
+
+  await check(G, "본문은 Light(300) — KoPub 의 400 은 Medium 이라 두껍다", () => {
+    const H2 = installHooks(win, ["$"]);
+    const el = win.document.querySelector(".preview .content");
+    if(!el) return {pass:false, note:"미리보기 본문을 못 찾음"};
+    const w = win.getComputedStyle(el).fontWeight;
+    return { pass: String(w) === "300", note: String(w)==="300" ? undefined : "굵기가 "+w };
+  });
+
   // ── 저작권 푸터(최근 단계) ──
   await check(G, "라이브러리 푸터 존재 + 올해 연도 포함", () => {
     const ft = win.document.querySelector(".lib-footer");

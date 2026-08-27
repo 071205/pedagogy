@@ -662,7 +662,11 @@ body.col-resizing{cursor:col-resize;user-select:none}
   font-family:var(--num-serif);font-size:26px;font-weight:800;
   color:#111;margin-bottom:10px;display:flex;align-items:baseline;gap:8px;
 }
-.preview .content{font-size:13.2px;line-height:1.7;font-weight:400}
+/* ⚠️ KoPub Batang 은 300=Light · 400=Medium · 700=Bold 다.
+   400 은 'Regular' 가 아니라 Medium 이라 본문이 두껍게 나왔다(실제로 그랬다).
+   실제 시험지 본문(신명조 계열)에 가까운 건 Light 쪽이라 300 을 쓴다.
+   미리보기와 인쇄를 같은 값으로 둔다 — 두 조판이 어긋나면 안 된다. */
+.preview .content{font-size:13.2px;line-height:1.7;font-weight:300}
 .preview .content .katex,.preview .content .katex *{font-weight:400!important}
 .preview .content .katex-display{display:inline-block;margin:0.3em 0;text-align:left;font-size:1.08em}
 .preview .content .pdm{text-align:center;margin:0.6em 0;display:block}
@@ -766,7 +770,7 @@ body.col-resizing{cursor:col-resize;user-select:none}
 .slot:nth-child(2){padding-left:4mm}
 .slot--paired .pq{flex:1;min-height:0;overflow-x:hidden}
 .pq{width:100%;margin:0;overflow-x:hidden}
-.pq .content{font-family:'KoPub Batang',"Times New Roman",serif;font-size:calc(var(--print-fs-pt)*1pt);line-height:var(--print-lh);word-break:keep-all;font-weight:400}
+.pq .content{font-family:'KoPub Batang',"Times New Roman",serif;font-size:calc(var(--print-fs-pt)*1pt);line-height:var(--print-lh);word-break:keep-all;font-weight:300}
 .pq .content .katex,.pq .content .katex *{font-weight:400!important}
 /* \text{} 안 한글 폰트 상속 */
 .pq .content .katex .mord.text,.preview .content .katex .mord.text{font-family:'KoPub Batang','Noto Sans KR',sans-serif!important;font-size:0.92em}
@@ -1839,14 +1843,27 @@ function lastQKey(){  return LASTQ_KEY_BASE +":"+((currentUser&&currentUser.uid)
    튕겼다. 글을 쓰다 새로고침하면 내용은 남아도 자리를 잃는다.
    두 기억을 짝 맞춰, 편집기에 있었으면 그 문제집으로 되돌아가게 한다. */
 function lastSetKey(){ return "PM_LAST_SET:"+((currentUser&&currentUser.uid)||"guest"); }
+/* ⚠️ 이 기억만 sessionStorage 에 둔다(다른 키는 전부 localStorage).
+   원하는 동작이 '새로고침은 이어서, 나갔다 들어오면 라이브러리' 인데,
+   그 둘을 가르는 경계가 정확히 sessionStorage 의 수명이다 —
+   같은 탭에서 새로고침하면 남고, 탭을 닫으면 사라진다.
+   localStorage 에 두면 며칠 뒤 다시 들어와도 편집기로 바로 떨어진다(그랬다). */
 function rememberSet(id){
   try{
-    if(id) localStorage.setItem(lastSetKey(), id);
-    else localStorage.removeItem(lastSetKey());   // 라이브러리로 나오면 기억을 지운다
+    if(id) sessionStorage.setItem(lastSetKey(), id);
+    else sessionStorage.removeItem(lastSetKey());   // 라이브러리로 나오면 기억을 지운다
   }catch(e){ console.error('마지막 문제집 기억 실패', e); }
 }
 function readLastSet(){
-  try{ return localStorage.getItem(lastSetKey())||null; }catch{ return null; }
+  try{ return sessionStorage.getItem(lastSetKey())||null; }catch{ return null; }
+}
+/* 예전 버전이 localStorage 에 남겨 둔 값 정리.
+   안 지우면 아래 readLastSet 은 못 읽지만 키만 계속 남는다. */
+function dropLegacyLastSet(){
+  try{
+    localStorage.removeItem(lastSetKey());
+    localStorage.removeItem("PM_LAST_SET");        // 계정별로 가르기 전의 전역 키
+  }catch(e){}
 }
 
 /* 문제집별 '마지막으로 보던 문항' 기억 (새로고침 후에도 유지) */
@@ -2568,7 +2585,11 @@ async function wipeStorageImages(uid){
 function clearLocalKeys(keys, {keepBackup}){
   Object.entries(keys).forEach(([name,k])=>{
     if(name==='backup' && keepBackup) return;
+    /* 두 저장소를 모두 지운다 — lastSet 은 sessionStorage 에 살고 나머지는
+       localStorage 에 산다. 어디 있는지 따지지 말고 둘 다 훑는 게 안전하다
+       (없는 키를 지우는 건 오류가 아니다). */
     try{ localStorage.removeItem(k); }catch(e){ console.warn('로컬 키 삭제 실패: '+k, e); }
+    try{ sessionStorage.removeItem(k); }catch(e){}
   });
 }
 
@@ -4876,6 +4897,7 @@ async function bootLibrary(){
   authInitialized=true;
   migrateSharedLocalCache();
   migrateSharedAuxKeys();                // 백업·마지막문항 키도 계정 칸으로
+  dropLegacyLastSet();                   // 예전에 localStorage 에 남긴 값 정리
   loadLastQ(); localStamps=readStamps();
   snapshotLocalBackup();                 // 직전 세션 데이터를 백업으로 보관
   if(currentUser) showLibraryLoading();  // 불러오는 동안 '없어요' 대신 '불러오는 중'
