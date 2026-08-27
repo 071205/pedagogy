@@ -284,6 +284,10 @@ label.btn input{display:none}
   border:1px solid var(--border);border-radius:var(--radius-md);
   background:var(--bg);color:var(--text-primary);font-size:13px}
 .dm-note{font-size:11.5px;color:var(--text-tertiary);margin-top:8px;line-height:1.6}
+/* 지문 기호 빠른 입력 — ㉠ ⓐ 는 한글 자판에서 한자키를 거쳐야 해 번거롭다 */
+.psg-syms{display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-top:8px}
+.psg-syms-t{font-size:11.5px;color:var(--text-tertiary);margin-right:4px}
+.psg-sym{height:28px;min-width:30px;padding:0 7px;font-size:13px}
 .btn-danger{background:var(--danger);border:1px solid transparent;color:#fff;
   height:38px;padding:0 14px;border-radius:var(--radius-md);font-size:13px;font-weight:700;
   white-space:nowrap}
@@ -663,6 +667,19 @@ body.col-resizing{cursor:col-resize;user-select:none}
 .preview .passage{margin:10px 0 14px}
 .preview .psg-head{font-weight:700;margin-bottom:6px}
 .preview .psg-body{font-size:.94em;line-height:1.75;text-align:justify}
+/* 지문 테두리 — 평가원 정본은 무테지만 사설 문제집은 두르는 경우가 많아 옵션. */
+.preview .psg-boxed .psg-body{border:1px solid #bbb;border-radius:6px;padding:10px 12px}
+.preview .psg-label{font-weight:700;margin:6px 0 3px}
+/* 운문(시) — 행은 촘촘하게, 연 사이만 띄운다. 양끝맞춤을 풀어야 행이 안 늘어진다. */
+.preview .psg-verse .psg-body{text-align:left}
+.preview .v-line{line-height:1.65}
+.preview .v-gap{height:.85em}
+/* <보기> 상자 — 상단 가운데 라벨이 테두리에 걸쳐 앉는다(실제 시험지 모양). */
+.preview .bogi{border:1px solid #333;border-radius:4px;margin:12px 0;
+  padding:14px 14px 12px;position:relative}
+.preview .bogi-label{position:absolute;top:-0.72em;left:50%;transform:translateX(-50%);
+  background:#fff;padding:0 8px;font-weight:700;font-size:.94em;white-space:nowrap}
+.preview .bogi-body{font-size:.95em;line-height:1.7}
 .preview .cond-item{margin:4px 0;display:flex;gap:0.4em;align-items:baseline}
 .preview .ex-item{margin:4px 0;display:flex;gap:0.4em;align-items:baseline}
 .cond-label,.ex-label{flex-shrink:0;white-space:nowrap}
@@ -744,6 +761,16 @@ body.col-resizing{cursor:col-resize;user-select:none}
 .pq .passage{margin:2mm 0 4mm}
 .pq .psg-head{font-weight:700;margin-bottom:1.6mm}
 .pq .psg-body{font-size:.94em;line-height:1.8;text-align:justify;word-break:keep-all}
+.pq .psg-boxed .psg-body{border:0.4pt solid #333;border-radius:1mm;padding:2mm 2.6mm}
+.pq .psg-label{font-weight:700;margin:1.6mm 0 0.8mm}
+.pq .psg-verse .psg-body{text-align:left}
+.pq .v-line{line-height:1.7}
+.pq .v-gap{height:.85em}
+.pq .bogi{border:0.4pt solid #000;border-radius:1mm;margin:3mm 0;
+  padding:3.2mm 3mm 2.6mm;position:relative}
+.pq .bogi-label{position:absolute;top:-0.72em;left:50%;transform:translateX(-50%);
+  background:#fff;padding:0 2mm;font-weight:700;white-space:nowrap}
+.pq .bogi-body{line-height:1.75}
 .pq .cond-item{display:flex;gap:0.5em;align-items:baseline;margin:1.5mm 0}
 .pq .ex-item{display:flex;gap:0.5em;align-items:baseline;margin:1.5mm 0}
 .pq .cond-label,.pq .ex-label{flex-shrink:0;white-space:nowrap}
@@ -1163,6 +1190,7 @@ document.addEventListener('DOMContentLoaded',()=>{
       <select id="blockType" style="flex:1">
         <option value="statement">문제 본문</option>
         <option value="passage">지문 (국어·영어)</option>
+        <option value="bogi">&lt;보기&gt; 상자</option>
         <option value="conditions">가나다 (조건)</option>
         <option value="examples">ㄱㄴㄷ (보기)</option>
         <option value="boxed">박스형 해설</option>
@@ -1598,7 +1626,10 @@ function newProblem(){ return { id:uid(), title:"", desc:"", answer:"", answerIm
    남이 만든 .json 은 신뢰하지 않는다. 알고 있는 필드만 화이트리스트로 뽑아내고
    타입·열거값·길이를 강제한다. (모의고사 편집기의 sanitize() 와 같은 취지)
    이 단계에서 걸러야 렌더 단계에서 예상 못 한 값이 DOM 에 닿지 않는다. */
-const BLOCK_TYPES=["statement","conditions","examples","boxed","choices","image","passage"];
+const BLOCK_TYPES=["statement","conditions","examples","boxed","choices","image","passage","bogi"];
+/* 지문 종류 — 산문은 줄바꿈이 문단, 운문(시)은 줄바꿈이 행이다.
+   같은 텍스트라도 조판이 완전히 달라서 한 값으로 못 묶는다. */
+const PASSAGE_KINDS=["prose","verse"];
 const IMG_SIZES=["full","large","medium","small"];
 const str=(v,max=20000)=>typeof v==="string"?v.slice(0,max):"";
 
@@ -1611,9 +1642,18 @@ function normBlock(b){
   /* 지문 — 국어·영어처럼 글 하나를 여러 문항이 함께 쓰는 형식.
      lead 는 "다음 글을 읽고 물음에 답하시오." 같은 안내문이다. 본문(text)은
      지문이라 길 수 있어 상한을 넉넉히 둔다(다른 텍스트 블록은 str 기본 상한). */
-  if(type==="passage") return {type,data:{text:str(d.text,20000), lead:str(d.lead,200)}};
+  if(type==="passage") return {type,data:{
+    text:str(d.text,20000), lead:str(d.lead,200),
+    label:str(d.label,20),                                    // (가) (나) 복합 지문용
+    kind:PASSAGE_KINDS.includes(d.kind)?d.kind:"prose",       // 산문 / 운문
+    boxed:d.boxed===true                                      // 사설 문제집식 테두리
+  }};
+  /* <보기> — 국어에서 가장 자주 쓰는 상자. 상단 가운데에 라벨이 붙는다.
+     라벨을 바꿀 수 있게 둔다(<자료>, <조건> 등으로도 쓰인다). */
+  if(type==="bogi") return {type,data:{text:str(d.text,5000), label:str(d.label,20)||"보 기"}};
   if(type==="conditions"||type==="examples")
-    return {type,data:{items:(Array.isArray(d.items)?d.items:[]).slice(0,20).map(t=>str(t))}};
+    return {type,data:{items:(Array.isArray(d.items)?d.items:[]).slice(0,20).map(t=>str(t)),
+                       label:str(d.label,20)}};   // 비우면 라벨 없음, "보 기" 면 <보기> 상자
   if(type==="choices")
     return {type,data:{items:(Array.isArray(d.items)?d.items:[]).slice(0,5).map(t=>str(t)),
                        layout:d.layout==="vertical"?"vertical":"horizontal"}};
@@ -3054,12 +3094,13 @@ let sortableBlocks=null;
 function autoSizeTA(ta){ ta.style.height='auto'; ta.style.height=(ta.scrollHeight+2)+'px'; }
 
 /* 블록 종류별 기본값 — 추가·타입 변경에서 함께 쓴다 */
-const BLK_LABELS={statement:"문제 본문",passage:"지문",conditions:"가나다 조건",examples:"ㄱㄴㄷ 보기",
+const BLK_LABELS={statement:"문제 본문",passage:"지문",bogi:"<보기> 상자",conditions:"가나다 조건",examples:"ㄱㄴㄷ 보기",
                   boxed:"박스형 해설",choices:"답 선지",image:"이미지"};
 function blankBlockData(type){
   if(type==="statement"||type==="boxed") return {text:""};
-  if(type==="passage") return {text:"", lead:"다음 글을 읽고 물음에 답하시오."};
-  if(type==="conditions"||type==="examples") return {items:[""]};
+  if(type==="passage") return {text:"", lead:"다음 글을 읽고 물음에 답하시오.", label:"", kind:"prose", boxed:false};
+  if(type==="bogi") return {text:"", label:"보 기"};
+  if(type==="conditions"||type==="examples") return {items:[""], label:""};
   if(type==="choices") return {items:["","","","",""],layout:"horizontal"};
   if(type==="image") return {dataUrl:"",size:"full"};
   return {};
@@ -3218,20 +3259,63 @@ function renderEditor(){
     const body=el("div","blk-body");
 
     if(blk.type==="passage"){
-      // 안내문 — [01~03] 뒤에 붙는 문장
+      // 안내문 · (가)(나) 라벨
       const lead=el("input"); lead.type="text"; lead.className="field-input";
-      lead.placeholder="다음 글을 읽고 물음에 답하시오.";
-      lead.value=blk.data.lead||"";
+      lead.placeholder="다음 글을 읽고 물음에 답하시오."; lead.value=blk.data.lead||"";
       lead.oninput=e=>{ blk.data.lead=e.target.value; renderPreview(); saveSets(); };
-      const lw=el("div","row"); lw.append(el("div","label","안내"), lead);
-      body.append(lw);
+      const lw=el("div","row"); lw.append(el("div","label","안내"), lead); body.append(lw);
 
-      const ta=el("textarea"); ta.placeholder="지문 본문 — 문단은 줄바꿈으로 나눕니다";
+      const lab=el("input"); lab.type="text"; lab.className="field-input";
+      lab.placeholder="비워 두면 없음 · 복합 지문이면 (가) (나)"; lab.value=blk.data.label||"";
+      lab.oninput=e=>{ blk.data.label=e.target.value; renderPreview(); saveSets(); };
+      const lb=el("div","row"); lb.append(el("div","label","라벨"), lab); body.append(lb);
+
+      const ta=el("textarea"); ta.placeholder="지문 본문";
       ta.value=blk.data.text||""; ta.style.minHeight="220px"; autoSizeTA(ta);
       body.append(ta);
       ta.addEventListener('input',e=>{ blk.data.text=e.target.value; autoSizeTA(ta); renderPreview(); saveSets(); });
 
-      // 몇 문항이 이 지문을 함께 쓰는지
+      // ㉠ⓐ[A] 빠른 입력 — 한글 자판으로는 한자키를 거쳐야 해서 번거롭다
+      const symRow=el("div","psg-syms");
+      symRow.append(el("span","psg-syms-t","기호 넣기"));
+      const SYMS=["㉠","㉡","㉢","㉣","㉤","㉥","ⓐ","ⓑ","ⓒ","ⓓ","ⓔ","[A]","[B]","[C]"];
+      SYMS.forEach(sym=>{
+        const b=el("button","btn psg-sym",sym); b.type="button"; b.title=sym+" 넣기";
+        b.onclick=()=>{
+          const s=ta.selectionStart??ta.value.length, e2=ta.selectionEnd??s;
+          ta.value=ta.value.slice(0,s)+sym+ta.value.slice(e2);
+          blk.data.text=ta.value; autoSizeTA(ta);
+          ta.focus(); ta.setSelectionRange(s+sym.length, s+sym.length);
+          renderPreview(); saveSets();
+        };
+        symRow.append(b);
+      });
+      body.append(symRow);
+
+      // 산문 / 운문
+      const kindRow=el("div","row"); kindRow.style.marginTop="8px";
+      kindRow.append(el("div","label","종류"));
+      const kSeg=el("div","seg span-seg");
+      [["prose","산문"],["verse","운문(시)"]].forEach(([v,label])=>{
+        const b=el("button",null,label); b.type="button";
+        b.classList.toggle("on",(blk.data.kind||"prose")===v);
+        b.onclick=()=>{ blk.data.kind=v; renderEditor(); renderPreview(); saveSets(); };
+        kSeg.append(b);
+      });
+      kindRow.append(kSeg); body.append(kindRow);
+
+      // 테두리
+      const boxRow=el("div","row"); boxRow.style.marginTop="6px";
+      boxRow.append(el("div","label","테두리"));
+      const bl=el("label"); bl.style.cssText="display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--text-secondary);cursor:pointer";
+      const cb=el("input"); cb.type="checkbox"; cb.checked=blk.data.boxed===true;
+      cb.style.cssText="width:15px;height:15px;accent-color:var(--blue)";
+      cb.onchange=e=>{ blk.data.boxed=e.target.checked; renderPreview(); saveSets(); };
+      bl.append(cb, document.createTextNode("지문을 상자로 감싸기"));
+      boxRow.append(bl); body.append(boxRow);
+      body.append(el("div","dm-note","평가원 시험지는 지문에 테두리가 없습니다. 사설 문제집 형식으로 만들 때만 켜세요."));
+
+      // 묶음
       const gs=el("div","row"); gs.style.marginTop="8px";
       gs.append(el("div","label","묶음"));
       const sel=el("select");
@@ -3240,13 +3324,22 @@ function renderEditor(){
         o.value=String(n); sel.append(o);
       }
       sel.value=String(groupSpanOf(q));
-      sel.onchange=e=>{
-        q.groupSpan=Math.max(1,Math.min(10,parseInt(e.target.value,10)||1));
-        renderQList(); renderPreview(); saveSets();
-      };
-      gs.append(sel);
-      body.append(gs);
+      sel.onchange=e=>{ q.groupSpan=Math.max(1,Math.min(10,parseInt(e.target.value,10)||1));
+        renderQList(); renderPreview(); saveSets(); };
+      gs.append(sel); body.append(gs);
       body.append(el("div","dm-note","묶은 문항 수만큼 안내문 앞에 [01~03] 처럼 번호 범위가 붙습니다. 뒤 문항에는 지문을 다시 넣지 마세요."));
+    }
+
+    if(blk.type==="bogi"){
+      const lab=el("input"); lab.type="text"; lab.className="field-input";
+      lab.placeholder="보 기"; lab.value=blk.data.label||"";
+      lab.oninput=e=>{ blk.data.label=e.target.value; renderPreview(); saveSets(); };
+      const lw=el("div","row"); lw.append(el("div","label","라벨"), lab); body.append(lw);
+      const ta=el("textarea"); ta.placeholder="<보기> 안에 들어갈 내용";
+      ta.value=blk.data.text||""; autoSizeTA(ta);
+      body.append(ta);
+      ta.addEventListener('input',e=>{ blk.data.text=e.target.value; autoSizeTA(ta); renderPreview(); saveSets(); });
+      body.append(el("div","dm-note","라벨을 <자료>, <조건> 등으로 바꿔 쓸 수 있습니다."));
     }
 
     if(blk.type==="statement"||blk.type==="boxed"){
@@ -3254,6 +3347,15 @@ function renderEditor(){
       ta.value=blk.data.text||""; autoSizeTA(ta);
       body.append(ta);
       ta.addEventListener('input',e=>{ blk.data.text=e.target.value; autoSizeTA(ta); renderPreview(); saveSets(); });
+    }
+
+    if(blk.type==="examples"){
+      // 라벨을 채우면 ㄱㄴㄷ 가 <보 기> 상자 안에 들어간다 (국어 문법 문항 형식)
+      const lab=el("input"); lab.type="text"; lab.className="field-input";
+      lab.placeholder="비워 두면 그냥 상자 · '보 기' 를 넣으면 <보기>";
+      lab.value=blk.data.label||"";
+      lab.oninput=e=>{ blk.data.label=e.target.value; renderPreview(); saveSets(); };
+      const lw=el("div","row"); lw.append(el("div","label","라벨"), lab); body.append(lw);
     }
 
     if(blk.type==="conditions"||blk.type==="examples"||blk.type==="choices"){
@@ -3321,7 +3423,7 @@ function renderEditor(){
 
   $("#addBlockBtn").onclick=()=>{
     const type=$("#blockType").value;
-    const def=(type==="passage")?{text:"",lead:"다음 글을 읽고 물음에 답하시오."}:(type==="statement"||type==="boxed")?{text:""}:(type==="conditions"||type==="examples")?{items:[""]}:(type==="choices")?{items:["","","","",""],layout:"horizontal"}:(type==="image")?{dataUrl:"",size:"full"}:{};
+    const def=(type==="passage")?{text:"",lead:"다음 글을 읽고 물음에 답하시오.",label:"",kind:"prose",boxed:false}:(type==="bogi")?{text:"",label:"보 기"}:(type==="statement"||type==="boxed")?{text:""}:(type==="conditions"||type==="examples")?{items:[""]}:(type==="choices")?{items:["","","","",""],layout:"horizontal"}:(type==="image")?{dataUrl:"",size:"full"}:{};
     const q=activeQ(); q.blocks.push({type, data:def}); saveSets(); renderEditor(); renderPreview();
   };
 
@@ -3587,14 +3689,39 @@ function processText(raw){
 /* ctx 로 범위 라벨(range)을 넘겨받는다 — 지문 블록만 쓴다.
    지문은 블록이지만 '이 문항 하나' 가 아니라 '문항 묶음' 을 대표하므로
    블록 안에서는 알 수 없는 번호 범위를 바깥에서 받아야 한다. */
+/* 운문(시) 조판 — 줄바꿈이 '행', 빈 줄이 '연' 이다.
+   산문용 processText 는 줄바꿈을 6pt 문단 간격으로 바꾸기 때문에 시에 쓰면
+   행 사이가 문단처럼 벌어진다(실제로 그렇게 나왔다). 행마다 따로 조판하고
+   빈 줄에서만 연 간격을 준다. 각 행은 그대로 processText 를 태워서
+   이스케이프와 수식 처리를 똑같이 받는다. */
+function verseHTML(raw){
+  const lines=String(raw||"").split(/\r?\n/);
+  return lines.map(l=>{
+    if(!l.trim()) return '<div class="v-gap"></div>';
+    return `<div class="v-line">${processText(l)}</div>`;
+  }).join("");
+}
+
 function blockHTML(blk, ctx){
   if(blk.type==="passage"){
-    const lead=str(blk.data.lead,200);
+    const d=blk.data||{};
+    const lead=str(d.lead,200), label=str(d.label,20);
     const range=(ctx&&ctx.range)||"";
+    /* 머리글은 세트의 첫 지문에만 붙인다. (가)(나) 처럼 지문이 여러 개면
+       두 번째부터는 라벨만 나오고 안내문은 반복되지 않는다. */
     const head=(range||lead)
       ? `<div class="psg-head">${range?`<b>[${sanitize(range)}]</b> `:""}${sanitize(lead)}</div>`
       : "";
-    return `<div class="passage">${head}<div class="psg-body">${processText(blk.data.text)}</div></div>`;
+    const tag=label?`<div class="psg-label">${sanitize(label)}</div>`:"";
+    const body=(d.kind==="verse") ? verseHTML(d.text) : processText(d.text);
+    const cls="passage"+(d.boxed?" psg-boxed":"")+(d.kind==="verse"?" psg-verse":"");
+    return `<div class="${cls}">${head}${tag}<div class="psg-body">${body}</div></div>`;
+  }
+  if(blk.type==="bogi"){
+    const d=blk.data||{};
+    const label=str(d.label,20)||"보 기";
+    return `<div class="bogi"><div class="bogi-label">&lt;${sanitize(label)}&gt;</div>`+
+           `<div class="bogi-body">${processText(d.text)}</div></div>`;
   }
   if(blk.type==="statement") return `<div>${processText(blk.data.text)}</div>`;
   if(blk.type==="boxed") return `<div class="boxed">${processText(blk.data.text)}</div>`;
@@ -3604,6 +3731,9 @@ function blockHTML(blk, ctx){
   }
   if(blk.type==="examples"){
     const items=(blk.data.items||[]).map((t,i)=>`<div class="ex-item"><span class="ex-label">${HSMALL[i%HSMALL.length]}.</span><span class="ex-text">${processText(t)}</span></div>`).join("");
+    // 라벨을 주면 <보 기> 상자 모양이 된다 (국어 문법 문항에서 흔한 형태)
+    const lb=str(blk.data.label,20);
+    if(lb) return `<div class="bogi"><div class="bogi-label">&lt;${sanitize(lb)}&gt;</div><div class="bogi-body">${items}</div></div>`;
     return `<div class="boxed">${items}</div>`;
   }
   if(blk.type==="choices"){

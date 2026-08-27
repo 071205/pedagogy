@@ -121,6 +121,15 @@ pieces to know before editing:
   Each block is `{ type, data }` where `type` is one of `statement | passage | conditions |
   examples | boxed | choices | image` (see the `#blockType` `<select>` and `blockHTML()`).
 - **지문 세트 (국어·영어)**: `passage` 블록 + 문항의 `groupSpan`.
+  지문 블록은 `kind`(prose/verse) · `boxed` · `label` 을 가진다.
+  ⚠️ **운문(verse)은 `processText()` 를 그대로 쓰면 안 된다** — 그 함수는 줄바꿈을
+  6pt 문단 간격으로 바꿔서 시 행 사이가 문단처럼 벌어진다. `verseHTML()` 이 행마다
+  따로 조판하고 빈 줄에서만 연 간격을 준다(각 행은 여전히 `processText()` 를 태워
+  이스케이프·수식 처리를 동일하게 받는다).
+  `boxed` 는 평가원 정본(무테)과 사설 문제집(테두리) 양쪽을 지원하려는 것이다.
+- **`<보기>` 상자**: `bogi` 블록. `examples`(ㄱㄴㄷ)에 `label` 을 주면 그것도 같은
+  상자 모양이 된다 — 국어 문법 문항이 ㄱㄴㄷ를 `<보기>` 안에 넣는 형식이라서다.
+  라벨은 `<자료>`·`<조건>` 으로도 바꿔 쓴다.
   지문 블록을 가진 문항이 세트의 첫 문항이고, `groupSpan` 은 그 지문을 함께 쓰는
   문항 수(자기 포함, 1~10)다. 뒤 문항에는 지문 블록을 넣지 않는다 — 지문은 첫
   문항의 블록으로 한 번만 그려지고, `computeNums()` 가 `[01~03]` 범위 라벨을

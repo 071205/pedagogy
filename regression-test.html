@@ -390,6 +390,40 @@ async function runIndexTests(){
     return mk(999)===10 && mk(-5)===1 && mk("<script>")===1 && mk(null)===1;
   });
 
+  await check(G, "운문(시)은 줄바꿈이 행이 된다 — 산문용 6pt 간격을 쓰지 않는다", () => {
+    const verse = win.blockHTML({type:"passage", data:{kind:"verse", text:"1행\n2행\n\n3행"}}, {});
+    const prose = win.blockHTML({type:"passage", data:{kind:"prose", text:"1행\n2행"}}, {});
+    const okV = verse.includes("v-line") && verse.includes("v-gap") && !verse.includes("vspace");
+    const okP = prose.includes("vspace");   // 산문은 기존대로 문단 간격
+    return { pass: okV && okP,
+             note: okV ? (okP?undefined:"산문 조판이 바뀜") : "운문이 행으로 안 나뉨" };
+  });
+
+  await check(G, "지문 종류·테두리는 허용값 밖을 받지 않는다", () => {
+    const k = v => win.normBlock({type:"passage", data:{kind:v, text:"x"}}).data.kind;
+    const b = v => win.normBlock({type:"passage", data:{boxed:v, text:"x"}}).data.boxed;
+    return k('"><img>')==="prose" && k("verse")==="verse"
+        && b('x" onerror="y')===false && b(true)===true;
+  });
+
+  await check(G, "<보기> 상자가 라벨과 함께 렌더된다", () => {
+    const h = win.blockHTML({type:"bogi", data:{label:"보 기", text:"내용"}}, {});
+    const ex = win.blockHTML({type:"examples", data:{label:"보 기", items:["ㄱ항목"]}}, {});
+    return h.includes("bogi-label") && h.includes("&lt;보 기&gt;")
+        && ex.includes("bogi-label");   // ㄱㄴㄷ 도 라벨을 주면 <보기> 상자
+  });
+
+  await check(G, "지문 라벨·보기 라벨에 넣은 스크립트가 실행되지 않는다", async () => {
+    const marker = "__kor_xss_"+Date.now();
+    const evil = `</div><img src=x onerror=window.${marker}=1>`;
+    const html = [
+      win.blockHTML(win.normBlock({type:"passage", data:{label:evil, text:"x"}}), {}),
+      win.blockHTML(win.normBlock({type:"bogi",    data:{label:evil, text:"x"}}), {}),
+      win.blockHTML(win.normBlock({type:"examples",data:{label:evil, items:["x"]}}), {}),
+    ].join("");
+    return { pass: await firesOnInnerHTML(html, marker) };
+  });
+
   await check(G, "지문 안내문·본문에 넣은 스크립트가 실행되지 않는다", async () => {
     const marker = "__psg_xss_"+Date.now();
     const html = win.blockHTML(
