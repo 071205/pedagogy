@@ -364,6 +364,41 @@ async function runIndexTests(){
              note: doc.lineColor==="teal" ? undefined : "클라우드 문서에 안 실림" };
   });
 
+  /* ── 지문 세트 (국어·영어) ── */
+  await check(G, "지문 블록이 정규화를 통과해 보존된다", () => {
+    const s = win.normSet({name:"국어", problems:[
+      {groupSpan:3, blocks:[{type:"passage", data:{text:"긴 지문", lead:"다음 글을 읽고"}}]}
+    ]}, {keepId:false});
+    const b = s.problems[0].blocks.find(x=>x.type==="passage");
+    return { pass: !!b && b.data.text==="긴 지문" && s.problems[0].groupSpan===3,
+             note: b ? undefined : "지문 블록이 버려짐" };
+  });
+
+  await check(G, "묶음 수가 번호 범위로 계산된다", () => {
+    const arr = [
+      {id:"a", groupSpan:3, blocks:[{type:"passage", data:{text:"x"}}]},
+      {id:"b", blocks:[{type:"statement", data:{text:""}}]},
+      {id:"c", blocks:[{type:"statement", data:{text:""}}]},
+    ];
+    const n = win.computeNums(arr);
+    return { pass: n[0].range==="01~03" && !n[1].range,
+             note: n[0].range ? undefined : "범위가 안 붙음 ("+JSON.stringify(n[0])+")" };
+  });
+
+  await check(G, "묶음 수는 1~10 밖 값을 받지 않는다", () => {
+    const mk = v => win.normProblem({groupSpan:v, blocks:[{type:"passage",data:{text:"x"}}]}, false).groupSpan;
+    return mk(999)===10 && mk(-5)===1 && mk("<script>")===1 && mk(null)===1;
+  });
+
+  await check(G, "지문 안내문·본문에 넣은 스크립트가 실행되지 않는다", async () => {
+    const marker = "__psg_xss_"+Date.now();
+    const html = win.blockHTML(
+      {type:"passage", data:{ lead:`</div><img src=x onerror=window.${marker}=1>`,
+                              text:`$$</div><img src=x onerror=window.${marker}=1>$$` }},
+      {range:"01~03"});
+    return { pass: await firesOnInnerHTML(html, marker) };
+  });
+
   // ── 저작권 푸터(최근 단계) ──
   await check(G, "라이브러리 푸터 존재 + 올해 연도 포함", () => {
     const ft = win.document.querySelector(".lib-footer");

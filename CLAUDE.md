@@ -118,8 +118,18 @@ pieces to know before editing:
 
 - **Data model**: a problem set is `{ id, title, problems: [...] }`; a problem
   (`newProblem()`) is `{ id, title, desc, answer, answerImg, numLabel, paired, blocks: [...] }`.
-  Each block is `{ type, data }` where `type` is one of `statement | conditions | examples |
-  boxed | choices | image` (see the `#blockType` `<select>` and `blockHTML()`).
+  Each block is `{ type, data }` where `type` is one of `statement | passage | conditions |
+  examples | boxed | choices | image` (see the `#blockType` `<select>` and `blockHTML()`).
+- **지문 세트 (국어·영어)**: `passage` 블록 + 문항의 `groupSpan`.
+  지문 블록을 가진 문항이 세트의 첫 문항이고, `groupSpan` 은 그 지문을 함께 쓰는
+  문항 수(자기 포함, 1~10)다. 뒤 문항에는 지문 블록을 넣지 않는다 — 지문은 첫
+  문항의 블록으로 한 번만 그려지고, `computeNums()` 가 `[01~03]` 범위 라벨을
+  만들어 `blockHTML(blk, ctx)` 의 `ctx.range` 로 넘긴다(블록 혼자서는 자기가 몇
+  번부터 몇 번까지를 대표하는지 알 수 없다). 범위 끝은 배열 밖으로 못 나가게
+  자른다 — 큰 `groupSpan` 을 두고 뒤 문항을 지우면 없는 번호를 가리킨다.
+- **시험지 선 색**: 문제집의 `lineColor`. `SHEET_COLORS` 목록 안의 값만 쓰고
+  실제 색은 `sheetHex()` 가 준다. 이 값은 `style` 의 `--sheet-line` 으로 들어가므로
+  ⚠️ **자유 문자열을 받으면 안 된다**(가져온 .json 으로 임의 CSS 가 섞인다).
 - **Persistence, three tiers**: localStorage (`setsKey()`, per-uid) is the always-on cache;
   Firestore is the source of truth when signed in via Firebase Google auth.
   **한 문제집 = 한 문서**: `users/{uid}/sets/{setId}`. 예전처럼 `users/{uid}` 문서 하나에

@@ -657,6 +657,12 @@ body.col-resizing{cursor:col-resize;user-select:none}
   border:1px solid #ddd;border-radius:10px;
   padding:8px 14px;background:#fafafa;margin:10px 0;
 }
+/* ── 지문 (국어·영어) ──
+   실제 시험지에서 지문은 테두리 없이 본문보다 조금 작게, 위아래로 넉넉히 띄워
+   싣는다. 안내문([01~03] 다음 글을 읽고…)만 굵게 앞에 붙는다. */
+.preview .passage{margin:10px 0 14px}
+.preview .psg-head{font-weight:700;margin-bottom:6px}
+.preview .psg-body{font-size:.94em;line-height:1.75;text-align:justify}
 .preview .cond-item{margin:4px 0;display:flex;gap:0.4em;align-items:baseline}
 .preview .ex-item{margin:4px 0;display:flex;gap:0.4em;align-items:baseline}
 .cond-label,.ex-label{flex-shrink:0;white-space:nowrap}
@@ -734,6 +740,10 @@ body.col-resizing{cursor:col-resize;user-select:none}
 .pq .content>div:last-child{margin-bottom:0}
 .vspace{display:block}
 .pq .boxed{border:1px solid #222;border-radius:2mm;padding:2mm 3.2mm;margin:3mm 0}
+/* 지문 — 인쇄면. 본문보다 살짝 작게 조판하고 양끝맞춤한다(실제 시험지 관례). */
+.pq .passage{margin:2mm 0 4mm}
+.pq .psg-head{font-weight:700;margin-bottom:1.6mm}
+.pq .psg-body{font-size:.94em;line-height:1.8;text-align:justify;word-break:keep-all}
 .pq .cond-item{display:flex;gap:0.5em;align-items:baseline;margin:1.5mm 0}
 .pq .ex-item{display:flex;gap:0.5em;align-items:baseline;margin:1.5mm 0}
 .pq .cond-label,.pq .ex-label{flex-shrink:0;white-space:nowrap}
@@ -1152,6 +1162,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     <div class="blockbar" style="gap:8px;margin-top:4px">
       <select id="blockType" style="flex:1">
         <option value="statement">문제 본문</option>
+        <option value="passage">지문 (국어·영어)</option>
         <option value="conditions">가나다 (조건)</option>
         <option value="examples">ㄱㄴㄷ (보기)</option>
         <option value="boxed">박스형 해설</option>
@@ -1587,7 +1598,7 @@ function newProblem(){ return { id:uid(), title:"", desc:"", answer:"", answerIm
    남이 만든 .json 은 신뢰하지 않는다. 알고 있는 필드만 화이트리스트로 뽑아내고
    타입·열거값·길이를 강제한다. (모의고사 편집기의 sanitize() 와 같은 취지)
    이 단계에서 걸러야 렌더 단계에서 예상 못 한 값이 DOM 에 닿지 않는다. */
-const BLOCK_TYPES=["statement","conditions","examples","boxed","choices","image"];
+const BLOCK_TYPES=["statement","conditions","examples","boxed","choices","image","passage"];
 const IMG_SIZES=["full","large","medium","small"];
 const str=(v,max=20000)=>typeof v==="string"?v.slice(0,max):"";
 
@@ -1597,6 +1608,10 @@ function normBlock(b){
   if(!type) return null;
   const d=(b.data&&typeof b.data==="object")?b.data:{};
   if(type==="statement"||type==="boxed") return {type,data:{text:str(d.text)}};
+  /* 지문 — 국어·영어처럼 글 하나를 여러 문항이 함께 쓰는 형식.
+     lead 는 "다음 글을 읽고 물음에 답하시오." 같은 안내문이다. 본문(text)은
+     지문이라 길 수 있어 상한을 넉넉히 둔다(다른 텍스트 블록은 str 기본 상한). */
+  if(type==="passage") return {type,data:{text:str(d.text,20000), lead:str(d.lead,200)}};
   if(type==="conditions"||type==="examples")
     return {type,data:{items:(Array.isArray(d.items)?d.items:[]).slice(0,20).map(t=>str(t))}};
   if(type==="choices")
@@ -1631,6 +1646,9 @@ function normProblem(p, keepId){
     title:str(p.title,300), desc:str(p.desc,300),
     answer:str(p.answer,5000), answerImg:safeUrl(p.answerImg),
     numLabel:str(p.numLabel,40), paired:p.paired===true,
+    /* 지문을 몇 문항이 함께 쓰는지(자기 자신 포함). 지문 블록이 있을 때만 뜻이 있다.
+       가져온 파일이 이상한 값을 줘도 1~10 으로 묶는다. */
+    groupSpan:Math.max(1,Math.min(10,Math.round(Number(p.groupSpan))||1)),
     span:['pair','col','page'].includes(p.span)?p.span:(p.paired===true?'pair':'col'),
     blocks:blocks.length?blocks:[{type:"statement",data:{text:""}}]
   };
@@ -2690,11 +2708,29 @@ const activeProblems=()=>activeSet()?.problems||[];
 const activeQ=()=>activeProblems().find(q=>q.id===currentQId);
 
 /* 자동 번호 부여: 묶음 여부 관계없이 순차 번호, numLabel 있으면 우선 */
+/* 지문 블록을 가진 문항인가 (= 지문 세트의 첫 문항) */
+function hasPassage(q){ return (q&&q.blocks||[]).some(b=>b&&b.type==="passage"); }
+/* 그 지문을 함께 쓰는 문항 수(자기 포함). 지문이 없으면 언제나 1. */
+function groupSpanOf(q){
+  if(!hasPassage(q)) return 1;
+  return Math.max(1, Math.min(10, Math.round(Number(q&&q.groupSpan))||1));
+}
+
 function computeNums(arr){
   const res=[]; let main=0;
   arr.forEach(q=>{
     main++;
     res.push({q, num: q.numLabel||String(main).padStart(2,'0')});
+  });
+  /* 지문 세트의 번호 범위([01~03]). 지문 블록을 렌더할 때 머리에 붙인다.
+     끝 번호는 배열 밖으로 나가지 않게 자른다 — 마지막 문항에 span 을 크게
+     잡아 두고 뒤 문항을 지우면 범위가 없는 번호를 가리킬 수 있다. */
+  res.forEach((r,i)=>{
+    const span=groupSpanOf(r.q);
+    if(span>1){
+      const last=res[Math.min(i+span-1, res.length-1)];
+      if(last && last!==r) r.range=r.num+"~"+last.num;
+    }
   });
   return res;
 }
@@ -3018,10 +3054,11 @@ let sortableBlocks=null;
 function autoSizeTA(ta){ ta.style.height='auto'; ta.style.height=(ta.scrollHeight+2)+'px'; }
 
 /* 블록 종류별 기본값 — 추가·타입 변경에서 함께 쓴다 */
-const BLK_LABELS={statement:"문제 본문",conditions:"가나다 조건",examples:"ㄱㄴㄷ 보기",
+const BLK_LABELS={statement:"문제 본문",passage:"지문",conditions:"가나다 조건",examples:"ㄱㄴㄷ 보기",
                   boxed:"박스형 해설",choices:"답 선지",image:"이미지"};
 function blankBlockData(type){
   if(type==="statement"||type==="boxed") return {text:""};
+  if(type==="passage") return {text:"", lead:"다음 글을 읽고 물음에 답하시오."};
   if(type==="conditions"||type==="examples") return {items:[""]};
   if(type==="choices") return {items:["","","","",""],layout:"horizontal"};
   if(type==="image") return {dataUrl:"",size:"full"};
@@ -3180,6 +3217,38 @@ function renderEditor(){
     const sep=el("div","blk-sep");
     const body=el("div","blk-body");
 
+    if(blk.type==="passage"){
+      // 안내문 — [01~03] 뒤에 붙는 문장
+      const lead=el("input"); lead.type="text"; lead.className="field-input";
+      lead.placeholder="다음 글을 읽고 물음에 답하시오.";
+      lead.value=blk.data.lead||"";
+      lead.oninput=e=>{ blk.data.lead=e.target.value; renderPreview(); saveSets(); };
+      const lw=el("div","row"); lw.append(el("div","label","안내"), lead);
+      body.append(lw);
+
+      const ta=el("textarea"); ta.placeholder="지문 본문 — 문단은 줄바꿈으로 나눕니다";
+      ta.value=blk.data.text||""; ta.style.minHeight="220px"; autoSizeTA(ta);
+      body.append(ta);
+      ta.addEventListener('input',e=>{ blk.data.text=e.target.value; autoSizeTA(ta); renderPreview(); saveSets(); });
+
+      // 몇 문항이 이 지문을 함께 쓰는지
+      const gs=el("div","row"); gs.style.marginTop="8px";
+      gs.append(el("div","label","묶음"));
+      const sel=el("select");
+      for(let n=1;n<=10;n++){
+        const o=el("option",null,n===1?"이 문항만":`이 문항부터 ${n}문항`);
+        o.value=String(n); sel.append(o);
+      }
+      sel.value=String(groupSpanOf(q));
+      sel.onchange=e=>{
+        q.groupSpan=Math.max(1,Math.min(10,parseInt(e.target.value,10)||1));
+        renderQList(); renderPreview(); saveSets();
+      };
+      gs.append(sel);
+      body.append(gs);
+      body.append(el("div","dm-note","묶은 문항 수만큼 안내문 앞에 [01~03] 처럼 번호 범위가 붙습니다. 뒤 문항에는 지문을 다시 넣지 마세요."));
+    }
+
     if(blk.type==="statement"||blk.type==="boxed"){
       const ta=el("textarea"); ta.placeholder= blk.type==="boxed"?"박스형 해설 (LaTeX)":"본문 (LaTeX)";
       ta.value=blk.data.text||""; autoSizeTA(ta);
@@ -3252,7 +3321,7 @@ function renderEditor(){
 
   $("#addBlockBtn").onclick=()=>{
     const type=$("#blockType").value;
-    const def=(type==="statement"||type==="boxed")?{text:""}:(type==="conditions"||type==="examples")?{items:[""]}:(type==="choices")?{items:["","","","",""],layout:"horizontal"}:(type==="image")?{dataUrl:"",size:"full"}:{};
+    const def=(type==="passage")?{text:"",lead:"다음 글을 읽고 물음에 답하시오."}:(type==="statement"||type==="boxed")?{text:""}:(type==="conditions"||type==="examples")?{items:[""]}:(type==="choices")?{items:["","","","",""],layout:"horizontal"}:(type==="image")?{dataUrl:"",size:"full"}:{};
     const q=activeQ(); q.blocks.push({type, data:def}); saveSets(); renderEditor(); renderPreview();
   };
 
@@ -3515,7 +3584,18 @@ function processText(raw){
 }
 
 /* Preview */
-function blockHTML(blk){
+/* ctx 로 범위 라벨(range)을 넘겨받는다 — 지문 블록만 쓴다.
+   지문은 블록이지만 '이 문항 하나' 가 아니라 '문항 묶음' 을 대표하므로
+   블록 안에서는 알 수 없는 번호 범위를 바깥에서 받아야 한다. */
+function blockHTML(blk, ctx){
+  if(blk.type==="passage"){
+    const lead=str(blk.data.lead,200);
+    const range=(ctx&&ctx.range)||"";
+    const head=(range||lead)
+      ? `<div class="psg-head">${range?`<b>[${sanitize(range)}]</b> `:""}${sanitize(lead)}</div>`
+      : "";
+    return `<div class="passage">${head}<div class="psg-body">${processText(blk.data.text)}</div></div>`;
+  }
   if(blk.type==="statement") return `<div>${processText(blk.data.text)}</div>`;
   if(blk.type==="boxed") return `<div class="boxed">${processText(blk.data.text)}</div>`;
   if(blk.type==="conditions"){
@@ -3552,7 +3632,8 @@ function renderPreview(){
   // 번호 오른쪽에 제목/부제목
   $("#pvNum").innerHTML=`${displayNum}${q.title||q.desc?`<span style="font-family:var(--body-serif);font-size:13px;font-weight:500;color:#555;margin-left:8px">${sanitize(q.title)}${q.desc?` <span style="color:#888;font-weight:400">· ${sanitize(q.desc)}</span>`:""}</span>`:""}`;
   const ansHtml=(q.answer||q.answerImg)?`<div style="margin-top:10px;font-size:12px;color:#444;border-top:1px solid #ddd;padding-top:6px">${q.answer?`<span>정답: ${sanitize(q.answer)}</span>`:""}${safeUrl(q.answerImg)?`<img src="${safeUrl(q.answerImg)}" style="max-height:40px;display:block;margin-top:4px">`:"" }</div>`:"";
-  const html=`${q.blocks.map(blockHTML).join("")}${ansHtml}`;
+  const pvRange=nums.find(n=>n.q===q)?.range||"";
+  const html=`${q.blocks.map(b=>blockHTML(b,{range:pvRange})).join("")}${ansHtml}`;
   $("#pvContent").innerHTML = html;
   try{
     renderMathInElement($("#pvContent"),{
@@ -3777,6 +3858,7 @@ function buildPrintDoc(hideAnswers){
   const nums=computeNums(qs);
   // 번호는 사용자가 정한 numLabel 이 섞이므로 이스케이프한다(아래 innerHTML 조립에 들어간다)
   const numOf=q=>sanitize(String(nums.find(n=>n.q===q)?.num ?? "??"));
+  const rangeOf=q=>nums.find(n=>n.q===q)?.range||"";
 
   /* ── 지면 배치 ──
      문항마다 차지하는 크기를 고를 수 있다(spanOf).
@@ -3828,7 +3910,7 @@ function buildPrintDoc(hideAnswers){
         const num=numOf(q);
         const metaHtml=(q.title||q.desc)?`<div style="display:flex;flex-direction:column;gap:0.3mm;justify-content:center"><span style="font-family:'KoPub Batang','Times New Roman',serif;font-size:9pt;font-weight:500;color:#555">${sanitize(q.title)}${q.desc?` <span style="color:#888;font-weight:400">· ${sanitize(q.desc)}</span>`:""}</span></div>`:"";
         const ansHtml=(q.answer||q.answerImg)&&!hideAnswers?`<div class="answer-block">정답: ${q.answer?`<span class="ans-text">${sanitize(q.answer)}</span>`:""}${safeUrl(q.answerImg)?`<img class="answer-img" src="${safeUrl(q.answerImg)}">`:" "}</div>`:"";
-        box.innerHTML=`<div class="pq-header"><div class="num">${num}</div>${metaHtml}</div><div class="content">${q.blocks.map(blockHTML).join("")}${ansHtml}</div>`;
+        box.innerHTML=`<div class="pq-header"><div class="num">${num}</div>${metaHtml}</div><div class="content">${q.blocks.map(b=>blockHTML(b,{range:rangeOf(q)})).join("")}${ansHtml}</div>`;
         holder.append(box);
       });
       cols.append(holder);
