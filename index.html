@@ -320,7 +320,10 @@ label.btn input{display:none}
 }
 .set-card:hover{border-color:#3F3F4F;box-shadow:0 4px 24px rgba(0,0,0,.4);transform:translateY(-2px)}
 .set-card h3{margin:0 0 8px 0;font-size:17px;font-weight:700;color:var(--text-primary);line-height:1.3;padding-right:24px}
-.set-card .count{margin:0;color:var(--text-secondary);font-size:13px}
+.set-card .count{margin:0;color:var(--text-secondary);font-size:13px;
+  display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.set-subj{font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;
+  background:var(--surface-3);color:var(--text-secondary);white-space:nowrap}
 .dotbtn{
   position:absolute;top:12px;right:12px;
   background:transparent;border:none;color:var(--text-tertiary);
@@ -2912,6 +2915,13 @@ function renderLibrary(){
     const card=el("div","set-card");
     const title=el("h3",null,s.name||"제목 없음");
     const count=el("p","count",`${(s.problems?.length||0)} 문항`);
+    /* 어떤 과목 편집기로 만든 문제집인지 한눈에 보이게 문항 수 옆에 붙인다.
+       '제한 없음' 은 과목을 안 정했다는 뜻이라 배지를 달지 않는다(빈 칩이 늘어서 지저분해진다). */
+    const subj=SUBJECTS.find(x=>x.v===normSubject(s.subject));
+    if(subj && subj.v!=="all"){
+      const tag=el("span","set-subj", subj.name);
+      count.append(document.createTextNode(" "), tag);
+    }
     card.append(title,count);
 
     const dots=el("button","dotbtn","⋮"); card.append(dots);

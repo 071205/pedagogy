@@ -573,6 +573,38 @@ async function runIndexTests(){
     return { pass: String(w) === "300", note: String(w)==="300" ? undefined : "굵기가 "+w };
   });
 
+  await check(G, "라이브러리 카드에 과목이 표시된다", () => {
+    /* sets 는 let 선언이라 바깥에서 대입할 수 없다 — iframe 안에 스크립트를
+       넣어 통째로 실행한다. 실데이터를 잠깐 바꾸므로 반드시 지킬 것:
+         · 전부 동기로 (중간에 저장 타이머가 끼어들 틈을 주지 않는다)
+         · try/finally 로 원래 배열을 되돌린다 (예외가 나도)
+         · renderLibrary() 만 부른다 — 저장 함수는 건드리지 않는다 */
+    const s = win.document.createElement("script");
+    s.textContent = `window.__LIBTEST__ = (function(){
+      var before = sets;
+      try{
+        sets = [
+          {id:"__t1", name:"수학 것", subject:"math", header:"", problems:[]},
+          {id:"__t2", name:"미지정",  subject:"all",  header:"", problems:[]},
+        ];
+        renderLibrary();
+        var cards = [].slice.call(document.querySelectorAll(".set-card"));
+        var tag0 = cards[0] && cards[0].querySelector(".set-subj");
+        var tag1 = cards[1] && cards[1].querySelector(".set-subj");
+        return { n: cards.length,
+                 first: tag0 ? tag0.textContent : null,
+                 secondHasTag: !!tag1 };
+      } finally { sets = before; renderLibrary(); }
+    })();`;
+    win.document.head.appendChild(s); s.remove();
+    const r = win.__LIBTEST__;
+    if(!r) return {pass:false, note:"iframe 안에서 실행되지 않음"};
+    return { pass: r.n===2 && r.first==="수학" && r.secondHasTag===false,
+             note: r.first==="수학"
+                   ? (r.secondHasTag ? "'제한 없음' 에도 배지가 붙음" : undefined)
+                   : "과목 배지가 없거나 내용이 다름(" + r.first + ")" };
+  });
+
   // ── 저작권 푸터(최근 단계) ──
   await check(G, "라이브러리 푸터 존재 + 올해 연도 포함", () => {
     const ft = win.document.querySelector(".lib-footer");
