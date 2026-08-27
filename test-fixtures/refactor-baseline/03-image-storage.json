@@ -1,0 +1,20 @@
+{
+  "name": "[기준] 이미지 블록",
+  "header": "리팩터링 기준 샘플 · 이미지",
+  "subject": "inquiry",
+  "lineColor": "teal",
+  "problems": [
+    {
+      "title": "이미지·설명·정답",
+      "desc": "다음 자료를 보고 옳은 설명을 고르시오.",
+      "answer": "①",
+      "answerImg": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+      "span": "col",
+      "blocks": [
+        {"type": "image", "data": {"size": "small", "dataUrl": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="}},
+        {"type": "statement", "data": {"text": "위 자료는 이미지 블록이 저장·미리보기·인쇄 경로를 모두 통과하는지 확인하기 위한 기준 이미지이다."}},
+        {"type": "choices", "data": {"layout": "vertical", "items": ["이미지가 표시된다.", "이미지는 정답에만 표시된다.", "이미지는 수식으로 변환된다.", "이미지는 항상 삭제된다.", "이미지가 있으면 저장할 수 없다."]}}
+      ]
+    }
+  ]
+}

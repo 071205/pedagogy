@@ -1,0 +1,11 @@
+{
+  "name": "pedagogy-commercial-readiness",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test:worker": "node worker/quota.test.mjs",
+    "check:static": "node scripts/check-static.mjs",
+    "check:rules": "npx --yes firebase-tools emulators:exec --project pedagogy-rules-test --only firestore,storage \"node scripts/verify-rules-emulator.mjs\"",
+    "check:launch": "node scripts/check-launch-readiness.mjs"
+  }
+}

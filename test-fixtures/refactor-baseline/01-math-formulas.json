@@ -1,0 +1,31 @@
+{
+  "name": "[기준] 수학 수식·선지",
+  "header": "리팩터링 기준 샘플 · 수학",
+  "subject": "math",
+  "lineColor": "indigo",
+  "problems": [
+    {
+      "title": "수식 조판",
+      "desc": "다음 식을 만족하는 실수 $x$의 값을 구하시오.",
+      "answer": "2",
+      "span": "col",
+      "blocks": [
+        {"type": "statement", "data": {"text": "$\\\\frac{x^2-4}{x-2}=x+2$ 이고 $x>0$이다."}},
+        {"type": "conditions", "data": {"label": "조건", "items": ["$a_n=2n-1$", "$\\\\sum_{k=1}^{n}a_k=n^2$"]}},
+        {"type": "boxed", "data": {"text": "$$\\\\int_0^1 (x^2+1)\\\\,dx=\\\\frac{4}{3}$$"}},
+        {"type": "choices", "data": {"layout": "horizontal", "items": ["$0$", "$1$", "$2$", "$3$", "$4$"]}}
+      ]
+    },
+    {
+      "title": "긴 블록 수식",
+      "desc": "다음 보기에서 옳은 것을 고르시오.",
+      "answer": "③",
+      "span": "page",
+      "blocks": [
+        {"type": "statement", "data": {"text": "$$\\\\begin{aligned} f(x)&=x^3-3x+1\\\\\\\\ f'(x)&=3x^2-3 \\end{aligned}$$"}},
+        {"type": "examples", "data": {"items": ["$f(-1)=3$", "$f(0)=1$", "$f(1)=-1$"]}},
+        {"type": "choices", "data": {"layout": "vertical", "items": ["극댓값은 $3$이다.", "극솟값은 $-1$이다.", "$f'(0)=0$이다.", "$f$는 모든 실수에서 증가한다.", "$f$는 짝함수이다."]}}
+      ]
+    }
+  ]
+}

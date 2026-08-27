@@ -82,9 +82,9 @@ test page can't reach into the iframes; it shows a banner explaining this instea
 silently. (If you ever rename this file, update its entry in `STATIC` in `serve.py` too — that
 whitelist is exact-match, so a stale entry just 404s.)
 
-The AI Worker quota state machine has a dependency-free Node test. It runs both the Wrangler
-entry point and the Cloudflare-dashboard single-file copy, so run it after changing
-`worker/index.js`, `worker/worker-single-file.js`, or `worker/wrangler.toml`:
+The AI Worker quota state machine has a dependency-free Node test. The commercial deployment
+uses only the Wrangler entry point—there is deliberately no dashboard paste-in copy that can
+drift from production—so run it after changing `worker/index.js` or `worker/wrangler.toml`:
 
 ```bash
 node worker/quota.test.mjs
@@ -400,10 +400,12 @@ Pages–hosted `index.html` can also call into (via `--allow-origin`).
   엔진이라 한 문자열이 양쪽에서 동작하지 않는다. 합칠 수 있는 건 여기까지다.
   ⚠️ 이 통합을 되돌리지 말 것. 회귀 스위트가 팔레트에 빠진 메서드와
   `renderProb`/`probTypst` 가 `paintProblem` 을 거치는지를 검사한다.
-- **AI Worker 의 일일 한도**는 `DailyQuota` Durable Object가 예약·확정으로 직렬화한다.
+- **AI Worker 의 일일 한도**는 `DailyQuota` Durable Object가 예약·사용 확정으로 직렬화한다.
+  외부 AI 요청 전에 사용량을 세고, 48시간 alarm·계정 삭제로 기록을 파기한다.
   `worker/wrangler.toml`의 Durable Object 바인딩과 migration을 지우거나 KV 방식으로
   되돌리면 병렬 호출이 상한을 넘길 수 있으니, 변경 뒤에는 `node worker/quota.test.mjs`를
-  반드시 실행할 것.
+  반드시 실행할 것. 상용 배포 전에는 `docs/COMMERCIAL-LAUNCH.md`와
+  `npm run check:launch`도 확인한다.
 - **본체 인쇄 경로와 미리보기의 축소 로직**이 여전히 별개다
   (`fitPrintDoc()` vs `fitMathIn()`) — 선지 줄바꿈 보정은 인쇄에만 있다.
 

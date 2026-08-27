@@ -10,6 +10,7 @@
  * 이 계정의 AI 사용량을 태울 수 있었다. 이제:
  *   · Firebase ID 토큰이 있어야 하고(로그인한 사용자만)
  *   · 사용자별 하루 호출 횟수를 원자적으로 제한하며
+ *   · AI 호출 기록은 48시간 뒤 자동 파기하고, 계정 삭제 때 즉시 파기하며
  *   · 허용된 출처에서 온 요청만 받는다
  *
  * ── 배포 ──
@@ -21,13 +22,17 @@
  *   FIREBASE_PROJECT_ID  예: pedagogy-huryul
  *   ALLOWED_ORIGINS      쉼표로 구분한 허용 출처
  *   DAILY_LIMIT          사용자당 하루 호출 상한 (기본 50)
+ *   PLAN_DAILY_LIMITS_JSON Firebase custom claim별 상한 JSON (선택)
  *   ANTHROPIC_KEY        (Secret) AI 공급자 키
- *   QUOTA                (Durable Object 바인딩) 사용량 예약·확정 카운터
+ *   QUOTA                (Durable Object 바인딩) 사용량 카운터
  */
 
 import { verifyIdToken } from "./auth.js";
 
 const DEFAULT_DAILY_LIMIT = 50;
+// 환경 변수 오타나 잘못된 Billing claim 매핑이 비용 상한을 무력화하지 않게 하는
+// 최종 방어선이다. 더 큰 계약 플랜이 필요하면 코드 리뷰와 비용 알림을 함께 갱신한다.
+const MAX_DAILY_LIMIT = 10_000;
 const MAX_BODY_BYTES = 8 * 1024 * 1024; // 이미지 base64 상한
 
 function allowedOrigins(env) {
@@ -49,7 +54,7 @@ function corsHeaders(request, env) {
     h["Access-Control-Allow-Origin"] = origin;
     h["Vary"] = "Origin";
     h["Access-Control-Allow-Headers"] = "Content-Type, Authorization";
-    h["Access-Control-Allow-Methods"] = "POST, OPTIONS";
+    h["Access-Control-Allow-Methods"] = "POST, DELETE, OPTIONS";
     h["Access-Control-Max-Age"] = "600";
   }
   return h;
@@ -62,19 +67,37 @@ const json = (obj, status, headers) =>
   });
 
 /**
- * 사용자별 하루 호출 제한. uid+UTC 날짜마다 Durable Object 인스턴스를 하나만 쓰므로
- * 확인·예약·확정이 직렬화된다. AI 호출 전에 예약하고, 공급자 실패 때만 예약을 풀어
- * 실패 요청이 일일 한도를 영구히 깎지 않게 한다.
+ * 사용자별 하루 호출 제한. UID 원문은 Durable Object 이름에 넣지 않고 SHA-256 해시를 쓴다.
+ * 각 uid+UTC 날짜는 하나의 Durable Object를 쓰므로 예약·사용 확정이 직렬화된다.
+ *
+ * 외부 AI 요청은 정확히 한 번 사용량을 세는 트랜잭션으로 만들 수 없다. 요청을 보낸 뒤
+ * 네트워크가 끊기면 공급자가 이미 처리했는지 알 수 없기 때문이다. 그래서 실제 외부 요청을
+ * 시작하기 전에 사용량을 확정한다. 공급자 오류도 하나의 AI 요청 시도로 센다. 이 정책이
+ * 비용 상한을 지키며, 정상 입력 검증 실패는 그 전에 걸러져 사용량을 차감하지 않는다.
  */
-function quotaKey(uid) {
-  const day = new Date().toISOString().slice(0, 10); // UTC 기준 YYYY-MM-DD
-  return `ai:${uid}:${day}`;
+async function quotaKey(uid, when = new Date()) {
+  const bytes = new TextEncoder().encode(uid);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  const hash = [...new Uint8Array(digest)].map((n) => n.toString(16).padStart(2, "0")).join("");
+  const day = when.toISOString().slice(0, 10); // UTC 기준 YYYY-MM-DD
+  return `ai:${hash}:${day}`;
 }
 const RESERVATION_TTL_MS = 5 * 60 * 1000;
+const QUOTA_RETENTION_MS = 48 * 60 * 60 * 1000;
 
-function dailyLimit(env) {
+function isDailyLimit(value) {
+  return Number.isSafeInteger(value) && value > 0 && value <= MAX_DAILY_LIMIT;
+}
+
+function dailyLimit(env, claims) {
   const n = parseInt(env.DAILY_LIMIT || DEFAULT_DAILY_LIMIT, 10);
-  return Number.isSafeInteger(n) && n > 0 ? n : DEFAULT_DAILY_LIMIT;
+  const fallback = isDailyLimit(n) ? n : DEFAULT_DAILY_LIMIT;
+  let plans;
+  try { plans = JSON.parse(env.PLAN_DAILY_LIMITS_JSON || "{}"); }
+  catch { return fallback; }
+  const plan = typeof claims?.pedagogy_plan === "string" ? claims.pedagogy_plan : "free";
+  const limit = plans?.[plan];
+  return isDailyLimit(limit) ? limit : fallback;
 }
 
 function quotaState(raw) {
@@ -84,7 +107,7 @@ function quotaState(raw) {
   return {
     used: Number.isSafeInteger(raw?.used) && raw.used >= 0 ? raw.used : 0,
     reservations: validTimes(raw?.reservations),
-    committed: validTimes(raw?.committed),
+    consumed: validTimes(raw?.consumed),
   };
 }
 
@@ -108,9 +131,15 @@ export class DailyQuota {
 
     const op = body?.op;
     const reservationId = typeof body?.reservationId === "string" ? body.reservationId : "";
-    const limit = Number.isSafeInteger(body?.limit) && body.limit > 0 ? body.limit : DEFAULT_DAILY_LIMIT;
-    if (!['reserve', 'commit', 'release'].includes(op) || !reservationId || reservationId.length > 128)
+    const limit = isDailyLimit(body?.limit) ? body.limit : DEFAULT_DAILY_LIMIT;
+    if (!['reserve', 'consume', 'release', 'purge'].includes(op)
+      || (op !== 'purge' && (!reservationId || reservationId.length > 128)))
       return json({ error: "잘못된 quota 요청입니다" }, 400, {});
+
+    if (op === "purge") {
+      await this.state.storage.deleteAll();
+      return json({ ok: true }, 200, {});
+    }
 
     const result = await this.state.storage.transaction(async (storage) => {
       const state = quotaState(await storage.get("quota"));
@@ -119,7 +148,7 @@ export class DailyQuota {
       const pending = () => Object.keys(state.reservations).length;
 
       if (op === "reserve") {
-        if (state.committed[reservationId] || state.reservations[reservationId]) {
+        if (state.consumed[reservationId] || state.reservations[reservationId]) {
           return { ok: true, used: state.used, limit, pending: pending() };
         }
         if (state.used + pending() >= limit) {
@@ -127,24 +156,25 @@ export class DailyQuota {
         }
         state.reservations[reservationId] = now;
         await storage.put("quota", state);
+        if (await storage.getAlarm() === null) await storage.setAlarm(now + QUOTA_RETENTION_MS);
         return { ok: true, used: state.used, limit, pending: pending() };
       }
 
-      if (op === "commit") {
-        if (state.committed[reservationId]) {
+      if (op === "consume") {
+        if (state.consumed[reservationId]) {
           return { ok: true, used: state.used, limit, pending: pending() };
         }
         if (!state.reservations[reservationId]) {
           return { ok: false, used: state.used, limit, pending: pending(), error: "reservation expired" };
         }
         delete state.reservations[reservationId];
-        state.committed[reservationId] = now;
+        state.consumed[reservationId] = now;
         state.used += 1;
         await storage.put("quota", state);
         return { ok: true, used: state.used, limit, pending: pending() };
       }
 
-      // AI 공급자 실패 시에만 예약을 반납한다. 이미 확정된 요청은 되돌리지 않는다.
+      // 외부 AI 요청을 시작하기 전에만 예약을 반납한다.
       if (state.reservations[reservationId]) {
         delete state.reservations[reservationId];
         await storage.put("quota", state);
@@ -153,16 +183,21 @@ export class DailyQuota {
     });
     return json(result, 200, {});
   }
+
+  async alarm() {
+    // 오래된 일자별 카운터가 요청을 받지 않아도 48시간 뒤 자동 파기된다.
+    await this.state.storage.deleteAll();
+  }
 }
 
-async function quotaRequest(env, uid, op, reservationId) {
+async function quotaRequest(env, uid, op, reservationId = "", { limit, when } = {}) {
   if (!env.QUOTA) throw new Error("QUOTA Durable Object 바인딩이 설정되지 않았습니다");
-  const id = env.QUOTA.idFromName(quotaKey(uid));
+  const id = env.QUOTA.idFromName(await quotaKey(uid, when));
   const stub = env.QUOTA.get(id);
   const r = await stub.fetch("https://quota.internal/" + op, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ op, reservationId, limit: dailyLimit(env) }),
+    body: JSON.stringify({ op, reservationId, limit: isDailyLimit(limit) ? limit : dailyLimit(env) }),
   });
   if (!r.ok) throw new Error("quota 처리 실패 (" + r.status + ")");
   return r.json();
@@ -172,17 +207,23 @@ export default {
   async fetch(request, env) {
     const cors = corsHeaders(request, env);
 
+    // 인증이 필요 없는 운영 상태 확인용. 사용자·사용량·설정값은 전혀 반환하지 않는다.
+    if (request.method === "GET" && new URL(request.url).pathname === "/health") {
+      return json({ ok: true }, 200, { "Cache-Control": "no-store" });
+    }
+
     if (request.method === "OPTIONS") {
       return new Response(null, { status: 204, headers: cors });
     }
-    if (request.method !== "POST") {
-      return json({ error: "POST 만 허용합니다" }, 405, cors);
+    if (request.method !== "POST" && request.method !== "DELETE") {
+      return json({ error: "POST 또는 DELETE 만 허용합니다" }, 405, cors);
     }
 
-    // 허용 목록을 설정했다면, 그 출처에서 온 브라우저 요청만 받는다
+    // 공개 브라우저 API는 허용 목록의 출처에서만 받는다. Origin 없는 직접 호출도
+    // 허용하면 다른 웹·스크립트가 Firebase 토큰을 들고 이 API를 재사용할 수 있다.
     const origin = request.headers.get("Origin");
     const list = allowedOrigins(env);
-    if (origin && list.length && !list.includes(origin)) {
+    if (!origin || !list.includes(origin)) {
       return json({ error: "허용되지 않은 출처입니다" }, 403, cors);
     }
 
@@ -200,6 +241,20 @@ export default {
       // 실패 사유를 그대로 흘리면 공격자에게 힌트가 되므로 로그로만 남긴다
       console.error("토큰 검증 실패:", e.message);
       return json({ error: "로그인이 유효하지 않습니다" }, 401, cors);
+    }
+
+    if (request.method === "DELETE") {
+      try {
+        // 현재 UTC 일자와 직전 이틀만 남아 있을 수 있다(48시간 retention).
+        const now = Date.now();
+        await Promise.all([0, 1, 2].map((daysAgo) =>
+          quotaRequest(env, user.uid, "purge", "", { when: new Date(now - daysAgo * 24 * 60 * 60 * 1000) })
+        ));
+        return new Response(null, { status: 204, headers: cors });
+      } catch (e) {
+        console.error("AI usage 삭제 실패:", e?.message || e);
+        return json({ error: "AI 사용 기록을 지우지 못했습니다. 잠시 후 다시 시도해 주세요." }, 503, cors);
+      }
     }
 
     // ── 2. 본문 검사 (사용량을 깎기 전에 먼저) ──
@@ -222,16 +277,20 @@ export default {
     if (imageBase64.length > MAX_BODY_BYTES) {
       return json({ error: "이미지가 너무 큽니다" }, 413, cors);
     }
-    if (typeof mimeType !== "string" || !/^image\//.test(mimeType)) {
+    if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(mimeType)) {
       return json({ error: "이미지 형식이 아닙니다" }, 400, cors);
     }
+    if (!env.ANTHROPIC_KEY) {
+      return json({ error: "AI 기능을 일시적으로 사용할 수 없습니다. 잠시 후 다시 시도해 주세요." }, 503, cors);
+    }
+    const limit = dailyLimit(env, user.claims);
 
     // ── 3. 남은 한도를 원자적으로 예약 ──
     const reservationId = crypto.randomUUID();
     let reserved = false;
     let rate;
     try {
-      rate = await quotaRequest(env, user.uid, "reserve", reservationId);
+      rate = await quotaRequest(env, user.uid, "reserve", reservationId, { limit });
       reserved = !!rate.ok;
     } catch (e) {
       console.error("AI quota 예약 실패:", e);
@@ -244,20 +303,28 @@ export default {
       );
     }
 
-    // ── 4. AI 호출 후 예약 확정 (키는 env 에서만 읽고 응답에 절대 담지 않는다) ──
+    // ── 4. 외부 호출 전에 사용량 확정 ──
+    let after;
     try {
-      const problems = await callAI(env, imageBase64, mimeType);
-      const after = await quotaRequest(env, user.uid, "commit", reservationId);
+      after = await quotaRequest(env, user.uid, "consume", reservationId, { limit });
       if (!after.ok) throw new Error("AI 사용량 확정에 실패했습니다");
       reserved = false;
-      return json({ problems, usage: { used: after.used, limit: after.limit } }, 200, cors);
     } catch (e) {
       if (reserved) {
-        try { await quotaRequest(env, user.uid, "release", reservationId); }
+        try { await quotaRequest(env, user.uid, "release", reservationId, { limit }); }
         catch (releaseError) { console.error("AI quota 예약 해제 실패:", releaseError); }
       }
-      console.error("AI 호출 실패:", e);
-      return json({ error: "AI 변환에 실패했습니다", detail: String(e.message || e) }, 502, cors);
+      console.error("AI quota 확정 실패:", e?.message || e);
+      return json({ error: "AI 사용량을 확정하지 못했습니다. 잠시 후 다시 시도해 주세요." }, 503, cors);
+    }
+
+    // ── 5. AI 호출 (사용량은 이미 확정됨) ──
+    try {
+      const problems = await callAI(env, imageBase64, mimeType);
+      return json({ problems, usage: { used: after.used, limit: after.limit } }, 200, cors);
+    } catch (e) {
+      console.error("AI 호출 실패:", e?.message || e);
+      return json({ error: "AI 변환에 실패했습니다. 이미지와 네트워크 상태를 확인한 뒤 다시 시도해 주세요." }, 502, cors);
     }
   },
 };
@@ -330,8 +397,9 @@ async function callAI(env, imageBase64, mimeType) {
   });
 
   if (!r.ok) {
-    // 공급자 오류 원문에는 키가 섞일 수 있으니 상태 코드만 올린다
-    console.error("Anthropic API 오류:", r.status, await r.text());
+    // 공급자 오류 원문과 AI 출력은 운영 로그에 남기지 않는다. 문제 이미지의 내용이나
+    // 개인 정보가 오류 설명에 반사될 수 있기 때문이다.
+    console.error("Anthropic API 오류:", r.status);
     throw new Error("AI 공급자 오류 (" + r.status + ")");
   }
 
@@ -343,7 +411,7 @@ async function callAI(env, imageBase64, mimeType) {
   try {
     parsed = JSON.parse(clean);
   } catch {
-    console.error("JSON 파싱 실패. 응답 앞부분:", clean.slice(0, 300));
+    console.error("AI JSON 파싱 실패");
     throw new Error("AI 응답을 해석하지 못했습니다");
   }
 

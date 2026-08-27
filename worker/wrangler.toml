@@ -11,6 +11,9 @@ FIREBASE_PROJECT_ID = "pedagogy-huryul"
 ALLOWED_ORIGINS = "https://071205.github.io,http://127.0.0.1:8787,http://localhost:8787,http://127.0.0.1:8080,http://localhost:8080"
 # 사용자 한 명당 하루 호출 상한
 DAILY_LIMIT = "50"
+# 결제 webhook 전용 백엔드가 Firebase Admin custom claim `pedagogy_plan`을 발급한 뒤
+# 이 JSON에 해당 플랜 상한을 명시한다. 클라이언트가 직접 이 값을 바꿀 수는 없다.
+# PLAN_DAILY_LIMITS_JSON = '{"free":50,"pro":300,"team":600}'
 # 모델을 바꾸고 싶으면 여기서 (기본 claude-haiku-4-5)
 # AI_MODEL = "claude-haiku-4-5"
 
@@ -23,6 +26,12 @@ class_name = "DailyQuota"
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["DailyQuota"]
+
+# 원본 요청 본문·AI 출력은 절대 console에 남기지 않는다. 낮은 샘플의 상태·오류 메타데이터만
+# 관찰해 장애와 비용 급증을 감지한다. 실제 운영자는 Cloudflare 대시보드에서 보존 기간을 확인한다.
+[observability]
+enabled = true
+head_sampling_rate = 0.1
 
 # AI 공급자 키는 이미 이 Worker 에 secret 으로 등록돼 있다(ANTHROPIC_KEY).
 # 새로 넣어야 할 때만:  npx wrangler secret put ANTHROPIC_KEY

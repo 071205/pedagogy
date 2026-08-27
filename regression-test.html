@@ -168,7 +168,7 @@ async function runIndexTests(){
       w => w.safeUrl && w.normSet && w.normProblem && w.setActivePane && w.showLibrary);
     H = installHooks(win, ["sanitize","MAX_UPLOAD_BYTES","CLOUD_MAX_PROBLEMS","AI_MAX_DIM","AI_QUALITY",
       "setJSON","cloudSyncEntry","isCloudSynced","shouldUseCloudResult",
-      "storageCleanupComplete","storageCleanupMessage"]);
+      "storageCleanupComplete","storageCleanupMessage","planLabel"]);
   }catch(e){
     if(e.message === "CROSS_ORIGIN"){ $("#corsBanner").style.display="block"; }
     record(G, "iframe 로드", false, e.message);
@@ -231,6 +231,12 @@ async function runIndexTests(){
 
   await check(G, "AI 전송 이미지 상수 1568px/JPEG 0.8", () =>
     H.AI_MAX_DIM === 1568 && H.AI_QUALITY === 0.8);
+
+  await check(G, "플랜 표시는 허용된 서버 claim만 이름으로 바꾼다", () =>
+    H.planLabel("free") === "무료"
+    && H.planLabel("pro") === "Pro"
+    && H.planLabel("unknown-plan") === "무료"
+    && !!win.document.getElementById("planBadge"));
 
   // ── Storage 정리 / 히스토리 함수 (존재만 확인 — 실제 Storage 호출은 하지 않는다) ──
   await check(G, "Storage 고아 이미지 정리 함수 3종 존재", () =>

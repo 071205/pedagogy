@@ -25,12 +25,12 @@
      어렵다 — 새 로그인만 깨진다). 실제로 한 번 그랬으니 손대지 말 것. -->
 <meta http-equiv="Content-Security-Policy" content="
   default-src 'self';
-  script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com;
+  script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
   style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
   font-src 'self' data: https://cdn.jsdelivr.net;
   img-src 'self' data: blob: https://firebasestorage.googleapis.com https://storage.googleapis.com https://lh3.googleusercontent.com https://*.googleusercontent.com;
   connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://dawn-shape-2664.dbruddl79.workers.dev http://127.0.0.1:* http://localhost:*;
-  frame-src 'self' https://pedagogy-huryul.firebaseapp.com https://accounts.google.com https://apis.google.com;
+  frame-src 'self' https://pedagogy-huryul.firebaseapp.com https://accounts.google.com https://apis.google.com https://www.google.com;
   worker-src 'self' blob:;
   object-src 'none';
   base-uri 'none';
@@ -79,6 +79,10 @@
 <script defer src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js"
         integrity="sha384-6I0gWsz4FIAr30c0TxIxJnPQuJiZ1FfILdZrgJdjxTH3R8dgPGTvexbyqTvReV6Z"
         crossorigin="anonymous"></script>
+<script defer src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-check-compat.js"
+        integrity="sha384-E3vxFxXu8FhW5kvqdQJ5Yf8ugrV7iCJP8jgnItRH2Rk8Q08cJzJGTi/oMC3FEp3j"
+        crossorigin="anonymous"></script>
+<script src="service-config.js"></script>
 
 <style>
 /* 브랜드 글꼴. 시스템에 설치돼 있으면 local() 로 바로 쓰고, 없으면 같은 폴더의
@@ -224,6 +228,8 @@ button:active{transform:scale(.98)}
 .btn-accent:hover{background:var(--blue-hover)}
 .btn-ghost{background:transparent;border-color:transparent;color:var(--text-secondary)}
 .btn-ghost:hover{background:var(--surface-2);color:var(--text-primary)}
+.plan-badge{display:inline-flex;align-items:center;height:20px;padding:0 7px;border:1px solid var(--border);border-radius:999px;color:var(--text-secondary);font-size:11px;font-weight:700;white-space:nowrap}
+.plan-badge[hidden]{display:none}
 label.btn{height:36px;padding:0 14px;display:inline-flex;align-items:center;cursor:pointer}
 label.btn input{display:none}
 
@@ -670,8 +676,9 @@ body.col-resizing{cursor:col-resize;user-select:none}
    실제 시험지 본문(신명조 계열)에 가까운 건 Light 쪽이라 300 을 쓴다.
    미리보기와 인쇄를 같은 값으로 둔다 — 두 조판이 어긋나면 안 된다. */
 .preview .content{font-size:13.2px;line-height:1.7;font-weight:300}
+.preview .content .katex{font-size:1em!important}
 .preview .content .katex,.preview .content .katex *{font-weight:400!important}
-.preview .content .katex-display{display:inline-block;margin:0.3em 0;text-align:left;font-size:1.08em}
+.preview .content .katex-display{display:inline-block;margin:0.3em 0;text-align:left;font-size:1em}
 .preview .content .pdm{text-align:center;margin:0.6em 0;display:block}
 .preview .content .pdm .katex-display{display:block!important;text-align:center!important;margin:0}
 .preview .boxed{
@@ -683,7 +690,7 @@ body.col-resizing{cursor:col-resize;user-select:none}
    싣는다. 안내문([01~03] 다음 글을 읽고…)만 굵게 앞에 붙는다. */
 .preview .passage{margin:10px 0 14px}
 /* 안내문은 상자 밖 위 (평가원 실물) */
-.preview .psg-head{font-weight:700;margin-bottom:6px}
+.preview .psg-head{font-weight:500;margin-bottom:6px}
 /* 지문 본문은 테두리 안 — 독서·문학·소설 모두 상자다. 무테는 예외 설정. */
 .preview .psg-boxed .psg-box{border:1px solid #333;border-radius:3px;padding:12px 14px}
 .preview .psg-part+.psg-part{margin-top:14px}
@@ -783,14 +790,15 @@ body.col-resizing{cursor:col-resize;user-select:none}
 .slot--paired .pq{flex:1;min-height:0;overflow-x:hidden}
 .pq{width:100%;margin:0;overflow-x:hidden}
 .pq .content{font-family:'KoPub Batang',"Times New Roman",serif;font-size:calc(var(--print-fs-pt)*1pt);line-height:var(--print-lh);word-break:keep-all;font-weight:300}
+.pq .content .katex{font-size:1em!important}
 .pq .content .katex,.pq .content .katex *{font-weight:400!important}
 /* \text{} 안 한글 폰트 상속 */
-.pq .content .katex .mord.text,.preview .content .katex .mord.text{font-family:'KoPub Batang','Noto Sans KR',sans-serif!important;font-size:0.92em}
-/* $$...$$ 표 등 display 수식 살짝 크게 */
+.pq .content .katex .mord.text,.preview .content .katex .mord.text{font-family:'KoPub Batang','Noto Sans KR',sans-serif!important;font-size:1em}
+/* 수식은 본문과 같은 크기로 조판한다. */
 .pq .content .katex-display{display:inline-block;margin:0.3em 0;text-align:left}
 .preview .content .katex-display{display:inline-block;margin:0.3em 0;text-align:left}
 /* $...$: display:true → inline-block, $$...$$: .pdm 가운데 정렬 */
-.pq .content .katex-display{display:inline-block;margin:0.3em 0;text-align:left;font-size:1.08em}
+.pq .content .katex-display{display:inline-block;margin:0.3em 0;text-align:left;font-size:1em}
 .pq .content .pdm{text-align:center;margin:0.6em 0;display:block}
 .pq .content .pdm .katex-display{display:block!important;text-align:center!important;margin:0;font-size:1em}
 .pq .content>div{margin-bottom:5mm}
@@ -799,7 +807,7 @@ body.col-resizing{cursor:col-resize;user-select:none}
 .pq .boxed{border:1px solid #222;border-radius:2mm;padding:2mm 3.2mm;margin:3mm 0}
 /* 지문 — 인쇄면. 본문보다 살짝 작게 조판하고 양끝맞춤한다(실제 시험지 관례). */
 .pq .passage{margin:2mm 0 4mm}
-.pq .psg-head{font-weight:700;margin-bottom:1.6mm}
+.pq .psg-head{font-weight:500;margin-bottom:1.6mm}
 .pq .psg-boxed .psg-box{border:0.4pt solid #000;border-radius:0.8mm;padding:2.4mm 2.8mm}
 .pq .psg-part+.psg-part{margin-top:3.2mm}
 .pq .psg-label{font-weight:700;margin-bottom:1.2mm}
@@ -1031,6 +1039,8 @@ input:focus-visible,textarea:focus-visible{outline:none}
     <div id="authLoggedIn" style="display:none;align-items:center;gap:8px">
       <img id="userPhoto" style="width:30px;height:30px;border-radius:50%;object-fit:cover" src="" alt="">
       <span id="userName" style="font-size:13px;color:var(--text-secondary);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+      <!-- 표시 전용이다. 실제 AI 권한은 Worker가 서명 검증한 ID token claim만으로 판정한다. -->
+      <span id="planBadge" class="plan-badge" hidden></span>
       <button id="logoutBtn" class="btn-ghost" style="font-size:12px;padding:0 10px;height:30px">로그아웃</button>
     </div>
   </div>
@@ -1060,7 +1070,7 @@ input:focus-visible,textarea:focus-visible{outline:none}
     </div>
     <!-- 구글 로그인 버튼이 상단바에 있어 그 옆에 안내를 붙이면 좁은 화면에서 상단바가
          또 넘친다. 동의 안내는 로그인 전에도 늘 보이는 이 자리에 둔다. -->
-    <div class="lib-footer-consent">로그인하면 이용약관과 개인정보처리방침에 동의하는 것으로 봅니다.</div>
+    <div class="lib-footer-consent">로그인 전 이용약관·개인정보처리방침과 AI 이미지 국외 처리 안내를 확인해 주세요.</div>
     <div>© <span id="footerYear"></span> PEDAGOGY · 모든 권리 보유</div>
   </footer>
 </div>
@@ -1259,6 +1269,7 @@ document.addEventListener('DOMContentLoaded',()=>{
         <span class="ai-dz-icon">🪄</span>
         <span class="ai-dz-main">사진으로 자동 생성</span>
         <span class="ai-dz-sub">문제 사진을 끌어다 놓거나 클릭해서 선택</span>
+        <span class="ai-dz-sub">선택 시에만 AI 처리 사업자에게 전송됩니다 · 개인정보가 보이는 이미지는 올리지 마세요</span>
       </label>
     </div>
     <div id="aiGenStatus" style="display:none;margin-top:6px;font-size:12px;color:var(--text-secondary);text-align:center"></div>
@@ -1474,11 +1485,15 @@ const firebaseConfig = {
   messagingSenderId: "297266134873",
   appId: "1:297266134873:web:e5b48c7a1d484bcde41648"
 };
+/* 공개 런타임 설정이다. reCAPTCHA Enterprise site key처럼 공개가 전제인 값만 둔다.
+   PG secret, Anthropic key, Firebase 서비스 계정 키는 절대 이 파일에 넣지 않는다. */
+const publicConfig=Object.freeze(window.PEDAGOGY_PUBLIC_CONFIG||{});
 /* Firebase SDK(CDN)가 차단되거나 장애일 때 여기서 예외가 나면 이 스크립트 블록 전체가
    중단되어 저장·불러오기·편집이 모두 죽는다. 초기화 실패는 삼키고, 클라우드 없이
    localStorage 만으로 동작하는 모드로 내려간다(currentUser 가 계속 null 로 남는다). */
 let fbAuth=null, fbDb=null, fbStorage=null;
 let fbReady=false;
+let appCheckReady=false;
 /* Firebase SDK 태그에는 defer 가 붙어 있다(렌더 차단 제거 — 라이트하우스 실측
    2,010ms). defer 스크립트는 이 인라인 블록보다 '나중에' 실행되므로, 여기서
    바로 firebase 를 만지면 ReferenceError 가 나 항상 오프라인 모드로 떨어진다.
@@ -1489,6 +1504,14 @@ function initFirebase(){
     fbAuth = firebase.auth();
     fbDb = firebase.firestore();
     fbStorage = firebase.storage();
+    const appCheckSiteKey=String(publicConfig.appCheckSiteKey||"").trim();
+    if(appCheckSiteKey){
+      const provider=new firebase.appCheck.ReCaptchaEnterpriseProvider(appCheckSiteKey);
+      firebase.appCheck().activate(provider, true);
+      appCheckReady=true;
+    }else{
+      console.warn("App Check가 설정되지 않았습니다. 상용 출시 전 service-config.js와 Firebase Console에서 반드시 활성화하세요.");
+    }
     fbReady = true;
   }catch(e){
     console.error("Firebase 초기화 실패 — 로컬 전용 모드로 동작합니다", e);
@@ -2549,7 +2572,7 @@ async function deleteSetEverywhere(removed){
   try{
     await SETS_COL(owner).doc(String(removed.id)).set({
       id:String(removed.id), deleted:true, updatedAt:Date.now(), order:0,
-      name:"", header:"", problems:[]
+      name:"", header:"", problems:[], lineColor:"", subject:""
     });
     cloudSynced.delete(removed.id);
   }catch(e){
@@ -2615,7 +2638,8 @@ async function wipeCloudSets(uid, ids, {realDelete}){
       const ref=SETS_COL(uid).doc(String(id));
       if(realDelete) batch.delete(ref);
       else batch.set(ref,{ id:String(id), deleted:true, updatedAt:Date.now(),
-                           order:0, name:"", header:"", problems:[] });
+                           order:0, name:"", header:"", problems:[],
+                           lineColor:"", subject:"" });
     });
     await batch.commit();
     if(!realDelete) ids.slice(i,i+CHUNK).forEach(id=>deletedIds.set(id, Date.now()));
@@ -2744,7 +2768,11 @@ async function deleteAccountEverything(){
   if(setsUnsub){ setsUnsub(); setsUnsub=null; }
 
   try{
-    // ② 이미지 → ③ 문제집 문서 → ④ 사용자 문서 순으로 지운다
+    // ② AI 사용 기록 → ③ 이미지 → ④ 문제집 문서 → ⑤ 사용자 문서 순으로 지운다.
+    // Worker의 uid 해시 카운터도 계정 데이터이므로 Auth 삭제 전에 확실히 지운다.
+    dmSetBusy('AI 사용 기록을 지우는 중…');
+    await purgeAiUsage(user);
+
     dmSetBusy('이미지를 지우는 중…');
     const imageCleanup=await wipeStorageImages(uid);
     if(!storageCleanupComplete(imageCleanup))
@@ -2760,14 +2788,14 @@ async function deleteAccountEverything(){
       throw new Error('계정 기본 정보를 지우지 못해 계정 삭제를 멈췄어요 · 계정은 그대로 두었습니다');
     }
 
-    // ⑤ 로컬 — 백업까지 전부
+    // ⑥ 로컬 — 백업까지 전부
     clearLocalKeys(keys,{keepBackup:false});
     sets=[]; cloudSynced.clear(); deletedIds.clear();
     localStamps={}; lastQIdBySet={};
     currentSetId=null; currentQId=null;
     undoStack=[]; redoStack=[];
 
-    // ⑥ 마지막으로 계정 자체
+    // ⑦ 마지막으로 계정 자체
     dmSetBusy('계정을 지우는 중…');
     await user.delete();
 
@@ -3833,6 +3861,42 @@ function renderEditor(){
 // Cloudflare Worker 주소 (배포 후 네 Worker URL로 교체)
 const AI_PROXY_URL="https://dawn-shape-2664.dbruddl79.workers.dev";
 
+/* AI 사진은 외부 처리사에 전송되므로, 처음 사용할 때와 약관 버전이 바뀐 뒤에는
+   별도로 확인한다. 단순히 드롭존을 누른 것만으로 전송 동의로 보지 않는다. */
+function confirmAiTransfer(){
+  const version=String(publicConfig.legalVersion||"2026-08-28-ai-transfer");
+  const key="PM_AI_TRANSFER_NOTICE";
+  try{ if(localStorage.getItem(key)===version) return true; }catch(e){ console.warn("AI 전송 고지 확인값을 저장하지 못했습니다", e); }
+  const ok=confirm("AI 사진 변환을 시작하면 선택한 이미지는 Cloudflare Worker를 거쳐 Anthropic API로 전송됩니다.\n\n"
+    + "· 학생 이름, 연락처, 성적표 등 개인정보가 보이는 이미지는 올리지 마세요.\n"
+    + "· AI 결과는 틀릴 수 있으므로 반드시 검토해야 합니다.\n"
+    + "· Anthropic API의 기본 보존 기간과 예외는 개인정보처리방침을 확인해 주세요.\n\n"
+    + "[확인]을 누르면 이 이미지 전송에 동의하고 변환을 시작합니다.");
+  if(ok){ try{ localStorage.setItem(key,version); }catch(e){ console.warn("AI 전송 고지 확인값을 저장하지 못했습니다", e); } }
+  return ok;
+}
+
+/* 계정 삭제 때 Worker에 남는 AI 남용 방지 기록도 함께 없앤다.
+   이 요청이 실패하면 계정 삭제 전체를 중단한다. Auth를 먼저 지우면 동일한 Firebase
+   토큰으로 재시도할 수 없어 해당 기록을 지울 권한도 함께 사라지기 때문이다. */
+async function purgeAiUsage(user){
+  if(!user || !AI_PROXY_URL || AI_PROXY_URL.includes("YOUR-SUBDOMAIN"))
+    throw new Error('AI 사용 기록 서버가 설정되지 않아 계정 삭제를 진행할 수 없어요');
+  let idToken;
+  try{ idToken=await user.getIdToken(true); }
+  catch{ throw new Error('AI 사용 기록을 지우기 위한 로그인 정보를 확인하지 못했어요'); }
+  let r;
+  try{
+    r=await fetch(AI_PROXY_URL,{method:"DELETE",headers:{"Authorization":"Bearer "+idToken}});
+  }catch{
+    throw new Error('AI 사용 기록 서버에 연결하지 못해 계정은 그대로 두었습니다');
+  }
+  if(!r.ok){
+    const data=await r.json().catch(()=>({}));
+    throw new Error(data.error||'AI 사용 기록을 지우지 못해 계정은 그대로 두었습니다');
+  }
+}
+
 function aiStatus(msg, show=true){
   const s=$("#aiGenStatus"); if(!s) return;
   s.style.display=show?"block":"none"; s.textContent=msg||"";
@@ -3913,6 +3977,7 @@ async function aiGenerateFromImage(file){
     toast("AI 변환은 로그인 후 사용할 수 있어요","error");
     return;
   }
+  if(!confirmAiTransfer()) return;
   let idToken="";
   try{
     idToken=await currentUser.getIdToken();
@@ -5034,8 +5099,45 @@ function authErrorMessage(e){
   return "로그인에 실패했어요: "+((e&&e.message)||c||"알 수 없는 오류");
 }
 
+/* 결제 권한은 클라이언트 Firestore 값이 아니라 Billing backend가 Firebase Admin으로
+   발급한 서명된 custom claim에서만 읽는다. 이 배지는 안내용일 뿐, 여기 값을 고쳐도
+   Worker의 실제 AI 한도에는 영향을 줄 수 없다. */
+function planLabel(value){
+  const plan=typeof value==="string" ? value.toLowerCase() : "free";
+  const labels={free:"무료",pro:"Pro",team:"팀",academy:"학원"};
+  return labels[plan]||"무료";
+}
+async function updatePlanBadge(user){
+  const badge=$("#planBadge");
+  if(!badge) return;
+  if(!user){ badge.hidden=true; badge.textContent=""; return; }
+  try{
+    const result=await user.getIdTokenResult();
+    // A 계정의 비동기 토큰 조회가 늦게 끝나 B 계정 화면에 플랜을 덮어쓰지 않게 한다.
+    if(!currentUser || currentUser.uid!==user.uid) return;
+    badge.textContent=planLabel(result&&result.claims&&result.claims.pedagogy_plan);
+    badge.hidden=false;
+  }catch(e){
+    // 권한 표시는 실패해도 편집·로그인 전체를 막지 않는다. 실제 요청은 Worker가 다시 검증한다.
+    badge.hidden=true;
+    console.warn("플랜 정보 확인 실패", e&&e.code);
+  }
+}
+
+/* OAuth 창을 열기 전에 이용자가 실제로 약관·개인정보처리방침을 확인하고 진행하도록 한다.
+   결제 출시 후에는 이 확인에 더해 서버가 정책 버전·동의 시각을 불변 감사 로그에 남겨야 한다
+   (현재 클라이언트만으로는 법적 동의 이력을 신뢰성 있게 증명할 수 없다). */
+function confirmLoginConsent(){
+  return confirm("로그인하면 문제집을 클라우드에 저장·동기화할 수 있습니다.\n\n"
+    + "· 이용약관 및 개인정보처리방침을 확인했습니다.\n"
+    + "· 만 14세 미만이면 법정대리인의 동의를 받았습니다.\n"
+    + "· AI 사진 변환을 사용할 때에만 이미지는 Cloudflare·Anthropic에 전송됩니다.\n\n"
+    + "[확인]을 누르면 구글 로그인으로 계속합니다.");
+}
+
 $("#loginBtn").onclick=async ()=>{
   if(!fbReady){ toast("로그인 서버에 연결할 수 없어요 · 이 기기에만 저장됩니다","error"); return; }
+  if(!confirmLoginConsent()) return;
   const provider=new firebase.auth.GoogleAuthProvider();
   try{
     await fbAuth.signInWithPopup(provider);
@@ -5104,9 +5206,11 @@ const onAuth=async (user)=>{
     $("#authLoggedIn").style.display="flex";
     $("#userPhoto").src=user.photoURL||"";
     $("#userName").textContent=user.displayName||user.email;
+    updatePlanBadge(user);
   }else{
     $("#authLoggedOut").style.display="block";
     $("#authLoggedIn").style.display="none";
+    updatePlanBadge(null);
   }
 
   const uid=user?user.uid:null;
@@ -5138,6 +5242,9 @@ function startApp(){
       if(msg) toast(msg,"error");
     });
     fbAuth.onAuthStateChanged(onAuth);
+    // 결제 backend가 custom claim을 갱신해 Firebase가 새 토큰을 발급하면, 새로고침 없이
+    // 안내 배지도 따라간다. 권한 판단은 여전히 Worker 쪽에서 이 토큰을 검증한다.
+    fbAuth.onIdTokenChanged(updatePlanBadge);
   }else{
     // Firebase 없이 뜬 경우: 로그인 UI 는 그대로 두되 로컬 데이터로 바로 시작한다
     bootLibrary();
