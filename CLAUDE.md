@@ -121,7 +121,17 @@ pieces to know before editing:
   Each block is `{ type, data }` where `type` is one of `statement | passage | conditions |
   examples | boxed | choices | image` (see the `#blockType` `<select>` and `blockHTML()`).
 - **지문 세트 (국어·영어)**: `passage` 블록 + 문항의 `groupSpan`.
-  지문 블록은 `kind`(prose/verse) · `boxed` · `label` 을 가진다.
+  **2025 수능 국어 실물(`평가원 국어 양식.pdf`)에 맞춘 구조다.**
+  `passage.data = { lead, boxed, parts:[{label, kind, text, source, notes}] }`.
+  · 안내문(`lead`)은 **상자 밖 위**에 온다 — 상자 안에 넣으면 실물과 다르다.
+  · **지문은 기본이 상자다**(`boxed` 기본 true). 독서·문학·소설 모두 테두리가 있다.
+    처음에 무테로 만들었다가 실물을 보고 고쳤다 — 무테는 사설 자료용 예외다.
+  · **(가)(나)(다)는 상자 하나 안에** 나란히 들어간다 → 조각마다 별도 상자를
+    만들면 안 된다. 그래서 `parts` 배열이다.
+  · 각 조각은 `source`(– 장석남, 「배를 밀며」 –, 우측정렬)와 `notes`(* 치병: …,
+    줄당 하나)를 가진다. 앞뒤 `–` 와 `*` 는 렌더가 붙이므로 입력에 넣지 않는다.
+  · 한 줄이 통째로 `(중략)`·`(하략)`·`(전략)` 이면 가운데 정렬한다(`isEllipsisLine`).
+  · 예전 형식(`{text,kind,label}`)은 `normBlock` 이 `parts` 하나로 자동 이관한다.
   ⚠️ **운문(verse)은 `processText()` 를 그대로 쓰면 안 된다** — 그 함수는 줄바꿈을
   6pt 문단 간격으로 바꿔서 시 행 사이가 문단처럼 벌어진다. `verseHTML()` 이 행마다
   따로 조판하고 빈 줄에서만 연 간격을 준다(각 행은 여전히 `processText()` 를 태워

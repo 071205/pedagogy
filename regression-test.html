@@ -364,72 +364,114 @@ async function runIndexTests(){
              note: doc.lineColor==="teal" ? undefined : "클라우드 문서에 안 실림" };
   });
 
-  /* ── 지문 세트 (국어·영어) ── */
+  /* ── 지문 세트 (국어·영어) ── 2025 수능 국어 실물 양식 기준 */
   await check(G, "지문 블록이 정규화를 통과해 보존된다", () => {
     const s = win.normSet({name:"국어", problems:[
-      {groupSpan:3, blocks:[{type:"passage", data:{text:"긴 지문", lead:"다음 글을 읽고"}}]}
+      {groupSpan:3, blocks:[{type:"passage", data:{lead:"다음 글을 읽고",
+        parts:[{label:"(가)", kind:"verse", text:"긴 지문", source:"장석남", notes:"주석"}]}}]}
     ]}, {keepId:false});
     const b = s.problems[0].blocks.find(x=>x.type==="passage");
-    return { pass: !!b && b.data.text==="긴 지문" && s.problems[0].groupSpan===3,
-             note: b ? undefined : "지문 블록이 버려짐" };
+    const pt = b && b.data.parts && b.data.parts[0];
+    return { pass: !!pt && pt.text==="긴 지문" && pt.source==="장석남" && pt.notes==="주석"
+                   && s.problems[0].groupSpan===3,
+             note: pt ? undefined : "지문 조각이 버려짐" };
+  });
+
+  await check(G, "지문은 기본이 상자다 (평가원 실물)", () => {
+    const dflt = win.normBlock({type:"passage", data:{parts:[{text:"x"}]}}).data.boxed;
+    const off  = win.normBlock({type:"passage", data:{boxed:false, parts:[{text:"x"}]}}).data.boxed;
+    const html = win.blockHTML(win.normBlock({type:"passage", data:{parts:[{text:"x"}]}}), {});
+    return { pass: dflt===true && off===false && html.includes("psg-boxed"),
+             note: dflt===true ? undefined : "기본값이 무테로 되어 있음" };
+  });
+
+  await check(G, "안내문은 상자 밖에 있다", () => {
+    const html = win.blockHTML(win.normBlock({type:"passage",
+      data:{lead:"다음 글을 읽고", parts:[{text:"본문"}]}}), {range:"01~03"});
+    /* psg-head 가 <div class="psg-box"> 시작보다 앞에 있어야 한다.
+       ⚠️ "psg-box" 로 부분 검색하면 바깥 div 의 "psg-boxed" 에도 걸린다 —
+       실제로 이 오탐 때문에 멀쩡한 코드가 빨간불로 나왔다. 따옴표까지 붙여
+       클래스 이름 전체로 찾는다. */
+    const boxAt = html.indexOf('class="psg-box"');
+    const headAt = html.indexOf('class="psg-head"');
+    return { pass: headAt >= 0 && boxAt > headAt,
+             note: boxAt > headAt ? undefined : "안내문이 상자 안에 들어감" };
+  });
+
+  await check(G, "(가)(나) 조각이 상자 하나 안에 들어간다", () => {
+    const html = win.blockHTML(win.normBlock({type:"passage", data:{parts:[
+      {label:"(가)", text:"a"}, {label:"(나)", text:"b"}]}}), {});
+    // 같은 이유로 클래스 이름 전체(따옴표 포함)로 센다
+    const boxes = (html.match(/class="psg-box"/g)||[]).length;
+    const parts = (html.match(/class="psg-part[ "]/g)||[]).length;
+    return { pass: boxes===1 && parts===2,
+             note: `상자 ${boxes}개 / 조각 ${parts}개 (1개 상자에 2조각이어야 함)` };
+  });
+
+  await check(G, "출처·각주가 렌더된다", () => {
+    const html = win.blockHTML(win.normBlock({type:"passage", data:{parts:[
+      {text:"x", source:"장석남, 「배를 밀며」", notes:"치병: 병을 다스림.\n환후: 병"}]}}), {});
+    return html.includes("psg-source") && html.includes("– 장석남")
+        && (html.match(/psg-note/g)||[]).length===2;   // 각주 두 줄
+  });
+
+  await check(G, "(중략) 은 가운데 정렬 표시가 된다", () => {
+    const prose = win.blockHTML(win.normBlock({type:"passage",
+      data:{parts:[{kind:"prose", text:"앞\n(중략)\n뒤"}]}}), {});
+    const verse = win.blockHTML(win.normBlock({type:"passage",
+      data:{parts:[{kind:"verse", text:"앞\n(중략)\n뒤"}]}}), {});
+    return prose.includes("psg-mid") && verse.includes("psg-mid");
+  });
+
+  await check(G, "예전 형식(text/kind/label)이 자동으로 이관된다", () => {
+    const b = win.normBlock({type:"passage",
+      data:{text:"옛 본문", kind:"verse", label:"(가)", boxed:false}});
+    const pt = b.data.parts[0];
+    return { pass: pt.text==="옛 본문" && pt.kind==="verse" && pt.label==="(가)" && b.data.boxed===false,
+             note: pt.text==="옛 본문" ? undefined : "구형 데이터가 유실됨" };
   });
 
   await check(G, "묶음 수가 번호 범위로 계산된다", () => {
     const arr = [
-      {id:"a", groupSpan:3, blocks:[{type:"passage", data:{text:"x"}}]},
+      {id:"a", groupSpan:3, blocks:[{type:"passage", data:{parts:[{text:"x"}]}}]},
       {id:"b", blocks:[{type:"statement", data:{text:""}}]},
       {id:"c", blocks:[{type:"statement", data:{text:""}}]},
     ];
     const n = win.computeNums(arr);
     return { pass: n[0].range==="01~03" && !n[1].range,
-             note: n[0].range ? undefined : "범위가 안 붙음 ("+JSON.stringify(n[0])+")" };
+             note: n[0].range ? undefined : "범위가 안 붙음" };
   });
 
   await check(G, "묶음 수는 1~10 밖 값을 받지 않는다", () => {
-    const mk = v => win.normProblem({groupSpan:v, blocks:[{type:"passage",data:{text:"x"}}]}, false).groupSpan;
+    const mk = v => win.normProblem({groupSpan:v, blocks:[{type:"passage",data:{parts:[{text:"x"}]}}]}, false).groupSpan;
     return mk(999)===10 && mk(-5)===1 && mk("<script>")===1 && mk(null)===1;
   });
 
   await check(G, "운문(시)은 줄바꿈이 행이 된다 — 산문용 6pt 간격을 쓰지 않는다", () => {
-    const verse = win.blockHTML({type:"passage", data:{kind:"verse", text:"1행\n2행\n\n3행"}}, {});
-    const prose = win.blockHTML({type:"passage", data:{kind:"prose", text:"1행\n2행"}}, {});
+    const verse = win.blockHTML(win.normBlock({type:"passage",
+      data:{parts:[{kind:"verse", text:"1행\n2행\n\n3행"}]}}), {});
+    const prose = win.blockHTML(win.normBlock({type:"passage",
+      data:{parts:[{kind:"prose", text:"1행\n2행"}]}}), {});
     const okV = verse.includes("v-line") && verse.includes("v-gap") && !verse.includes("vspace");
-    const okP = prose.includes("vspace");   // 산문은 기존대로 문단 간격
-    return { pass: okV && okP,
-             note: okV ? (okP?undefined:"산문 조판이 바뀜") : "운문이 행으로 안 나뉨" };
-  });
-
-  await check(G, "지문 종류·테두리는 허용값 밖을 받지 않는다", () => {
-    const k = v => win.normBlock({type:"passage", data:{kind:v, text:"x"}}).data.kind;
-    const b = v => win.normBlock({type:"passage", data:{boxed:v, text:"x"}}).data.boxed;
-    return k('"><img>')==="prose" && k("verse")==="verse"
-        && b('x" onerror="y')===false && b(true)===true;
+    return { pass: okV && prose.includes("vspace"),
+             note: okV ? "산문 조판이 바뀜" : "운문이 행으로 안 나뉨" };
   });
 
   await check(G, "<보기> 상자가 라벨과 함께 렌더된다", () => {
     const h = win.blockHTML({type:"bogi", data:{label:"보 기", text:"내용"}}, {});
     const ex = win.blockHTML({type:"examples", data:{label:"보 기", items:["ㄱ항목"]}}, {});
-    return h.includes("bogi-label") && h.includes("&lt;보 기&gt;")
-        && ex.includes("bogi-label");   // ㄱㄴㄷ 도 라벨을 주면 <보기> 상자
+    return h.includes("bogi-label") && h.includes("&lt;보 기&gt;") && ex.includes("bogi-label");
   });
 
-  await check(G, "지문 라벨·보기 라벨에 넣은 스크립트가 실행되지 않는다", async () => {
+  await check(G, "지문 라벨·출처·각주에 넣은 스크립트가 실행되지 않는다", async () => {
     const marker = "__kor_xss_"+Date.now();
     const evil = `</div><img src=x onerror=window.${marker}=1>`;
     const html = [
-      win.blockHTML(win.normBlock({type:"passage", data:{label:evil, text:"x"}}), {}),
+      win.blockHTML(win.normBlock({type:"passage", data:{parts:[
+        {label:evil, source:evil, notes:evil, text:`$$</div><img src=x onerror=window.${marker}=1>$$`}]}}), {range:"01~03"}),
       win.blockHTML(win.normBlock({type:"bogi",    data:{label:evil, text:"x"}}), {}),
       win.blockHTML(win.normBlock({type:"examples",data:{label:evil, items:["x"]}}), {}),
     ].join("");
-    return { pass: await firesOnInnerHTML(html, marker) };
-  });
-
-  await check(G, "지문 안내문·본문에 넣은 스크립트가 실행되지 않는다", async () => {
-    const marker = "__psg_xss_"+Date.now();
-    const html = win.blockHTML(
-      {type:"passage", data:{ lead:`</div><img src=x onerror=window.${marker}=1>`,
-                              text:`$$</div><img src=x onerror=window.${marker}=1>$$` }},
-      {range:"01~03"});
     return { pass: await firesOnInnerHTML(html, marker) };
   });
 
