@@ -22,7 +22,7 @@ class_name = "DailyQuota"
 
 [[migrations]]
 tag = "v1"
-new_classes = ["DailyQuota"]
+new_sqlite_classes = ["DailyQuota"]
 
 # AI 공급자 키는 이미 이 Worker 에 secret 으로 등록돼 있다(ANTHROPIC_KEY).
 # 새로 넣어야 할 때만:  npx wrangler secret put ANTHROPIC_KEY

@@ -49,4 +49,7 @@ AI 호출 한도는 Cloudflare KV의 읽기와 쓰기를 별도 단계로 처리
   직렬 처리하도록 교체하고, `wrangler.toml`에 Durable Object 바인딩과 migration을 추가했다.
   Cloudflare 대시보드용 `worker-single-file.js`도 같은 구현으로 갱신했다. `node
   worker/quota.test.mjs`에서 두 배포 형태 모두 한도 1 동시 예약 하나만 성공, 확정 재시도
-  멱등성, 실패 요청의 예약 해제를 확인했다. 이 설정은 아직 운영 Worker에 배포하지 않았다.
+  멱등성, 실패 요청의 예약 해제를 확인했다.
+- `2026-08-28` — `Codex`: Cloudflare 무료 플랜 요구에 맞게 migration을
+  `new_sqlite_classes`로 설정하고 Worker `dawn-shape-2664`를 배포했다. 운영 버전 ID는
+  `6caeb645-30cc-4bf6-8a9d-085659a9d9d5`다.

@@ -26,13 +26,13 @@
   `82 / 82 통과`.
 - Worker quota 단위 검사: `node worker/quota.test.mjs` 통과.
 - 정적 검사: `git diff --check` 및 `serve.py` Python 컴파일 검사 통과.
-- 실제 Firebase 계정·Storage 삭제와 운영 Worker 배포는 사용자 데이터·비용에 영향을 주므로
-  실행하지 않았다.
+- 실제 Firebase 계정·Storage 삭제는 사용자 데이터에 영향을 주므로 실행하지 않았다.
+- Cloudflare Worker `dawn-shape-2664` 배포 완료: Durable Object SQLite migration 포함,
+  운영 버전 ID `6caeb645-30cc-4bf6-8a9d-085659a9d9d5`.
 
 ## 배포·다음 검토
 
-`worker/index.js`, `worker/worker-single-file.js`, `worker/wrangler.toml`의 Durable Object
-변경은 운영 반영 전에 `cd worker && npx wrangler deploy`로 배포해야 한다. Cloudflare
-대시보드에 단일 파일을 붙여넣는 방식으로 운영한다면 같은 바인딩·migration 설정을 먼저
-적용해야 한다. 이 작업은 외부 상태를 바꾸므로 별도 승인 후 실행한다. 실제 계정 삭제를
+Worker 배포는 완료됐다. 이후 Durable Object 클래스를 추가할 때도 무료 플랜에서는
+`new_sqlite_classes` migration을 사용한다. Cloudflare 대시보드에 단일 파일을 붙여넣는
+방식으로 운영한다면 같은 바인딩·migration 설정을 먼저 적용해야 한다. 실제 계정 삭제를
 검증할 때는 운영 계정이 아닌 별도 Firebase 테스트 계정과 테스트 Storage 경로만 사용한다.
