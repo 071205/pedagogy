@@ -166,7 +166,9 @@ async function runIndexTests(){
   try{
     win = await loadFrame(mainFrame, "index.html",
       w => w.safeUrl && w.normSet && w.normProblem && w.setActivePane && w.showLibrary);
-    H = installHooks(win, ["sanitize","MAX_UPLOAD_BYTES","CLOUD_MAX_PROBLEMS","AI_MAX_DIM","AI_QUALITY"]);
+    H = installHooks(win, ["sanitize","MAX_UPLOAD_BYTES","CLOUD_MAX_PROBLEMS","AI_MAX_DIM","AI_QUALITY",
+      "setJSON","cloudSyncEntry","isCloudSynced","shouldUseCloudResult",
+      "storageCleanupComplete","storageCleanupMessage"]);
   }catch(e){
     if(e.message === "CROSS_ORIGIN"){ $("#corsBanner").style.display="block"; }
     record(G, "iframe 로드", false, e.message);
@@ -362,6 +364,51 @@ async function runIndexTests(){
     const doc = win.setToDoc(s, 0);
     return { pass: s.lineColor==="teal" && doc.lineColor==="teal",
              note: doc.lineColor==="teal" ? undefined : "클라우드 문서에 안 실림" };
+  });
+
+  await check(G, "과목·선 색·순서도 클라우드 변경으로 감지된다", () => {
+    const s = {id:"__sync_probe__", name:"x", header:"", problems:[],
+               lineColor:"indigo", subject:"math"};
+    const base = H.setJSON(s);
+    s.subject = "korean"; const subjectChanged = H.setJSON(s) !== base;
+    s.subject = "math"; s.lineColor = "teal"; const colorChanged = H.setJSON(s) !== base;
+
+    /* isCloudSynced()가 실제 동기화 map을 읽는지 확인한다. 테스트용 id만 넣고
+       try/finally로 원래 map을 복원하므로 실제 저장·클라우드 호출은 없다. */
+    const script = win.document.createElement("script");
+    script.textContent = `window.__SYNC_PROBE__=(function(){
+      var keep=cloudSynced;
+      try{
+        var s={id:"__sync_probe__",name:"x",header:"",problems:[],lineColor:"indigo",subject:"math"};
+        cloudSynced=new Map([[s.id,cloudSyncEntry(s,0)]]);
+        return {same:isCloudSynced(s,0), orderDirty:!isCloudSynced(s,1)};
+      } finally { cloudSynced=keep; }
+    })();`;
+    win.document.head.appendChild(script); script.remove();
+    const p = win.__SYNC_PROBE__;
+    return {pass: subjectChanged && colorChanged && p && p.same && p.orderDirty,
+            note: p && p.orderDirty ? undefined : "순서 또는 설정 변경이 동기화에서 빠짐"};
+  });
+
+  await check(G, "tombstone만 받은 클라우드 결과는 로컬 fallback을 쓰지 않는다", () => {
+    const id="__tombstone_probe__";
+    const cloud=[{id,deleted:true,updatedAt:20}];
+    const local=[{id,name:"남은 로컬",header:"",problems:[{blocks:[]}]}];
+    const merged=win.mergeSets(cloud,local,{[id]:10});
+    /* mergeSets()가 tombstone map에 남긴 테스트 id는 즉시 제거한다. */
+    const script=win.document.createElement("script");
+    script.textContent=`deletedIds.delete(${JSON.stringify(id)});`;
+    win.document.head.appendChild(script); script.remove();
+    return {pass: merged.length===0 && H.shouldUseCloudResult(cloud,merged)===true,
+            note: merged.length===0 ? undefined : "tombstone이 오래된 로컬을 막지 못함"};
+  });
+
+  await check(G, "Storage 목록 실패는 계정 삭제 성공으로 처리하지 않는다", () => {
+    const complete=H.storageCleanupComplete;
+    const listFail={listed:false,failed:0}, itemFail={listed:true,failed:1};
+    return {pass: complete({listed:true,failed:0}) && !complete(listFail) && !complete(itemFail)
+                  && H.storageCleanupMessage(listFail).includes("목록"),
+            note: "목록 조회 실패를 성공으로 오인함"};
   });
 
   /* ── 지문 세트 (국어·영어) ── 2025 수능 국어 실물 양식 기준 */

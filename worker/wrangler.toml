@@ -14,11 +14,15 @@ DAILY_LIMIT = "50"
 # 모델을 바꾸고 싶으면 여기서 (기본 claude-haiku-4-5)
 # AI_MODEL = "claude-haiku-4-5"
 
-# 사용량 카운터용 KV. 아래 id 는 `wrangler kv namespace create RATE` 결과로 채운다.
-# 없으면 인증은 동작하고 사용량 제한만 비활성화된다.
-[[kv_namespaces]]
-binding = "RATE"
-id = "2587852eb285454f900a1738c5cf3ba1"
+# 사용량 예약·확정용 Durable Object. 요청을 uid+UTC 날짜별로 직렬화하므로,
+# 동시 요청이 KV의 read-modify-write 틈을 이용해 일일 한도를 넘길 수 없다.
+[[durable_objects.bindings]]
+name = "QUOTA"
+class_name = "DailyQuota"
+
+[[migrations]]
+tag = "v1"
+new_classes = ["DailyQuota"]
 
 # AI 공급자 키는 이미 이 Worker 에 secret 으로 등록돼 있다(ANTHROPIC_KEY).
 # 새로 넣어야 할 때만:  npx wrangler secret put ANTHROPIC_KEY

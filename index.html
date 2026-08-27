@@ -2033,11 +2033,23 @@ const SETS_COL = uidStr => fbDb.collection('users').doc(uidStr).collection('sets
 
 /* 마지막으로 클라우드와 맞춘 내용. 바뀐 문제집만 골라 올리는 데 쓴다.
    (이게 있어야 탭 A 가 문제집 1을 고칠 때 문제집 2를 건드리지 않는다) */
-let cloudSynced=new Map();          // setId → JSON 문자열
+let cloudSynced=new Map();          // setId → {json, order}
 let deletedIds=new Map();           // setId → 삭제 시각(ms) · tombstone 로컬 사본
 let setsUnsub=null;                 // onSnapshot 해제 함수
 
-const setJSON = s => JSON.stringify({name:s.name,header:s.header,problems:s.problems});
+/* 동기화 비교에는 모든 사용자 보이는 문제집 설정을 넣는다. lineColor·subject 를
+   빼면 그 둘만 바꾼 저장은 '변화 없음'으로 오인해 다른 기기에 가지 않는다.
+   순서는 본문과 별개이므로 cloudSyncEntry()에서 따로 비교한다. */
+const setJSON = s => JSON.stringify({
+  name:s.name, header:s.header, problems:s.problems,
+  lineColor:normSheetColor(s.lineColor), subject:normSubject(s.subject)
+});
+const normOrder = v => Math.max(0, Math.floor(Number(v)||0));
+const cloudSyncEntry = (s, order) => ({json:setJSON(s), order:normOrder(order)});
+function isCloudSynced(s, order){
+  const prev=cloudSynced.get(s.id);
+  return !!prev && prev.json===setJSON(s) && prev.order===normOrder(order);
+}
 
 /* 문제집 하나를 클라우드 문서 모양으로 */
 function setToDoc(s, order){
@@ -2047,7 +2059,7 @@ function setToDoc(s, order){
   //    안 넣으면 저장이 통째로 '권한 오류' 로 실패한다.
   return { id:String(s.id), name:s.name||"", header:s.header||"", problems:s.problems||[],
            lineColor:normSheetColor(s.lineColor), subject:normSubject(s.subject),
-           order:Number(order)||0, deleted:false, updatedAt:Date.now() };
+           order:normOrder(order), deleted:false, updatedAt:Date.now() };
 }
 
 /* 클라우드 문서 → 앱 모양 (신뢰 경계: 클라우드도 한 번 정규화한다.
@@ -2075,7 +2087,7 @@ function mergeSets(cloudEntries, localSets, localStamps){
   for(const e of cloudEntries){
     if(e.deleted){ deletedIds.set(e.id, e.updatedAt||Date.now()); continue; }
     const s=docToSet(e);
-    if(s) out.set(s.id, {set:s, order:Number(e.order)||0, stamp:Number(e.updatedAt)||0});
+    if(s) out.set(s.id, {set:s, order:normOrder(e.order), stamp:Number(e.updatedAt)||0});
   }
   let tail=out.size;
   for(const ls of (localSets||[])){
@@ -2089,6 +2101,11 @@ function mergeSets(cloudEntries, localSets, localStamps){
     if(lstamp>cur.stamp) out.set(ls.id,{set:ls, order:cur.order, stamp:lstamp});
   }
   return [...out.values()].sort((a,b)=>a.order-b.order).map(x=>x.set);
+}
+/* 정상 클라우드 읽기에서 tombstone을 하나라도 받았다면, 빈 병합 결과도 권위 있는
+   결과다. 새 계정처럼 문서가 정말 하나도 없을 때만 로컬 캐시를 이관 후보로 쓴다. */
+function shouldUseCloudResult(cloudEntries, merged){
+  return (merged||[]).length>0 || (cloudEntries||[]).some(e=>e&&e.deleted===true);
 }
 
 /* 로컬 문제집별 수정 시각. sets 안에 넣으면 내보내기 JSON·되돌리기 스냅샷까지
@@ -2137,13 +2154,13 @@ async function loadSets(){
       const localWorth=localSetsWorthMerging(readLocalSets());
       const merged=mergeSets(cloudEntries, localWorth, localStamps);
 
-      if(merged.length){
+      if(shouldUseCloudResult(cloudEntries, merged)){
         sets=merged;
         cloudSynced=new Map(cloudEntries.filter(e=>!e.deleted)
-          .map(e=>{ const s=docToSet(e); return s?[s.id,setJSON(s)]:null; }).filter(Boolean));
-        flushLocal();          // 클라우드에서 막 읽어 온 결과 — 즉시 확정
+          .map(e=>{ const s=docToSet(e); return s?[s.id,cloudSyncEntry(s,e.order)]:null; }).filter(Boolean));
+        writeLocalNow();       // 클라우드에서 막 읽어 온 결과 — 즉시 확정
         // 병합으로 로컬에만 있던 게 올라가야 하면 저장
-        if(merged.some(s=>cloudSynced.get(s.id)!==setJSON(s))) saveSets();
+        if(merged.some((s,i)=>!isCloudSynced(s,i))) saveSets();
         watchCloud();
         return;
       }
@@ -2172,12 +2189,18 @@ function watchCloud(){
       let changed=false, warnedEditing=false;
       snap.docChanges().forEach(ch=>{
         const d=ch.doc.data(); if(!d||!d.id) return;
-        const mine=sets.find(s=>s.id===d.id);
+        const mineIndex=sets.findIndex(s=>s.id===d.id);
+        const mine=mineIndex>=0?sets[mineIndex]:null;
         // 내가 방금 올린 것과 같으면 무시
         if(!d.deleted){
           const incoming=docToSet(d);
           if(!incoming) return;
-          if(mine && setJSON(mine)===setJSON(incoming)) { cloudSynced.set(d.id,setJSON(incoming)); return; }
+          if(mine && setJSON(mine)===setJSON(incoming)) {
+            cloudSynced.set(d.id,cloudSyncEntry(incoming,d.order));
+            // 내용은 같아도 다른 기기에서 카드 순서만 바꿨을 수 있다.
+            if(mineIndex!==normOrder(d.order)) changed=true;
+            return;
+          }
           const localStamp=Number(localStamps[d.id])||0;
           if(mine && localStamp>(Number(d.updatedAt)||0)) return;  // 내 로컬이 더 최신
           if(mine && d.id===currentSetId && !warnedEditing){
@@ -2186,7 +2209,7 @@ function watchCloud(){
           }
           if(mine) Object.assign(mine, incoming);
           else sets.push(incoming);
-          cloudSynced.set(d.id,setJSON(incoming));
+          cloudSynced.set(d.id,cloudSyncEntry(incoming,d.order));
           changed=true;
         }else{
           deletedIds.set(d.id, Number(d.updatedAt)||Date.now());
@@ -2197,8 +2220,25 @@ function watchCloud(){
         }
       });
       if(changed){
+        /* 로컬에 아직 못 올린 삽입/재정렬이 있으면, 그 순서를 원격의 옛 순서로
+           되돌리면 안 된다. 저장이 끝난 뒤 들어오는 snapshot에서 정렬한다. */
+        /* 방금 받은 원격 order 자체는 아직 배열에 반영 전이라 hasUnsavedCloudWork()
+           로 보면 거짓 양성이 된다. 본문·설정이 다른 로컬 변경 또는 새 문제집이
+           있을 때만 정렬을 미룬다. */
+        const hasLocalContentChange=sets.some(s=>{
+          const prev=cloudSynced.get(s.id);
+          return !prev || prev.json!==setJSON(s);
+        });
+        if(!hasLocalContentChange){
+          sets.sort((a,b)=>{
+            const ao=cloudSynced.get(a.id)?.order, bo=cloudSynced.get(b.id)?.order;
+            if(ao==null) return bo==null?0:1;
+            if(bo==null) return -1;
+            return ao-bo;
+          });
+        }
         if(!sets.length) sets=[{id:uid(), name:"새 문제집", header:"", problems:[newProblem()]}];
-        flushLocal();          // 다른 기기에서 온 변경 — 즉시 확정
+        writeLocalNow();       // 다른 기기에서 온 변경 — 즉시 확정
         refreshAfterHistory();
       }
     },err=>{
@@ -2277,7 +2317,7 @@ function applySnapshot(snap){
 function persistAfterHistory(){
   flushLocal();          // 되돌리기는 한 번의 동작이라 즉시 쓴다
   // 되돌리기로 바뀐 문제집들의 수정 시각을 갱신해야 병합에서 최신으로 인정된다
-  sets.forEach(s=>{ if(cloudSynced.get(s.id)!==setJSON(s)) touchSet(s.id); });
+  sets.forEach((s,i)=>{ if(!isCloudSynced(s,i)) touchSet(s.id); });
   if(currentUser){
     clearTimeout(saveTimer);
     const uidAtSave=currentUser.uid;
@@ -2408,7 +2448,7 @@ function writeLocalNow(){
 /* 아직 클라우드로 못 올린 변경이 있는가 (창 닫기 경고용) */
 function hasUnsavedCloudWork(){
   if(!currentUser) return false;
-  return sets.some(s=>cloudSynced.get(s.id)!==setJSON(s));
+  return sets.some((s,i)=>!isCloudSynced(s,i));
 }
 
 /* 바뀐 문제집만 골라 올린다.
@@ -2422,8 +2462,8 @@ async function flushToCloud(uidAtSave){
     console.warn("저장 예약 뒤 계정이 바뀌어 건너뜁니다.");
     setSaveStatus(""); return;
   }
-  const dirty=sets.map((s,i)=>({s,i})).filter(({s})=>cloudSynced.get(s.id)!==setJSON(s));
-  // 순서만 바뀐 경우도 반영해야 하므로 order 가 어긋난 것도 포함
+  const dirty=sets.map((s,i)=>({s,i})).filter(({s,i})=>!isCloudSynced(s,i));
+  // 순서만 바뀐 경우도 cloudSyncEntry 의 order 비교로 포함한다.
   if(!dirty.length){ setSaveStatus(""); return; }
   try{
     // 500개는 배치 상한. 한 번에 그만큼 바뀌는 일은 없지만 안전하게 나눠 보낸다
@@ -2435,7 +2475,7 @@ async function flushToCloud(uidAtSave){
       await batch.commit();
       if(!currentUser || currentUser.uid!==uidAtSave) return;   // 도중 계정 전환
     }
-    dirty.forEach(({s})=>cloudSynced.set(s.id, setJSON(s)));
+    dirty.forEach(({s,i})=>cloudSynced.set(s.id, cloudSyncEntry(s,i)));
     setSaveStatus("✓ 저장됨", "#81c784");
     setTimeout(()=>setSaveStatus(""), 2000);
   }catch(e){
@@ -2585,20 +2625,33 @@ async function wipeCloudSets(uid, ids, {realDelete}){
 /* 이 계정이 올린 이미지를 폴더째 비운다.
    sets 안의 URL 만 훑으면, 블록을 지웠지만 정리에 실패해 남은 고아 파일이
    그대로 남는다. 폴더를 직접 나열해야 '이 계정 것 전부' 가 된다.
-   실패는 치명적이지 않으므로(용량만 남는다) 개수만 세어 알린다. */
+   목록 자체를 못 읽었는지와 개별 삭제 실패 수를 분리한다. -1 같은 숫자 sentinel
+   하나로 합치면 호출자가 failed>0 검사에서 목록 실패를 '성공'으로 오인한다. */
 async function wipeStorageImages(uid){
-  let failed=0;
+  let items=[];
   try{
     const res=await fbStorage.ref('users/'+uid+'/images').listAll();
-    for(const item of res.items){
-      try{ await item.delete(); }
-      catch(e){ failed++; console.warn('이미지 삭제 실패:', item.fullPath, e&&e.code); }
-    }
+    items=res.items||[];
   }catch(e){
     console.warn('이미지 목록을 읽지 못했습니다:', e&&e.code);
-    return -1;                       // 목록 자체를 못 읽음
+    return {listed:false, failed:0};
   }
-  return failed;
+  let failed=0;
+  for(const item of items){
+    try{ await item.delete(); }
+    catch(e){ failed++; console.warn('이미지 삭제 실패:', item.fullPath, e&&e.code); }
+  }
+  return {listed:true, failed};
+}
+function storageCleanupComplete(result){
+  return !!result && result.listed===true && Number(result.failed)===0;
+}
+function storageCleanupMessage(result){
+  if(!result || result.listed!==true)
+    return '첨부 이미지 목록을 읽지 못해 이미지가 남아 있을 수 있어요';
+  if(Number(result.failed)>0)
+    return `첨부 이미지 ${result.failed}장은 지우지 못해 저장 용량에 남아 있어요`;
+  return '';
 }
 
 function clearLocalKeys(keys, {keepBackup}){
@@ -2622,6 +2675,7 @@ async function deleteAllSets(){
   clearTimeout(saveTimer); clearTimeout(localTimer);
   if(setsUnsub){ setsUnsub(); setsUnsub=null; }
 
+  let imageCleanup=null;
   try{
     // 복구용 백업을 먼저 남긴다 — 지운 뒤에는 만들 원본이 없다
     try{
@@ -2636,8 +2690,7 @@ async function deleteAllSets(){
       const ids=await cloudSetDocIds(uid,{includeTombstones:false});
       await wipeCloudSets(uid, ids, {realDelete:false});   // tombstone — 다른 기기에서 되살아나지 않게
       dmSetBusy('이미지를 지우는 중…');
-      const failed=await wipeStorageImages(uid);
-      if(failed>0) toast(`이미지 ${failed}장은 지우지 못했어요 · 저장 용량에만 남습니다`,"error");
+      imageCleanup=await wipeStorageImages(uid);
     }
 
     // 로컬 — 백업은 남긴다(복구 수단)
@@ -2652,8 +2705,13 @@ async function deleteAllSets(){
   }
 
   showLibrary();
-  toast(online ? "모든 문제집을 지웠어요 · '데이터 관리 → 되돌리기'로 복구할 수 있어요"
-               : "이 기기의 모든 문제집을 지웠어요 · '데이터 관리 → 되돌리기'로 복구할 수 있어요");
+  const imageWarning=online && !storageCleanupComplete(imageCleanup)
+    ? storageCleanupMessage(imageCleanup) : '';
+  toast(imageWarning
+    ? `문제집은 지웠지만 ${imageWarning}`
+    : (online ? "모든 문제집을 지웠어요 · '데이터 관리 → 되돌리기'로 복구할 수 있어요"
+              : "이 기기의 모든 문제집을 지웠어요 · '데이터 관리 → 되돌리기'로 복구할 수 있어요"),
+    imageWarning ? "error" : undefined);
 }
 
 /* ── 계정 삭제 (되돌릴 수 없음) ──
@@ -2688,14 +2746,19 @@ async function deleteAccountEverything(){
   try{
     // ② 이미지 → ③ 문제집 문서 → ④ 사용자 문서 순으로 지운다
     dmSetBusy('이미지를 지우는 중…');
-    const failed=await wipeStorageImages(uid);
+    const imageCleanup=await wipeStorageImages(uid);
+    if(!storageCleanupComplete(imageCleanup))
+      throw new Error(storageCleanupMessage(imageCleanup)+' · 계정은 그대로 두었습니다');
 
     dmSetBusy('문제집을 지우는 중…');
     const ids=await cloudSetDocIds(uid,{includeTombstones:true});
     await wipeCloudSets(uid, ids, {realDelete:true});   // 계정이 사라지므로 tombstone 불필요
 
     try{ await fbDb.collection('users').doc(uid).delete(); }
-    catch(e){ console.warn('사용자 문서 삭제 실패:', e&&e.code); }
+    catch(e){
+      console.warn('사용자 문서 삭제 실패:', e&&e.code);
+      throw new Error('계정 기본 정보를 지우지 못해 계정 삭제를 멈췄어요 · 계정은 그대로 두었습니다');
+    }
 
     // ⑤ 로컬 — 백업까지 전부
     clearLocalKeys(keys,{keepBackup:false});
@@ -2708,8 +2771,7 @@ async function deleteAccountEverything(){
     dmSetBusy('계정을 지우는 중…');
     await user.delete();
 
-    if(failed>0) console.warn(`이미지 ${failed}장 삭제 실패`);
-    return { imagesFailed: failed };
+    return { imagesFailed: 0 };
   }finally{
     wiping=false;
   }

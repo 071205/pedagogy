@@ -1,9 +1,8 @@
 /**
  * PEDAGOGY — AI 변환 프록시 (Cloudflare Worker) · 단일 파일 버전
  *
- * Node/wrangler 없이 Cloudflare 대시보드에 붙여넣어 쓸 수 있게
- * auth.js 와 index.js 를 하나로 합친 파일이다.
- * (수정은 원본 두 파일에서 하고 다시 합칠 것)
+ * Cloudflare 대시보드에 붙여넣어 쓸 수 있게 auth.js 와 index.js 를 하나로 합친 파일이다.
+ * `index.js`의 Worker 코드와 항상 같은 quota 구현을 유지해야 한다.
  */
 
 const JWKS_URL =
@@ -128,33 +127,110 @@ const json = (obj, status, headers) =>
   });
 
 /**
- * 사용자별 하루 호출 제한.
- *
- * ⚠️ KV 는 '읽고 나서 쓰기' 사이를 원자적으로 묶지 못한다. 동시에 들어온 요청들이
- *    같은 used 를 읽으면 한 번만 증가할 수 있어, 병렬 호출로 상한을 넘길 수 있다.
- *    비용 폭주를 완전히 막으려면 Durable Object(또는 서버측 원자적 카운터)가 필요하다.
- *    지금은 '검사'와 '차감'을 나눠, 최소한 실패한 요청이 사용량을 깎지는 않게 한다.
+ * 사용자별 하루 호출 제한. uid+UTC 날짜마다 Durable Object 인스턴스를 하나만 쓰므로
+ * 확인·예약·확정이 직렬화된다. AI 호출 전에 예약하고, 공급자 실패 때만 예약을 풀어
+ * 실패 요청이 일일 한도를 영구히 깎지 않게 한다.
  */
 function quotaKey(uid) {
   const day = new Date().toISOString().slice(0, 10); // UTC 기준 YYYY-MM-DD
   return `ai:${uid}:${day}`;
 }
-/** 남은 한도가 있는지만 본다(차감하지 않음). */
-async function checkQuota(env, uid) {
-  if (!env.RATE) return { ok: true, used: 0, limit: 0 };
-  const limit = parseInt(env.DAILY_LIMIT || DEFAULT_DAILY_LIMIT, 10);
-  const used = parseInt((await env.RATE.get(quotaKey(uid))) || "0", 10);
-  return { ok: used < limit, used, limit };
+const RESERVATION_TTL_MS = 5 * 60 * 1000;
+
+function dailyLimit(env) {
+  const n = parseInt(env.DAILY_LIMIT || DEFAULT_DAILY_LIMIT, 10);
+  return Number.isSafeInteger(n) && n > 0 ? n : DEFAULT_DAILY_LIMIT;
 }
-/** AI 호출이 실제로 성공한 뒤에만 1 늘린다. */
-async function consumeQuota(env, uid) {
-  if (!env.RATE) return { used: 0, limit: 0 };
-  const limit = parseInt(env.DAILY_LIMIT || DEFAULT_DAILY_LIMIT, 10);
-  const key = quotaKey(uid);
-  const used = parseInt((await env.RATE.get(key)) || "0", 10) + 1;
-  // 넉넉히 이틀 뒤 만료 — 날짜가 바뀌면 키 자체가 바뀐다
-  await env.RATE.put(key, String(used), { expirationTtl: 60 * 60 * 48 });
-  return { used, limit };
+
+function quotaState(raw) {
+  const validTimes = (v) => Object.fromEntries(Object.entries(v && typeof v === "object" ? v : {})
+    .filter(([id, t]) => typeof id === "string" && id.length <= 128
+      && Number.isSafeInteger(t) && t > 0));
+  return {
+    used: Number.isSafeInteger(raw?.used) && raw.used >= 0 ? raw.used : 0,
+    reservations: validTimes(raw?.reservations),
+    committed: validTimes(raw?.committed),
+  };
+}
+
+function pruneReservations(state, now) {
+  for (const [id, startedAt] of Object.entries(state.reservations)) {
+    if (now - startedAt > RESERVATION_TTL_MS) delete state.reservations[id];
+  }
+}
+
+/** Durable Object: 하나의 uid+날짜에 들어온 quota 조작을 원자적으로 직렬화한다. */
+export class DailyQuota {
+  constructor(state) {
+    this.state = state;
+  }
+
+  async fetch(request) {
+    if (request.method !== "POST") return json({ error: "POST 만 허용합니다" }, 405, {});
+    let body;
+    try { body = await request.json(); }
+    catch { return json({ error: "잘못된 quota 요청입니다" }, 400, {}); }
+
+    const op = body?.op;
+    const reservationId = typeof body?.reservationId === "string" ? body.reservationId : "";
+    const limit = Number.isSafeInteger(body?.limit) && body.limit > 0 ? body.limit : DEFAULT_DAILY_LIMIT;
+    if (!['reserve', 'commit', 'release'].includes(op) || !reservationId || reservationId.length > 128)
+      return json({ error: "잘못된 quota 요청입니다" }, 400, {});
+
+    const result = await this.state.storage.transaction(async (storage) => {
+      const state = quotaState(await storage.get("quota"));
+      const now = Date.now();
+      pruneReservations(state, now);
+      const pending = () => Object.keys(state.reservations).length;
+
+      if (op === "reserve") {
+        if (state.committed[reservationId] || state.reservations[reservationId]) {
+          return { ok: true, used: state.used, limit, pending: pending() };
+        }
+        if (state.used + pending() >= limit) {
+          return { ok: false, used: state.used, limit, pending: pending() };
+        }
+        state.reservations[reservationId] = now;
+        await storage.put("quota", state);
+        return { ok: true, used: state.used, limit, pending: pending() };
+      }
+
+      if (op === "commit") {
+        if (state.committed[reservationId]) {
+          return { ok: true, used: state.used, limit, pending: pending() };
+        }
+        if (!state.reservations[reservationId]) {
+          return { ok: false, used: state.used, limit, pending: pending(), error: "reservation expired" };
+        }
+        delete state.reservations[reservationId];
+        state.committed[reservationId] = now;
+        state.used += 1;
+        await storage.put("quota", state);
+        return { ok: true, used: state.used, limit, pending: pending() };
+      }
+
+      // AI 공급자 실패 시에만 예약을 반납한다. 이미 확정된 요청은 되돌리지 않는다.
+      if (state.reservations[reservationId]) {
+        delete state.reservations[reservationId];
+        await storage.put("quota", state);
+      }
+      return { ok: true, used: state.used, limit, pending: pending() };
+    });
+    return json(result, 200, {});
+  }
+}
+
+async function quotaRequest(env, uid, op, reservationId) {
+  if (!env.QUOTA) throw new Error("QUOTA Durable Object 바인딩이 설정되지 않았습니다");
+  const id = env.QUOTA.idFromName(quotaKey(uid));
+  const stub = env.QUOTA.get(id);
+  const r = await stub.fetch("https://quota.internal/" + op, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ op, reservationId, limit: dailyLimit(env) }),
+  });
+  if (!r.ok) throw new Error("quota 처리 실패 (" + r.status + ")");
+  return r.json();
 }
 
 export default {
@@ -215,22 +291,36 @@ export default {
       return json({ error: "이미지 형식이 아닙니다" }, 400, cors);
     }
 
-    // ── 3. 남은 한도 확인 (아직 깎지 않는다) ──
-    const rate = await checkQuota(env, user.uid);
-    if (!rate.ok) {
+    // ── 3. 남은 한도를 원자적으로 예약 ──
+    const reservationId = crypto.randomUUID();
+    let reserved = false;
+    let rate;
+    try {
+      rate = await quotaRequest(env, user.uid, "reserve", reservationId);
+      reserved = !!rate.ok;
+    } catch (e) {
+      console.error("AI quota 예약 실패:", e);
+      return json({ error: "AI 사용량을 확인하지 못했습니다. 잠시 후 다시 시도해 주세요." }, 503, cors);
+    }
+    if (!reserved) {
       return json(
         { error: `오늘 사용량(${rate.limit}회)을 모두 썼습니다. 내일 다시 시도해 주세요.` },
         429, cors
       );
     }
 
-    // ── 4. AI 호출 (키는 env 에서만 읽고 응답에 절대 담지 않는다) ──
+    // ── 4. AI 호출 후 예약 확정 (키는 env 에서만 읽고 응답에 절대 담지 않는다) ──
     try {
       const problems = await callAI(env, imageBase64, mimeType);
-      // 성공했을 때만 차감한다 — 잘못된 요청이나 공급자 오류로는 한도가 줄지 않는다
-      const after = await consumeQuota(env, user.uid);
+      const after = await quotaRequest(env, user.uid, "commit", reservationId);
+      if (!after.ok) throw new Error("AI 사용량 확정에 실패했습니다");
+      reserved = false;
       return json({ problems, usage: { used: after.used, limit: after.limit } }, 200, cors);
     } catch (e) {
+      if (reserved) {
+        try { await quotaRequest(env, user.uid, "release", reservationId); }
+        catch (releaseError) { console.error("AI quota 예약 해제 실패:", releaseError); }
+      }
       console.error("AI 호출 실패:", e);
       return json({ error: "AI 변환에 실패했습니다", detail: String(e.message || e) }, 502, cors);
     }
