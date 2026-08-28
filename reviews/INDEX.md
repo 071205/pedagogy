@@ -27,3 +27,4 @@
 | `HANDOFF-2026-004` | Codex | 본문·수식 크기 및 국어 발문 굵기 정렬 | `handoffs/2026-08-28-index-type-scale-alignment.md` |
 | `HANDOFF-2026-005` | Codex | 구조 분리 전 기준 샘플·검증 기준선 확정 | `handoffs/2026-08-28-refactor-baseline.md` |
 | `HANDOFF-2026-006` | Claude | 003/004/005 독립 검토 + CSP App Check 차단 수정 | `handoffs/2026-08-28-independent-review-csp-fix.md` |
+| `HANDOFF-2026-007` | Codex | 계층형 회귀·권한 검사 강화 | `handoffs/2026-08-28-tests-layered-hardening.md` |

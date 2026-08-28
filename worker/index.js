@@ -35,14 +35,14 @@ const DEFAULT_DAILY_LIMIT = 50;
 const MAX_DAILY_LIMIT = 10_000;
 const MAX_BODY_BYTES = 8 * 1024 * 1024; // 이미지 base64 상한
 
-function allowedOrigins(env) {
+export function allowedOrigins(env) {
   return (env.ALLOWED_ORIGINS || "")
     .split(",")
     .map((s) => s.trim().replace(/\/$/, ""))
     .filter(Boolean);
 }
 
-function corsHeaders(request, env) {
+export function corsHeaders(request, env) {
   const origin = request.headers.get("Origin");
   const list = allowedOrigins(env);
   const h = {
@@ -75,7 +75,7 @@ const json = (obj, status, headers) =>
  * 시작하기 전에 사용량을 확정한다. 공급자 오류도 하나의 AI 요청 시도로 센다. 이 정책이
  * 비용 상한을 지키며, 정상 입력 검증 실패는 그 전에 걸러져 사용량을 차감하지 않는다.
  */
-async function quotaKey(uid, when = new Date()) {
+export async function quotaKey(uid, when = new Date()) {
   const bytes = new TextEncoder().encode(uid);
   const digest = await crypto.subtle.digest("SHA-256", bytes);
   const hash = [...new Uint8Array(digest)].map((n) => n.toString(16).padStart(2, "0")).join("");
@@ -89,7 +89,7 @@ function isDailyLimit(value) {
   return Number.isSafeInteger(value) && value > 0 && value <= MAX_DAILY_LIMIT;
 }
 
-function dailyLimit(env, claims) {
+export function dailyLimit(env, claims) {
   const n = parseInt(env.DAILY_LIMIT || DEFAULT_DAILY_LIMIT, 10);
   const fallback = isDailyLimit(n) ? n : DEFAULT_DAILY_LIMIT;
   let plans;
@@ -203,7 +203,15 @@ async function quotaRequest(env, uid, op, reservationId = "", { limit, when } = 
   return r.json();
 }
 
-export default {
+/* 외부 경계(Firebase 토큰, Durable Object, AI 공급자)는 기본값을 유지하되 테스트에서
+   가짜 구현을 주입할 수 있게 한다. 실제 Cloudflare Worker는 아래 default instance만
+   사용하므로 운영 요청 형식·보안 경계는 변하지 않는다. */
+export function createWorker({
+  verifyToken = verifyIdToken,
+  requestQuota = quotaRequest,
+  generateProblems = callAI,
+} = {}) {
+  return {
   async fetch(request, env) {
     const cors = corsHeaders(request, env);
 
@@ -236,10 +244,10 @@ export default {
 
     let user;
     try {
-      user = await verifyIdToken(token, env.FIREBASE_PROJECT_ID);
+      user = await verifyToken(token, env.FIREBASE_PROJECT_ID);
     } catch (e) {
       // 실패 사유를 그대로 흘리면 공격자에게 힌트가 되므로 로그로만 남긴다
-      console.error("토큰 검증 실패:", e.message);
+      console.error("토큰 검증 실패");
       return json({ error: "로그인이 유효하지 않습니다" }, 401, cors);
     }
 
@@ -248,11 +256,11 @@ export default {
         // 현재 UTC 일자와 직전 이틀만 남아 있을 수 있다(48시간 retention).
         const now = Date.now();
         await Promise.all([0, 1, 2].map((daysAgo) =>
-          quotaRequest(env, user.uid, "purge", "", { when: new Date(now - daysAgo * 24 * 60 * 60 * 1000) })
+          requestQuota(env, user.uid, "purge", "", { when: new Date(now - daysAgo * 24 * 60 * 60 * 1000) })
         ));
         return new Response(null, { status: 204, headers: cors });
       } catch (e) {
-        console.error("AI usage 삭제 실패:", e?.message || e);
+        console.error("AI usage 삭제 실패");
         return json({ error: "AI 사용 기록을 지우지 못했습니다. 잠시 후 다시 시도해 주세요." }, 503, cors);
       }
     }
@@ -290,10 +298,10 @@ export default {
     let reserved = false;
     let rate;
     try {
-      rate = await quotaRequest(env, user.uid, "reserve", reservationId, { limit });
+      rate = await requestQuota(env, user.uid, "reserve", reservationId, { limit });
       reserved = !!rate.ok;
     } catch (e) {
-      console.error("AI quota 예약 실패:", e);
+      console.error("AI quota 예약 실패");
       return json({ error: "AI 사용량을 확인하지 못했습니다. 잠시 후 다시 시도해 주세요." }, 503, cors);
     }
     if (!reserved) {
@@ -306,28 +314,31 @@ export default {
     // ── 4. 외부 호출 전에 사용량 확정 ──
     let after;
     try {
-      after = await quotaRequest(env, user.uid, "consume", reservationId, { limit });
+      after = await requestQuota(env, user.uid, "consume", reservationId, { limit });
       if (!after.ok) throw new Error("AI 사용량 확정에 실패했습니다");
       reserved = false;
     } catch (e) {
       if (reserved) {
-        try { await quotaRequest(env, user.uid, "release", reservationId, { limit }); }
-        catch (releaseError) { console.error("AI quota 예약 해제 실패:", releaseError); }
+        try { await requestQuota(env, user.uid, "release", reservationId, { limit }); }
+        catch { console.error("AI quota 예약 해제 실패"); }
       }
-      console.error("AI quota 확정 실패:", e?.message || e);
+      console.error("AI quota 확정 실패");
       return json({ error: "AI 사용량을 확정하지 못했습니다. 잠시 후 다시 시도해 주세요." }, 503, cors);
     }
 
     // ── 5. AI 호출 (사용량은 이미 확정됨) ──
     try {
-      const problems = await callAI(env, imageBase64, mimeType);
+      const problems = await generateProblems(env, imageBase64, mimeType);
       return json({ problems, usage: { used: after.used, limit: after.limit } }, 200, cors);
     } catch (e) {
-      console.error("AI 호출 실패:", e?.message || e);
+      console.error("AI 호출 실패");
       return json({ error: "AI 변환에 실패했습니다. 이미지와 네트워크 상태를 확인한 뒤 다시 시도해 주세요." }, 502, cors);
     }
   },
-};
+  };
+}
+
+export default createWorker();
 
 const SYSTEM_PROMPT = `너는 한국 수학 문제집 편집기의 입력 도우미다.
 입력 이미지에는 수학 문제 한 개(또는 여러 개)가 들어 있다.

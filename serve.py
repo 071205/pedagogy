@@ -52,10 +52,23 @@ STATIC = {
     # 회귀 테스트. iframe 내부를 읽으려면 이 파일도 같은 출처로 떠야 하므로
     # file:// 로는 안 되고 반드시 이 화이트리스트를 거쳐야 한다.
     "/regression-test.html": ("regression-test.html", "text/html; charset=utf-8"),
+    # 별도 포트에서 실행하는 통합 검사. 실제 앱의 저장·새로고침·인쇄 DOM을 보되,
+    # 다른 포트 origin을 써 사용 중인 편집기 localStorage와 분리한다.
+    "/integration-test.html": ("integration-test.html", "text/html; charset=utf-8"),
     # 이용약관 · 개인정보처리방침. 본문 푸터에서 링크하므로 로컬에서도 열려야 한다.
     "/legal.html": ("legal.html", "text/html; charset=utf-8"),
     # App Check site key 같은 공개 런타임 설정. 비밀키는 절대 이 파일에 넣지 않는다.
     "/service-config.js": ("service-config.js", "application/javascript; charset=utf-8"),
+    # 구조 분리 전후의 회귀 입력. 로컬 regression-test.html에서만 읽는 고정 샘플이며,
+    # 디렉터리 전체를 열지 않고 검증 대상 JSON 네 개만 명시한다.
+    "/test-fixtures/refactor-baseline/01-math-formulas.json":
+        ("test-fixtures/refactor-baseline/01-math-formulas.json", "application/json; charset=utf-8"),
+    "/test-fixtures/refactor-baseline/02-korean-passage.json":
+        ("test-fixtures/refactor-baseline/02-korean-passage.json", "application/json; charset=utf-8"),
+    "/test-fixtures/refactor-baseline/03-image-storage.json":
+        ("test-fixtures/refactor-baseline/03-image-storage.json", "application/json; charset=utf-8"),
+    "/test-fixtures/refactor-baseline/04-print-overflow.json":
+        ("test-fixtures/refactor-baseline/04-print-overflow.json", "application/json; charset=utf-8"),
     # index.html 이 @font-face 로 참조하는 브랜드 글꼴. 화이트리스트에 없으면 404 가 나
     # 로고가 폴백 서체로 나온다. 파일이 없으면 아래 do_GET 이 알아서 404 를 돌려준다.
     "/Adobe Caslon Pro Bold.ttf": ("Adobe Caslon Pro Bold.ttf", "font/ttf"),

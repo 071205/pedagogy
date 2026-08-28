@@ -11,5 +11,9 @@ worker/.wrangler/
 __pycache__/
 *.pyc
 
+# Node 테스트 의존성은 package-lock.json으로 재현하고 설치 폴더 자체는 올리지 않는다.
+node_modules/
+test-results/
+
 # firebase CLI 디버그 로그 — 명령을 실행할 때마다 새로 쓰인다(내용은 매번 바뀜)
 *-debug.log

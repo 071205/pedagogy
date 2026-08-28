@@ -219,6 +219,56 @@ async function runIndexTests(){
     return win.normSet(big, {maxProblems: H.CLOUD_MAX_PROBLEMS}).problems.length === 600;
   });
 
+  /* ── 구조 분리 기준 문제집 ──
+     리팩터링 중 normSet()/normBlock() 경로나 허용 블록 목록이 바뀌면, 실제로 쓰는
+     수학·국어·이미지·긴 인쇄 입력이 조용히 손상될 수 있다. 각 JSON을 네트워크로
+     가져와 앱의 정규화 관문에 통과시키되 저장·클라우드·인쇄는 호출하지 않는다. */
+  const fixtureSpecs = [
+    {
+      file:"test-fixtures/refactor-baseline/01-math-formulas.json",
+      name:"기준 수학 샘플 — 수식·선지·한 쪽 문항 정규화",
+      subject:"math", problems:2, types:["statement","conditions","boxed","choices"],
+      extra:set => set.problems.some(p => p.span==="page")
+        && set.problems.some(p => p.blocks.some(b => b.data && typeof b.data.text==="string"
+          && b.data.text.includes("\\frac"))),
+    },
+    {
+      file:"test-fixtures/refactor-baseline/02-korean-passage.json",
+      name:"기준 국어 샘플 — 지문·보기·대화문·표 정규화",
+      subject:"korean", problems:2, types:["passage","bogi","dialogue","table"],
+      extra:set => set.problems[0].groupSpan===2
+        && set.problems[0].blocks.find(b=>b.type==="passage")?.data?.parts?.length===2,
+    },
+    {
+      file:"test-fixtures/refactor-baseline/03-image-storage.json",
+      name:"기준 이미지 샘플 — 이미지·정답 이미지 안전 URL 보존",
+      subject:"inquiry", problems:1, types:["image","statement","choices"],
+      extra:set => {
+        const p=set.problems[0], image=p.blocks.find(b=>b.type==="image");
+        return p.answerImg.startsWith("data:image/png") && image?.data?.dataUrl.startsWith("data:image/png");
+      },
+    },
+    {
+      file:"test-fixtures/refactor-baseline/04-print-overflow.json",
+      name:"기준 인쇄 샘플 — 긴 문항·블록 수식·세로 선지 정규화",
+      subject:"all", problems:1, types:["statement","boxed","conditions","choices"],
+      extra:set => set.problems[0].span==="page"
+        && set.problems[0].blocks.find(b=>b.type==="choices")?.data?.layout==="vertical",
+    },
+  ];
+  for(const spec of fixtureSpecs){
+    await check(G, spec.name, async () => {
+      const response=await fetch(spec.file+"?t="+Date.now());
+      if(!response.ok) return {pass:false,note:"HTTP "+response.status+" — 기준 샘플 파일을 못 읽음"};
+      const raw=await response.json();
+      const set=win.normSet(raw,{keepId:false,maxProblems:H.CLOUD_MAX_PROBLEMS});
+      const types=new Set(set?.problems.flatMap(p=>p.blocks.map(b=>b.type))||[]);
+      const pass=!!set && set.subject===spec.subject && set.problems.length===spec.problems
+        && spec.types.every(type=>types.has(type)) && spec.extra(set);
+      return {pass,note:pass?undefined:"정규화 뒤 과목·문항 수·핵심 블록 또는 특성 값이 달라짐"};
+    });
+  }
+
   // ── 계정별로 갈라야 하는 로컬 키 (게스트 기준값만 확인 — 로그인을 흉내내지 않는다) ──
   await check(G, "계정별 로컬 키 5종이 guest 로 끝남", () => {
     const keys = [win.setsKey(), win.backupKey(), win.lastQKey(), win.stampsKey(), win.lastSetKey()];

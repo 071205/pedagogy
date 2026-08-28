@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { DailyQuota } from "./index.js";
+import { DailyQuota, allowedOrigins, corsHeaders, dailyLimit, quotaKey } from "./index.js";
 
 /* Durable Object storage의 transaction 직렬화를 흉내 낸다. 실제 Worker와 같은
    요청 순서에서 한도 1이 동시 두 요청을 모두 통과시키지 않는지를 검증한다. */
@@ -95,6 +95,41 @@ async function testQuota() {
     "계정 삭제 purge 뒤에는 사용량이 남아 있으면 안 된다");
 }
 
-await testQuota();
+async function testWorkerBoundaryHelpers() {
+  const env = {
+    ALLOWED_ORIGINS: "https://app.example, https://admin.example/ , ,",
+    DAILY_LIMIT: "50",
+    PLAN_DAILY_LIMITS_JSON: JSON.stringify({ free: 10, pro: 200, unsafe: 10001 }),
+  };
+  assert.deepEqual(allowedOrigins(env), ["https://app.example", "https://admin.example"],
+    "허용 출처는 공백·끝 슬래시를 정규화하고 빈 항목을 버려야 한다");
 
-console.log("DailyQuota tests passed");
+  const allowed = corsHeaders(new Request("https://worker.example/", {
+    headers: { Origin: "https://app.example" },
+  }), env);
+  assert.equal(allowed["Access-Control-Allow-Origin"], "https://app.example");
+  assert.equal(allowed["Access-Control-Allow-Methods"], "POST, DELETE, OPTIONS");
+  assert.equal(allowed.Vary, "Origin");
+
+  const denied = corsHeaders(new Request("https://worker.example/", {
+    headers: { Origin: "https://evil.example" },
+  }), env);
+  assert.equal(denied["Access-Control-Allow-Origin"], undefined,
+    "허용되지 않은 출처에는 CORS 허용 헤더를 주면 안 된다");
+
+  assert.equal(dailyLimit(env, { pedagogy_plan: "free" }), 10);
+  assert.equal(dailyLimit(env, { pedagogy_plan: "pro" }), 200);
+  assert.equal(dailyLimit(env, { pedagogy_plan: "unsafe" }), 50,
+    "플랜 설정이 절대 상한을 넘으면 안전한 기본 한도로 돌아가야 한다");
+  assert.equal(dailyLimit({ DAILY_LIMIT: "not-a-number", PLAN_DAILY_LIMITS_JSON: "{}" }, {}), 50);
+
+  const uid = "sensitive-user-id@example.test";
+  const key = await quotaKey(uid, new Date("2026-08-28T12:00:00.000Z"));
+  assert.match(key, /^ai:[a-f0-9]{64}:2026-08-28$/);
+  assert.ok(!key.includes(uid), "Durable Object 이름에 UID 원문이 남으면 안 된다");
+}
+
+await testQuota();
+await testWorkerBoundaryHelpers();
+
+console.log("Worker quota and boundary tests passed");

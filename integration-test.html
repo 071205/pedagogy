@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PEDAGOGY 격리 통합 검사</title>
+<style>
+  :root{--bg:#f7f7f9;--surface:#fff;--border:#e3e3e8;--text:#1a1a1f;--muted:#6b6b76;--ok:#1a9c5b;--bad:#d13438}
+  *{box-sizing:border-box} body{margin:0;padding:28px;font-family:-apple-system,BlinkMacSystemFont,"Pretendard","Segoe UI",sans-serif;background:var(--bg);color:var(--text)}
+  h1{font-size:20px;margin:0 0 6px}.desc{max-width:800px;font-size:13px;line-height:1.6;color:var(--muted);margin:0 0 16px}
+  .warn{max-width:800px;border:1px solid #f0d878;background:#fff8e1;color:#7a5b00;border-radius:8px;padding:11px 13px;font-size:13px;line-height:1.55;margin-bottom:16px}
+  button{padding:9px 16px;border:1px solid var(--border);border-radius:8px;background:var(--surface);font-weight:700;cursor:pointer}
+  button:disabled{opacity:.5;cursor:default}.status{font-size:13px;margin-left:9px;color:var(--muted)}
+  #summary{font-weight:700;margin:18px 0 10px}.ok{color:var(--ok)}.bad{color:var(--bad)}
+  .row{max-width:800px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin:7px 0;font-size:13px}
+  .row.fail{border-color:#f2b5bb;background:#fff5f5}.note{display:block;color:var(--muted);font-size:12px;margin-top:4px}
+  iframe{position:absolute;left:-12000px;top:0;width:1440px;height:1000px;border:0;background:#fff}
+</style>
+</head>
+<body>
+<h1>PEDAGOGY 격리 통합 검사</h1>
+<p class="desc">기준 문제집을 실제 앱의 정규화·로컬 저장·새로고침 복원·인쇄 DOM 경로에 통과시킵니다.
+운영 Firebase와 AI API는 호출하지 않습니다.</p>
+<div class="warn">이 검사는 현재 포트(origin)의 localStorage를 잠시 바꾼 뒤 정확히 복원합니다.
+사용 중인 편집기 포트와 분리해 <code>python3 serve.py --port 8801</code>로 실행하세요.
+로그인 상태가 감지되면 중단합니다.</div>
+<button id="run">격리 통합 검사 실행</button><span class="status" id="status">준비됨</span>
+<div id="summary"></div><div id="results"></div>
+<iframe id="app"></iframe>
+<script>
+const $=s=>document.querySelector(s), frame=$("#app"), results=[];
+const fixtures=[
+  {file:"test-fixtures/refactor-baseline/01-math-formulas.json",name:"수학: 수식·선지·한 쪽 인쇄",
+   verify:r=>r.katex>0&&r.pages>0&&r.pageFull>0&&r.choices>0},
+  {file:"test-fixtures/refactor-baseline/02-korean-passage.json",name:"국어: 지문·보기·대화문·표",
+   verify:r=>r.passageHead>0&&r.passageBox>0&&r.bogi>0&&r.dialogue>0&&r.table>0},
+  {file:"test-fixtures/refactor-baseline/03-image-storage.json",name:"이미지: 본문·정답 이미지 보존",
+   verify:r=>r.images>=2},
+  {file:"test-fixtures/refactor-baseline/04-print-overflow.json",name:"인쇄: 긴 문항·수식·세로 선지",
+   verify:r=>r.pageFull>0&&r.katex>0&&r.verticalChoices>0&&r.overflowed===0},
+];
+
+const wait=(fn,timeout=10000)=>new Promise((resolve,reject)=>{
+  const start=Date.now(); (function poll(){ try{if(fn())return resolve();}catch{} if(Date.now()-start>timeout)return reject(new Error("앱 또는 KaTeX 준비 시간 초과")); setTimeout(poll,50); })();
+});
+function record(name,pass,note){results.push({name,pass,note});}
+function draw(){
+  const failed=results.filter(x=>!x.pass), passed=results.length-failed.length;
+  $("#summary").innerHTML=failed.length
+    ? "<span class=\"bad\">"+failed.length+"건 실패 · "+passed+"건 통과</span>"
+    : "<span class=\"ok\">"+passed+" / "+results.length+" 통과</span>";
+  $("#results").innerHTML=results.map(r=>"<div class=\"row "+(r.pass?"":"fail")+"\"><b>"+(r.pass?"✓":"✕")+" "+r.name+"</b>"+(r.note?"<span class=\"note\">"+r.note+"</span>":"")+"</div>").join("");
+}
+async function loadApp(){
+  await new Promise((resolve,reject)=>{frame.onload=resolve;frame.onerror=()=>reject(new Error("index.html 로드 실패"));frame.src="index.html?integration="+Date.now();});
+  const win=frame.contentWindow; await wait(()=>win.normSet&&win.saveSets&&win.flushLocal&&win.buildPrintDoc&&win.renderMathInElement);
+  /* 함수 선언만 끝난 시점이 아니라 bootLibrary()가 로컬 저장소를 실제로 읽어
+     lastSnapshot을 만든 시점까지 기다린다. 그렇지 않으면 새로고침 뒤 기본 빈
+     문제집을 너무 빨리 읽어 '복원 실패'라는 거짓 양성이 생긴다. */
+  await wait(()=>runIn(win,"return typeof lastSnapshot!=='undefined'&&lastSnapshot!==null;"));
+  return win;
+}
+function runIn(win,source){
+  const script=win.document.createElement("script");
+  script.textContent="try{window.__INTEGRATION_RESULT__=(function(){"+source+"})()}catch(e){window.__INTEGRATION_RESULT__={__error:String((e&&e.message)||e)}}";
+  win.document.head.append(script); script.remove();
+  const result=win.__INTEGRATION_RESULT__;
+  if(result&&result.__error) throw new Error(result.__error);
+  return result;
+}
+function runInAsync(win,source){
+  const key="__INTEGRATION_ASYNC_"+Date.now()+"_"+Math.random().toString(36).slice(2);
+  const script=win.document.createElement("script");
+  script.textContent="(async function(){try{window["+JSON.stringify(key)+"]={done:true,value:await (async function(){"+source+"})()};}catch(e){window["+JSON.stringify(key)+"]={done:true,error:String((e&&e.message)||e)};}})()";
+  win.document.head.append(script); script.remove();
+  return new Promise((resolve,reject)=>{
+    const start=Date.now(); (function poll(){
+      const result=win[key];
+      if(result&&result.done){delete win[key]; return result.error?reject(new Error(result.error)):resolve(result.value);}
+      if(Date.now()-start>10000){delete win[key];return reject(new Error("가져오기 처리 시간 초과"));}
+      setTimeout(poll,30);
+    })();
+  });
+}
+async function fetchFixture(file){
+  const r=await fetch(file+"?integration="+Date.now());
+  if(!r.ok) throw new Error(file+" HTTP "+r.status);
+  return r.json();
+}
+async function run(){
+  const button=$("#run"); button.disabled=true;results.length=0;draw();$("#status").textContent="앱을 준비하는 중…";
+  let win, backup;
+  try{
+    win=await loadApp();
+    const initial=runIn(win,"return {loggedIn:!!currentUser,key:setsKey(),value:localStorage.getItem(setsKey())};");
+    if(initial.loggedIn) throw new Error("로그인 상태에서는 실행하지 않습니다. 다른 포트에서 새로 열어 주세요.");
+    backup=initial;
+    for(const spec of fixtures){
+      $("#status").textContent=spec.name+" 검사 중…";
+      try{
+        const raw=await fetchFixture(spec.file);
+        /* 실제 전체 문제집 가져오기 input을 File 객체로 작동시킨다. 이 경로는
+           FileReader → JSON 파싱 → normSet → 이름 충돌 처리 → saveSets까지
+           실제 사용자와 같으며, 테스트용 origin의 localStorage만 건드린다. */
+        const injected=await runInAsync(win,"var raw="+JSON.stringify(raw)+";var input=$('#importAllInput');var file=new File([JSON.stringify([raw])],'fixture.json',{type:'application/json'});Object.defineProperty(input,'files',{value:[file],configurable:true});input.dispatchEvent(new Event('change'));await new Promise(function(resolve){setTimeout(resolve,700)});flushLocal();var set=sets.find(function(x){return x.name===raw.name});if(!set)throw new Error('가져오기 뒤 문제집이 없음');return {id:set.id,name:set.name,key:setsKey()};");
+        if(!injected||!injected.id) throw new Error("저장용 문제집 주입 실패");
+        win=await loadApp();
+        const probe=runIn(win,"var s=sets.find(function(x){return x.id==="+JSON.stringify(injected.id)+";});if(!s)throw new Error('새로고침 뒤 문제집이 없음');currentSetId=s.id;currentQId=s.problems[0]&&s.problems[0].id;buildPrintDoc(false);var p=$('#printDoc');p.classList.add('measuring');void p.offsetHeight;var overflowed=fitPrintDoc();p.classList.remove('measuring');return {name:s.name,problems:s.problems.length,pages:p.querySelectorAll('.page').length,pageFull:p.querySelectorAll('.page--full').length,katex:p.querySelectorAll('.katex').length,choices:p.querySelectorAll('.choices').length,verticalChoices:p.querySelectorAll('.choices.vertical').length,passageHead:p.querySelectorAll('.psg-head').length,passageBox:p.querySelectorAll('.psg-box').length,bogi:p.querySelectorAll('.bogi').length,dialogue:p.querySelectorAll('.dlg').length,table:p.querySelectorAll('.ktbl').length,images:p.querySelectorAll('img').length,overflowed:overflowed.length};");
+        const pass=probe.name===injected.name&&probe.problems===raw.problems.length&&spec.verify(probe);
+        record(spec.name,pass,pass?undefined:"저장·복원 또는 인쇄 DOM 특성값이 기준과 다름");
+      }catch(e){record(spec.name,false,e&&e.message||String(e));}
+      draw();
+    }
+  }catch(e){
+    record("통합 검사 준비",false,e&&e.message||String(e));draw();
+  }finally{
+    if(backup&&win){
+      try{
+        runIn(win,"if("+JSON.stringify(backup.value)+"===null)localStorage.removeItem("+JSON.stringify(backup.key)+");else localStorage.setItem("+JSON.stringify(backup.key)+","+JSON.stringify(backup.value)+");return true;");
+        await loadApp();
+      }catch(e){record("테스트 저장공간 복원",false,e&&e.message||String(e));draw();}
+    }
+    button.disabled=false;$("#status").textContent="완료";
+  }
+}
+$("#run").onclick=run;
+</script>
+</body>
+</html>

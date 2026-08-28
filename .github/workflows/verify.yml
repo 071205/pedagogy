@@ -18,15 +18,26 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Install test dependencies
+        run: npm ci
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '21'
-      - name: Worker quota tests
-        run: npm run test:worker
-      - name: Commercial static checks
-        run: npm run check:static
-      - name: Firebase rules emulator parse
+      - name: Fast code, fixture, and configuration checks
+        run: npm run check:fast
+      - name: Install fixed Chromium for visual regression
+        run: npx playwright install --with-deps chromium
+      - name: Visual print regression
+        run: npm run test:visual
+      - name: Upload visual diff on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-regression-diff
+          path: test-results/visual
+          if-no-files-found: ignore
+      - name: Firebase rules authorization tests
         run: npm run check:rules
       - name: Python server syntax
         run: python3 -c 'from pathlib import Path; compile(Path("serve.py").read_text(encoding="utf-8"), "serve.py", "exec")'
