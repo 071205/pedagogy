@@ -298,6 +298,36 @@ async function runIndexTests(){
   // ── 죽은 코드가 되살아나지 않았는지 ──
   await check(G, "제거된 gauge() 미복귀", () => typeof win.gauge === "undefined");
 
+  /* ── 문제집 카드 메뉴 ──
+     첫 줄 카드의 점 세 개 메뉴는 아래 줄 카드와 겹친다. 카드 hover의 transform이
+     별도 쌓임 맥락을 만들기 때문에, 메뉴만 z-index를 높여서는 아래 카드 위에 못
+     올라간다. 열린 카드 자신을 위 레이어로 올렸는지 확인한다. 저장 함수는 호출하지
+     않고 iframe 메모리만 복원한다. */
+  await check(G, "문제집 점 세 개 메뉴가 아래 카드에 가려지지 않는다", () => {
+    const script=win.document.createElement("script");
+    script.textContent=`window.__MENU_LAYER_PROBE__=(function(){
+      var keep=sets;
+      try{
+        sets=Array.from({length:7},function(_,i){return {id:"__menu_"+i,name:"메뉴 검사 "+i,header:"",subject:"math",problems:[]};});
+        renderLibrary();
+        var cards=[].slice.call(document.querySelectorAll("#setGrid .set-card"));
+        var card=cards[0], dots=card.querySelector(".dotbtn"), menu=card.querySelector(".menu");
+        dots.click();
+        var lower=cards.find(function(c){return c.getBoundingClientRect().top>card.getBoundingClientRect().top;});
+        var mr=menu.getBoundingClientRect(), lr=lower&&lower.getBoundingClientRect();
+        /* regression-test.html의 iframe은 화면 밖에 있어 elementFromPoint()는 실제
+           포인터 hit-test 대상을 돌려주지 않는다. 대신 겹침 자체와, 그 위에 올릴
+           카드 stacking layer가 실제로 적용됐는지를 확인한다. */
+        var overlap=!!lr && mr.bottom>lr.top;
+        return {opened:card.classList.contains("menu-open"), z:getComputedStyle(card).zIndex, overlap:overlap};
+      } finally { sets=keep; renderLibrary(); }
+    })();`;
+    win.document.head.append(script); script.remove();
+    const p=win.__MENU_LAYER_PROBE__;
+    return {pass:!!p && p.opened && Number(p.z)>=30,
+            note:!p ? "메뉴 검사 값을 못 읽음" : `opened=${p.opened}, z=${p.z}, overlap=${p.overlap}`};
+  });
+
   // ── 이모지 정리(최근 단계) ──
   await check(G, "모의고사 버튼 텍스트에 이모지 없음", () =>
     win.document.getElementById("mockModeBtn").textContent.trim() === "모의고사");

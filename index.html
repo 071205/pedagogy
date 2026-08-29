@@ -325,6 +325,9 @@ label.btn input{display:none}
   transition:border-color .15s, box-shadow .15s, transform .12s;
 }
 .set-card:hover{border-color:#3F3F4F;box-shadow:0 4px 24px rgba(0,0,0,.4);transform:translateY(-2px)}
+/* 메뉴를 연 카드 자체를 위 쌓임 순서로 올린다. hover의 transform은 카드마다 별도
+   stacking context를 만들므로 .menu에만 z-index를 주면 다음 줄 카드가 메뉴를 덮는다. */
+.set-card.menu-open{z-index:30}
 .set-card h3{margin:0 0 8px 0;font-size:17px;font-weight:700;color:var(--text-primary);line-height:1.3;padding-right:24px}
 .set-card .count{margin:0;color:var(--text-secondary);font-size:13px;
   display:flex;align-items:center;gap:7px;flex-wrap:wrap}
@@ -3038,12 +3041,31 @@ function renderLibrary(){
     const bDel=el("button","danger","삭제");
     menu.append(bRename,bDup,bExp,bDel); card.append(menu);
 
-    dots.onclick=(e)=>{e.stopPropagation(); menu.style.display=menu.style.display==="block"?"none":"block";}
-    document.addEventListener("click",()=>menu.style.display="none",{once:true});
+    const closeMenu=()=>{
+      menu.style.display="none";
+      card.classList.remove("menu-open");
+    };
+    dots.onclick=(e)=>{
+      e.stopPropagation();
+      const opening=menu.style.display!=="block";
+      // 같은 화면에 메뉴가 여럿 남으면 어느 카드가 위인지 다시 애매해진다.
+      document.querySelectorAll(".set-card.menu-open").forEach(openCard=>{
+        if(openCard!==card){
+          openCard.classList.remove("menu-open");
+          const openMenu=openCard.querySelector(".menu");
+          if(openMenu) openMenu.style.display="none";
+        }
+      });
+      if(opening){
+        menu.style.display="block";
+        card.classList.add("menu-open");
+        document.addEventListener("click",closeMenu,{once:true});
+      }else closeMenu();
+    };
 
     bRename.onclick=(e)=>{
       e.stopPropagation();
-      menu.style.display="none";                 // 메뉴 닫기 (옆 버튼들 사라지게)
+      closeMenu();                                 // 메뉴 닫기 (옆 버튼들 사라지게)
       title.contentEditable="true"; title.style.borderBottom="1px dashed #3a3f52";
       const sel=window.getSelection(); const range=document.createRange();
       range.selectNodeContents(title); sel.removeAllRanges(); sel.addRange(range); title.focus();
