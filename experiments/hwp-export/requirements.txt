@@ -1,0 +1,7 @@
+# 베타 실험 전용. 제품(index.html / mock-exam-editor.html / serve.py)은 이 의존성을
+# 전혀 쓰지 않는다 — 이 폴더를 지워도 제품은 그대로 돌아간다.
+#
+# 버전을 고정하는 이유: jakal-hwpx 는 아직 초기 단계 라이브러리(0.x)라 마이너 판올림에도
+# 레코드 처리 동작이 바뀔 수 있다. 올릴 때는 반드시 selfcheck.py 를 다시 돌릴 것.
+jakal-hwpx==0.3.1
+olefile==0.47
