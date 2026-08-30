@@ -46,8 +46,18 @@ SCOPE = [
     ("첨자 안 명령도 묶인다", r"x^\alpha", "x^{ alpha }"),
 ]
 
-# 변환은 되지만 실물 대조본이 없는 것들 — 모양만 확인한다
+# 편집기 예제 문항에 실제로 들어 있던 것들 (samples/editor-seed.json)
 SHAPE = [
+    ("조판 힌트 \\limits 는 무시", r"\lim\limits_{h\to0} f(h)", "lim"),
+    ("조판 힌트 \\displaystyle 는 무시", r"\displaystyle\int_{-2}^{a} f(x)\,dx", "int"),
+    ("수열의 중괄호는 글자로 찍힌다", r"\{a_n\}", "lbrace"),
+    ("인자 하나짜리 분수 \\frac13", r"\frac13", "{1}over{3}"),
+    ("중괄호 없는 근호 \\sqrt3", r"15\sqrt3", "sqrt{3}"),
+    ("윗줄 (선분 표기)", r"\overline{AB}<\overline{AC}", "bar"),
+]
+
+# 변환은 되지만 실물 대조본이 없는 것들 — 모양만 확인한다
+SHAPE2 = [
     ("경우 나눔", r"f(x) = \begin{cases} 5x+a & (x < -2) \\ x^2-a & (x \geq -2) \end{cases}",
      "cases{"),
     ("행렬", r"\begin{pmatrix} 1 & 2 \\ 3 & 4 \end{pmatrix}", "pmatrix{"),
@@ -88,15 +98,24 @@ for label, tex, want in SCOPE:
     except UnsupportedTex as e:
         check(label, False, f"변환 실패: {e}")
 
-print("\n[3] 모양 확인 (실물 대조본 없음)")
+print("\n[3] 편집기 예제 문항에 실제로 있던 표기")
 for label, tex, must in SHAPE:
+    try:
+        got = convert(tex)
+        check(f"{label} — {got[:50]}", must in normalize(got) or must in got,
+              f"'{must}' 가 없음: {got}")
+    except UnsupportedTex as e:
+        check(label, False, f"변환 실패: {e}")
+
+print("\n[4] 모양 확인 (실물 대조본 없음)")
+for label, tex, must in SHAPE2:
     try:
         got = convert(tex)
         check(f"{label} — {got[:56]}", must in got, f"'{must}' 가 없음: {got}")
     except UnsupportedTex as e:
         check(label, False, f"변환 실패: {e}")
 
-print("\n[4] 모르는 명령은 조용히 버리지 않고 알린다")
+print("\n[5] 모르는 명령은 조용히 버리지 않고 알린다")
 try:
     convert(r"\somethingweird{x}")
     check("모르는 명령에 예외", False, "예외가 나지 않았습니다 — 수식이 조용히 사라질 수 있음")

@@ -57,6 +57,12 @@ ACCENT = {"vec": "vec", "bar": "bar", "hat": "hat", "tilde": "tilde",
           "dot": "dot", "ddot": "ddot", "overline": "bar",
           "mathrm": "rm", "mathit": "it", "mathbf": "bold", "text": "rm"}
 
+# LaTeX 의 '조판 힌트' — HWP 에는 대응물이 없고 한글이 알아서 크기를 정한다.
+# 버려도 뜻이 달라지지 않으므로 조용히 무시하는 것이 맞다. 반대로 뜻이 있는 명령을
+# 여기 넣으면 수식이 조용히 틀려지므로, 넣기 전에 '없어도 뜻이 같은가' 를 확인할 것.
+NOOP = {"displaystyle", "textstyle", "scriptstyle", "scriptscriptstyle",
+        "limits", "nolimits", "left.", "right.", "mathstrut", "strut"}
+
 
 def _skip_ws(s: str, i: int) -> int:
     while i < len(s) and s[i].isspace():
@@ -184,11 +190,18 @@ def convert(tex: str) -> str:
         elif name in ACCENT:
             a, i = _read_group(tex, i)
             out.append(f"{ACCENT[name]} {{{convert(a)}}}")
+        elif name in NOOP:
+            pass                        # 조판 힌트 — 버려도 뜻이 같다
         elif name in SIMPLE:
             out.append(" " + SIMPLE[name] + " ")
         elif name == "\\":
             out.append(" # ")           # 줄바꿈 (환경 밖)
-        elif name in "{}%$&_#":
+        elif name == "{" or name == "}":
+            # ⚠️ HWP 에서 `{}` 는 '묶음' 기호라 그대로 내면 화면에 보이지 않는다.
+            #    수열 `\{a_n\}` 의 중괄호가 통째로 사라졌다. 글자로 찍히는 것은
+            #    `lbrace`/`rbrace` 다.
+            out.append(" lbrace " if name == "{" else " rbrace ")
+        elif name in "%$&_#":
             out.append(name)
         else:
             raise UnsupportedTex(f"아직 지원하지 않는 명령: \\{name}")
