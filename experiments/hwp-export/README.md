@@ -171,6 +171,7 @@ LaTeX 로만 쓴 문항 5개를 변환해 시험지를 만들고, 한글에서 �
 
 ```bash
 python3 test_tex_to_hwp.py    # 14건 — 실물 수식과 직접 대조
+python3 test_mock_to_hwpx.py  # 그림 바이너리 포함·경로 탈출 차단
 python3 make_e2e_probe.py     # LaTeX → HWPX 끝에서 끝까지
 ```
 
@@ -204,6 +205,14 @@ LaTeX 의 `x^2-a` 는 x²−a 지만, 그대로 옮기면 HWP 는 `^` 가 뒤를
 python3 mock_to_hwpx.py 시험지.json out.hwpx
 ```
 
+그림을 쓴 JSON이면 그림 파일도 JSON 옆에 둔다.
+
+```text
+exports/
+  시험지.json       # image.src = "fig-14.png"
+  fig-14.png
+```
+
 편집기의 예제 문항 6개(`samples/editor-seed.json`, 편집기에서 그대로 뽑은 것)로 확인했다.
 문항 6개·수식 59개가 경고 없이 변환되고, 한글에서 열어 확인한 결과:
 
@@ -225,8 +234,9 @@ python3 mock_to_hwpx.py 시험지.json out.hwpx
 
 ## 아직 손대지 않은 것
 
-- **그림** — 지금은 `[그림 14 · 너비 58mm]` 자리표시만 넣는다. 편집기의 그림 파일을
-  Storage 에서 받아 HWPX 안에 넣는 경로가 필요하다.
+- **그림** — JSON의 `src`가 가리키는 PNG/JPEG/GIF/BMP를 **JSON 파일과 같은 폴더**에서
+  읽어 HWPX 안에 실제 포함한다. 폴더 밖 경로·없는 파일·지원하지 않는 형식은 읽지 않고,
+  경고와 자리표시를 남긴다. Firebase Storage URL을 직접 받는 제품 경로는 아직 없다.
 - **조건 상자 테두리** — `(가)(나)` 가 글로만 나오고 실물처럼 테두리 상자에 들어가지 않는다.
   한 칸짜리 표로 감싸면 될 것으로 보이나 확인하지 않았다.
 - **쪽 머리말·꼬리말** (`수학 영역`, 쪽 번호) 과 문항 자동 배치(`breakAfter`, `layout`).

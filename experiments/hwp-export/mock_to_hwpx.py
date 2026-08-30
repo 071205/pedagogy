@@ -56,6 +56,52 @@ def append_text_run(doc: HwpxDocument, para_idx: int, text: str) -> None:
                        paragraph_index=para_idx)
 
 
+IMAGE_MEDIA_TYPES = {
+    ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+    ".gif": "image/gif", ".bmp": "image/bmp",
+}
+
+
+def image_dimensions(data: bytes) -> tuple[int, int] | None:
+    """PNG·GIF·JPEG의 실제 가로세로를 읽는다. 외부 이미지 라이브러리는 쓰지 않는다."""
+    if data.startswith(b"\x89PNG\r\n\x1a\n") and len(data) >= 24:
+        return int.from_bytes(data[16:20], "big"), int.from_bytes(data[20:24], "big")
+    if data.startswith((b"GIF87a", b"GIF89a")) and len(data) >= 10:
+        return int.from_bytes(data[6:8], "little"), int.from_bytes(data[8:10], "little")
+    if data.startswith(b"\xff\xd8"):
+        i = 2
+        while i + 9 < len(data):
+            if data[i] != 0xFF:
+                i += 1
+                continue
+            while i < len(data) and data[i] == 0xFF:
+                i += 1
+            marker = data[i]
+            i += 1
+            if marker in (0xD8, 0xD9) or 0xD0 <= marker <= 0xD7:
+                continue
+            if i + 2 > len(data):
+                break
+            length = int.from_bytes(data[i:i + 2], "big")
+            if length < 2 or i + length > len(data):
+                break
+            if marker in (0xC0, 0xC1, 0xC2, 0xC3, 0xC5, 0xC6, 0xC7,
+                          0xC9, 0xCA, 0xCB, 0xCD, 0xCE, 0xCF):
+                return int.from_bytes(data[i + 5:i + 7], "big"), int.from_bytes(data[i + 3:i + 5], "big")
+            i += length
+    return None
+
+
+def safe_image_path(src: str, asset_dir: Path) -> Path | None:
+    """시험지 JSON 옆 파일만 읽는다. 절대경로·상위 폴더 탈출은 허용하지 않는다."""
+    candidate = (asset_dir / src).resolve()
+    try:
+        candidate.relative_to(asset_dir.resolve())
+    except ValueError:
+        return None
+    return candidate if candidate.is_file() else None
+
+
 # ── 편집기의 probUnits() 를 옮긴 것 ────────────────────────────────────────
 
 def blocks_of(p: dict) -> list[dict]:
@@ -160,7 +206,32 @@ def emit_display_eq(doc: HwpxDocument, tex: str, rep: Report, *, where: str) -> 
     rep.equations += 1
 
 
-def emit_problem(doc: HwpxDocument, p: dict, rep: Report) -> None:
+def emit_figure(doc: HwpxDocument, u: dict, rep: Report, *, where: str, asset_dir: Path) -> None:
+    src = u["src"]
+    if not src:
+        doc.append_paragraph(f"[그림 {where} · 너비 {u['w']}mm]")
+        return
+    path = safe_image_path(src, asset_dir)
+    media_type = IMAGE_MEDIA_TYPES.get(Path(src).suffix.lower())
+    if path is None or media_type is None:
+        rep.warnings.append(f"{where}: 그림 파일을 읽지 못함 — {src}")
+        doc.append_paragraph(f"[그림 누락: {src} · 너비 {u['w']}mm]")
+        return
+    data = path.read_bytes()
+    dimensions = image_dimensions(data)
+    if dimensions is None or not all(dimensions):
+        rep.warnings.append(f"{where}: 그림 크기를 읽지 못함 — {src}")
+        doc.append_paragraph(f"[그림 형식 오류: {src} · 너비 {u['w']}mm]")
+        return
+    width = round(u["w"] / 25.4 * 7200)
+    height = max(1, round(width * dimensions[1] / dimensions[0]))
+    # 그림 컨트롤은 문단에 붙는다. 빈 앵커 문단을 먼저 만들면 본문 흐름을 끊지 않는다.
+    doc.append_paragraph("")
+    doc.append_picture(path.name, data, media_type=media_type, width=width, height=height,
+                       paragraph_index=doc.paragraph_count() - 1, shape_comment=f"{where}번 그림")
+
+
+def emit_problem(doc: HwpxDocument, p: dict, rep: Report, *, asset_dir: Path) -> None:
     units, pts_at = prob_units(p)
     num = p.get("num", "?")
     where = f"{num}번"
@@ -188,7 +259,7 @@ def emit_problem(doc: HwpxDocument, p: dict, rep: Report) -> None:
             for j, item in enumerate(u["items"]):
                 emit_rich(doc, f"{HGND[j % len(HGND)]}. {item}", rep, where=where)
         elif u["k"] == "fig":
-            doc.append_paragraph(f"[그림 {u['src'] or num} · 너비 {u['w']}mm]")
+            emit_figure(doc, u, rep, where=where, asset_dir=asset_dir)
         elif u["k"] == "choices":
             line = "   ".join(f"{MARKS[j % len(MARKS)]} {c}".rstrip()
                               for j, c in enumerate(u["items"]) if c.strip())
@@ -197,7 +268,7 @@ def emit_problem(doc: HwpxDocument, p: dict, rep: Report) -> None:
     doc.append_paragraph("")
 
 
-def build(data: dict, out: Path) -> Report:
+def build(data: dict, out: Path, *, asset_dir: Path | None = None) -> Report:
     rep = Report()
     doc = HwpxDocument.blank()
     apply_layout(doc)
@@ -206,11 +277,12 @@ def build(data: dict, out: Path) -> Report:
     doc.append_paragraph(title)
     doc.append_paragraph("5지선다형")
 
+    assets = (asset_dir or Path.cwd()).resolve()
     for p in data.get("problems") or []:
         units, _ = prob_units(p)
         if not any(u["k"] != "choices" for u in units):
             continue                      # 빈 문항은 싣지 않는다
-        emit_problem(doc, p, rep)
+        emit_problem(doc, p, rep, asset_dir=assets)
         rep.problems += 1
 
     for name in ["xml_validation_errors", "reference_validation_errors",
@@ -236,7 +308,7 @@ def main(argv: list[str]) -> int:
     out = Path(argv[2]) if len(argv) > 2 else src.with_suffix(".hwpx")
     data = json.loads(src.read_text(encoding="utf-8"))
 
-    rep = build(data, out)
+    rep = build(data, out, asset_dir=src.parent)
     print(f"문항 {rep.problems}개, 수식 {rep.equations}개 → {out} ({out.stat().st_size:,} bytes)")
     if rep.warnings:
         print(f"\n⚠️ 경고 {len(rep.warnings)}건 (조용히 넘기지 않습니다):")

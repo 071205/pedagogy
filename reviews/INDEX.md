@@ -32,3 +32,4 @@
 | `HANDOFF-2026-009` | Codex | 국어 보기 내 표 · 모의고사 연속 쪽 머리말 | `handoffs/2026-08-30-index-mock-korean-bogi-and-header.md` |
 | `HANDOFF-2026-010` | Claude | HWP 조판 가능성 실험 (베타 · 제품 미연결) | `handoffs/2026-08-30-experiments-hwp-export-spike.md` |
 | `HANDOFF-2026-011` | Claude | 모의고사 → 한글(HWPX) 내보내기 완성 (베타) | `handoffs/2026-08-30-experiments-hwpx-mock-export.md` |
+| `HANDOFF-2026-012` | Codex | HWPX 그림 실제 포함 및 경로 안전성 (베타) | `handoffs/2026-08-30-experiments-hwpx-image-export.md` |
