@@ -1,6 +1,6 @@
 # 리뷰 현황
 
-마지막 정리: 2026-08-28
+마지막 정리: 2026-08-30
 
 ## 열린 이슈
 
@@ -29,3 +29,5 @@
 | `HANDOFF-2026-006` | Claude | 003/004/005 독립 검토 + CSP App Check 차단 수정 | `handoffs/2026-08-28-independent-review-csp-fix.md` |
 | `HANDOFF-2026-007` | Codex | 계층형 회귀·권한 검사 강화 | `handoffs/2026-08-28-tests-layered-hardening.md` |
 | `HANDOFF-2026-008` | Codex | 문제집 카드 메뉴 레이어 수정 | `handoffs/2026-08-29-index-library-menu-layering.md` |
+| `HANDOFF-2026-009` | Codex | 국어 보기 내 표 · 모의고사 연속 쪽 머리말 | `handoffs/2026-08-30-index-mock-korean-bogi-and-header.md` |
+| `HANDOFF-2026-010` | Claude | HWP 조판 가능성 실험 (베타 · 제품 미연결) | `handoffs/2026-08-30-experiments-hwp-export-spike.md` |

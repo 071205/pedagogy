@@ -3,6 +3,13 @@
 # 참고용으로 폴더에 둔 시판 문제집 PDF — 저작물이므로 공개 저장소에 올리지 않는다
 *.pdf
 
+# 실물 시험지 한글 파일도 같은 이유로 올리지 않는다. experiments/hwp-export 가
+# 이 파일을 '틀'로 읽는데, 그 결과물(out/)은 원본의 틀·그림을 그대로 품으므로
+# 결과물도 함께 막는다.
+*.hwp
+*.hwpx
+experiments/hwp-export/out/
+
 # wrangler 로컬 캐시 — 계정 id/이름이 담겨 공개 저장소에 둘 이유가 없다
 .wrangler/
 worker/.wrangler/
