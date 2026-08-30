@@ -941,7 +941,8 @@ function renderPreview(){
          <div class="area" style="top:39mm"><span>${esc(area)}</span></div>
          <div class="gyosi" style="left:18.97mm;top:38.44mm;width:32mm;height:10.96mm"><span>제 2 교시</span></div>
          <div class="pno" style="right:18.33mm;top:21.8mm">${n}</div>`
-      : `<div class="area p2" style="top:24mm"><span>${esc(area)}</span></div>
+      : `<!-- 2쪽부터는 제목의 줄상자 끝이 35.01mm 괘선 위에 남도록 고정한다. -->
+         <div class="area p2" style="top:17.5mm"><span>${esc(area)}</span></div>
          <div class="pno" style="${odd?'right':'left'}:18.33mm;top:23.4mm">${n}</div>`;
     const note=noteFor(meta,pi,elec);
     return `<div class="paper ${state.guides?'g':''}">
@@ -1637,7 +1638,9 @@ const TYPST_FRAME = `#import "@preview/mitex:0.2.7": mi, mitex
         #scale(x: 90%, reflow: true)[#text(font: F-AREA, size: 40pt * K-AREA, tracking: -1.2pt)[#area]]]])
     place(top + right, dx: -MG, dy: 21.8mm, text(font: F-PNO, size: 29.7pt * K-PNO, weight: "bold")[#pageno])
   } else {
-    place(top + left, dx: 0mm, dy: 24.0mm,
+    // 2p+ 제목의 13.7mm 줄상자와 35.01mm 괘선 사이에 여백을 둔다.
+    // HTML 미리보기의 .area.p2 top 값과 반드시 함께 유지한다.
+    place(top + left, dx: 0mm, dy: 17.5mm,
       box(width: PW)[#align(center)[
         #scale(x: 90%, reflow: true)[#text(font: F-AREA, size: 28pt * K-AREA, tracking: -0.84pt)[#area]]]])
     if calc.odd(pageno) {

@@ -596,6 +596,22 @@ async function runIndexTests(){
     return h.includes("bogi-label") && h.includes("&lt;보 기&gt;") && ex.includes("bogi-label");
   });
 
+  await check(G, "<보기> 상자 안 표는 같은 테두리 안에 렌더된다", () => {
+    const b = win.normBlock({type:"bogi", data:{text:"다음 자료를 보자.", label:"자 료",
+      header:true, rows:[["항목","내용"],["가","나"]]}});
+    const html = win.blockHTML(b, {});
+    return b.data.rows.length===2 && b.data.header===true
+        && html.includes("bogi-body") && html.includes("ktbl")
+        && (html.match(/<th>/g)||[]).length===2 && (html.match(/<td>/g)||[]).length===2
+        && html.indexOf("bogi-body") < html.indexOf("ktbl");
+  });
+
+  await check(G, "구형 <보기>는 빈 표를 만들지 않는다", () => {
+    const b = win.normBlock({type:"bogi", data:{text:"기존 보기", label:"보 기"}});
+    return Array.isArray(b.data.rows) && b.data.rows.length===0
+        && !win.blockHTML(b, {}).includes("ktbl");
+  });
+
   await check(G, "지문 라벨·출처·각주에 넣은 스크립트가 실행되지 않는다", async () => {
     const marker = "__kor_xss_"+Date.now();
     const evil = `</div><img src=x onerror=window.${marker}=1>`;
@@ -603,6 +619,7 @@ async function runIndexTests(){
       win.blockHTML(win.normBlock({type:"passage", data:{parts:[
         {label:evil, source:evil, notes:evil, text:`$$</div><img src=x onerror=window.${marker}=1>$$`}]}}), {range:"01~03"}),
       win.blockHTML(win.normBlock({type:"bogi",    data:{label:evil, text:"x"}}), {}),
+      win.blockHTML(win.normBlock({type:"bogi",    data:{rows:[[evil,evil]]}}), {}),
       win.blockHTML(win.normBlock({type:"examples",data:{label:evil, items:["x"]}}), {}),
     ].join("");
     return { pass: await firesOnInnerHTML(html, marker) };
@@ -659,7 +676,10 @@ async function runIndexTests(){
       {type:"passage", data:{parts:[{text:"지문만 있는 문제집"}]}}]}]};
     const onlyTable = {name:"새 문제집", problems:[{blocks:[
       {type:"table", data:{rows:[["가","나"]]}}]}]};
-    return win.setHasContent(onlyPassage) && win.setHasContent(onlyTable);
+    const onlyBogiTable = {name:"새 문제집", problems:[{blocks:[
+      {type:"bogi", data:{rows:[["가","나"]]}}]}]};
+    return win.setHasContent(onlyPassage) && win.setHasContent(onlyTable)
+        && win.setHasContent(onlyBogiTable);
   });
 
   await check(G, "문항 목록 요약이 모든 블록 모양을 견딘다", () => {

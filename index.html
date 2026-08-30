@@ -1774,7 +1774,15 @@ function normBlock(b){
   }
   /* <보기> — 국어에서 가장 자주 쓰는 상자. 상단 가운데에 라벨이 붙는다.
      라벨을 바꿀 수 있게 둔다(<자료>, <조건> 등으로도 쓰인다). */
-  if(type==="bogi") return {type,data:{text:str(d.text,5000), label:str(d.label,20)||"보 기"}};
+  if(type==="bogi"){
+    /* <보기>/<자료> 안에는 설명문 뒤에 표가 붙는 형식이 매우 흔하다.
+       표 블록을 밖에 따로 두면 테두리 밖으로 밀려 나가 실제 시험지 구조가 깨진다.
+       구형 보기 데이터(text·label만 가진 것)는 rows=[]로 그대로 호환한다. */
+    const rows=(Array.isArray(d.rows)?d.rows:[]).slice(0,20).map(r=>
+      (Array.isArray(r)?r:[]).slice(0,10).map(cell=>str(cell,300)));
+    return {type,data:{text:str(d.text,5000), label:str(d.label,20)||"보 기",
+                       rows, header:d.header!==false}};
+  }
   /* 대화문 — 화법과 작문의 학생 대화, 매체의 방송 대화가 모두 이 모양이다.
      "학생 1 : 애들아, …" 처럼 말한이와 말이 콜론으로 갈리고, 다음 줄은
      말한이 칸이 아니라 '말' 아래로 들여쓴다(내어쓰기). */
@@ -3381,7 +3389,7 @@ function blankBlockData(type){
   if(type==="statement"||type==="boxed") return {text:""};
   if(type==="passage") return {lead:"다음 글을 읽고 물음에 답하시오.", boxed:true,
     parts:[{label:"",kind:"prose",text:"",source:"",notes:""}]};
-  if(type==="bogi") return {text:"", label:"보 기"};
+  if(type==="bogi") return {text:"", label:"보 기", rows:[], header:true};
   if(type==="dialogue") return {items:[{who:"학생 1",text:""},{who:"학생 2",text:""}]};
   if(type==="table") return {rows:[["",""],["",""]], header:true};
   if(type==="conditions"||type==="examples") return {items:[""], label:""};
@@ -3700,7 +3708,49 @@ function renderEditor(){
       ta.value=blk.data.text||""; autoSizeTA(ta);
       body.append(ta);
       ta.addEventListener('input',e=>{ blk.data.text=e.target.value; autoSizeTA(ta); renderPreview(); saveSets(); });
-      body.append(el("div","dm-note","라벨을 <자료>, <조건> 등으로 바꿔 쓸 수 있습니다."));
+
+      /* 평가원 <보기>에는 설명문과 표가 같은 테두리 안에 들어가는 경우가 많다.
+         표 블록을 뒤에 따로 두면 자료 상자 밖으로 나가므로, 보기 데이터에 선택적으로
+         표를 품게 한다. 기존 보기에는 rows가 없으므로 체크 전까지 UI도 렌더도 변하지 않는다. */
+      const hasRows=Array.isArray(blk.data.rows)&&blk.data.rows.length>0;
+      const tableOpt=el("label"); tableOpt.style.cssText="display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--text-secondary);cursor:pointer;margin-top:8px";
+      const tc=el("input"); tc.type="checkbox"; tc.checked=hasRows;
+      tc.style.cssText="width:15px;height:15px;accent-color:var(--blue)";
+      tc.onchange=e=>{
+        blk.data.rows=e.target.checked ? [["", ""],["", ""]] : [];
+        if(e.target.checked) blk.data.header=true;
+        renderEditor(); renderPreview(); saveSets();
+      };
+      tableOpt.append(tc,document.createTextNode("상자 안에 표 넣기")); body.append(tableOpt);
+
+      if(hasRows){
+        const rows=blk.data.rows;
+        const wide=Math.max(2,...rows.map(r=>r.length));
+        const grid=el("div","ktbl-ed"); grid.style.gridTemplateColumns=`repeat(${wide}, minmax(0,1fr)) 28px`;
+        rows.forEach((r,ri)=>{
+          for(let ci=0;ci<wide;ci++){
+            const inp=el("input"); inp.type="text"; inp.className="field-input";
+            inp.value=r[ci]||""; inp.placeholder=(blk.data.header!==false&&ri===0)?"머리글":"";
+            inp.oninput=e=>{ while(r.length<wide) r.push(""); r[ci]=e.target.value; renderPreview(); saveSets(); };
+            grid.append(inp);
+          }
+          const rm=el("button","iconbtn",""); rm.append(el("span","icon icon-trash","")); rm.title="이 행 삭제";
+          rm.onclick=()=>{ rows.splice(ri,1); if(!rows.length) rows.push(["",""]); renderEditor(); renderPreview(); saveSets(); };
+          grid.append(rm);
+        });
+        body.append(grid);
+        const bar=el("div","row"); bar.style.marginTop="8px";
+        const addR=el("button","btn","+ 행");
+        addR.onclick=()=>{ rows.push(new Array(wide).fill("")); renderEditor(); renderPreview(); saveSets(); };
+        const addC=el("button","btn","+ 열");
+        addC.onclick=()=>{ rows.forEach(r=>{ while(r.length<wide) r.push(""); r.push(""); }); renderEditor(); renderPreview(); saveSets(); };
+        const hl=el("label"); hl.style.cssText="display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--text-secondary);cursor:pointer;margin-left:auto";
+        const hc=el("input"); hc.type="checkbox"; hc.checked=blk.data.header!==false;
+        hc.style.cssText="width:15px;height:15px;accent-color:var(--blue)";
+        hc.onchange=e=>{ blk.data.header=e.target.checked; renderEditor(); renderPreview(); saveSets(); };
+        hl.append(hc,document.createTextNode("첫 행은 머리글")); bar.append(addR,addC,hl); body.append(bar);
+      }
+      body.append(el("div","dm-note","라벨을 <자료>, <조건> 등으로 바꿔 쓸 수 있습니다. 서식은 **굵게**, __밑줄__, [[네모]]로 입력합니다."));
     }
 
     if(blk.type==="dialogue"){
@@ -3849,9 +3899,7 @@ function renderEditor(){
 
   $("#addBlockBtn").onclick=()=>{
     const type=$("#blockType").value;
-    const def=(type==="passage")?{lead:"다음 글을 읽고 물음에 답하시오.",boxed:true,parts:[{label:"",kind:"prose",text:"",source:"",notes:""}]}:(type==="bogi")?{text:"",label:"보 기"}
-  :(type==="dialogue")?{items:[{who:"학생 1",text:""},{who:"학생 2",text:""}]}
-  :(type==="table")?{rows:[["",""],["",""]],header:true}:(type==="statement"||type==="boxed")?{text:""}:(type==="conditions"||type==="examples")?{items:[""]}:(type==="choices")?{items:["","","","",""],layout:"horizontal"}:(type==="image")?{dataUrl:"",size:"full"}:{};
+    const def=blankBlockData(type);
     const q=activeQ(); q.blocks.push({type, data:def}); saveSets(); renderEditor(); renderPreview();
   };
 
@@ -4243,6 +4291,19 @@ function proseHTML(raw){
   }).join("");
 }
 
+/* 독립 표와 <보기> 안 표가 같은 안전한 텍스트·칸 수 보정을 공유한다. */
+function tableHTML(data){
+  const rows=(data&&data.rows)||[];
+  const wide=Math.max(0,...rows.map(r=>r.length));
+  const body=rows.map((r,i)=>{
+    const tag=(data.header!==false && i===0) ? "th" : "td";
+    const cells=[];
+    for(let j=0;j<wide;j++) cells.push(`<${tag}>${processText(r[j]||"")}</${tag}>`);
+    return `<tr>${cells.join("")}</tr>`;
+  }).join("");
+  return body ? `<table class="ktbl">${body}</table>` : "";
+}
+
 function blockHTML(blk, ctx){
   if(blk.type==="dialogue"){
     const rows=(blk.data.items||[]).map(it=>
@@ -4252,15 +4313,7 @@ function blockHTML(blk, ctx){
     return `<div class="dlg">${rows}</div>`;
   }
   if(blk.type==="table"){
-    const rows=blk.data.rows||[];
-    const wide=Math.max(0,...rows.map(r=>r.length));
-    const body=rows.map((r,i)=>{
-      const tag=(blk.data.header!==false && i===0) ? "th" : "td";
-      const cells=[];
-      for(let j=0;j<wide;j++) cells.push(`<${tag}>${processText(r[j]||"")}</${tag}>`);
-      return `<tr>${cells.join("")}</tr>`;
-    }).join("");
-    return `<table class="ktbl">${body}</table>`;
+    return tableHTML(blk.data);
   }
   if(blk.type==="passage"){
     const d=blk.data||{};
@@ -4285,7 +4338,7 @@ function blockHTML(blk, ctx){
     const d=blk.data||{};
     const label=str(d.label,20)||"보 기";
     return `<div class="bogi"><div class="bogi-label">&lt;${sanitize(label)}&gt;</div>`+
-           `<div class="bogi-body">${processText(d.text)}</div></div>`;
+           `<div class="bogi-body">${processText(d.text)}${tableHTML(d)}</div></div>`;
   }
   if(blk.type==="statement") return `<div>${processText(blk.data.text)}</div>`;
   if(blk.type==="boxed") return `<div class="boxed">${processText(blk.data.text)}</div>`;
