@@ -44,28 +44,43 @@ b[16:18] = 직계 PARA_LINE_SEG   줄 수
 문단을 고치면 한글이 문단을 잘못 읽는다. 실물 749문단 전부에서 이 규칙이 성립하는 것을
 확인했고, `selfcheck.py` 가 이걸 불변식으로 검사한다.
 
-## ⚠️ 아직 답이 안 난 것 (이 방향의 성패를 가르는 질문)
+## 방향 전환 — HWP(바이너리) 대신 HWPX 를 쓴다
 
-**한글이 문서를 열 때 줄 나눔을 다시 계산해 주는가?**
+`make_probe.py` 가 만든 `.hwp` 는 **한글에서 깨졌다**(사용자 확인). 바이너리 HWP 는
+레코드마다 크기·개수 필드가 있어 하나만 어긋나도 문서 전체가 못 열린다. 위 불변식
+검사를 통과해도 그건 '내가 아는 규칙' 만 지킨 것이지, 규격 전체를 지켰다는 뜻이 아니다.
 
-`PARA_LINE_SEG` 는 '몇 번째 글자에서 줄이 바뀌는가' 를 담은 조판 캐시다. 우리가 내용을
-새로 쓰면 이 값은 반드시 틀어진다 — 정확한 줄 나눔은 조판 엔진만 계산할 수 있다.
-한글이 열 때 다시 계산해 준다면 이 방향은 성립하고, 캐시를 그대로 믿는다면 글이 잘려
-보이므로 접근을 바꿔야 한다.
+그래서 **HWPX(ZIP + XML)** 로 옮겼다(`make_probe_hwpx.py`).
 
-**이 컴퓨터에는 한글이 설치돼 있지 않아 기계적으로 답할 수 없다.**
-그래서 사람이 한 번 열어 보면 바로 판정되는 파일을 만든다:
+- 크기·개수 카운터가 없어 조용히 깨질 여지가 적다.
+- jakal-hwpx 의 검증기가 HWPX 쪽에 훨씬 두껍다 —
+  `strict_validate`, `xml_validation_errors`, `reference_validation_errors`,
+  `stale_paragraph_layout_validation_errors`, `strict_lint_errors`.
+- 파일이 작다: 같은 내용이 HWP 10MB → **HWPX 5KB**
+  (HWP 쪽은 원본 틀·그림을 통째로 안고 갔기 때문이다. HWPX 는 빈 문서에서 새로 만든다.)
+- 원본 파일에서 파생되지 않으므로 **저작물 문제도 함께 사라진다.** 가져오는 것은
+  글꼴 '이름' 과 용지 치수뿐이고, 둘 다 저작 대상이 아니다.
+
+### 줄 나눔 캐시 — 답이 나왔다
+
+jakal-hwpx 의 진단 문구가 답을 알려 준다:
+
+> "Plain-text paragraph carries linesegarray text positions beyond the text length;
+> **Hancom may drop following content.**"
+
+즉 **한글은 낡은 줄 나눔 캐시가 남아 있으면 뒤 내용을 버린다.** 해결책은 캐시를 맞게
+고치는 것이 아니라 **아예 넣지 않는 것**이다 — 라이브러리의 `repair_stale_paragraph_layout()`
+도 정확히 그렇게 한다(`linesegarray` 를 제거). `make_probe_hwpx.py` 는 처음부터 만들지
+않고, 저장 전에 `stale_paragraph_layout_validation_errors()` 로 남은 것이 없는지 확인한다.
+
+### 남은 확인 (한글에서 눈으로)
 
 ```bash
-python3 make_probe.py                 # out/probe-A-*.hwp, out/probe-B-*.hwp
+python3 make_probe_hwpx.py    # out/probe.hwpx
 ```
 
-한글에서 열어:
-- 긴 문단 끝의 `◆여기까지보이면성공◆` 이 보이면 → 다시 계산함(성공)
-- 글이 잘리거나 겹쳐 보이면 → 캐시를 믿음(재설계 필요)
-
-A(줄 캐시를 1줄짜리로 넣음) / B(줄 캐시를 아예 안 넣음) 두 방식을 따로 냈다.
-한쪽이 깨져도 다른 쪽 결과를 잃지 않게 나눈 것이다.
+- 긴 문단 끝의 `◆여기까지보이면성공◆` 이 보이면 → 재조판 성공
+- 글꼴이 `신명 중명조` 로 보이면 → **이름 참조만으로 서체 적용 성공**(라이선스 목표 달성)
 
 ## 아직 손대지 않은 것
 
