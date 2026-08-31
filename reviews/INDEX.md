@@ -36,3 +36,4 @@
 | `HANDOFF-2026-011` | Claude | 모의고사 → 한글(HWPX) 변환기 완성 (베타) | `handoffs/2026-08-30-experiments-hwpx-mock-export.md` |
 | `HANDOFF-2026-012` | Claude | 모의고사 한글(HWPX) 내보내기 · 베타 (제품 연결) | `handoffs/2026-08-31-mock-hwpx-export-beta.md` |
 | `HANDOFF-2026-013` | Codex | HWPX 그림 경로 제한 및 `work` 폴더 연결 | `handoffs/2026-08-31-hwpx-image-path-safety.md` |
+| `HANDOFF-2026-014` | Claude | HWPX 검사를 실행 경로에 연결 + 엔드포인트 동작 검사 | `handoffs/2026-08-31-hwpx-tests-wired-and-endpoint-check.md` |
