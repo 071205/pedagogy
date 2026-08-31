@@ -275,10 +275,14 @@ def build(data: dict, out: Path, *, ref: str | Path | None = None) -> Report:
         STYLE.update(exam_style.install(doc, PROFILE))
 
     title = str(data.get("round") or "모의고사")
-    doc.append_paragraph(title, para_pr_id=STYLE["para_cont"],
-                         char_pr_id=STYLE["char_stem"])
-    doc.append_paragraph("5지선다형", para_pr_id=STYLE["para_cont"],
-                         char_pr_id=STYLE["char_stem"])
+    if (PROFILE.get("_source") or "").endswith("(틀)"):
+        # 틀에 이미 머리말과 '5지선다형' 상자가 있다. 본문에 또 쓰면 두 번 나온다.
+        tmpl.set_masthead_title(doc, title)
+    else:
+        doc.append_paragraph(title, para_pr_id=STYLE["para_cont"],
+                             char_pr_id=STYLE["char_stem"])
+        doc.append_paragraph("5지선다형", para_pr_id=STYLE["para_cont"],
+                             char_pr_id=STYLE["char_stem"])
 
     for p in data.get("problems") or []:
         units, _ = prob_units(p)

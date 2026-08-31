@@ -104,20 +104,70 @@ def clear_body(doc: HwpxDocument) -> int:
             p.remove()
             removed += 1
 
-        first = paras[0]
-        for run in list(first.children):
-            if run.local_name != "run":
-                continue
-            # secPr·colPr 은 남기고 글자만 지운다
-            keep = [c for c in run.children if c.local_name in ("secPr", "colPr", "ctrl")]
-            if not keep:
-                run.remove()
-            else:
-                for c in list(run.children):
-                    if c.local_name not in ("secPr", "colPr", "ctrl"):
-                        c.remove()
+        _clean_frame_paragraph(paras[0])
         sec.mark_modified()
     return removed
+
+
+# 문단 0 에는 '틀' 과 '1번 문항' 이 함께 들어 있다.
+#   run0: secPr·ctrl           → 구역·단 정의
+#   run1: tbl·rect·line·tbl    → 머리말 틀 (수학 영역 · 제2교시 · 5지선다형)
+#   run2: t·equation           → 1번 문항 발문   ← 실물 문제. 지워야 한다
+#   run3: t                    → 발문 나머지     ← 지워야 한다
+# 그래서 문단 0 을 통째로 남기면 남의 문제가 딸려 오고, 통째로 지우면 머리말이 사라진다.
+FRAME_TAGS = {"secPr", "colPr", "ctrl", "tbl", "rect", "line", "ellipse",
+              "arc", "polygon", "curve", "pic", "container", "textart",
+              "ole", "chart", "connectLine"}
+
+
+def _clean_frame_paragraph(para) -> None:
+    """첫 문단에서 **틀만 남기고 글·수식은 지운다.**
+
+    틀(표·선·사각형)에 들어 있는 머리말 글자는 그 안에 있으므로 함께 남는다.
+    실물 확인: 이 틀 안의 글자는 `2025학년도 … 수학 영역 … 제2교시 … 5지선다형` 뿐이고
+    문제 본문이나 수식은 없다.
+    """
+    for run in list(para.children):
+        if run.local_name == "linesegarray":
+            run.remove()            # 낡은 줄 캐시 — 남기면 한글이 뒤 내용을 버린다
+            continue
+        if run.local_name != "run":
+            continue
+        if any(c.local_name in FRAME_TAGS for c in run.children):
+            continue                # 틀이 들어 있는 run 은 그대로 둔다
+        run.remove()                # 글자·수식만 있는 run = 실물 문항
+
+
+def set_masthead_title(doc: HwpxDocument, title: str) -> bool:
+    """머리말의 `2025학년도 대학수학능력시험 문제지` 를 우리 회차명으로 바꾼다.
+
+    ⚠️ 머리말 글자는 한 조각이 아니라 여러 `<hp:t>` 에 쪼개져 있다
+       ('2025학년도 ', '대', '학수학능력시', '험 ', '문', '제', '지' …).
+       한 곳만 고치면 나머지가 남아 `2027학년도 …학수학능력시험 문제지` 가 된다.
+       첫 조각에 새 글을 넣고 **나머지는 비운다.**
+    """
+    changed = False
+    for path in [p for p in doc.list_part_paths()
+                 if p.startswith("Contents/section") and p.endswith(".xml")]:
+        sec = doc.get_part(path)
+        paras = [k for k in sec.root.children if k.local_name == "p"]
+        if not paras:
+            continue
+        texts = [n for n in paras[0].iter() if n.local_name == "t"]
+        joined = "".join(n.text or "" for n in texts)
+        if "문제지" not in joined:
+            continue
+        end = joined.index("문제지") + len("문제지")
+        pos, first = 0, True
+        for n in texts:
+            length = len(n.text or "")
+            if pos < end:
+                n.text = title if first else ""
+                first = False
+            pos += length
+        sec.mark_modified()
+        changed = True
+    return changed
 
 
 def strip_bindata(doc: HwpxDocument) -> int:
