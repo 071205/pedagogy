@@ -90,6 +90,14 @@ drift from production—so run it after changing `worker/index.js` or `worker/wr
 node worker/quota.test.mjs
 ```
 
+한글(HWPX) 내보내기 검사는 `npm run test:hwpx` 로 돈다(`check:fast` 에 포함).
+변환기 의존성(`jakal-hwpx`)은 **제품 의존성이 아니라** `experiments/hwp-export/requirements.txt`
+에만 있으므로, 없는 환경에서는 **건너뛴다고 출력하고 통과**한다 — 건너뛴 것과 통과한 것을
+출력에서 구분하니, '도는 줄 알았는데 안 돌던' 상태가 생기지 않는다.
+
+⚠️ 이 검사들은 한동안 **어떤 실행 경로에도 걸려 있지 않았다.** 편집기 규칙을 옮겨 적은
+사본이 어긋나도 아무도 모르는 상태였다. 새 검사를 만들면 러너에 거는 것까지 해야 한다.
+
 **A check that always passes is worse than no check.** Every trap below was found by
 deliberately breaking the thing under test and confirming the suite went red — do that for any
 new check you add, because three separate "all-green while testing nothing" bugs happened here:

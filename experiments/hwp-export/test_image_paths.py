@@ -32,6 +32,20 @@ with tempfile.TemporaryDirectory() as temp:
     assert mock_to_hwpx.find_image("../outside.png", [root]) is None
     assert mock_to_hwpx.find_image(str(outside), [root]) is None
 
+    # 심볼릭 링크로 폴더를 벗어나는 경우. resolve() 뒤에 판정하므로 막혀야 한다 —
+    # 링크는 파일 이름만으로는 안쪽 파일과 구분되지 않아 이름 검사로는 못 잡는다.
+    try:
+        (root / "link.png").symlink_to(outside)
+    except OSError:
+        pass                     # 심볼릭 링크를 못 만드는 환경이면 이 항목만 건너뛴다
+    else:
+        assert mock_to_hwpx.find_image("link.png", [root]) is None
+
+    # 하위 폴더는 허용된다(작업 폴더 안이므로)
+    (root / "sub").mkdir()
+    (root / "sub" / "deep.png").write_bytes(IMAGE.read_bytes())
+    assert mock_to_hwpx.find_image("sub/deep.png", [root]) is not None
+
     ok = mock_to_hwpx.build(problem("figure.png"), root / "ok.hwpx", images=[root])
     assert ok.figures == 1 and not ok.warnings, ok.warnings
     blocked = mock_to_hwpx.build(problem("../outside.png"), root / "blocked.hwpx", images=[root])

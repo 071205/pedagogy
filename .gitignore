@@ -14,6 +14,10 @@ experiments/hwp-export/out/
 .wrangler/
 worker/.wrangler/
 
+# typst 가 읽는 작업 폴더. 컴파일 임시 폴더와 사용자가 넣어 둔 문항 그림이 쌓인다.
+# 남의 그림이 공개 저장소로 올라가지 않게 막는다.
+work/
+
 # 파이썬 캐시 — serve.py 를 import 해서 테스트할 때 생긴다
 __pycache__/
 *.pyc
