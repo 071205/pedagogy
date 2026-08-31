@@ -474,7 +474,9 @@ class Handler(BaseHTTPRequestHandler):
         with tempfile.TemporaryDirectory() as tmp:
             out = Path(tmp) / "exam.hwpx"
             try:
-                rep = mock_to_hwpx.build(req, out)
+                # 편집기가 그림 파일을 두라고 안내하는 유일한 서버 폴더만 허용한다.
+                # 변환기가 경로를 정규화해 이 폴더 밖으로 나가는 src도 차단한다.
+                rep = mock_to_hwpx.build(req, out, images=[WORK])
             except Exception as e:
                 return self._json(500, {"error": f"변환에 실패했습니다: {e}"})
             if not out.exists():

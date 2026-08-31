@@ -1,6 +1,6 @@
 # 리뷰 현황
 
-마지막 정리: 2026-08-28
+마지막 정리: 2026-08-31
 
 ## 열린 이슈
 
@@ -16,6 +16,8 @@
 | `REV-2026-004` | `P1` | tombstone 뒤 로컬 사본 재생성 차단 | `issues/2026-08-27-index-tombstone-fallback-revival.md` |
 | `REV-2026-005` | `P1` | CSP가 App Check(reCAPTCHA Enterprise) 스크립트를 차단 | `issues/2026-08-28-index-csp-appcheck-recaptcha-blocked.md` |
 | `REV-2026-006` | `P2` | CI 얕은 클론에서 `git diff --check HEAD~1 HEAD` 항상 실패 | `issues/2026-08-28-tests-ci-shallow-checkout-diff-check-fails.md` |
+| `REV-2026-007` | `P2` | HWPX 그림 경로가 작업 폴더 밖 파일을 읽음 | `issues/2026-08-31-hwpx-image-path-traversal.md` |
+| `REV-2026-008` | `P2` | HWPX 내보내기가 편집기 work/ 그림 폴더를 탐색하지 않음 | `issues/2026-08-31-hwpx-work-images-not-exported.md` |
 
 ## 최근 인계
 
@@ -33,3 +35,4 @@
 | `HANDOFF-2026-010` | Claude | HWP 조판 가능성 실험 (베타 · 제품 미연결) | `handoffs/2026-08-30-experiments-hwp-export-spike.md` |
 | `HANDOFF-2026-011` | Claude | 모의고사 → 한글(HWPX) 변환기 완성 (베타) | `handoffs/2026-08-30-experiments-hwpx-mock-export.md` |
 | `HANDOFF-2026-012` | Claude | 모의고사 한글(HWPX) 내보내기 · 베타 (제품 연결) | `handoffs/2026-08-31-mock-hwpx-export-beta.md` |
+| `HANDOFF-2026-013` | Codex | HWPX 그림 경로 제한 및 `work` 폴더 연결 | `handoffs/2026-08-31-hwpx-image-path-safety.md` |

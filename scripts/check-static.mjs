@@ -70,5 +70,7 @@ assert.match(integration, /await loadApp\(\)/, "격리 통합 검사는 저장 �
 assert.match(integration, /buildPrintDoc\(false\)/, "격리 통합 검사는 실제 인쇄 DOM 생성 경로를 거쳐야 합니다");
 assert.match(integration, /fitPrintDoc\(\)/, "격리 통합 검사는 인쇄 오버플로 보정을 확인해야 합니다");
 assert.match(server, /"\/integration-test\.html"/, "로컬 서버는 격리 통합 검사 페이지만 화이트리스트로 제공해야 합니다");
+assert.match(server, /mock_to_hwpx\.build\(req, out, images=\[WORK\]\)/,
+  "HWPX 내보내기는 편집기가 안내한 work 그림 폴더만 전달해야 합니다");
 
 console.log("Commercial static checks passed");

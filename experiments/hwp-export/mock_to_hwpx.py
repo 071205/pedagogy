@@ -277,9 +277,19 @@ def image_size(data: bytes) -> tuple[int, int] | None:
 
 
 def find_image(src: str, roots: list[Path]) -> Path | None:
+    """허용한 그림 폴더 안의 실제 파일만 찾는다.
+
+    JSON은 가져오기 파일에서 올 수 있으므로 `../`나 절대 경로로 작업 폴더 밖 파일을
+    HWPX에 넣게 하면 안 된다. 심볼릭 링크도 resolve() 뒤의 위치로 판정한다.
+    """
     for root in roots:
-        cand = root / src
-        if cand.exists():
+        safe_root = root.resolve()
+        cand = (safe_root / src).resolve()
+        try:
+            cand.relative_to(safe_root)
+        except ValueError:
+            continue
+        if cand.is_file():
             return cand
     return None
 
@@ -527,7 +537,9 @@ def build(data: dict, out: Path, *, ref: str | Path | None = None,
           images: list[Path] | None = None) -> Report:
     rep = Report()
     IMAGE_ROOTS.clear()
-    IMAGE_ROOTS.extend(images or [out.parent, ROOT])
+    # 호출자가 그림 폴더를 명시하지 않은 CLI/API 사용에서는 출력 파일 옆만 허용한다.
+    # 저장소 전체를 기본으로 넣으면 JSON의 src가 뜻밖의 로컬 파일을 찾을 수 있다.
+    IMAGE_ROOTS.extend(images or [out.parent])
     STYLE.clear()
     PROFILE.clear()
 
@@ -610,7 +622,7 @@ def main(argv: list[str]) -> int:
     out = Path(argv[2]) if len(argv) > 2 else src.with_suffix(".hwpx")
     data = json.loads(src.read_text(encoding="utf-8"))
 
-    imgs = [Path(argv[3])] if len(argv) > 3 else [src.parent, ROOT]
+    imgs = [Path(argv[3])] if len(argv) > 3 else [src.parent]
     rep = build(data, out, images=imgs)
     print("조판 규격 출처:", PROFILE.get("_source") or "(없음)")
     print(f"문항 {rep.problems}개, 수식 {rep.equations}개, 그림 {rep.figures}개, 단나눔 {rep.breaks}회 → {out} ({out.stat().st_size:,} bytes)")
