@@ -58,8 +58,31 @@ if broken == {2, 4}:
 else:
     print(f"  ✅ 고의로 PER_COL=3 으로 바꾸면 {sorted(broken)} 로 달라진다(검사가 유효)")
 
-print()
+print(f"단 나눔: {len(CASES) + 1}건 확인")
+
+
+# ── 선지 배치 (편집기 layoutOf() 와 같아야 한다) ──────────────────────────
+from mock_to_hwpx import layout_of  # noqa: E402
+
+CH_CASES = [
+    ("짧은 숫자는 한 줄", {}, ["1", "2", "3", "4", "5"], "1"),
+    ("ㄱㄴㄷ 합답형은 폭과 무관하게 3+2", {},
+     ["ㄱ", "ㄱ,ㄴ", "ㄱ,ㄷ", "ㄴ,ㄷ", "ㄱ,ㄴ,ㄷ"], "2"),
+    ("아주 길면 세로", {}, ["아주 긴 선지가 들어가는 경우입니다 정말로 길어요"] * 5, "v"),
+    ("명시 지정은 그대로 따른다", {"layout": "v"}, ["1", "2", "3", "4", "5"], "v"),
+    ("블록의 지정이 문항보다 우선", {"layout": "1", "blocks": [
+        {"type": "choices", "data": {"layout": "v", "items": ["1"] * 5}}]},
+     ["1", "2", "3", "4", "5"], "v"),
+]
+
+print("\n선지 배치")
+for label, prob_, items, want in CH_CASES:
+    got = layout_of(prob_, items)
+    ok = got == want
+    fails += not ok
+    print(f"  {'✅' if ok else '❌'} {label}: {got}" + ("" if ok else f"  ← 기대 {want}"))
+
 if fails:
-    print(f"실패 {fails}건")
+    print(f"\n실패 {fails}건")
     raise SystemExit(1)
-print(f"전부 통과 ({len(CASES) + 1}건)")
+print("\n선지 배치까지 전부 통과")

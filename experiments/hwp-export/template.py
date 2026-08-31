@@ -48,6 +48,11 @@ def classify(text: str) -> str | None:
 STYLE_NAMES = {
     "stem":   ["01-문제"],
     "choice": ["21 1행", "1행"],
+    # 선지 한 줄에 몇 칸이 들어가는지로 고른다(이름이 아니라 탭 개수가 기준이다).
+    #   21 1행 = 탭 4개 → 5칸 · 2행 = 탭 2개 → 3칸 · 3행 = 탭 1개 → 2칸
+    "row5":   ["21 1행", "1행"],
+    "row3":   ["2행"],
+    "row2":   ["3행"],
     "cont":   ["21 문제다음", "21 문제다음 별행"],
     "eq":     ["21 문제다음 별행", "21 문제다음"],
     "cond":   ["21 박스(테두리)", "02-박스"],
@@ -244,6 +249,12 @@ def open_template(path: Path | str) -> tuple[HwpxDocument, dict]:
     if not path.exists():
         raise FileNotFoundError(f"틀 파일이 없습니다: {path}")
     roles = read_named_styles(path)
+    if roles:
+        # 이름 붙은 스타일에는 '문항 번호' 서식이 없다. 번호는 발문 문단의 첫 조각이
+        # 본문과 다른 글자 모양을 쓰므로(실물 13.5pt vs 11.5pt) 거기서 찾아 온다.
+        guessed = read_roles(path)
+        if "num" in guessed:
+            roles["num"] = guessed["num"]
     if len(roles) < 3:
         # 이름 붙은 스타일이 없는 틀이면 내용을 보고 추측하는 쪽으로 내려간다.
         roles = read_roles(path)

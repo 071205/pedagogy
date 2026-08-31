@@ -48,6 +48,7 @@ class Report:
     equations: int = 0
     figures: int = 0
     breaks: int = 0
+    choice_rows: int = 0
     warnings: list[str] = field(default_factory=list)
 
 
@@ -83,6 +84,117 @@ def append_text_run(doc: HwpxDocument, para_idx: int, text: str,
                        char_pr_id=STYLE.get(char))
 
 
+
+
+
+# ── 선지 ──────────────────────────────────────────────────────────────────
+# 실물은 선지를 **탭 정지점**으로 단 폭에 고르게 펼친다. 공백으로 이어 붙이면
+# 왼쪽에 몰린다(실제로 그랬다). 탭은 `<hp:t>` **안에** `<hp:tab/>` 으로 넣는다.
+#
+# 한 줄에 몇 칸인지에 따라 문단 모양이 다르다(탭 개수가 다르므로):
+#   5칸 → row5(탭 25.6/47.2/68.8/90.4mm) · 3칸 → row3(40/76mm) · 2칸 → row2(58mm)
+#
+# 배치 규칙은 편집기의 layoutOf() 와 같아야 한다:
+#   '1' 한 줄 5개 · '2' 3+2 두 줄 · 'v' 세로
+#   'auto' 면 ㄱㄴㄷ 합답형은 무조건 '2', 아니면 폭으로 고른다.
+GND = "ㄱㄴㄷ"
+
+# 편집기의 measureCh() 기준(mm). 실물 탭 간격과 같은 값이다.
+FIT1_SLOT = 21.6      # 1행일 때 한 칸
+FIT2_SLOT = 36.0      # 3+2일 때 한 칸
+COL_W_MM = 111.15     # 단 폭
+
+
+def _text_mm(s: str) -> float:
+    """글자 폭 어림값(mm). 본문 11.5pt·장평 95% 기준.
+
+    ⚠️ 편집기는 canvas 로 실제 폭을 재지만(`measureCh`) 여기서는 잴 수 없다.
+       그래서 'auto' 판정은 **근사**다. 정확히 맞추려면 편집기에서 배치를
+       직접 지정하면 된다(그 값은 그대로 따른다).
+    """
+    wide = sum(1 for c in s if ord(c) > 0x2000)      # 한글·기호
+    narrow = len(s) - wide
+    return wide * 3.85 + narrow * 1.93
+
+
+def layout_of(p: dict, items: list[str]) -> str:
+    lay = str(p.get("layout") or "auto")
+    blk = next((b for b in blocks_of(p) if b.get("type") == "choices"), None)
+    if blk:
+        lay = str((blk.get("data") or {}).get("layout") or lay)
+    if lay in ("1", "2", "v"):
+        return lay
+    if any(any(g in c for g in GND) for c in items):
+        return "2"                       # ㄱㄴㄷ 합답형은 폭과 무관하게 3+2
+    w = [_text_mm(f"⑤ {c}") for c in items]
+    if all(x <= (COL_W_MM - 90.4 if i == len(w) - 1 else FIT1_SLOT - 1.0)
+           for i, x in enumerate(w)):
+        return "1"
+    if all(x <= (COL_W_MM - 76 - 1 if i in (2, len(w) - 1) else FIT2_SLOT - 1.0)
+           for i, x in enumerate(w)):
+        return "2"
+    return "v"
+
+
+def _row_para(slots: int) -> str:
+    """한 줄에 slots 칸이 들어가는 문단 역할 이름."""
+    for n, role in ((5, "para_row5"), (3, "para_row3"), (2, "para_row2")):
+        if slots >= n and role in STYLE:
+            return role
+    return "para_choice" if "para_choice" in STYLE else "para_cont"
+
+
+def emit_choice_row(doc: HwpxDocument, items: list[tuple[int, str]], rep: Report,
+                    *, where: str) -> None:
+    """선지 한 줄. 항목 사이를 탭으로 벌린다."""
+    if not items:
+        return
+    para = _row_para(len(items))
+    char = "char_choice" if "char_choice" in STYLE else "char_stem"
+    first = True
+    idx = -1
+    for mark_i, body in items:
+        label = f"{MARKS[mark_i % len(MARKS)]} "
+        if first:
+            idx = emit_rich(doc, label + body, rep, where=where, para=para, char=char)
+            first = False
+        else:
+            # 탭 뒤에 이어 붙인다 — 탭은 <hp:t> 안에 들어간다.
+            doc.append_run_xml(
+                f'<hp:t xmlns:hp="{HP}"><hp:tab width="0" leader="0" type="1"/>'
+                f'{xml_escape(label)}</hp:t>',
+                paragraph_index=idx, char_pr_id=STYLE.get(char))
+            for kind, chunk in split_inline(body):
+                if kind == "text":
+                    append_text_run(doc, idx, chunk, char=char)
+                else:
+                    try:
+                        doc.append_inline_equation(
+                            convert(chunk), paragraph_index=idx,
+                            char_pr_id=STYLE.get(char),
+                            base_unit=round(body_pt() * 100))
+                        rep.equations += 1
+                    except UnsupportedTex as e:
+                        rep.warnings.append(f"{where}: 선지 수식 변환 실패 — {e}")
+                        append_text_run(doc, idx, f"[변환 실패: {chunk}]", char=char)
+
+
+def emit_choices(doc: HwpxDocument, p: dict, unit: dict, rep: Report,
+                 *, where: str) -> None:
+    items = [c for c in unit["items"]]
+    used = [(i, c) for i, c in enumerate(items) if c.strip()]
+    if not used:
+        return
+    lay = layout_of(p, [c for _, c in used])
+    if lay == "1":
+        emit_choice_row(doc, used, rep, where=where)
+    elif lay == "2":
+        emit_choice_row(doc, used[:3], rep, where=where)
+        emit_choice_row(doc, used[3:], rep, where=where)
+    else:                                  # 'v' — 한 줄에 하나씩
+        for one in used:
+            emit_choice_row(doc, [one], rep, where=where)
+    rep.choice_rows += 1 if lay == "1" else (2 if lay == "2" else len(used))
 
 
 # ── 문항 배치 ─────────────────────────────────────────────────────────────
@@ -368,10 +480,7 @@ def emit_problem(doc: HwpxDocument, p: dict, rep: Report) -> None:
         elif u["k"] == "fig":
             emit_figure(doc, u, rep, where=where, roots=IMAGE_ROOTS)
         elif u["k"] == "choices":
-            line = "   ".join(f"{MARKS[j % len(MARKS)]} {c}".rstrip()
-                              for j, c in enumerate(u["items"]) if c.strip())
-            if line:
-                emit_rich(doc, line, rep, where=f"{where} 선지", para="para_choice", char="char_choice")
+            emit_choices(doc, p, u, rep, where=f"{where} 선지")
     # 문항 사이를 한 줄 띄운다. 실물도 선지 스타일의 빈 문단으로 띄우고,
     # 그 스타일의 '문단 아래' 가 0 이라 이것 없이는 다음 문항이 바로 붙는다.
     doc.append_paragraph("", para_pr_id=STYLE.get("para_choice"),
@@ -395,8 +504,10 @@ def build(data: dict, out: Path, *, ref: str | Path | None = None,
         for role, spec in roles.items():
             if role.startswith("_"):
                 continue
-            STYLE[f"para_{role}"] = spec["para"]
-            STYLE[f"char_{role}"] = spec["char"]
+            if "para" in spec:
+                STYLE[f"para_{role}"] = spec["para"]
+            if "char" in spec:
+                STYLE[f"char_{role}"] = spec["char"]
             if "style" in spec:
                 STYLE[f"style_{role}"] = spec["style"]
         STYLE["char_num"] = roles.get("num", {}).get("char", STYLE.get("char_stem"))
