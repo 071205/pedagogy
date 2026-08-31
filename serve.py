@@ -392,7 +392,8 @@ class Handler(BaseHTTPRequestHandler):
 
     # ── POST /render ──
     def do_POST(self):
-        if self.path.split("?", 1)[0] != "/render":
+        path = self.path.split("?", 1)[0]
+        if path not in ("/render", "/hwpx"):
             return self._json(404, {"error": "not found"})
         if not self._host_ok():
             return self._json(403, {"error": "forbidden host"})
@@ -417,6 +418,10 @@ class Handler(BaseHTTPRequestHandler):
             req = json.loads(body.decode("utf-8"))
         except Exception:
             return self._json(400, {"error": "bad json"})
+
+        if path == "/hwpx":
+            return self._hwpx(req)
+
         src = req.get("typ")
         if not isinstance(src, str) or not src.strip():
             return self._json(400, {"error": "no source"})
@@ -436,6 +441,58 @@ class Handler(BaseHTTPRequestHandler):
                     p.pop("png", None)
                     p["cached"] = True
         return self._json(200, res)
+
+    # ── 한글(HWPX) 내보내기 · 베타 ────────────────────────────────────────
+    # 모의고사 편집기의 저장 JSON 을 그대로 받아 한글 시험지를 만든다.
+    # 변환기는 experiments/hwp-export/ 에 있고 **제품이 아니다** — 이 엔드포인트가
+    # 유일한 연결점이라, 변환기가 없거나 의존성이 없으면 여기서 안내만 하고 끝난다.
+    #
+    # ⚠️ 위 do_POST 의 보안 관문(Host·Origin·X-Exam-Client·본문 크기)을 그대로
+    #    지난 뒤에만 들어온다. 새 경로를 만들 때 그 검사를 건너뛰지 말 것.
+    def _hwpx(self, req: dict):
+        exp = HERE / "experiments" / "hwp-export"
+        if not (exp / "mock_to_hwpx.py").exists():
+            return self._json(501, {"error": "한글 내보내기 변환기가 없습니다 "
+                                             "(experiments/hwp-export)"})
+        problems = req.get("problems")
+        if not isinstance(problems, list) or not problems:
+            return self._json(400, {"error": "문항이 없습니다"})
+
+        sys.path.insert(0, str(exp))
+        try:
+            import importlib
+            mock_to_hwpx = importlib.import_module("mock_to_hwpx")
+            importlib.reload(mock_to_hwpx)
+        except Exception as e:
+            return self._json(501, {
+                "error": "한글 내보내기 준비가 되지 않았습니다 · "
+                         f"experiments/hwp-export/requirements.txt 를 설치해 주세요 ({e})"})
+        finally:
+            if sys.path and sys.path[0] == str(exp):
+                sys.path.pop(0)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "exam.hwpx"
+            try:
+                rep = mock_to_hwpx.build(req, out)
+            except Exception as e:
+                return self._json(500, {"error": f"변환에 실패했습니다: {e}"})
+            if not out.exists():
+                return self._json(500, {"error": "결과 파일이 만들어지지 않았습니다"})
+            data = out.read_bytes()
+
+        self.send_response(200)
+        self.send_header("Content-Type",
+                         "application/vnd.hancom.hwpx")
+        self.send_header("Content-Length", str(len(data)))
+        # 경고는 헤더로 함께 보낸다(그림 누락·수식 변환 실패 등을 조용히 넘기지 않는다)
+        self.send_header("X-Hwpx-Warnings", str(len(rep.warnings)))
+        self._cors()
+        self.end_headers()
+        try:
+            self.wfile.write(data)
+        except BrokenPipeError:
+            pass
 
 
 def main():

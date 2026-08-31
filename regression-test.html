@@ -928,6 +928,34 @@ async function runMockTests(){
         && !typ.includes("<div");            // Typst 쪽에 HTML 이 새면 안 된다
   });
 
+  /* ── 한글(HWPX) 내보내기 · 베타 ──
+     변환 자체는 serve.py 의 /hwpx 와 experiments/hwp-export 가 한다(제품 밖).
+     여기서는 **편집기 쪽 연결**만 본다 — 버튼이 있는지, 보안 헤더를 빠뜨리지 않는지.
+     실제 변환은 파이썬 검사(test_structure.py 등)가 맡는다. */
+  await check(G, "한글 내보내기 버튼이 있고 베타 표시가 붙어 있다", () => {
+    const b = win.document.getElementById("hwpxBtn");
+    return !!b && b.textContent.includes("한글") && b.textContent.includes("베타");
+  });
+
+  await check(G, "한글 내보내기가 X-Exam-Client 헤더를 보낸다", async () => {
+    /* 이 헤더가 빠지면 serve.py 가 403 으로 막는다(다른 사이트의 단순 요청 차단).
+       fetch 를 잠시 가로채 헤더만 확인하고 원래대로 돌려놓는다. */
+    const real = win.fetch;
+    let seen = null;
+    win.fetch = (url, opt) => {
+      seen = { url: String(url), headers: (opt && opt.headers) || {} };
+      return Promise.resolve({ ok: false, status: 503,
+        json: async () => ({ error: "테스트" }), headers: { get: () => null } });
+    };
+    try {
+      await win.toHwpx();
+    } finally {
+      win.fetch = real;
+    }
+    return !!seen && seen.url.includes("/hwpx")
+        && seen.headers["X-Exam-Client"] === "1";
+  });
+
   await check(G, "renderProb/probTypst 가 paintProblem 을 거친다", () => {
     const p = win.blank(5);
     p.blocks=[{type:"statement", data:{text:"확인용"}}];

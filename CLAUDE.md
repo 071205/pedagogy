@@ -318,6 +318,16 @@ own save/load — does not share PEDAGOGY's Firebase storage).
   상대경로로 두면 실시간에서 절대 못 찾는다 — `serve.py` 가 `main.typ` 을 `work/` 밑
   **임시 폴더**에 쓰기 때문에 `work/fig.png` 를 둬도 `work/tmpXXXX/fig.png` 를 뒤진다.
 - Keyboard shortcuts: ⌘S save JSON, ⌘E export Typst, ⌥↑/↓ move between problems.
+- **한글(HWPX) 내보내기 — 베타.** 툴바의 `한글 내보내기` 가 `serve.py` 의 `POST /hwpx` 를
+  부르고, 변환은 `experiments/hwp-export/` 의 파이썬이 한다(**제품이 아니다**).
+  실물 시험지 `.hwpx` 를 '틀' 로 읽어 머리말·2단·스타일을 그대로 물려받고 본문만 채운다.
+  Typst 경로와 달리 **글꼴을 배포하지 않으므로** 상용 글꼴 라이선스 문제가 없다 —
+  사용자가 자기 한글로 열어 PDF 로 뽑는다.
+  ⚠️ `/hwpx` 는 `/render` 와 **같은 보안 관문**(Host·Origin·`X-Exam-Client`·본문 크기)을
+  지난다. 새 POST 경로를 만들 때 그 검사를 건너뛰지 말 것.
+  ⚠️ 변환기는 편집기의 `probUnits()`·`buildPages()`·`layoutOf()` 를 **옮겨 적은 사본**이다.
+  편집기 쪽 규칙이 바뀌면 `experiments/hwp-export/mock_to_hwpx.py` 도 같이 고쳐야 한다
+  (`test_layout.py` 가 그 일치를 검사한다).
 
 ### serve.py
 

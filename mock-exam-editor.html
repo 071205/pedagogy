@@ -519,6 +519,7 @@ body.embedded .brand-tag{margin-left:0}
     </div>
     <button class="btn" id="zFit" title="폭에 맞추기 — 다시 누르면 100%">맞춤</button>
     <button class="btn btn-primary" id="exportBtn">Typst 내보내기</button>
+    <button class="btn" id="hwpxBtn" title="한글에서 열어 PDF로 뽑을 수 있는 .hwpx 를 받습니다 (로컬 서버 필요)">한글 내보내기 <span style="opacity:.6;font-size:11px">베타</span></button>
   </div>
 </header>
 
@@ -1947,6 +1948,40 @@ function livePpi(){
 }
 
 $('#exportBtn').onclick=toTypst;
+
+/* ── 한글(HWPX) 내보내기 · 베타 ──
+   변환은 serve.py 의 /hwpx 가 한다(파이썬 변환기가 experiments/hwp-export 에 있다).
+   Typst 내보내기와 달리 **로컬 서버가 반드시 필요**하다 — 브라우저만으로는
+   HWPX(ZIP+XML)를 만들 수 없고, 만들 수 있다 해도 실물 양식 파일을 읽어야 한다.
+   ⚠️ /render 와 같은 관문을 지나므로 X-Exam-Client 헤더를 반드시 함께 보낸다. */
+async function toHwpx(){
+  const btn=$('#hwpxBtn'); if(!btn||btn.disabled) return;
+  btn.disabled=true; const label=btn.textContent; btn.textContent='만드는 중…';
+  try{
+    if(LIVE.base===null||LIVE.base===undefined){ await pingServer(); }
+    const r=await fetch((LIVE.base||'')+'/hwpx',{method:'POST',
+      headers:{'Content-Type':'application/json','X-Exam-Client':'1'},
+      body:JSON.stringify(currentData())});
+    if(!r.ok){
+      let msg='한글 내보내기에 실패했어요';
+      try{ const d=await r.json(); if(d&&d.error) msg=d.error; }catch(e){}
+      toast(msg,'error'); return;
+    }
+    const warn=+(r.headers.get('X-Hwpx-Warnings')||0);
+    const blob=await r.blob();
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download=$('#round').value.replace(/\s+/g,'_')+'.hwpx';
+    a.click(); URL.revokeObjectURL(a.href);
+    toast(warn?`받았어요 · 확인할 점 ${warn}건(그림·수식)`:'한글 파일을 받았어요','success');
+  }catch(e){
+    // 서버가 없으면 여기로 온다. 무엇을 해야 하는지까지 알려 준다.
+    toast('로컬 서버가 필요해요 · 터미널에서 python3 serve.py 를 실행해 주세요','error');
+  }finally{
+    btn.disabled=false; btn.textContent=label;
+  }
+}
+$('#hwpxBtn').onclick=toHwpx;
 
 /* 불러온 JSON 을 그대로 믿지 않고 형식을 맞춘다 */
 /* 불러온 블록을 화이트리스트로 정규화 — 모르는 종류·필드는 버린다 */
