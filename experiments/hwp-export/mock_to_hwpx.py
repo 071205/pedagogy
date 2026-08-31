@@ -47,6 +47,7 @@ class Report:
     problems: int = 0
     equations: int = 0
     figures: int = 0
+    breaks: int = 0
     warnings: list[str] = field(default_factory=list)
 
 
@@ -81,6 +82,47 @@ def append_text_run(doc: HwpxDocument, para_idx: int, text: str,
                        paragraph_index=para_idx,
                        char_pr_id=STYLE.get(char))
 
+
+
+
+# ── 문항 배치 ─────────────────────────────────────────────────────────────
+# 편집기의 buildPages() 와 같은 규칙이다. 여기서 다르게 나누면 화면 미리보기와
+# 실제 시험지가 어긋난다.
+#
+#   · 한 단에 PER_COL 문항
+#   · 문항의 breakAfter 가 켜져 있으면 거기서 단을 끊는다
+#   · 다음 문항의 과목 구분(sect)이 달라지면 끊는다
+#
+# ⚠️ 편집기의 SPEC.perCol 이 바뀌면 이 값도 함께 고쳐야 한다.
+PER_COL = 2
+
+
+def column_starts(problems: list[dict]) -> set[int]:
+    """새 단에서 시작해야 하는 문항의 인덱스."""
+    starts, count = set(), 0
+    for i, p in enumerate(problems):
+        if count == 0 and i > 0:
+            starts.add(i)
+        count += 1
+        nxt = problems[i + 1] if i + 1 < len(problems) else None
+        if count >= PER_COL or p.get("breakAfter") or (nxt and nxt.get("sect") != p.get("sect")):
+            count = 0
+    return starts
+
+
+def mark_column_break(doc: HwpxDocument) -> bool:
+    """마지막으로 만든 문단을 '새 단에서 시작' 으로 표시한다.
+
+    HWPX 는 문단 속성 하나로 끝난다 — 우리가 어느 단에 넣을지 계산할 필요가 없다.
+    한글이 알아서 다음 단으로 넘긴다.
+    """
+    sec = doc.get_part("Contents/section0.xml")
+    paras = [k for k in sec.root.children if k.local_name == "p"]
+    if not paras:
+        return False
+    paras[-1].set_attr("columnBreak", "1")
+    sec.mark_modified()
+    return True
 
 
 # ── 그림 ──────────────────────────────────────────────────────────────────
@@ -378,11 +420,20 @@ def build(data: dict, out: Path, *, ref: str | Path | None = None,
         doc.append_paragraph("5지선다형", para_pr_id=STYLE["para_cont"],
                              char_pr_id=STYLE["char_stem"])
 
-    for p in data.get("problems") or []:
-        units, _ = prob_units(p)
-        if not any(u["k"] != "choices" for u in units):
-            continue                      # 빈 문항은 싣지 않는다
+    shown = [p for p in (data.get("problems") or [])
+             if any(u["k"] != "choices" for u in prob_units(p)[0])]
+    breaks = column_starts(shown)
+    for i, p in enumerate(shown):
+        before = doc.paragraph_count()
         emit_problem(doc, p, rep)
+        if i in breaks and doc.paragraph_count() > before:
+            # 문항의 '첫' 문단에 표시해야 한다 — 마지막에 하면 다음 문항이 넘어간다.
+            sec = doc.get_part("Contents/section0.xml")
+            paras = [k for k in sec.root.children if k.local_name == "p"]
+            if len(paras) > before:
+                paras[before].set_attr("columnBreak", "1")
+                sec.mark_modified()
+                rep.breaks += 1
         rep.problems += 1
 
     for name in ["xml_validation_errors", "reference_validation_errors",
@@ -411,7 +462,7 @@ def main(argv: list[str]) -> int:
     imgs = [Path(argv[3])] if len(argv) > 3 else [src.parent, ROOT]
     rep = build(data, out, images=imgs)
     print("조판 규격 출처:", PROFILE.get("_source") or "(없음)")
-    print(f"문항 {rep.problems}개, 수식 {rep.equations}개, 그림 {rep.figures}개 → {out} ({out.stat().st_size:,} bytes)")
+    print(f"문항 {rep.problems}개, 수식 {rep.equations}개, 그림 {rep.figures}개, 단나눔 {rep.breaks}회 → {out} ({out.stat().st_size:,} bytes)")
     if rep.warnings:
         print(f"\n⚠️ 경고 {len(rep.warnings)}건 (조용히 넘기지 않습니다):")
         for w in rep.warnings[:20]:
