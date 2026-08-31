@@ -42,6 +42,52 @@ def classify(text: str) -> str | None:
     return "cont"
 
 
+# 틀에 이미 역할별로 **이름 붙은 스타일**이 있다. 추측할 필요가 없다.
+#   01-문제 / 21 1행 / 21 문제다음 / 21 박스(테두리) …
+# 왼쪽이 우리 역할, 오른쪽이 틀의 스타일 이름(앞에 있는 것부터 찾는다).
+STYLE_NAMES = {
+    "stem":   ["01-문제"],
+    "choice": ["21 1행", "1행"],
+    "cont":   ["21 문제다음", "21 문제다음 별행"],
+    "eq":     ["21 문제다음 별행", "21 문제다음"],
+    "cond":   ["21 박스(테두리)", "02-박스"],
+    "condeq": ["21 박스(테두리) 별행", "21 박스(테두리)"],
+    "boxtop": ["21 박스위"],
+    "boxbot": ["21 박스아래"],
+    "ex":     ["21 보기", "02-보기"],
+}
+
+
+def read_named_styles(path: Path) -> dict:
+    """틀의 이름 붙은 스타일에서 역할 → (스타일 id, 문단 모양 id, 글자 모양 id) 를 얻는다.
+
+    이름이 있으면 이쪽이 정답이다. 내용을 보고 추측하는 `read_roles()` 보다 정확하고,
+    조건 상자 테두리처럼 우리가 만들 수 없던 것도 이미 정의돼 있다.
+    """
+    with zipfile.ZipFile(path) as z:
+        head = z.read("Contents/header.xml").decode("utf-8")
+
+    by_name: dict[str, dict] = {}
+    for m in re.finditer(r'<hh:style\b[^>]*/?>', head):
+        tag = m.group(0)
+        name = re.search(r'name="([^"]*)"', tag)
+        pid = re.search(r'paraPrIDRef="(\d+)"', tag)
+        cid = re.search(r'charPrIDRef="(\d+)"', tag)
+        sid = re.search(r'id="(\d+)"', tag)
+        if name and pid and sid:
+            by_name[name.group(1)] = {
+                "style": sid.group(1), "para": pid.group(1),
+                "char": cid.group(1) if cid else "0"}
+
+    out: dict = {}
+    for role, candidates in STYLE_NAMES.items():
+        for nm in candidates:
+            if nm in by_name:
+                out[role] = {**by_name[nm], "name": nm}
+                break
+    return out
+
+
 def read_roles(path: Path) -> dict:
     """틀의 본문을 훑어 역할별로 쓰이는 문단·글자 모양 id 를 알아낸다.
 
@@ -197,7 +243,10 @@ def open_template(path: Path | str) -> tuple[HwpxDocument, dict]:
     path = Path(path)
     if not path.exists():
         raise FileNotFoundError(f"틀 파일이 없습니다: {path}")
-    roles = read_roles(path)
+    roles = read_named_styles(path)
+    if len(roles) < 3:
+        # 이름 붙은 스타일이 없는 틀이면 내용을 보고 추측하는 쪽으로 내려간다.
+        roles = read_roles(path)
     doc = HwpxDocument.open(str(path))
     clear_body(doc)
     strip_bindata(doc)

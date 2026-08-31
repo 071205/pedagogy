@@ -146,6 +146,11 @@ def split_inline(text: str) -> list[tuple[str, str]]:
     return parts
 
 
+def _sty(para: str) -> str | None:
+    """문단 역할에 대응하는 틀의 '이름 붙은 스타일' id (있으면)."""
+    return STYLE.get("style_" + para.removeprefix("para_"))
+
+
 def emit_rich(doc: HwpxDocument, text: str, rep: Report, *, where: str,
               para: str = "para_stem", char: str = "char_stem",
               prefix: str = "") -> int:
@@ -157,12 +162,14 @@ def emit_rich(doc: HwpxDocument, text: str, rep: Report, *, where: str,
     parts = split_inline(text)
     if prefix:
         doc.append_paragraph(prefix, para_pr_id=STYLE.get(para),
+                             style_id=_sty(para),
                              char_pr_id=STYLE.get("char_num"))
         idx = doc.paragraph_count() - 1
         rest = parts
     else:
         lead = parts[0][1] if parts and parts[0][0] == "text" else ""
         doc.append_paragraph(lead, para_pr_id=STYLE.get(para),
+                             style_id=_sty(para),
                              char_pr_id=STYLE.get(char))
         idx = doc.paragraph_count() - 1
         rest = parts[1:] if lead else parts
@@ -194,8 +201,9 @@ def emit_display_eq(doc: HwpxDocument, tex: str, rep: Report, *, where: str) -> 
         rep.warnings.append(f"{where}: 별행 수식 변환 실패 — {e}  ({body})")
         doc.append_paragraph(f"[수식 변환 실패: {body}]")
         return
-    doc.append_paragraph("", para_pr_id=STYLE.get("para_cont"),
-                         char_pr_id=STYLE.get("char_stem"))
+    eqp = "para_eq" if "para_eq" in STYLE else "para_cont"
+    doc.append_paragraph("", para_pr_id=STYLE.get(eqp), style_id=_sty(eqp),
+                         char_pr_id=STYLE.get("char_cont", STYLE.get("char_stem")))
     doc.append_equation(script, paragraph_index=doc.paragraph_count() - 1,
                         char_pr_id=STYLE.get("char_stem"),
                         base_unit=round(body_pt() * 100))
@@ -231,11 +239,14 @@ def emit_problem(doc: HwpxDocument, p: dict, rep: Report) -> None:
             emit_rich(doc, "〈" + u["t"] + "〉", rep, where=where, para="para_cont", char="char_cont")
         elif u["k"] == "cond":
             for item in u["items"]:
-                emit_rich(doc, item, rep, where=where, para="para_cont", char="char_cont")
+                emit_rich(doc, item, rep, where=where,
+                          para="para_cond" if "para_cond" in STYLE else "para_cont",
+                          char="char_cond" if "char_cond" in STYLE else "char_cont")
         elif u["k"] == "ex":
             for j, item in enumerate(u["items"]):
-                emit_rich(doc, f"{HGND[j % len(HGND)]}. {item}", rep,
-                          where=where, para="para_cont", char="char_cont")
+                emit_rich(doc, f"{HGND[j % len(HGND)]}. {item}", rep, where=where,
+                          para="para_ex" if "para_ex" in STYLE else "para_cont",
+                          char="char_ex" if "char_ex" in STYLE else "char_cont")
         elif u["k"] == "fig":
             doc.append_paragraph(f"[그림 {u['src'] or num} · 너비 {u['w']}mm]",
                                  para_pr_id=STYLE.get("para_cont"),
@@ -245,8 +256,11 @@ def emit_problem(doc: HwpxDocument, p: dict, rep: Report) -> None:
                               for j, c in enumerate(u["items"]) if c.strip())
             if line:
                 emit_rich(doc, line, rep, where=f"{where} 선지", para="para_choice", char="char_choice")
-    # 문항 사이 간격은 선지 문단의 '문단 아래' 값이 만든다(실물과 같은 방식).
-    # 빈 문단을 끼워 넣으면 그만큼 한 줄이 더 벌어져 단이 일찍 넘어간다.
+    # 문항 사이를 한 줄 띄운다. 실물도 선지 스타일의 빈 문단으로 띄우고,
+    # 그 스타일의 '문단 아래' 가 0 이라 이것 없이는 다음 문항이 바로 붙는다.
+    doc.append_paragraph("", para_pr_id=STYLE.get("para_choice"),
+                         style_id=_sty("para_choice"),
+                         char_pr_id=STYLE.get("char_choice"))
 
 
 def build(data: dict, out: Path, *, ref: str | Path | None = None) -> Report:
@@ -259,14 +273,17 @@ def build(data: dict, out: Path, *, ref: str | Path | None = None) -> Report:
         # 실물 틀을 그대로 쓴다 — 서식 id 만 알아내면 되고 새로 만들 것이 없다.
         doc, roles = tmpl.open_template(template)
         PROFILE["_source"] = f"{template.name} (틀)"
-        for role in ("stem", "choice", "cont"):
-            if role in roles:
-                STYLE[f"para_{role}"] = roles[role]["para"]
-                STYLE[f"char_{role}"] = roles[role]["char"]
+        for role, spec in roles.items():
+            if role.startswith("_"):
+                continue
+            STYLE[f"para_{role}"] = spec["para"]
+            STYLE[f"char_{role}"] = spec["char"]
+            if "style" in spec:
+                STYLE[f"style_{role}"] = spec["style"]
         STYLE["char_num"] = roles.get("num", {}).get("char", STYLE.get("char_stem"))
-        rep.warnings.extend(
-            f"틀에 {r} 역할이 없어 발문 서식으로 대신합니다"
-            for r in ("stem", "choice", "cont") if r not in roles)
+        for r in ("stem", "choice", "cont"):
+            if f"para_{r}" not in STYLE:
+                rep.warnings.append(f"틀에 {r} 역할이 없어 기본 서식으로 대신합니다")
     else:
         # 틀이 없으면 값만 읽어 빈 문서에 심는다(예전 경로).
         PROFILE.update(exam_profile.profile_from(ref or DEFAULT_REF))
