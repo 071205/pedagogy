@@ -1,0 +1,209 @@
+{
+ "v": 1,
+ "round": "2027학년도 9월 모의고사 대비 1회",
+ "elective": "확률과 통계",
+ "problems": [
+  {
+   "id": "p1",
+   "num": 1,
+   "sect": "공통",
+   "type": "choice",
+   "pts": 2,
+   "blocks": [
+    {
+     "type": "statement",
+     "data": {
+      "text": "$\\sqrt[3]{5}\\times 25^{\\frac13}$의 값은?"
+     }
+    },
+    {
+     "type": "choices",
+     "data": {
+      "items": [
+       "$1$",
+       "$2$",
+       "$3$",
+       "$4$",
+       "$5$"
+      ],
+      "layout": "auto"
+     }
+    }
+   ],
+   "layout": "auto",
+   "breakAfter": false
+  },
+  {
+   "id": "p2",
+   "num": 2,
+   "sect": "공통",
+   "type": "choice",
+   "pts": 2,
+   "blocks": [
+    {
+     "type": "statement",
+     "data": {
+      "text": "함수 $f(x)=x^3-8x+7$에 대하여 $\\lim\\limits_{h\\to0}\\dfrac{f(2+h)-f(2)}{h}$의 값은?"
+     }
+    },
+    {
+     "type": "choices",
+     "data": {
+      "items": [
+       "$1$",
+       "$2$",
+       "$3$",
+       "$4$",
+       "$5$"
+      ],
+      "layout": "auto"
+     }
+    }
+   ],
+   "layout": "auto",
+   "breakAfter": false
+  },
+  {
+   "id": "p3",
+   "num": 3,
+   "sect": "공통",
+   "type": "choice",
+   "pts": 3,
+   "blocks": [
+    {
+     "type": "statement",
+     "data": {
+      "text": "첫째항과 공비가 모두 양수 $k$인 등비수열 $\\{a_n\\}$이\n$\\dfrac{a_4}{a_2}+\\dfrac{a_2}{a_1}=30$\n을 만족시킬 때, $k$의 값은?"
+     }
+    },
+    {
+     "type": "choices",
+     "data": {
+      "items": [
+       "$1$",
+       "$2$",
+       "$3$",
+       "$4$",
+       "$5$"
+      ],
+      "layout": "auto"
+     }
+    }
+   ],
+   "layout": "auto",
+   "breakAfter": false
+  },
+  {
+   "id": "p9",
+   "num": 9,
+   "sect": "공통",
+   "type": "choice",
+   "pts": 4,
+   "blocks": [
+    {
+     "type": "statement",
+     "data": {
+      "text": "함수 $f(x)=3x^2-16x-20$에 대하여 $\\displaystyle\\int_{-2}^{a}f(x)\\,dx=\\int_{-2}^{0}f(x)\\,dx$일 때, 양수 $a$의 값은?"
+     }
+    },
+    {
+     "type": "choices",
+     "data": {
+      "items": [
+       "$16$",
+       "$14$",
+       "$12$",
+       "$10$",
+       "$8$"
+      ],
+      "layout": "auto"
+     }
+    }
+   ],
+   "layout": "auto",
+   "breakAfter": false
+  },
+  {
+   "id": "p14",
+   "num": 14,
+   "sect": "공통",
+   "type": "choice",
+   "pts": 4,
+   "blocks": [
+    {
+     "type": "statement",
+     "data": {
+      "text": "그림과 같이 삼각형 $ABC$에서 선분 $AB$ 위에 $\\overline{AD}:\\overline{DB}=3:2$인 점 $D$를 잡고, 점 $A$를 중심으로 하고 점 $D$를 지나는 원을 $O$라 하자.\n원 $O$ 위의 점 $P$에 대하여 삼각형 $PBC$의 넓이의 최댓값은?\n(단, $\\overline{AB}<\\overline{AC}$)"
+     }
+    },
+    {
+     "type": "image",
+     "data": {
+      "width": 58,
+      "src": "fig14.png"
+     }
+    },
+    {
+     "type": "choices",
+     "data": {
+      "items": [
+       "$18+15\\sqrt3$",
+       "$24+20\\sqrt3$",
+       "$30+25\\sqrt3$",
+       "$36+30\\sqrt3$",
+       "$42+35\\sqrt3$"
+      ],
+      "layout": "auto"
+     }
+    }
+   ],
+   "layout": "auto",
+   "breakAfter": false
+  },
+  {
+   "id": "p15",
+   "num": 15,
+   "sect": "공통",
+   "type": "choice",
+   "pts": 4,
+   "blocks": [
+    {
+     "type": "statement",
+     "data": {
+      "text": "상수 $a\\;(a\\neq3\\sqrt5)$와 최고차항의 계수가 음수인 이차함수 $f(x)$에 대하여 함수 $g(x)$가 다음 조건을 만족시킨다."
+     }
+    },
+    {
+     "type": "conditions",
+     "data": {
+      "items": [
+       "(가) 함수 $g(x)$는 실수 전체의 집합에서 미분가능하다.",
+       "(나) $x$에 대한 방정식 $g'(x)\\times g'(x-4)=0$의 서로 다른 실근의 개수는 $4$이다."
+      ]
+     }
+    },
+    {
+     "type": "statement",
+     "data": {
+      "text": "$g(-2)+g(2)$의 값은?"
+     }
+    },
+    {
+     "type": "choices",
+     "data": {
+      "items": [
+       "$30$",
+       "$32$",
+       "$34$",
+       "$36$",
+       "$38$"
+      ],
+      "layout": "auto"
+     }
+    }
+   ],
+   "layout": "auto",
+   "breakAfter": false
+  }
+ ]
+}

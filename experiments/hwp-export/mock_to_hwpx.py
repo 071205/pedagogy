@@ -46,6 +46,7 @@ HGND = ["ㄱ", "ㄴ", "ㄷ", "ㄹ", "ㅁ"]
 class Report:
     problems: int = 0
     equations: int = 0
+    figures: int = 0
     warnings: list[str] = field(default_factory=list)
 
 
@@ -55,6 +56,7 @@ def xml_escape(s: str) -> str:
 
 
 STYLE: dict[str, str] = {}      # exam_style.install() 결과 — build() 에서 채운다
+IMAGE_ROOTS: list[Path] = []    # 그림 파일을 찾을 폴더들 — build() 에서 채운다
 PROFILE: dict = {}              # exam_profile.profile_from() 결과
 
 
@@ -78,6 +80,80 @@ def append_text_run(doc: HwpxDocument, para_idx: int, text: str,
     doc.append_run_xml(f'<hp:t xmlns:hp="{HP}">{xml_escape(text)}</hp:t>',
                        paragraph_index=para_idx,
                        char_pr_id=STYLE.get(char))
+
+
+
+# ── 그림 ──────────────────────────────────────────────────────────────────
+MM_TO_HWPUNIT = 7200 / 25.4
+
+
+def image_size(data: bytes) -> tuple[int, int] | None:
+    """PNG·JPEG 의 가로·세로(px). 비율을 지키려면 필요하다.
+
+    외부 라이브러리(PIL)를 쓰지 않는다 — 이 실험의 의존성은 jakal-hwpx 하나뿐이고,
+    헤더만 읽으면 되는 일에 의존성을 늘릴 이유가 없다.
+    """
+    if data[:8] == b"\x89PNG\r\n\x1a\n" and data[12:16] == b"IHDR":
+        return (int.from_bytes(data[16:20], "big"), int.from_bytes(data[20:24], "big"))
+    if data[:2] == b"\xff\xd8":                     # JPEG
+        i = 2
+        while i + 9 < len(data):
+            if data[i] != 0xFF:
+                i += 1
+                continue
+            marker = data[i + 1]
+            if 0xC0 <= marker <= 0xCF and marker not in (0xC4, 0xC8, 0xCC):
+                return (int.from_bytes(data[i + 7:i + 9], "big"),
+                        int.from_bytes(data[i + 5:i + 7], "big"))
+            i += 2 + int.from_bytes(data[i + 2:i + 4], "big")
+    return None
+
+
+def find_image(src: str, roots: list[Path]) -> Path | None:
+    for root in roots:
+        cand = root / src
+        if cand.exists():
+            return cand
+    return None
+
+
+def emit_figure(doc: HwpxDocument, unit: dict, rep: Report, *, where: str,
+                roots: list[Path]) -> None:
+    """그림 한 장. 파일을 못 찾으면 자리표시를 남기고 **경고한다.**
+
+    조용히 빈자리로 두면 그림이 빠진 시험지가 인쇄된다.
+    """
+    src = (unit.get("src") or "").strip()
+    width_mm = float(unit.get("w") or 0)
+    para = "para_eq" if "para_eq" in STYLE else "para_cont"
+
+    def placeholder(msg: str) -> None:
+        rep.warnings.append(f"{where}: {msg}")
+        doc.append_paragraph(f"[그림 없음 — {msg}]", para_pr_id=STYLE.get(para),
+                             style_id=_sty(para), char_pr_id=STYLE.get("char_cont"))
+
+    if not src:
+        placeholder(f"그림 파일명이 지정되지 않았습니다 (너비 {width_mm:g}mm)")
+        return
+    path = find_image(src, roots)
+    if path is None:
+        placeholder(f"그림 파일을 찾지 못했습니다: {src}")
+        return
+
+    data = path.read_bytes()
+    size = image_size(data)
+    if not size or not size[0]:
+        placeholder(f"그림 크기를 읽지 못했습니다(PNG·JPEG 만 지원): {src}")
+        return
+
+    w = round(width_mm * MM_TO_HWPUNIT)
+    h = round(w * size[1] / size[0])          # 비율 유지
+    doc.append_paragraph("", para_pr_id=STYLE.get(para), style_id=_sty(para),
+                         char_pr_id=STYLE.get("char_cont"))
+    doc.append_picture(path.name, data, paragraph_index=doc.paragraph_count() - 1,
+                       width=w, height=h,
+                       char_pr_id=STYLE.get("char_cont"))
+    rep.figures += 1
 
 
 # ── 편집기의 probUnits() 를 옮긴 것 ────────────────────────────────────────
@@ -248,9 +324,7 @@ def emit_problem(doc: HwpxDocument, p: dict, rep: Report) -> None:
                           para="para_ex" if "para_ex" in STYLE else "para_cont",
                           char="char_ex" if "char_ex" in STYLE else "char_cont")
         elif u["k"] == "fig":
-            doc.append_paragraph(f"[그림 {u['src'] or num} · 너비 {u['w']}mm]",
-                                 para_pr_id=STYLE.get("para_cont"),
-                                 char_pr_id=STYLE.get("char_stem"))
+            emit_figure(doc, u, rep, where=where, roots=IMAGE_ROOTS)
         elif u["k"] == "choices":
             line = "   ".join(f"{MARKS[j % len(MARKS)]} {c}".rstrip()
                               for j, c in enumerate(u["items"]) if c.strip())
@@ -263,8 +337,11 @@ def emit_problem(doc: HwpxDocument, p: dict, rep: Report) -> None:
                          char_pr_id=STYLE.get("char_choice"))
 
 
-def build(data: dict, out: Path, *, ref: str | Path | None = None) -> Report:
+def build(data: dict, out: Path, *, ref: str | Path | None = None,
+          images: list[Path] | None = None) -> Report:
     rep = Report()
+    IMAGE_ROOTS.clear()
+    IMAGE_ROOTS.extend(images or [out.parent, ROOT])
     STYLE.clear()
     PROFILE.clear()
 
@@ -331,9 +408,10 @@ def main(argv: list[str]) -> int:
     out = Path(argv[2]) if len(argv) > 2 else src.with_suffix(".hwpx")
     data = json.loads(src.read_text(encoding="utf-8"))
 
-    rep = build(data, out)
+    imgs = [Path(argv[3])] if len(argv) > 3 else [src.parent, ROOT]
+    rep = build(data, out, images=imgs)
     print("조판 규격 출처:", PROFILE.get("_source") or "(없음)")
-    print(f"문항 {rep.problems}개, 수식 {rep.equations}개 → {out} ({out.stat().st_size:,} bytes)")
+    print(f"문항 {rep.problems}개, 수식 {rep.equations}개, 그림 {rep.figures}개 → {out} ({out.stat().st_size:,} bytes)")
     if rep.warnings:
         print(f"\n⚠️ 경고 {len(rep.warnings)}건 (조용히 넘기지 않습니다):")
         for w in rep.warnings[:20]:
