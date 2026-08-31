@@ -58,10 +58,25 @@ STYLE_NAMES = {
     "eq":     ["21 문제다음 별행", "21 문제다음"],
     "cond":   ["21 박스(테두리)", "02-박스"],
     "condeq": ["21 박스(테두리) 별행", "21 박스(테두리)"],
-    "boxtop": ["21 박스위"],
-    "boxbot": ["21 박스아래"],
+    "boxtop": ["21 박스위"],      # 상자 '앞' 여백 문단
+    "boxbot": ["21 박스아래"],     # 상자 '뒤' 여백 문단 — 없으면 발문이 상자에 붙는다
+    "figure": ["보기", "표 내용"],  # 그림 — 가운데 정렬 문단
     "ex":     ["21 보기", "02-보기"],
 }
+
+
+def read_equation_base(path: Path) -> int | None:
+    """실물 수식의 기준 크기(baseUnit, 1/100pt).
+
+    ⚠️ 본문 크기와 다르다 — 실물은 본문 11.5pt 에 수식 11.0pt 다(522개 전부).
+       본문 크기를 그대로 쓰면 수식만 커 보인다.
+    """
+    with zipfile.ZipFile(path) as z:
+        for name in [n for n in z.namelist() if n.startswith("Contents/section")]:
+            m = re.search(r'<hp:equation[^>]*baseUnit="(\d+)"', z.read(name).decode("utf-8"))
+            if m:
+                return int(m.group(1))
+    return None
 
 
 def read_named_styles(path: Path) -> dict:
@@ -256,6 +271,9 @@ def open_template(path: Path | str) -> tuple[HwpxDocument, dict]:
         guessed = read_roles(path)
         if "num" in guessed:
             roles["num"] = guessed["num"]
+        base = read_equation_base(path)
+        if base:
+            roles["_eq_base"] = base
     if len(roles) < 3:
         # 이름 붙은 스타일이 없는 틀이면 내용을 보고 추측하는 쪽으로 내려간다.
         roles = read_roles(path)

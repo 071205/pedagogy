@@ -62,12 +62,19 @@ IMAGE_ROOTS: list[Path] = []    # 그림 파일을 찾을 폴더들 — build() 
 PROFILE: dict = {}              # exam_profile.profile_from() 결과
 
 
-def body_pt() -> float:
-    """본문 글자 크기. 수식 크기를 본문에 맞추는 데 쓴다(프로파일에서 온다)."""
+def eq_base() -> int:
+    """수식 기준 크기(1/100pt).
+
+    ⚠️ 본문 크기가 아니다. 실물은 본문 11.5pt 에 수식 11.0pt 를 쓴다(522개 전부).
+       본문 크기를 넣으면 수식만 도드라져 보인다.
+    """
+    base = PROFILE.get("_eq_base")
+    if base:
+        return int(base)
     try:
-        return float(PROFILE["cont"]["char"]["pt"])
+        return round(float(PROFILE["cont"]["char"]["pt"]) * 100)
     except Exception:
-        return 11.5
+        return 1100
 
 
 def append_text_run(doc: HwpxDocument, para_idx: int, text: str,
@@ -178,7 +185,7 @@ def emit_choice_row(doc: HwpxDocument, items: list[tuple[int, str]], rep: Report
                         doc.append_inline_equation(
                             convert(chunk), paragraph_index=idx,
                             char_pr_id=STYLE.get(char),
-                            base_unit=round(body_pt() * 100))
+                            base_unit=eq_base())
                         rep.equations += 1
                     except UnsupportedTex as e:
                         rep.warnings.append(f"{where}: 선지 수식 변환 실패 — {e}")
@@ -285,7 +292,8 @@ def emit_figure(doc: HwpxDocument, unit: dict, rep: Report, *, where: str,
     """
     src = (unit.get("src") or "").strip()
     width_mm = float(unit.get("w") or 0)
-    para = "para_eq" if "para_eq" in STYLE else "para_cont"
+    para = ("para_figure" if "para_figure" in STYLE
+            else ("para_eq" if "para_eq" in STYLE else "para_cont"))
 
     def placeholder(msg: str) -> None:
         rep.warnings.append(f"{where}: {msg}")
@@ -389,14 +397,22 @@ def _sty(para: str) -> str | None:
 
 def emit_rich(doc: HwpxDocument, text: str, rep: Report, *, where: str,
               para: str = "para_stem", char: str = "char_stem",
-              prefix: str = "") -> int:
+              prefix: str = "", into: int | None = None) -> int:
     """텍스트와 인라인 수식이 섞인 문단 하나를 만들고 그 문단 번호를 준다.
 
     `prefix` 는 문항 번호처럼 **본문과 다른 서식**으로 나가야 하는 앞머리다.
     실물에서 번호는 본문보다 크다(13.5pt vs 11.5pt).
     """
     parts = split_inline(text)
-    if prefix:
+    if into is not None:
+        # 틀 문단(구역·단 정의를 안고 있는 첫 문단)에 그대로 이어 쓴다.
+        # 새 문단을 만들면 비워진 틀 문단이 빈 줄로 남아 첫 문항이 밀린다.
+        idx = into
+        if prefix:
+            doc.append_run_xml(f'<hp:t xmlns:hp="{HP}">{xml_escape(prefix)}</hp:t>',
+                               paragraph_index=idx, char_pr_id=STYLE.get("char_num"))
+        rest = parts
+    elif prefix:
         doc.append_paragraph(prefix, para_pr_id=STYLE.get(para),
                              style_id=_sty(para),
                              char_pr_id=STYLE.get("char_num"))
@@ -423,7 +439,7 @@ def emit_rich(doc: HwpxDocument, text: str, rep: Report, *, where: str,
                 continue
             doc.append_inline_equation(script, paragraph_index=idx,
                                        char_pr_id=STYLE.get("char_stem"),
-                                       base_unit=round(body_pt() * 100))
+                                       base_unit=eq_base())
             rep.equations += 1
     return idx
 
@@ -442,11 +458,12 @@ def emit_display_eq(doc: HwpxDocument, tex: str, rep: Report, *, where: str) -> 
                          char_pr_id=STYLE.get("char_cont", STYLE.get("char_stem")))
     doc.append_equation(script, paragraph_index=doc.paragraph_count() - 1,
                         char_pr_id=STYLE.get("char_stem"),
-                        base_unit=round(body_pt() * 100))
+                        base_unit=eq_base())
     rep.equations += 1
 
 
-def emit_problem(doc: HwpxDocument, p: dict, rep: Report) -> None:
+def emit_problem(doc: HwpxDocument, p: dict, rep: Report,
+                 *, into: int | None = None) -> None:
     units, pts_at = prob_units(p)
     num = p.get("num", "?")
     where = f"{num}번"
@@ -463,7 +480,9 @@ def emit_problem(doc: HwpxDocument, p: dict, rep: Report) -> None:
         if u["k"] == "text":
             if first:
                 emit_rich(doc, u["t"] + tail, rep, where=where,
-                          para="para_stem", char="char_stem", prefix=f"{num}. ")
+                          para="para_stem", char="char_stem", prefix=f"{num}. ",
+                          into=into)
+                into = None
             else:
                 # 둘째 줄부터는 실물처럼 '이어지는 줄' 서식을 쓴다.
                 emit_rich(doc, u["t"] + tail, rep, where=where,
@@ -474,10 +493,20 @@ def emit_problem(doc: HwpxDocument, p: dict, rep: Report) -> None:
         elif u["k"] == "boxed":
             emit_rich(doc, "〈" + u["t"] + "〉", rep, where=where, para="para_cont", char="char_cont")
         elif u["k"] == "cond":
+            # 실물은 상자를 앞뒤 여백 문단으로 감싼다(박스위 → 상자 → 박스아래).
+            # 이게 없으면 상자 뒤 발문이 상자에 딱 붙는다.
+            if "para_boxtop" in STYLE:
+                doc.append_paragraph("", para_pr_id=STYLE["para_boxtop"],
+                                     style_id=_sty("para_boxtop"),
+                                     char_pr_id=STYLE.get("char_boxtop"))
             for item in u["items"]:
                 emit_rich(doc, item, rep, where=where,
                           para="para_cond" if "para_cond" in STYLE else "para_cont",
                           char="char_cond" if "char_cond" in STYLE else "char_cont")
+            if "para_boxbot" in STYLE:
+                doc.append_paragraph("", para_pr_id=STYLE["para_boxbot"],
+                                     style_id=_sty("para_boxbot"),
+                                     char_pr_id=STYLE.get("char_boxbot"))
         elif u["k"] == "ex":
             for j, item in enumerate(u["items"]):
                 emit_rich(doc, f"{HGND[j % len(HGND)]}. {item}", rep, where=where,
@@ -540,9 +569,14 @@ def build(data: dict, out: Path, *, ref: str | Path | None = None,
     shown = [p for p in (data.get("problems") or [])
              if any(u["k"] != "choices" for u in prob_units(p)[0])]
     breaks = column_starts(shown)
+    frame_used = False
     for i, p in enumerate(shown):
         before = doc.paragraph_count()
-        emit_problem(doc, p, rep)
+        # 첫 문항은 틀 문단에 이어 쓴다 — 안 그러면 빈 줄 하나가 앞을 밀어낸다.
+        use_frame = (i == 0 and not frame_used
+                     and (PROFILE.get("_source") or "").endswith("(틀)"))
+        emit_problem(doc, p, rep, into=0 if use_frame else None)
+        frame_used = frame_used or use_frame
         if i in breaks and doc.paragraph_count() > before:
             # 문항의 '첫' 문단에 표시해야 한다 — 마지막에 하면 다음 문항이 넘어간다.
             sec = doc.get_part("Contents/section0.xml")
