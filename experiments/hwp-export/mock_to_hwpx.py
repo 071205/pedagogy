@@ -26,12 +26,17 @@ sys.path.insert(0, str(Path(__file__).parent))
 from jakal_hwpx import HwpxDocument  # noqa: E402
 
 import exam_profile  # noqa: E402
+import template as tmpl  # noqa: E402
 import exam_style  # noqa: E402
 from make_math_probe import HP, apply_layout  # noqa: E402
 from tex_to_hwp import UnsupportedTex, convert  # noqa: E402
 
 # 조판 규격을 읽어 올 실물 시험지. 없으면 exam_profile 의 임시 기본값으로 내려간다.
-DEFAULT_REF = Path(__file__).resolve().parents[2] / "2025학년도 수능 수학 문제.hwp"
+# 조판 규격을 가져올 곳. 한글이 직접 저장한 .hwpx 가 있으면 그것을 **틀로 통째로** 쓴다
+# (테두리·머리말·탭 정의까지 따라온다). 없으면 .hwp 에서 값만 읽어 빈 문서에 심는다.
+ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_TEMPLATE = ROOT / "평가원 수학 양식.hwpx"
+DEFAULT_REF = ROOT / "2025학년도 수능 수학 문제.hwp"
 
 MARKS = ["①", "②", "③", "④", "⑤"]
 HGND = ["ㄱ", "ㄴ", "ㄷ", "ㄹ", "ㅁ"]
@@ -246,12 +251,28 @@ def emit_problem(doc: HwpxDocument, p: dict, rep: Report) -> None:
 
 def build(data: dict, out: Path, *, ref: str | Path | None = None) -> Report:
     rep = Report()
-    PROFILE.clear()
-    PROFILE.update(exam_profile.profile_from(ref or DEFAULT_REF))
-    doc = HwpxDocument.blank()
-    apply_layout(doc)
     STYLE.clear()
-    STYLE.update(exam_style.install(doc, PROFILE))
+    PROFILE.clear()
+
+    template = Path(ref) if ref else DEFAULT_TEMPLATE
+    if template.suffix.lower() == ".hwpx" and template.exists():
+        # 실물 틀을 그대로 쓴다 — 서식 id 만 알아내면 되고 새로 만들 것이 없다.
+        doc, roles = tmpl.open_template(template)
+        PROFILE["_source"] = f"{template.name} (틀)"
+        for role in ("stem", "choice", "cont"):
+            if role in roles:
+                STYLE[f"para_{role}"] = roles[role]["para"]
+                STYLE[f"char_{role}"] = roles[role]["char"]
+        STYLE["char_num"] = roles.get("num", {}).get("char", STYLE.get("char_stem"))
+        rep.warnings.extend(
+            f"틀에 {r} 역할이 없어 발문 서식으로 대신합니다"
+            for r in ("stem", "choice", "cont") if r not in roles)
+    else:
+        # 틀이 없으면 값만 읽어 빈 문서에 심는다(예전 경로).
+        PROFILE.update(exam_profile.profile_from(ref or DEFAULT_REF))
+        doc = HwpxDocument.blank()
+        apply_layout(doc)
+        STYLE.update(exam_style.install(doc, PROFILE))
 
     title = str(data.get("round") or "모의고사")
     doc.append_paragraph(title, para_pr_id=STYLE["para_cont"],
@@ -290,7 +311,7 @@ def main(argv: list[str]) -> int:
     data = json.loads(src.read_text(encoding="utf-8"))
 
     rep = build(data, out)
-    print(exam_profile.describe(PROFILE))
+    print("조판 규격 출처:", PROFILE.get("_source") or "(없음)")
     print(f"문항 {rep.problems}개, 수식 {rep.equations}개 → {out} ({out.stat().st_size:,} bytes)")
     if rep.warnings:
         print(f"\n⚠️ 경고 {len(rep.warnings)}건 (조용히 넘기지 않습니다):")
