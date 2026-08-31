@@ -25,9 +25,13 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from jakal_hwpx import HwpxDocument  # noqa: E402
 
+import exam_profile  # noqa: E402
 import exam_style  # noqa: E402
 from make_math_probe import HP, apply_layout  # noqa: E402
 from tex_to_hwp import UnsupportedTex, convert  # noqa: E402
+
+# 조판 규격을 읽어 올 실물 시험지. 없으면 exam_profile 의 임시 기본값으로 내려간다.
+DEFAULT_REF = Path(__file__).resolve().parents[2] / "2025학년도 수능 수학 문제.hwp"
 
 MARKS = ["①", "②", "③", "④", "⑤"]
 HGND = ["ㄱ", "ㄴ", "ㄷ", "ㄹ", "ㅁ"]
@@ -46,9 +50,19 @@ def xml_escape(s: str) -> str:
 
 
 STYLE: dict[str, str] = {}      # exam_style.install() 결과 — build() 에서 채운다
+PROFILE: dict = {}              # exam_profile.profile_from() 결과
 
 
-def append_text_run(doc: HwpxDocument, para_idx: int, text: str) -> None:
+def body_pt() -> float:
+    """본문 글자 크기. 수식 크기를 본문에 맞추는 데 쓴다(프로파일에서 온다)."""
+    try:
+        return float(PROFILE["cont"]["char"]["pt"])
+    except Exception:
+        return 11.5
+
+
+def append_text_run(doc: HwpxDocument, para_idx: int, text: str,
+                    *, char: str = "char_stem") -> None:
     """문단 뒤에 글자 조각 하나를 잇는다.
 
     ⚠️ `append_run_xml()` 은 넘긴 XML 을 `<hp:run>` 으로 **한 번 더 감싼다.**
@@ -58,7 +72,7 @@ def append_text_run(doc: HwpxDocument, para_idx: int, text: str) -> None:
     """
     doc.append_run_xml(f'<hp:t xmlns:hp="{HP}">{xml_escape(text)}</hp:t>',
                        paragraph_index=para_idx,
-                       char_pr_id=STYLE.get("char_body"))
+                       char_pr_id=STYLE.get(char))
 
 
 # ── 편집기의 probUnits() 를 옮긴 것 ────────────────────────────────────────
@@ -128,29 +142,40 @@ def split_inline(text: str) -> list[tuple[str, str]]:
 
 
 def emit_rich(doc: HwpxDocument, text: str, rep: Report, *, where: str,
-              para: str = "para_body") -> int:
-    """텍스트와 인라인 수식이 섞인 문단 하나를 만들고 그 문단 번호를 준다."""
+              para: str = "para_stem", char: str = "char_stem",
+              prefix: str = "") -> int:
+    """텍스트와 인라인 수식이 섞인 문단 하나를 만들고 그 문단 번호를 준다.
+
+    `prefix` 는 문항 번호처럼 **본문과 다른 서식**으로 나가야 하는 앞머리다.
+    실물에서 번호는 본문보다 크다(13.5pt vs 11.5pt).
+    """
     parts = split_inline(text)
-    lead = parts[0][1] if parts and parts[0][0] == "text" else ""
-    doc.append_paragraph(lead, para_pr_id=STYLE.get(para),
-                         char_pr_id=STYLE.get("char_body"))
-    idx = doc.paragraph_count() - 1
-    rest = parts[1:] if lead else parts
+    if prefix:
+        doc.append_paragraph(prefix, para_pr_id=STYLE.get(para),
+                             char_pr_id=STYLE.get("char_num"))
+        idx = doc.paragraph_count() - 1
+        rest = parts
+    else:
+        lead = parts[0][1] if parts and parts[0][0] == "text" else ""
+        doc.append_paragraph(lead, para_pr_id=STYLE.get(para),
+                             char_pr_id=STYLE.get(char))
+        idx = doc.paragraph_count() - 1
+        rest = parts[1:] if lead else parts
 
     for kind, body in rest:
         if kind == "text":
-            append_text_run(doc, idx, body)
+            append_text_run(doc, idx, body, char=char)
         else:
             try:
                 script = convert(body)
             except UnsupportedTex as e:
                 # 조용히 버리면 시험지에 수식이 빠진 채로 인쇄된다. 자리를 남기고 알린다.
                 rep.warnings.append(f"{where}: 수식 변환 실패 — {e}  ({body})")
-                append_text_run(doc, idx, f"[수식 변환 실패: {body}]")
+                append_text_run(doc, idx, f"[수식 변환 실패: {body}]", char=char)
                 continue
             doc.append_inline_equation(script, paragraph_index=idx,
-                                       char_pr_id=STYLE.get("char_body"),
-                                       base_unit=round(exam_style.BODY_PT * 100))
+                                       char_pr_id=STYLE.get("char_stem"),
+                                       base_unit=round(body_pt() * 100))
             rep.equations += 1
     return idx
 
@@ -164,11 +189,11 @@ def emit_display_eq(doc: HwpxDocument, tex: str, rep: Report, *, where: str) -> 
         rep.warnings.append(f"{where}: 별행 수식 변환 실패 — {e}  ({body})")
         doc.append_paragraph(f"[수식 변환 실패: {body}]")
         return
-    doc.append_paragraph("", para_pr_id=STYLE.get("para_eq"),
-                         char_pr_id=STYLE.get("char_body"))
+    doc.append_paragraph("", para_pr_id=STYLE.get("para_cont"),
+                         char_pr_id=STYLE.get("char_stem"))
     doc.append_equation(script, paragraph_index=doc.paragraph_count() - 1,
-                        char_pr_id=STYLE.get("char_body"),
-                        base_unit=round(exam_style.BODY_PT * 100))
+                        char_pr_id=STYLE.get("char_stem"),
+                        base_unit=round(body_pt() * 100))
     rep.equations += 1
 
 
@@ -178,8 +203,8 @@ def emit_problem(doc: HwpxDocument, p: dict, rep: Report) -> None:
     where = f"{num}번"
     if not any(u["k"] != "choices" for u in units):
         doc.append_paragraph(f"{num}. (발문 비어 있음)",
-                             para_pr_id=STYLE.get("para_body"),
-                             char_pr_id=STYLE.get("char_body"))
+                             para_pr_id=STYLE.get("para_stem"),
+                             char_pr_id=STYLE.get("char_stem"))
         return
 
     first = True
@@ -187,45 +212,52 @@ def emit_problem(doc: HwpxDocument, p: dict, rep: Report) -> None:
         pts = (i == pts_at)
         tail = f"  [{p.get('pts', '')}점]" if pts and p.get("pts") else ""
         if u["k"] == "text":
-            head = f"{num}. " if first else ""
-            emit_rich(doc, head + u["t"] + tail, rep, where=where)
+            if first:
+                emit_rich(doc, u["t"] + tail, rep, where=where,
+                          para="para_stem", char="char_stem", prefix=f"{num}. ")
+            else:
+                # 둘째 줄부터는 실물처럼 '이어지는 줄' 서식을 쓴다.
+                emit_rich(doc, u["t"] + tail, rep, where=where,
+                          para="para_cont", char="char_cont")
             first = False
         elif u["k"] == "eq":
             emit_display_eq(doc, u["t"], rep, where=where)
         elif u["k"] == "boxed":
-            emit_rich(doc, "〈" + u["t"] + "〉", rep, where=where)
+            emit_rich(doc, "〈" + u["t"] + "〉", rep, where=where, para="para_cont", char="char_cont")
         elif u["k"] == "cond":
             for item in u["items"]:
-                emit_rich(doc, item, rep, where=where, para="para_cond")
+                emit_rich(doc, item, rep, where=where, para="para_cont", char="char_cont")
         elif u["k"] == "ex":
             for j, item in enumerate(u["items"]):
                 emit_rich(doc, f"{HGND[j % len(HGND)]}. {item}", rep,
-                          where=where, para="para_cond")
+                          where=where, para="para_cont", char="char_cont")
         elif u["k"] == "fig":
             doc.append_paragraph(f"[그림 {u['src'] or num} · 너비 {u['w']}mm]",
-                                 para_pr_id=STYLE.get("para_eq"),
-                                 char_pr_id=STYLE.get("char_body"))
+                                 para_pr_id=STYLE.get("para_cont"),
+                                 char_pr_id=STYLE.get("char_stem"))
         elif u["k"] == "choices":
             line = "   ".join(f"{MARKS[j % len(MARKS)]} {c}".rstrip()
                               for j, c in enumerate(u["items"]) if c.strip())
             if line:
-                emit_rich(doc, line, rep, where=f"{where} 선지", para="para_choice")
+                emit_rich(doc, line, rep, where=f"{where} 선지", para="para_choice", char="char_choice")
     # 문항 사이 간격은 선지 문단의 '문단 아래' 값이 만든다(실물과 같은 방식).
     # 빈 문단을 끼워 넣으면 그만큼 한 줄이 더 벌어져 단이 일찍 넘어간다.
 
 
-def build(data: dict, out: Path) -> Report:
+def build(data: dict, out: Path, *, ref: str | Path | None = None) -> Report:
     rep = Report()
+    PROFILE.clear()
+    PROFILE.update(exam_profile.profile_from(ref or DEFAULT_REF))
     doc = HwpxDocument.blank()
     apply_layout(doc)
     STYLE.clear()
-    STYLE.update(exam_style.install(doc))   # 실물에서 잰 글자·문단 서식을 심는다
+    STYLE.update(exam_style.install(doc, PROFILE))
 
     title = str(data.get("round") or "모의고사")
-    doc.append_paragraph(title, para_pr_id=STYLE["para_eq"],
-                         char_pr_id=STYLE["char_tag"])
-    doc.append_paragraph("5지선다형", para_pr_id=STYLE["para_cond"],
-                         char_pr_id=STYLE["char_tag"])
+    doc.append_paragraph(title, para_pr_id=STYLE["para_cont"],
+                         char_pr_id=STYLE["char_stem"])
+    doc.append_paragraph("5지선다형", para_pr_id=STYLE["para_cont"],
+                         char_pr_id=STYLE["char_stem"])
 
     for p in data.get("problems") or []:
         units, _ = prob_units(p)
@@ -258,6 +290,7 @@ def main(argv: list[str]) -> int:
     data = json.loads(src.read_text(encoding="utf-8"))
 
     rep = build(data, out)
+    print(exam_profile.describe(PROFILE))
     print(f"문항 {rep.problems}개, 수식 {rep.equations}개 → {out} ({out.stat().st_size:,} bytes)")
     if rep.warnings:
         print(f"\n⚠️ 경고 {len(rep.warnings)}건 (조용히 넘기지 않습니다):")
