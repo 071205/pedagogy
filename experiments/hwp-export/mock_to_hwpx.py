@@ -136,20 +136,26 @@ def layout_of(p: dict, items: list[str]) -> str:
     return "v"
 
 
-def _row_para(slots: int) -> str:
-    """한 줄에 slots 칸이 들어가는 문단 역할 이름."""
-    for n, role in ((5, "para_row5"), (3, "para_row3"), (2, "para_row2")):
-        if slots >= n and role in STYLE:
-            return role
+def _row_para(layout: str) -> str:
+    """선지 배치에 해당하는 문단 역할 이름.
+
+    ⚠️ 배치 전체가 한 문단 모양을 쓴다. 3+2 라면 ①②③ 줄과 ④⑤ 줄이 **같은** 것을
+       써야 ④가 ① 아래에, ⑤가 ② 아래에 선다. 줄마다 다른 것을 주면 아래 줄이
+       엉뚱하게 벌어진다(실제로 그랬다).
+    """
+    role = {"1": "para_ch1row", "2": "para_ch2row", "v": "para_ch1row"}.get(
+        layout, "para_ch1row")
+    if role in STYLE:
+        return role
     return "para_choice" if "para_choice" in STYLE else "para_cont"
 
 
 def emit_choice_row(doc: HwpxDocument, items: list[tuple[int, str]], rep: Report,
-                    *, where: str) -> None:
+                    *, where: str, layout: str) -> None:
     """선지 한 줄. 항목 사이를 탭으로 벌린다."""
     if not items:
         return
-    para = _row_para(len(items))
+    para = _row_para(layout)
     char = "char_choice" if "char_choice" in STYLE else "char_stem"
     first = True
     idx = -1
@@ -187,13 +193,13 @@ def emit_choices(doc: HwpxDocument, p: dict, unit: dict, rep: Report,
         return
     lay = layout_of(p, [c for _, c in used])
     if lay == "1":
-        emit_choice_row(doc, used, rep, where=where)
+        emit_choice_row(doc, used, rep, where=where, layout=lay)
     elif lay == "2":
-        emit_choice_row(doc, used[:3], rep, where=where)
-        emit_choice_row(doc, used[3:], rep, where=where)
+        emit_choice_row(doc, used[:3], rep, where=where, layout=lay)
+        emit_choice_row(doc, used[3:], rep, where=where, layout=lay)
     else:                                  # 'v' — 한 줄에 하나씩
         for one in used:
-            emit_choice_row(doc, [one], rep, where=where)
+            emit_choice_row(doc, [one], rep, where=where, layout=lay)
     rep.choice_rows += 1 if lay == "1" else (2 if lay == "2" else len(used))
 
 

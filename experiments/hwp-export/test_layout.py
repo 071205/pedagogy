@@ -82,7 +82,37 @@ for label, prob_, items, want in CH_CASES:
     fails += not ok
     print(f"  {'✅' if ok else '❌'} {label}: {got}" + ("" if ok else f"  ← 기대 {want}"))
 
+print("선지 배치 확인")
+
+
+# ── 3+2 는 두 줄이 같은 문단 모양이어야 한다 ──────────────────────────────
+# 실물 확인: ①②③ 줄과 ④⑤ 줄이 둘 다 문단 19(`2행`) 를 쓴다(각 5회).
+# 줄마다 다른 것을 주면 ④가 ① 아래에 오지 않고 벌어진다.
+from mock_to_hwpx import STYLE, _row_para  # noqa: E402
+
+print("\n3+2 두 줄 정렬")
+STYLE.update({"para_ch1row": "12", "para_ch2row": "19", "para_ch3row": "33"})
+same = _row_para("2") == _row_para("2")
+row2_style = _row_para("2")
+one_row = _row_para("1")
+checks = [
+    ("3+2 의 두 줄이 같은 문단 모양", same and row2_style == "para_ch2row"),
+    ("한 줄 배치는 다른 문단 모양", one_row == "para_ch1row"),
+    ("세로 배치도 한 줄 것을 쓴다", _row_para("v") == "para_ch1row"),
+]
+for label, ok in checks:
+    fails += not ok
+    print(f"  {'✅' if ok else '❌'} {label}")
+
+# 검사가 유효한지 — 3+2 를 다른 모양으로 바꾸면 달라져야 한다
+STYLE["para_ch2row"] = "33"
+if _row_para("2") != "para_ch2row":
+    print("  ❌ 문단 모양을 바꿔도 결과가 같다 — 검사가 무의미하다")
+    fails += 1
+else:
+    print("  ✅ 매핑을 바꾸면 결과가 따라 바뀐다(검사가 유효)")
+
 if fails:
     print(f"\n실패 {fails}건")
     raise SystemExit(1)
-print("\n선지 배치까지 전부 통과")
+print("\n전부 통과")
