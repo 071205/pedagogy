@@ -186,7 +186,28 @@ function render(doc){const out=$("preview");out.replaceChildren();const title=do
 function parseAndRender(){try{const document=validate(JSON.parse($("json").value));$("json").value=JSON.stringify(document,null,2);localStorage.setItem("PEDAGOGY_DOCUMENT_BETA",$("json").value);render(document);setStatus("docStatus","검증됨","ok");return document}catch(e){setStatus("docStatus",e.message,"error");return null}}
 function confirmTransfer(){const version=String((window.PEDAGOGY_PUBLIC_CONFIG||{}).legalVersion||"2026-08-31-document-ai-transfer");const key="PEDAGOGY_DOCUMENT_AI_NOTICE";try{if(localStorage.getItem(key)===version)return true}catch{}const ok=confirm("AI 문서 초안을 만들면 요청 내용은 Cloudflare Worker를 거쳐 Anthropic API로 전송됩니다.\n\n· 이름, 연락처, 성적 등 개인정보나 비공개 자료는 입력하지 마세요.\n· AI 초안은 틀릴 수 있으므로 반드시 검토하세요.\n\n[확인]을 누르면 이 요청 전송에 동의하고 계속합니다.");if(ok)try{localStorage.setItem(key,version)}catch{}return ok}
 async function makeDraft(){const prompt=$("request").value.trim();if(!prompt){setStatus("aiStatus","요청 내용을 적어 주세요","error");return}if(!user){setStatus("aiStatus","AI 초안은 로그인 후 사용할 수 있습니다","error");return}if(!confirmTransfer())return;const button=$("draftBtn");button.disabled=true;setStatus("aiStatus","AI가 문서 초안을 만드는 중…");try{const token=await user.getIdToken();const r=await fetch(AI_PROXY_URL,{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},body:JSON.stringify({mode:"document",prompt})});const data=await r.json().catch(()=>({}));if(!r.ok||data.error)throw Error(data.error||`HTTP ${r.status}`);const document=validate(data.document);$("json").value=JSON.stringify(document,null,2);parseAndRender();setStatus("aiStatus",`초안 생성 완료 · 오늘 ${data.usage?.used??"?"}/${data.usage?.limit??"?"}회 사용`,`ok`)}catch(e){setStatus("aiStatus",`AI 초안 생성 실패: ${e.message}`,"error")}finally{button.disabled=false}}
-async function download(){const docData=parseAndRender();if(!docData)return;const button=$("downloadBtn");button.disabled=true;setStatus("docStatus","한글 파일로 조판 중…");try{const r=await fetch("/document-hwpx",{method:"POST",headers:{"Content-Type":"application/json","X-Exam-Client":"1"},body:JSON.stringify({document:docData})});if(!r.ok){const data=await r.json().catch(()=>({}));throw Error(data.error||`HTTP ${r.status}`)}const blob=await r.blob(),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`${docData.title.replace(/[\\/:*?\"<>|]/g,"_")}.hwpx`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);const warnings=Number(r.headers.get("X-Hwpx-Warnings")||0);setStatus("docStatus",warnings?`내보냈지만 조판 경고 ${warnings}건이 있습니다`:"한글 HWPX 파일을 내보냈습니다",warnings?"error":"ok")}catch(e){setStatus("docStatus",`내보내기 실패: ${e.message}. 로컬에서 serve.py를 실행한 뒤 다시 시도하세요.`,`error`)}finally{button.disabled=false}}
+/* 한글 내보내기는 로컬 serve.py 가 한다. 이 페이지가 그 서버에서 왔으면 같은 출처지만,
+   깃허브 페이지에서 열었으면 내 컴퓨터의 서버 주소를 직접 찾아야 한다.
+   ⚠️ 예전에는 `/document-hwpx` 를 상대경로로 하드코딩해, 배포본에서 누르면 요청이
+      깃허브 페이지 자신에게 가서 404 를 받았다. 모의고사 편집기와 같은 결함이다.
+   ⚠️ 누를 때마다 다시 찾는다 — 페이지를 먼저 열고 나중에 서버를 켜는 일이 흔하다. */
+const HWPX_PORTS=[8787,8788,8080];
+let hwpxBase=null;                     // null = 아직 안 찾아봄
+async function findHwpxServer(){
+  for(const base of ["",...HWPX_PORTS.map(p=>"http://127.0.0.1:"+p)]){
+    try{
+      const c=new AbortController(),t=setTimeout(()=>c.abort(),1500);
+      const r=await fetch(base+"/health",{headers:{"X-Exam-Client":"1"},signal:c.signal});
+      clearTimeout(t);
+      if(r.ok&&(await r.json()).ok){hwpxBase=base;return true}
+    }catch(e){}
+  }
+  hwpxBase=null;return false;
+}
+const NO_SERVER_HINT="로컬 서버를 찾지 못했습니다 · 터미널에서 python3 serve.py 를 실행한 뒤 "
+                    +"http://127.0.0.1:8787 로 열어 주세요";
+
+async function download(){const docData=parseAndRender();if(!docData)return;const button=$("downloadBtn");button.disabled=true;setStatus("docStatus","한글 파일로 조판 중…");try{if(hwpxBase===null&&!await findHwpxServer()){setStatus("docStatus",NO_SERVER_HINT,"error");return}const r=await fetch(hwpxBase+"/document-hwpx",{method:"POST",headers:{"Content-Type":"application/json","X-Exam-Client":"1"},body:JSON.stringify({document:docData})});if(!r.ok){const data=await r.json().catch(()=>({}));throw Error(data.error||`HTTP ${r.status}`)}const blob=await r.blob(),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`${docData.title.replace(/[\\/:*?\"<>|]/g,"_")}.hwpx`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);const warnings=Number(r.headers.get("X-Hwpx-Warnings")||0);setStatus("docStatus",warnings?`내보냈지만 조판 경고 ${warnings}건이 있습니다`:"한글 HWPX 파일을 내보냈습니다",warnings?"error":"ok")}catch(e){hwpxBase=null;setStatus("docStatus",`내보내기 실패: ${e.message} · ${NO_SERVER_HINT}`,`error`)}finally{button.disabled=false}}
 function init(){try{firebase.initializeApp(firebaseConfig);auth=firebase.auth();auth.onAuthStateChanged(v=>{user=v;$("authState").textContent=v?`${v.displayName||v.email||"로그인됨"}`:"AI 초안은 로그인 후 사용";$("loginBtn").textContent=v?"로그아웃":"로그인"})}catch{$("authState").textContent="로그인 기능을 불러오지 못했습니다";$("loginBtn").disabled=true}const saved=localStorage.getItem("PEDAGOGY_DOCUMENT_BETA");$("json").value=saved||JSON.stringify(DEFAULT,null,2);parseAndRender();$("validateBtn").onclick=parseAndRender;$("draftBtn").onclick=makeDraft;$("downloadBtn").onclick=download;$("loginBtn").onclick=async()=>{if(!auth)return;if(user)return auth.signOut();await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider())}}
 window.addEventListener("DOMContentLoaded",init);
 

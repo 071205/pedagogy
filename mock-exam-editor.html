@@ -1789,7 +1789,12 @@ function toTypst(){
 /* ══════════ 실시간 렌더 ══════════
    serve.py 가 떠 있으면 정본과 똑같은 typst·글꼴로 컴파일해서 그 결과를 띄운다.
    서버가 없으면 기존 CSS 근사 미리보기로 자동으로 돌아간다. */
-const LIVE={on:false,busy:false,pending:false,timer:null,cache:new Map(),ppi:110,base:'',webfonts:[]};
+/* ⚠️ `found` 는 `base` 와 **따로** 둬야 한다. `base:''`(같은 출처)는 서버를 찾은
+   결과로도 나오고 아직 안 찾아본 초기값으로도 나와서, `base` 만 보면 둘을 구분할 수
+   없다. 예전에 `base===null` 로 '아직 안 찾아봄' 을 판정하려 했는데 초기값이 `''`
+   이라 그 조건이 **한 번도 참이 되지 않았고**, 깃허브 페이지에서 한글 내보내기가
+   제 주소(`/hwpx`)로 나가 404 를 받고 '실패했어요' 만 떴다. */
+const LIVE={on:false,busy:false,pending:false,timer:null,cache:new Map(),ppi:110,base:'',found:null,webfonts:[]};
 /* 로컬 서버가 띄운 페이지면 같은 출처(''), 깃허브 페이지 등에서 열었으면
    내 컴퓨터의 렌더 서버 주소를 직접 부른다. 크롬은 https 페이지에서
    로컬 주소를 부를 때 서버의 허가 헤더를 요구하는데 serve.py 가 붙여 준다. */
@@ -1840,11 +1845,12 @@ function injectServerWebfonts(){
   if(document.fonts&&document.fonts.ready) document.fonts.ready.then(()=>renderPreview());
 }
 async function pingServer(){
-  if(await probe('')){LIVE.base='';return true;}          // 같은 출처 우선
+  if(await probe('')){LIVE.base='';LIVE.found=true;return true;}   // 같은 출처 우선
   for(const p of LIVE_PORTS){
     const b='http://127.0.0.1:'+p;
-    if(await probe(b)){LIVE.base=b;return true;}
+    if(await probe(b)){LIVE.base=b;LIVE.found=true;return true;}
   }
+  LIVE.found=false;   // 찾아봤고 없었다 — 내보내기가 이걸 보고 다시 찾는다
   return false;
 }
 function setLive(on){
@@ -1967,11 +1973,22 @@ function hwpxPayload(){
   return {...d, problems:(d.problems||[]).map(p=>({...p, layoutResolved:layoutOf(p)}))};
 }
 
+/* 서버가 없을 때 하는 말은 한 곳에만 둔다 — 두 자리(못 찾음·통신 실패)에서 같은 말을
+   해야 하는데, 따로 적어 두면 한쪽만 고쳐져 갈라진다. */
+const NO_SERVER_MSG='로컬 서버가 필요해요 · 터미널에서 python3 serve.py 를 실행한 뒤 '
+                   +'http://127.0.0.1:8787 로 열어 주세요';
+
 async function toHwpx(){
   const btn=$('#hwpxBtn'); if(!btn||btn.disabled) return;
   btn.disabled=true; const label=btn.textContent; btn.textContent='만드는 중…';
   try{
-    if(LIVE.base===null||LIVE.base===undefined){ await pingServer(); }
+    /* ⚠️ 서버를 **누를 때마다** 다시 찾는다. 페이지를 먼저 열고 나중에 serve.py 를
+       켜는 경우가 흔한데, 부팅 때 한 번만 찾으면 그 뒤로 영영 못 쓴다.
+       그리고 못 찾았으면 **보내지 않는다** — 예전에는 그대로 제 주소로 POST 해서
+       깃허브 페이지가 404 를 주고, 그 404 가 `catch` 가 아니라 `!r.ok` 로 떨어져
+       '로컬 서버를 켜세요' 대신 '한글 내보내기에 실패했어요' 만 떴다. */
+    if(!LIVE.found) await pingServer();
+    if(!LIVE.found){ toast(NO_SERVER_MSG,'error'); return; }
     const r=await fetch((LIVE.base||'')+'/hwpx',{method:'POST',
       headers:{'Content-Type':'application/json','X-Exam-Client':'1'},
       body:JSON.stringify(hwpxPayload())});
@@ -1988,8 +2005,10 @@ async function toHwpx(){
     a.click(); URL.revokeObjectURL(a.href);
     toast(warn?`받았어요 · 확인할 점 ${warn}건(그림·수식)`:'한글 파일을 받았어요','success');
   }catch(e){
-    // 서버가 없으면 여기로 온다. 무엇을 해야 하는지까지 알려 준다.
-    toast('로컬 서버가 필요해요 · 터미널에서 python3 serve.py 를 실행해 주세요','error');
+    // 찾을 때는 됐는데 보내다 끊긴 경우다(서버를 그 사이에 껐다 등).
+    // 다음에 누르면 다시 찾도록 표시를 지운다.
+    LIVE.found=null;
+    toast(NO_SERVER_MSG,'error');
   }finally{
     btn.disabled=false; btn.textContent=label;
   }
