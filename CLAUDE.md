@@ -2,13 +2,48 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## 지금 어디까지 왔나 (2026-09-01)
+
+세 갈래가 동시에 살아 있다. 새 세션이면 **관련된 갈래의 인계 기록부터** 읽는 것이 빠르다
+([`reviews/INDEX.md`](reviews/INDEX.md)).
+
+| 갈래 | 상태 |
+|---|---|
+| **문제집 편집기**(`index.html`) | 안정. 상용 준비 항목은 `docs/COMMERCIAL-LAUNCH.md` |
+| **모의고사 → 한글**(`mock_to_hwpx.py`) | 동작. 30문항·선택과목 검증 완료. 열린 이슈 2건(아래) |
+| **범용 문서 → 한글**(`document_to_hwpx.py`) | 베타. 블록 11종. 실물 한글로 확인 완료 |
+
+**바로 해 볼 수 있는 것**
+
+```bash
+python3 serve.py --open                      # 편집기 (상단 'AI 문서' 링크)
+python3 experiments/hwp-export/document_to_hwpx.py \
+        experiments/hwp-export/samples/document-sample.json 결과.hwpx
+```
+
+**열린 이슈 2건** — `REV-2026-009`(단답형 태그) · `REV-2026-010`(※확인 사항 상자).
+둘 다 **실물 시험지 대조가 필요해 일부러 손대지 않았다.** 모양이 틀린 것을 넣으면 없는
+것보다 나쁘다.
+
+**아직 확인 못 한 것**
+- 모의고사 시험지의 **실물 인쇄 대조** — 신명 계열 글꼴이 이 컴퓨터에 없다.
+- 규격서 저작권이 요구하는 **출처 고지가 화면·매뉴얼에는 아직 없다**(소스에만 있다).
+
+**이 프로젝트에서 반복된 실패 방식** — 새로 만들기 전에 한 번 읽을 것:
+1. **검사가 다 초록불인데 결과물이 틀렸다.** 한글이 파일을 못 여는 것, 수식이 글자로
+   찍히는 것, 표에 선이 없는 것 — 전부 검사를 통과했고 **화면을 봐야** 보였다.
+2. **한 곳만 고쳤다.** 계약만 넓히고 Worker·브라우저를 두거나, 조판기만 고치고 편집기를
+   두면 그 기능은 사용자에게 도달하지 못한다.
+3. **베낀 것은 갈라진다.** 두 조판기, 두 화면의 CSS, 편집기와 변환기의 규칙 —
+   그래서 지금은 갈라짐을 잡는 검사가 여러 개 있다. 지우지 말 것.
+
 ## What this is
 
-PEDAGOGY — a Korean math problem-set / mock-exam (모의고사) editor. No build system, no
-package manager, no framework: the product is two standalone files (plus a dev server and a
-test harness, below). Each `.html` file is a single-page app with all CSS/JS inlined and
-dependencies pulled from CDNs (KaTeX, SortableJS, Firebase compat SDK, Pretendard/KoPub
-webfonts).
+PEDAGOGY — a Korean math problem-set / mock-exam (모의고사) editor, plus a general
+Korean-document typesetter that writes 한글(HWPX) files. No build system, no package manager,
+no framework: the product is standalone `.html` files (plus a dev server and test harnesses,
+below). Each is a single-page app with all CSS/JS inlined and dependencies pulled from CDNs
+(KaTeX, SortableJS, Firebase compat SDK, Pretendard/KoPub webfonts).
 
 - [`index.html`](index.html) — PEDAGOGY main app: problem-set library + block editor.
 - [`mock-exam-editor.html`](mock-exam-editor.html) — 모의고사(mock CSAT exam) editor, embedded
@@ -19,6 +54,10 @@ webfonts).
 - [`serve.py`](serve.py) — optional local Python dev server that compiles the mock editor's
   generated Typst source to PNG page previews with the real exam font/layout, so the
   in-browser approximate preview can be swapped for a pixel-accurate one.
+- [`document-editor.html`](document-editor.html) — **범용 문서 조판(베타).** 사용자가 한국어로
+  요청하면 AI(Worker)가 제한된 문서 JSON을 만들고, 브라우저에서 검증·미리보기한 뒤
+  `serve.py`의 `POST /document-hwpx`로 한글 파일을 받는다. 모의고사와 **다른 흐름**이다 —
+  자세한 것은 아래 '범용 문서(HWPX)' 절.
 - [`regression-test.html`](regression-test.html) — browser-based regression suite covering
   both apps (see "Testing" below). Not part of the shipped product; only reachable through
   `serve.py`.
@@ -123,6 +162,33 @@ CI 에는 실물 틀이 없으므로 `test_structure` · `test_sections` 는 `�
 편집기의 `SPEC`·`measureCh`·`layoutOf`·`hasGND`·`choiceItems` 를 고치면 빨간불이 나며 다시
 재라고 알려 준다 — 규칙 조각의 **모양**을 바꿨다면 `scripts/editor-layout-rules.mjs` 의
 패턴도 함께 고쳐야 한다.
+
+**실물 한글로 열어 보는 검사 — `npm run test:hwpx-opens -- 파일.hwpx`**
+
+```bash
+npm run test:hwpx-opens -- experiments/hwp-export/out/결과.hwpx
+```
+
+⚠️ **이것이 없으면 같은 실수를 반복한다.** 우리 검사가 전부 초록불인데 한글이 파일을 열지
+못하는 일이 두 번 있었다. 규격서에도 "한글이 열어 주는가" 는 적혀 있지 않다 — 열어 보는
+수밖에 없다. 맥 + 한글 + **손쉬운 사용 권한**이 필요해 CI 에는 걸 수 없다
+(시스템 설정 → 개인정보 보호 및 보안 → 손쉬운 사용).
+
+이 검사를 만들며 겪은 함정들. 고칠 때 되돌리지 말 것:
+
+- ⚠️ **창 개수로 판정하면 안 된다.** 오류 대화상자도 창으로 세어져 **거부당한 파일을
+  ✅ 로 보고했다.** 대화상자의 글("파일을 읽거나 저장하는데 …")을 직접 읽어야 한다.
+  거짓 통과는 검사가 없는 것보다 나쁘다.
+- ⚠️ **한글을 `quit` 시키고 다시 띄우면 그 뒤로 아무 파일도 못 연다**(여러 번 재현).
+  검사는 앱을 끄지 않는다. 전부 실패로 나오면 파일이 아니라 한글을 의심할 것.
+- ⚠️ **같은 이름의 문서가 이미 열려 있으면 `open` 은 다시 읽지 않는다.** 고친 파일을
+  보면서 옛 내용을 판정하게 된다. 판정 전에 같은 이름 창을 닫는다.
+- ⚠️ **`⌘W`·`⌘⌥W` 는 한글에 먹지 않는다.** 창의 닫기 단추를 눌러야 닫힌다.
+- 파일 이름의 자모 분해(NFD)와 창 제목(NFC)이 달라 비교 전에 정규화한다.
+
+**그리고 이 검사도 "열리는가" 까지만 답한다.** 조판이 맞는지는 눈으로 봐야 한다 —
+탭으로 이어 붙인 선지가 수식 변환을 안 타서 `$\dfrac32$` 가 글자로 찍힌 버그를,
+파일은 멀쩡히 열렸고 검사도 ✅ 였는데 화면을 보고서야 찾았다.
 
 ⚠️ 브라우저로 실제 폭을 재는 대조(`npm run test:hwpx-parity`)는 **일부러 CI 에 걸지
 않았다.** `measureCh()` 는 글꼴 실측이라 CI 리눅스와 개발 컴퓨터의 값이 다르고, 임계값에
@@ -389,6 +455,67 @@ own save/load — does not share PEDAGOGY's Firebase storage).
     가며 실험할 때만 `python3 serve.py --reload-hwpx` 로 예전 동작을 켠다.
   - 아직 없는 것: `단답형` 구획 태그(`REV-2026-009`), `※ 확인 사항` 상자(`REV-2026-010`).
 
+### 범용 문서(HWPX) — `document-editor.html` · `experiments/hwp-export/document_*.py`
+
+모의고사와 **별개의 흐름**이다. 학습지·보고서·안내문처럼 시험지가 아닌 한글 문서를 만든다.
+
+```
+사용자 요청 → Worker(AI) → 문서 JSON → 브라우저 검증·미리보기 → /document-hwpx → .hwpx
+```
+
+- **계약이 제품이다.** `document_schema.py` 가 받는 블록만 조판된다. 지금 11종:
+  `heading` `paragraph` `equation` `quote` `bullets` `numbered` `table` `image` `box`
+  `examples`(ㄱㄴㄷ 보기) `choices`(①②③④⑤ 선지).
+  아직 없는 것: 각주 · 쪽 나눔 · 머리말꼬리말 · 상자 안의 표·그림 · 지문(passage).
+- **엔진은 우리 것이다.** `pedagogy_hwpx.py` 가 HWPX 를 직접 만든다. 런타임 의존성은
+  `lxml` 하나뿐이고, `test_internal_runtime.py` 가 `jakal_hwpx` import 를 막은 채로
+  내보내기가 되는지 확인한다(예전에 그 라이브러리를 쓰다 걷어냈다).
+- 모의고사(`mock_to_hwpx.py`)와 **엔진·수식 변환기(`tex_to_hwp.py`)·라벨(`MARKS`·`HGND`)을
+  공유**한다. 선지 **배치**는 공유하지 않는다 — 시험지는 2단 폭(111mm)에 맞춰 실물에서 잰
+  탭 위치를 쓰고 일반 문서는 기본 탭을 쓴다.
+
+⚠️ **새 블록 하나는 네 곳을 함께 고쳐야 실제로 쓸 수 있다.**
+`document_schema.py`(계약) · Worker 프롬프트 · Worker 검증(`validateDocumentResponse`) ·
+`document-editor.html`(검증 + 미리보기). 한 곳만 늘리면 **AI 가 정확히 만들어도 Worker 가
+502 로 버리고 브라우저에서도 막힌다**(`REV-2026-013` 에서 실제로 그랬다).
+`npm run check:static` 안의 `check-document-blocks.mjs` 가 네 곳을 대조한다.
+⚠️ 넷이 **똑같지는 않다** — `image` 는 계약·브라우저에만 있다. AI 가 base64 그림을 만들 수
+없기 때문이고, 그 예외는 그 검사에 명시돼 있다.
+
+⚠️ **그림은 base64 로만 받는다. 파일 경로를 받지 않는다.** `/document-hwpx` 의 보안 전제다
+(모의고사 `/hwpx` 는 서버가 허용한 `work/` 안 파일만 읽는다 — 전제가 다르다).
+형식은 확장자가 아니라 **바이트를 보고** 정한다. 크기 상한(`MAX_IMAGE_BYTES`)은
+`serve.py` 의 `MAX_BODY` 에서 **역산한 값**이다 — base64 가 4/3 로 커지므로 둘을 따로 정하면
+"계약은 통과했는데 413" 이 된다(`REV-2026-014`).
+
+⚠️ **두 화면의 디자인 토큰은 같아야 한다.** 빌드 단계가 없어 각 `.html` 이 CSS 를 통째로
+안고 있고, 베낀 것은 갈라진다. `check-shared-design.mjs` 가 `index.html` 과
+`document-editor.html` 의 `:root` 토큰과 **테마 저장 키(`PM_THEME`)** 를 대조한다.
+키가 다르면 본체에서 어둡게 해 두고 넘어왔을 때 갑자기 밝아진다.
+
+#### 빈 문서 골격은 실물 파일이다 — 코드로 만들지 말 것
+
+`HwpxDocument.blank()` 는 `templates/blank.hwpx`(한글이 직접 저장한 빈 문서)를 연다.
+
+⚠️ **코드로 지어 만들면 한글이 열지 못한다.** 두 번 시도했고 두 번 다 실패했다. XML 문법은
+완벽하고 우리 검증도 전부 통과하는데 한글은 **"파일을 읽거나 저장하는데 오류가 있습니다"**
+한 줄만 말한다. 국가표준(KS X 6101)을 확보해 규격대로 다시 만들어 봐도 열리지 않았다
+(`fontfaces` 제거 / `type="HFT"` / 최소 헤더 세 변형 모두 실패). 자세한 것은
+[`docs/HWP-SPEC.md`](docs/HWP-SPEC.md).
+
+골격을 바꿔야 하면 **한글에서 직접** 새 빈 문서를 `.hwpx` 로 저장해 갈아 끼우고 개인정보를
+지운다. `template.py` 가 시험지 틀에 대해 내린 것과 같은 결론이다.
+
+#### 규격서가 공개돼 있다 — 추측하지 말 것
+
+[`docs/HWP-SPEC.md`](docs/HWP-SPEC.md) 에 받는 곳과 배포 조건을 적어 뒀다.
+HWPX 는 **KS X 6101 국가표준**이고 한컴이 수식·차트 규격서를 무료 배포한다.
+`tex_to_hwp.py` 의 대응표는 이제 그 규격서 기반이다(추측으로 만들었던 것이 실제로 네 군데
+틀렸다 — `vmatrix` 는 없는 명령, **9자 넘는 낱말은 두 항으로 쪼개진다** 등).
+
+⚠️ 수식 규격서의 저작권 조항이 **출처 고지를 요구한다.** 소스에는 넣었고(`tex_to_hwp.py`
+첫 주석) 화면·매뉴얼에는 아직이다 — 상용화 전에 반드시.
+
 ### serve.py
 
 Deliberately locked down (see the security comment block at the top of the file) since it
@@ -399,7 +526,10 @@ directory, and never uses `shell=True`. Preserve these constraints when modifyin
 they're the whole reason this is safe to run as a local dev server that a remote GitHub
 Pages–hosted `index.html` can also call into (via `--allow-origin`).
 
-## 다음 세션 이어서 할 일 (2026-08-24 기준)
+## 남은 일 — 문제집 편집기 쪽 (2026-08-24 감사 기준)
+
+⚠️ 이 절은 **문제집 편집기(`index.html`) 이야기**다. HWPX 쪽 현황은 맨 위
+'지금 어디까지 왔나' 와 `reviews/INDEX.md` 를 볼 것.
 
 `ANALYSIS.md` 는 2026-08-20 기준 문서라 **지금 코드와 다르다**(특히 저장 구조).
 2026-08-24 감사에서 지적된 항목은 아래 '처리 완료'를 빼고 모두 반영했다.
