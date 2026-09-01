@@ -356,12 +356,32 @@ def build(raw: object, output: str | Path) -> Report:
     return report
 
 
+SAMPLE = Path(__file__).parent / "samples" / "document-sample.json"
+
 if __name__ == "__main__":
     import json
     if len(sys.argv) != 3:
-        raise SystemExit("사용법: python3 document_to_hwpx.py 문서.json 출력.hwpx")
+        raise SystemExit(
+            "사용법: python3 document_to_hwpx.py <문서.json> <출력.hwpx>\n"
+            f"\n바로 해 보려면:\n  python3 {Path(__file__).name} "
+            f"{SAMPLE.relative_to(Path(__file__).parent)} 결과.hwpx")
+    source = Path(sys.argv[1])
+    # ⚠️ 없는 파일이면 파이썬 트레이스백이 그대로 나온다. 처음 쓰는 사람에게는 그것이
+    #    "프로그램이 고장났다" 로 보인다 — 무엇을 하라는 것인지 한 줄로 말해 준다.
+    if not source.is_file():
+        raise SystemExit(
+            f"문서 JSON 을 찾을 수 없습니다: {source}\n"
+            f"\n예시 문서로 먼저 해 보세요:\n  python3 {Path(__file__).name} "
+            f"{SAMPLE.relative_to(Path(__file__).parent)} 결과.hwpx")
     try:
-        report = build(json.loads(Path(sys.argv[1]).read_text(encoding="utf-8")), sys.argv[2])
+        document = json.loads(source.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise SystemExit(f"{source} 가 올바른 JSON 이 아닙니다 — {exc}") from exc
+    try:
+        report = build(document, sys.argv[2])
     except DocumentValidationError as exc:
         raise SystemExit(f"문서 JSON 오류: {exc}") from exc
-    print(f"문서 {report.blocks}블록 · 수식 {report.equations}개 · 경고 {len(report.warnings)}개")
+    print(f"문서 {report.blocks}블록 · 수식 {report.equations}개 · 경고 {len(report.warnings)}개"
+          f" → {sys.argv[2]}")
+    for warning in report.warnings:
+        print("  ⚠️", warning)

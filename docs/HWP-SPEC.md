@@ -141,3 +141,13 @@ npm run test:hwpx-opens -- 파일.hwpx
   상태가 됐고, 그 뒤로는 멀쩡한 파일까지 전부 실패로 나왔다. 앱은 한 번만 띄우고
   문서만 닫는다. 그래도 전부 실패로 나오면 파일이 아니라 한글을 의심할 것 —
   스크립트가 그 경우 그렇게 안내한다.
+
+## 직접 만들어 보기
+
+```bash
+python3 experiments/hwp-export/document_to_hwpx.py \
+        experiments/hwp-export/samples/document-sample.json 결과.hwpx
+```
+
+`samples/document-sample.json` 에 **쓸 수 있는 블록이 전부** 들어 있다. 그 파일을 고쳐
+쓰면 된다. 인자를 빼거나 없는 파일을 주면 CLI 가 이 명령을 다시 안내한다.
