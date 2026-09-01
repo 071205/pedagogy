@@ -3,7 +3,7 @@
 - ID: `REV-2026-013`
 - 날짜: `2026-09-01`
 - 보고자: `Codex`
-- 상태: `open`
+- 상태: `resolved`
 - 심각도: `P1`
 - 영향 영역: `index`, `worker`, `server`
 - 관련 인계: `HANDOFF-2026-019`, `HANDOFF-2026-021`, `HANDOFF-2026-022`
@@ -52,3 +52,19 @@ Python 계약을 기준으로 Worker 프롬프트·Worker 검증·브라우저 �
 
 - 2026-09-01 — Codex: 등록. Worker 주입 재현에서 502를 확인했고, 소스 대조로 브라우저
   검증도 같은 여섯 type에 고정된 것을 확인했다. `npm run check:fast`는 통과했으나 이 흐름은 검사하지 않는다.
+
+- 2026-09-01 — `Claude`: 수정. **Codex 지적이 정확했다 — 재현했다.**
+  `validateDocumentResponse()` 가 `heading|paragraph|equation|quote|bullets|numbered` 여섯
+  분기만 갖고 있고, `document-editor.html` 의 `validate()`·`render()` 도 같았다.
+  (참고: `grep` 으로는 Worker 에 `examples`·`choices` 가 있는 것처럼 보이는데, 그건
+  모의고사 사진 변환 프롬프트의 주석이다. 실제 문서 검증부에는 없었다.)
+
+  - **수정 파일**: `worker/index.js`(프롬프트 + 검증), `document-editor.html`(검증 + 미리보기).
+  - ⚠️ **네 곳이 똑같지는 않게 했다.** `image` 는 계약·브라우저에만 있고 AI 쪽에는 없다 —
+    AI 가 base64 그림을 만들 수는 없다. 그 차이를 아래 검사에 명시했다.
+  - **재발 방지**: `scripts/check-document-blocks.mjs` 를 만들어 `check:static` 에 걸었다.
+    계약(`document_schema.py`) · Worker 프롬프트 · Worker 검증 · 브라우저 검증
+    **네 곳의 블록 목록을 원문에서 뽑아 비교**한다. 파이썬도 브라우저도 띄우지 않아
+    CI 에서 항상 돈다. 한 곳만 늘리면 그 자리에서 빨간불이 난다.
+  - **검증**: Worker 검증에서 `table` 을 빼 보고 / 브라우저 검증에서 `box` 를 빼 보고
+    둘 다 검사가 잡는 것을 확인한 뒤 원복했다. `npm run check:fast` 통과.

@@ -37,8 +37,17 @@ MAX_ITEMS = 80
 MAX_TABLE_ROWS = 40
 MAX_TABLE_COLS = 12
 MAX_CELL_TEXT = 500
-# 그림은 base64 로 실어 오므로 원본 바이트 기준으로 막는다(base64 는 약 4/3 배가 된다).
-MAX_IMAGE_BYTES = 4 * 1024 * 1024
+# 그림은 base64 로 실어 오므로 원본 바이트 기준으로 막는다.
+#
+# ⚠️ **HTTP 본문 상한에서 거꾸로 계산한 값이다.** base64 는 원본의 4/3 로 커지고, 거기에
+#    JSON 따옴표·다른 블록·제목이 더 붙는다. `serve.py` 의 `MAX_BODY`(4MiB)를 그대로
+#    원본 상한으로 쓰면 **계약은 통과시키는데 서버 입구에서 413** 이 된다(REV-2026-014).
+#    4MiB 그림 하나가 실제로 5,592,511바이트짜리 본문이 됐다.
+#
+#    2.5MiB × 4/3 ≈ 3.4MiB 이므로 나머지 문서에 0.6MiB 가 남는다.
+#    `serve.py` 의 `MAX_BODY` 를 바꾸면 이 값도 함께 봐야 한다 —
+#    `test_document_endpoint.py` 가 경계에서 실제로 그것을 확인한다.
+MAX_IMAGE_BYTES = 5 * 1024 * 1024 // 2
 MIN_IMAGE_MM, MAX_IMAGE_MM = 5, 170          # 170mm ≈ A4 본문 폭
 
 TEXT_BLOCKS = {"heading", "paragraph", "equation", "quote"}

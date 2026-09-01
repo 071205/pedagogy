@@ -1,6 +1,6 @@
 # 리뷰 현황
 
-마지막 정리: 2026-08-31
+마지막 정리: 2026-09-01
 
 ## 열린 이슈
 
@@ -54,4 +54,7 @@
 | `HANDOFF-2026-020` | Claude | 한컴 공개 규격서 확보 · 수식 변환기 규격 기반 전환 | `handoffs/2026-08-31-hwp-spec-based-equations.md` |
 | `HANDOFF-2026-021` | Claude | 범용 문서에 그림 블록 추가 (base64) | `handoffs/2026-09-01-document-image-block.md` |
 | `HANDOFF-2026-022` | Claude | 범용 문서에 테두리 상자 블록 추가 | `handoffs/2026-09-01-document-box-block.md` |
+| `HANDOFF-2026-023` | Codex | 범용 문서 블록 경계 독립 검토 | `handoffs/2026-09-01-independent-review-document-block-boundaries.md` |
 | `HANDOFF-2026-023` | Claude | 범용 문서에 <보기>·선지 블록 추가 | `handoffs/2026-09-01-document-exam-blocks.md` |
+| `HANDOFF-2026-024` | Codex | 범용 문서 블록 경계 독립 검토 | `handoffs/2026-09-01-independent-review-document-block-boundaries.md` |
+| `HANDOFF-2026-025` | Claude | 새 블록을 네 경계에 함께 반영 (Codex 검토 반영) | `handoffs/2026-09-01-document-block-boundaries-fix.md` |

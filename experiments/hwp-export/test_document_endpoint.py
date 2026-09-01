@@ -96,6 +96,39 @@ try:
         else:
             raise AssertionError("파일 경로를 준 그림 블록을 서버가 거절해야 합니다")
 
+    # ── 계약이 허용한 최대 그림이 실제로 전송되는가 (REV-2026-014) ──────────
+    # ⚠️ 계약은 **원본 바이트**를, 서버 입구는 **base64 JSON 본문**을 잰다. 둘을 따로
+    #    정하면 "계약은 통과했는데 413" 이 된다. 예전에 4MiB 그림이 5.6MB 본문이 되어
+    #    변환기에 닿지도 못했다. 여기서 경계값을 실제로 보내 두 상한을 묶어 둔다.
+    import base64, struct, zlib
+    sys.path.insert(0, str(HERE))
+    from document_schema import MAX_IMAGE_BYTES  # noqa: E402
+
+    def fake_png(nbytes: int) -> bytes:
+        ihdr = struct.pack(">II", 400, 300) + bytes([8, 2, 0, 0, 0])
+        def chunk(tag, payload):
+            return (struct.pack(">I", len(payload)) + tag + payload
+                    + struct.pack(">I", zlib.crc32(tag + payload)))
+        head = b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", ihdr)
+        return head + chunk(b"tEXt", b"x" * max(0, nbytes - len(head) - 12))
+
+    biggest = {"version": 1, "title": "최대 그림", "blocks": [
+        {"type": "image", "data": base64.b64encode(fake_png(MAX_IMAGE_BYTES)).decode(),
+         "width": 100}]}
+    try:
+        response = post(port, {"document": biggest})
+    except (urllib.error.HTTPError, urllib.error.URLError) as exc:
+        # 413 이면 서버가 본문을 다 읽기 전에 끊어 Broken pipe 로도 나타난다.
+        raise AssertionError(
+            "계약이 허용한 최대 그림이 서버 입구에서 막혔습니다 — "
+            f"document_schema.MAX_IMAGE_BYTES 와 serve.py 의 MAX_BODY 가 어긋납니다 ({exc})"
+        ) from exc
+    assert response.status == 200, \
+        f"계약이 허용한 최대 그림은 전송돼야 합니다 (지금 {response.status})"
+    with zipfile.ZipFile(io.BytesIO(response.read())) as archive:
+        assert any(n.startswith("BinData/") for n in archive.namelist()), \
+            "최대 크기 그림이 실제로 문서에 들어가야 합니다"
+
     try:
         post(port, {"document": {"title": "x", "blocks": [{"type": "rawXml", "text": "<x/>"}]}})
     except urllib.error.HTTPError as exc:

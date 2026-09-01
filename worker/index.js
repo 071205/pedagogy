@@ -402,7 +402,11 @@ const DOCUMENT_SYSTEM_PROMPT = `너는 한국어 문서 조판 도우미다.
     { "type": "equation", "text": "$$x^2+y^2=r^2$$" },
     { "type": "bullets", "items": ["항목", "항목"] },
     { "type": "numbered", "items": ["단계", "단계"] },
-    { "type": "quote", "text": "강조 또는 인용" }
+    { "type": "quote", "text": "강조 또는 인용" },
+    { "type": "box", "label": "<보기>", "text": "테두리 상자.\\n줄바꿈으로 여러 줄" },
+    { "type": "examples", "items": ["ㄱ에 올 내용", "ㄴ에 올 내용"] },
+    { "type": "choices", "items": ["①에 올 선지", "②에 올 선지"], "layout": "auto" },
+    { "type": "table", "rows": [["머리글", "머리글"], ["값", "값"]], "header": true }
   ]
 }
 
@@ -436,6 +440,42 @@ function validateDocumentResponse(document) {
       if (!Array.isArray(block.items) || !block.items.length || block.items.length > 80
         || block.items.some((item) => typeof item !== "string" || !item.trim() || item.length > 12_000)) {
         throw new Error("AI 문서 목록이 유효하지 않습니다");
+      }
+    } else if (block.type === "box") {
+      if (typeof block.text !== "string" || !block.text.trim() || block.text.length > 12_000) {
+        throw new Error("AI 문서 상자가 유효하지 않습니다");
+      }
+      if (block.label != null && (typeof block.label !== "string" || block.label.length > 40)) {
+        throw new Error("AI 문서 상자 라벨이 유효하지 않습니다");
+      }
+    } else if (block.type === "examples") {
+      // 라벨이 ㄱ~ㅂ 여섯 개뿐이다.
+      if (!Array.isArray(block.items) || !block.items.length || block.items.length > 6
+        || block.items.some((item) => typeof item !== "string" || !item.trim())) {
+        throw new Error("AI 문서 보기가 유효하지 않습니다");
+      }
+    } else if (block.type === "choices") {
+      // 라벨이 ①~⑤ 다섯 개뿐이다.
+      if (!Array.isArray(block.items) || !block.items.length || block.items.length > 5
+        || block.items.some((item) => typeof item !== "string" || !item.trim())) {
+        throw new Error("AI 문서 선지가 유효하지 않습니다");
+      }
+      if (block.layout != null && !["auto", "1", "2", "v"].includes(block.layout)) {
+        throw new Error("AI 문서 선지 배치가 유효하지 않습니다");
+      }
+    } else if (block.type === "table") {
+      const rows = block.rows;
+      if (!Array.isArray(rows) || !rows.length || rows.length > 40) {
+        throw new Error("AI 문서 표가 유효하지 않습니다");
+      }
+      const width = Array.isArray(rows[0]) ? rows[0].length : 0;
+      if (!width || width > 12) throw new Error("AI 문서 표의 열 수가 유효하지 않습니다");
+      for (const row of rows) {
+        // 들쭉날쭉한 표는 조판기가 칸 수를 맞추지 못한다. 빈 칸은 "" 로 채워야 한다.
+        if (!Array.isArray(row) || row.length !== width
+          || row.some((cell) => typeof cell !== "string" || cell.length > 500)) {
+          throw new Error("AI 문서 표의 칸이 유효하지 않습니다");
+        }
       }
     } else {
       throw new Error("AI 문서에 지원하지 않는 블록이 있습니다");
