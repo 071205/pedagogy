@@ -14,7 +14,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-from jakal_hwpx import HwpxDocument  # noqa: E402
+from pedagogy_hwpx import HwpxDocument  # noqa: E402
 
 from make_math_probe import apply_layout  # noqa: E402  (용지·단·글꼴 설정 재사용)
 from tex_to_hwp import UnsupportedTex, convert  # noqa: E402

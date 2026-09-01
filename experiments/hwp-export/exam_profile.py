@@ -28,10 +28,18 @@ import re
 import struct
 from collections import Counter
 from pathlib import Path
+from typing import Any
 
-from jakal_hwpx import HwpBinaryDocument
-from jakal_hwpx.hwp_binary import _iter_records
-import jakal_hwpx.hwp_binary as hb
+# 초기 실험 때만 쓰던 바이너리 HWP 분석기는 HWPX 내보내기 런타임과 분리한다.
+# 자칼이 없는 제품 환경에서는 HWPX 틀 또는 아래 FALLBACK으로 정상 조판한다.
+try:  # legacy analysis only
+    from jakal_hwpx import HwpBinaryDocument
+    from jakal_hwpx.hwp_binary import _iter_records
+    import jakal_hwpx.hwp_binary as hb
+except ImportError:  # HWPX 출력에는 필요 없다
+    HwpBinaryDocument = Any
+    _iter_records = None
+    hb = None
 
 ALIGN_XML = {0: "JUSTIFY", 1: "LEFT", 2: "RIGHT", 3: "CENTER",
              4: "DISTRIBUTE", 5: "DISTRIBUTE_SPACE"}
@@ -155,6 +163,10 @@ def profile_from(path: Path | str) -> dict:
     if not path.exists():
         return {**{k: dict(v) for k, v in FALLBACK.items()},
                 "_source": None}
+    if HwpBinaryDocument is Any or _iter_records is None or hb is None:
+        return {**{k: dict(v) for k, v in FALLBACK.items()},
+                "_source": None,
+                "_note": "바이너리 HWP 분석기는 설치하지 않았습니다"}
 
     doc = HwpBinaryDocument.open(str(path))
     chars, paras = _char_table(doc), _para_table(doc)

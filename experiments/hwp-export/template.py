@@ -22,7 +22,7 @@ import re
 import zipfile
 from pathlib import Path
 
-from jakal_hwpx import HwpxDocument
+from pedagogy_hwpx import HwpxDocument
 
 _NUM = re.compile(r"^\s*\d{1,2}\s*\.")
 
@@ -234,6 +234,58 @@ def set_masthead_title(doc: HwpxDocument, title: str) -> bool:
             pos += length
         sec.mark_modified()
         changed = True
+    return changed
+
+
+def _replace_span(texts, start: int, end: int, new: str) -> bool:
+    """조각들을 이어 붙인 글에서 `[start, end)` 구간만 `new` 로 바꾼다.
+
+    머리말 글자는 한 조각이 아니라 `'확','률','과',' ','통계'` 처럼 잘게 쪼개져 있어,
+    구간이 조각 경계와 맞지 않는다. 조각마다 겹치는 부분만 잘라 내고 새 글은
+    **첫 조각에만** 넣는다(모든 조각에 넣으면 글이 여러 번 반복된다).
+    """
+    pos, filled, changed = 0, False, False
+    for node in texts:
+        text = node.text or ""
+        a, b = pos, pos + len(text)
+        pos = b
+        if b <= start or a >= end:
+            continue
+        head = text[:max(0, start - a)]
+        tail = text[min(len(text), max(0, end - a)):]
+        node.text = head + ("" if filled else new) + tail
+        filled = True
+        changed = True
+    return changed
+
+
+# 선택과목 구역 머리말의 `수학 영역(확률과 통계)` — 괄호 안이 고른 과목이다.
+_AREA_OPEN = "수학 영역("
+
+
+def set_masthead_elective(doc: HwpxDocument, elective: str) -> bool:
+    """선택 구역 머리말의 과목 이름을 바꾼다.
+
+    ⚠️ 틀에는 `확률과 통계` 가 박혀 있다. 이걸 바꾸지 않으면 사용자가 미적분을 골라도
+       시험지에는 확률과 통계로 인쇄된다(실제로 그랬다). 공통 구역의 머리말은
+       괄호가 없는 `수학 영역` 이라 여기에 걸리지 않는다.
+    """
+    changed = False
+    for path in [p for p in doc.list_part_paths()
+                 if p.startswith("Contents/section") and p.endswith(".xml")]:
+        sec = doc.get_part(path)
+        texts = [n for n in sec.root.iter() if n.local_name == "t"]
+        joined = "".join(n.text or "" for n in texts)
+        at = joined.find(_AREA_OPEN)
+        if at < 0:
+            continue
+        start = at + len(_AREA_OPEN)
+        close = joined.find(")", start)
+        if close < 0:
+            continue
+        if _replace_span(texts, start, close, elective):
+            sec.mark_modified()
+            changed = True
     return changed
 
 

@@ -30,7 +30,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from jakal_hwpx import HwpxDocument
+from pedagogy_hwpx import HwpxDocument
 
 HH = "http://www.hancom.co.kr/hwpml/2011/head"
 HP = "http://www.hancom.co.kr/hwpml/2011/paragraph"
