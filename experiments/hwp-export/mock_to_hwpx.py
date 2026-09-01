@@ -23,7 +23,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-from jakal_hwpx import HwpxDocument  # noqa: E402
+from pedagogy_hwpx import HwpxDocument, MM_TO_HWPUNIT, image_size  # noqa: E402
 
 import exam_profile  # noqa: E402
 import template as tmpl  # noqa: E402
@@ -61,6 +61,22 @@ STYLE: dict[str, str] = {}      # exam_style.install() 결과 — build() 에서
 IMAGE_ROOTS: list[Path] = []    # 그림 파일을 찾을 폴더들 — build() 에서 채운다
 PROFILE: dict = {}              # exam_profile.profile_from() 결과
 
+# ── 지금 쓰고 있는 구역(section) ──────────────────────────────────────────
+# 실물 시험지는 공통과 선택이 **서로 다른 구역**이다. 틀 파일도 구역이 둘이고
+# (`section0` 공통 · `section1` 선택), 선택 구역의 머리말은 `수학 영역(확률과 통계)`
+# 이며 쪽번호가 1 부터 다시 매겨진다. 편집기의 `buildPages()` 도 공통→선택 경계에서
+# 반드시 새 쪽 왼쪽 단부터 시작한다.
+#
+# ⚠️ 예전에는 30문항을 전부 `section0` 에 넣고 `section1` 은 빈 채로 두었다. 그래서
+#    23~30번이 공통 머리말 아래 이어 붙고, 마지막에 빈 쪽이 하나 딸려 나왔다.
+# ⚠️ `doc.*` 호출은 **빠짐없이** 이 값을 함께 넘겨야 한다. 하나라도 빠지면 그 조각만
+#    공통 구역으로 떨어져, 선지나 그림만 앞 쪽에 남는 식으로 조용히 깨진다.
+CUR = {"sec": 0}
+
+
+def cur_sec() -> int:
+    return CUR["sec"]
+
 
 def eq_base() -> int:
     """수식 기준 크기(1/100pt).
@@ -87,6 +103,7 @@ def append_text_run(doc: HwpxDocument, para_idx: int, text: str,
        선지가 `① 12345` 로 뭉개졌다). 안쪽 `<hp:t>` 만 넘겨야 한다.
     """
     doc.append_run_xml(f'<hp:t xmlns:hp="{HP}">{xml_escape(text)}</hp:t>',
+                       section_index=cur_sec(),
                        paragraph_index=para_idx,
                        char_pr_id=STYLE.get(char))
 
@@ -112,24 +129,137 @@ FIT2_SLOT = 36.0      # 3+2일 때 한 칸
 COL_W_MM = 111.15     # 단 폭
 
 
+# 수식 조각의 폭 어림값(mm, 본문 11.5pt 기준). 브라우저에서 KaTeX 로 실측한 값에
+# 맞췄다 — `$1$`=2.4 · `$\pi$`=2.6 · `$\dfrac{\pi}{3}$`=3.7 · `$-4$`=5.8.
+EQ_CHAR = 2.38       # 숫자·라틴 문자 한 글자
+EQ_SYMBOL = 2.64     # `\pi` 처럼 이름 붙은 기호
+EQ_BINOP = 3.44      # 앞뒤 여백을 포함한 연산자·관계기호
+EQ_DELIM = 1.60      # 괄호류
+EQ_FRAC = 1.06       # 분수 좌우 여백(가로선 길이는 위·아래 중 넓은 쪽)
+EQ_ROOT = 2.60       # 근호
+EQ_SCRIPT = 0.72     # 위·아래 첨자 축소 비율
+
+_EQ_BINOP_CMDS = {"times", "div", "pm", "mp", "le", "leq", "ge", "geq", "ne",
+                  "neq", "approx", "equiv", "to", "rightarrow", "leftarrow",
+                  "Rightarrow", "in", "notin", "subset", "cup", "cap", "cdot"}
+# 폭을 차지하지 않는 것들 — 조판 힌트와 '다음 글자를 꾸미는' 명령.
+_EQ_ZERO_CMDS = {"displaystyle", "textstyle", "scriptstyle", "scriptscriptstyle",
+                 "limits", "nolimits", "left", "right", "mathrm", "mathit",
+                 "mathbf", "text", "operatorname", "!"}
+_EQ_SPACE_CMDS = {",": 0.6, ";": 0.9, ":": 0.7, " ": 0.9, "quad": 2.4, "qquad": 4.8}
+
+
+def _eq_group(tex: str, i: int) -> tuple[str, int]:
+    """`{...}` 또는 글자 하나를 읽어 (안쪽, 다음 위치) 를 준다."""
+    while i < len(tex) and tex[i].isspace():
+        i += 1
+    if i >= len(tex):
+        return "", i
+    if tex[i] != "{":
+        m = re.match(r"\\[A-Za-z]+|.", tex[i:])
+        return (m.group(0), i + m.end()) if m else ("", i + 1)
+    depth, j = 0, i
+    while j < len(tex):
+        if tex[j] == "{":
+            depth += 1
+        elif tex[j] == "}":
+            depth -= 1
+            if depth == 0:
+                return tex[i + 1:j], j + 1
+        j += 1
+    return tex[i + 1:], len(tex)
+
+
+def _math_mm(tex: str) -> float:
+    r"""`$...$` 안쪽의 **조판된** 폭 어림값(mm).
+
+    ⚠️ 예전에는 수식도 글자 그대로 셌다. `$\dfrac{\pi}{3}$` 는 마크업이 16글자라
+       33mm 로 봤지만 실제 렌더 폭은 3.7mm 다. 그래서 분수가 든 선지가 죄다 세로
+       배치로 떨어졌고, 편집기는 한 줄로 그리는데 시험지는 세로로 나갔다.
+    ⚠️ 여기서도 어림은 어림이다. 편집기에서 온 요청은 `layoutResolved` 로 실측값을
+       받으므로 이 함수를 타지 않는다 — 이건 CLI·손으로 쓴 JSON 용 대비책이다.
+    """
+    total, i = 0.0, 0
+    while i < len(tex):
+        c = tex[i]
+        if c.isspace():
+            i += 1
+        elif c in "^_":
+            inner, i = _eq_group(tex, i + 1)
+            total += EQ_SCRIPT * _math_mm(inner)
+        elif c in "{}":
+            i += 1                                   # 묶음 기호는 폭이 없다
+        elif c in "+-=<>":
+            total += EQ_BINOP
+            i += 1
+        elif c in "()[]|":
+            total += EQ_DELIM
+            i += 1
+        elif c == "\\":
+            m = re.match(r"\\([A-Za-z]+|.)", tex[i:])
+            if not m:
+                total += EQ_CHAR
+                i += 1
+                continue
+            name, i = m.group(1), i + m.end()
+            if name in ("frac", "dfrac", "tfrac"):
+                a, i = _eq_group(tex, i)
+                b, i = _eq_group(tex, i)
+                total += max(_math_mm(a), _math_mm(b)) + EQ_FRAC
+            elif name == "sqrt":
+                if i < len(tex) and tex[i] == "[":
+                    k = tex.find("]", i)
+                    i = len(tex) if k < 0 else k + 1
+                a, i = _eq_group(tex, i)
+                total += _math_mm(a) + EQ_ROOT
+            elif name in _EQ_SPACE_CMDS:
+                total += _EQ_SPACE_CMDS[name]
+            elif name in _EQ_ZERO_CMDS:
+                pass
+            elif name in _EQ_BINOP_CMDS:
+                total += EQ_BINOP
+            else:
+                total += EQ_SYMBOL
+        else:
+            total += EQ_CHAR
+            i += 1
+    return total
+
+
 def _text_mm(s: str) -> float:
     """글자 폭 어림값(mm). 본문 11.5pt·장평 95% 기준.
 
-    ⚠️ 편집기는 canvas 로 실제 폭을 재지만(`measureCh`) 여기서는 잴 수 없다.
+    ⚠️ 편집기는 KaTeX 로 실제 폭을 재지만(`measureCh`) 여기서는 잴 수 없다.
        그래서 'auto' 판정은 **근사**다. 정확히 맞추려면 편집기에서 배치를
-       직접 지정하면 된다(그 값은 그대로 따른다).
+       직접 지정하면 되고, 편집기가 보낸 요청은 `layoutResolved` 를 쓴다.
+    ⚠️ `$...$` 는 **마크업이 아니라 조판된 모습**으로 재야 한다. 글자를 그대로 세면
+       분수 하나가 30mm 를 넘어 멀쩡한 선지가 세로로 떨어진다(실제로 그랬다).
     """
-    wide = sum(1 for c in s if ord(c) > 0x2000)      # 한글·기호
-    narrow = len(s) - wide
-    return wide * 3.85 + narrow * 1.93
+    total = 0.0
+    for kind, chunk in split_inline(s):
+        if kind == "eq":
+            total += _math_mm(chunk)
+            continue
+        wide = sum(1 for c in chunk if ord(c) > 0x2000)      # 한글·기호
+        total += wide * 3.85 + (len(chunk) - wide) * 1.93
+    return total
+
+
+# 편집기가 보내 줄 수 있는 배치 값. 신뢰 경계 — 요청 JSON 은 그대로 믿지 않는다.
+LAYOUTS = ("1", "2", "v")
 
 
 def layout_of(p: dict, items: list[str]) -> str:
+    # 편집기가 KaTeX 로 실제 폭을 재서 정한 값이 오면 그것이 정답이다.
+    # 여기서 다시 어림하면 미리보기와 시험지가 어긋난다.
+    resolved = p.get("layoutResolved")
+    if isinstance(resolved, str) and resolved in LAYOUTS:
+        return resolved
     lay = str(p.get("layout") or "auto")
     blk = next((b for b in blocks_of(p) if b.get("type") == "choices"), None)
     if blk:
         lay = str((blk.get("data") or {}).get("layout") or lay)
-    if lay in ("1", "2", "v"):
+    if lay in LAYOUTS:
         return lay
     if any(any(g in c for g in GND) for c in items):
         return "2"                       # ㄱㄴㄷ 합답형은 폭과 무관하게 3+2
@@ -176,6 +306,7 @@ def emit_choice_row(doc: HwpxDocument, items: list[tuple[int, str]], rep: Report
             doc.append_run_xml(
                 f'<hp:t xmlns:hp="{HP}"><hp:tab width="0" leader="0" type="1"/>'
                 f'{xml_escape(label)}</hp:t>',
+                section_index=cur_sec(),
                 paragraph_index=idx, char_pr_id=STYLE.get(char))
             for kind, chunk in split_inline(body):
                 if kind == "text":
@@ -183,7 +314,8 @@ def emit_choice_row(doc: HwpxDocument, items: list[tuple[int, str]], rep: Report
                 else:
                     try:
                         doc.append_inline_equation(
-                            convert(chunk), paragraph_index=idx,
+                            convert(chunk), section_index=cur_sec(),
+                            paragraph_index=idx,
                             char_pr_id=STYLE.get(char),
                             base_unit=eq_base())
                         rep.equations += 1
@@ -241,7 +373,7 @@ def mark_column_break(doc: HwpxDocument) -> bool:
     HWPX 는 문단 속성 하나로 끝난다 — 우리가 어느 단에 넣을지 계산할 필요가 없다.
     한글이 알아서 다음 단으로 넘긴다.
     """
-    sec = doc.get_part("Contents/section0.xml")
+    sec = doc.get_part(f"Contents/section{cur_sec()}.xml")
     paras = [k for k in sec.root.children if k.local_name == "p"]
     if not paras:
         return False
@@ -251,31 +383,6 @@ def mark_column_break(doc: HwpxDocument) -> bool:
 
 
 # ── 그림 ──────────────────────────────────────────────────────────────────
-MM_TO_HWPUNIT = 7200 / 25.4
-
-
-def image_size(data: bytes) -> tuple[int, int] | None:
-    """PNG·JPEG 의 가로·세로(px). 비율을 지키려면 필요하다.
-
-    외부 라이브러리(PIL)를 쓰지 않는다 — 이 실험의 의존성은 jakal-hwpx 하나뿐이고,
-    헤더만 읽으면 되는 일에 의존성을 늘릴 이유가 없다.
-    """
-    if data[:8] == b"\x89PNG\r\n\x1a\n" and data[12:16] == b"IHDR":
-        return (int.from_bytes(data[16:20], "big"), int.from_bytes(data[20:24], "big"))
-    if data[:2] == b"\xff\xd8":                     # JPEG
-        i = 2
-        while i + 9 < len(data):
-            if data[i] != 0xFF:
-                i += 1
-                continue
-            marker = data[i + 1]
-            if 0xC0 <= marker <= 0xCF and marker not in (0xC4, 0xC8, 0xCC):
-                return (int.from_bytes(data[i + 7:i + 9], "big"),
-                        int.from_bytes(data[i + 5:i + 7], "big"))
-            i += 2 + int.from_bytes(data[i + 2:i + 4], "big")
-    return None
-
-
 def find_image(src: str, roots: list[Path]) -> Path | None:
     """허용한 그림 폴더 안의 실제 파일만 찾는다.
 
@@ -307,7 +414,8 @@ def emit_figure(doc: HwpxDocument, unit: dict, rep: Report, *, where: str,
 
     def placeholder(msg: str) -> None:
         rep.warnings.append(f"{where}: {msg}")
-        doc.append_paragraph(f"[그림 없음 — {msg}]", para_pr_id=STYLE.get(para),
+        doc.append_paragraph(f"[그림 없음 — {msg}]", section_index=cur_sec(),
+                             para_pr_id=STYLE.get(para),
                              style_id=_sty(para), char_pr_id=STYLE.get("char_cont"))
 
     if not src:
@@ -326,9 +434,11 @@ def emit_figure(doc: HwpxDocument, unit: dict, rep: Report, *, where: str,
 
     w = round(width_mm * MM_TO_HWPUNIT)
     h = round(w * size[1] / size[0])          # 비율 유지
-    doc.append_paragraph("", para_pr_id=STYLE.get(para), style_id=_sty(para),
+    doc.append_paragraph("", section_index=cur_sec(),
+                         para_pr_id=STYLE.get(para), style_id=_sty(para),
                          char_pr_id=STYLE.get("char_cont"))
-    doc.append_picture(path.name, data, paragraph_index=doc.paragraph_count() - 1,
+    doc.append_picture(path.name, data, section_index=cur_sec(),
+                       paragraph_index=doc.paragraph_count(cur_sec()) - 1,
                        width=w, height=h,
                        char_pr_id=STYLE.get("char_cont"))
     rep.figures += 1
@@ -420,20 +530,23 @@ def emit_rich(doc: HwpxDocument, text: str, rep: Report, *, where: str,
         idx = into
         if prefix:
             doc.append_run_xml(f'<hp:t xmlns:hp="{HP}">{xml_escape(prefix)}</hp:t>',
+                               section_index=cur_sec(),
                                paragraph_index=idx, char_pr_id=STYLE.get("char_num"))
         rest = parts
     elif prefix:
-        doc.append_paragraph(prefix, para_pr_id=STYLE.get(para),
+        doc.append_paragraph(prefix, section_index=cur_sec(),
+                             para_pr_id=STYLE.get(para),
                              style_id=_sty(para),
                              char_pr_id=STYLE.get("char_num"))
-        idx = doc.paragraph_count() - 1
+        idx = doc.paragraph_count(cur_sec()) - 1
         rest = parts
     else:
         lead = parts[0][1] if parts and parts[0][0] == "text" else ""
-        doc.append_paragraph(lead, para_pr_id=STYLE.get(para),
+        doc.append_paragraph(lead, section_index=cur_sec(),
+                             para_pr_id=STYLE.get(para),
                              style_id=_sty(para),
                              char_pr_id=STYLE.get(char))
-        idx = doc.paragraph_count() - 1
+        idx = doc.paragraph_count(cur_sec()) - 1
         rest = parts[1:] if lead else parts
 
     for kind, body in rest:
@@ -447,7 +560,8 @@ def emit_rich(doc: HwpxDocument, text: str, rep: Report, *, where: str,
                 rep.warnings.append(f"{where}: 수식 변환 실패 — {e}  ({body})")
                 append_text_run(doc, idx, f"[수식 변환 실패: {body}]", char=char)
                 continue
-            doc.append_inline_equation(script, paragraph_index=idx,
+            doc.append_inline_equation(script, section_index=cur_sec(),
+                                       paragraph_index=idx,
                                        char_pr_id=STYLE.get("char_stem"),
                                        base_unit=eq_base())
             rep.equations += 1
@@ -461,12 +575,14 @@ def emit_display_eq(doc: HwpxDocument, tex: str, rep: Report, *, where: str) -> 
         script = convert(body)
     except UnsupportedTex as e:
         rep.warnings.append(f"{where}: 별행 수식 변환 실패 — {e}  ({body})")
-        doc.append_paragraph(f"[수식 변환 실패: {body}]")
+        doc.append_paragraph(f"[수식 변환 실패: {body}]", section_index=cur_sec())
         return
     eqp = "para_eq" if "para_eq" in STYLE else "para_cont"
-    doc.append_paragraph("", para_pr_id=STYLE.get(eqp), style_id=_sty(eqp),
+    doc.append_paragraph("", section_index=cur_sec(),
+                         para_pr_id=STYLE.get(eqp), style_id=_sty(eqp),
                          char_pr_id=STYLE.get("char_cont", STYLE.get("char_stem")))
-    doc.append_equation(script, paragraph_index=doc.paragraph_count() - 1,
+    doc.append_equation(script, section_index=cur_sec(),
+                        paragraph_index=doc.paragraph_count(cur_sec()) - 1,
                         char_pr_id=STYLE.get("char_stem"),
                         base_unit=eq_base())
     rep.equations += 1
@@ -478,7 +594,7 @@ def emit_problem(doc: HwpxDocument, p: dict, rep: Report,
     num = p.get("num", "?")
     where = f"{num}번"
     if not any(u["k"] != "choices" for u in units):
-        doc.append_paragraph(f"{num}. (발문 비어 있음)",
+        doc.append_paragraph(f"{num}. (발문 비어 있음)", section_index=cur_sec(),
                              para_pr_id=STYLE.get("para_stem"),
                              char_pr_id=STYLE.get("char_stem"))
         return
@@ -506,7 +622,8 @@ def emit_problem(doc: HwpxDocument, p: dict, rep: Report,
             # 실물은 상자를 앞뒤 여백 문단으로 감싼다(박스위 → 상자 → 박스아래).
             # 이게 없으면 상자 뒤 발문이 상자에 딱 붙는다.
             if "para_boxtop" in STYLE:
-                doc.append_paragraph("", para_pr_id=STYLE["para_boxtop"],
+                doc.append_paragraph("", section_index=cur_sec(),
+                                     para_pr_id=STYLE["para_boxtop"],
                                      style_id=_sty("para_boxtop"),
                                      char_pr_id=STYLE.get("char_boxtop"))
             for item in u["items"]:
@@ -514,7 +631,8 @@ def emit_problem(doc: HwpxDocument, p: dict, rep: Report,
                           para="para_cond" if "para_cond" in STYLE else "para_cont",
                           char="char_cond" if "char_cond" in STYLE else "char_cont")
             if "para_boxbot" in STYLE:
-                doc.append_paragraph("", para_pr_id=STYLE["para_boxbot"],
+                doc.append_paragraph("", section_index=cur_sec(),
+                                     para_pr_id=STYLE["para_boxbot"],
                                      style_id=_sty("para_boxbot"),
                                      char_pr_id=STYLE.get("char_boxbot"))
         elif u["k"] == "ex":
@@ -528,7 +646,8 @@ def emit_problem(doc: HwpxDocument, p: dict, rep: Report,
             emit_choices(doc, p, u, rep, where=f"{where} 선지")
     # 문항 사이를 한 줄 띄운다. 실물도 선지 스타일의 빈 문단으로 띄우고,
     # 그 스타일의 '문단 아래' 가 0 이라 이것 없이는 다음 문항이 바로 붙는다.
-    doc.append_paragraph("", para_pr_id=STYLE.get("para_choice"),
+    doc.append_paragraph("", section_index=cur_sec(),
+                         para_pr_id=STYLE.get("para_choice"),
                          style_id=_sty("para_choice"),
                          char_pr_id=STYLE.get("char_choice"))
 
@@ -542,6 +661,7 @@ def build(data: dict, out: Path, *, ref: str | Path | None = None,
     IMAGE_ROOTS.extend(images or [out.parent])
     STYLE.clear()
     PROFILE.clear()
+    CUR["sec"] = 0          # 앞 호출이 예외로 끊겼어도 공통 구역에서 다시 시작한다
 
     template = Path(ref) if ref else DEFAULT_TEMPLATE
     if template.suffix.lower() == ".hwpx" and template.exists():
@@ -569,9 +689,15 @@ def build(data: dict, out: Path, *, ref: str | Path | None = None,
         STYLE.update(exam_style.install(doc, PROFILE))
 
     title = str(data.get("round") or "모의고사")
-    if (PROFILE.get("_source") or "").endswith("(틀)"):
+    from_template = (PROFILE.get("_source") or "").endswith("(틀)")
+    if from_template:
         # 틀에 이미 머리말과 '5지선다형' 상자가 있다. 본문에 또 쓰면 두 번 나온다.
         tmpl.set_masthead_title(doc, title)
+        # 선택 구역 머리말의 과목 이름은 틀에 박힌 '확률과 통계' 다. 사용자가 미적분을
+        # 골라도 그대로 나가던 것을 고른 과목으로 바꾼다.
+        elective = str(data.get("elective") or "").strip()
+        if elective and not tmpl.set_masthead_elective(doc, elective):
+            rep.warnings.append(f"틀에서 선택과목 머리말을 찾지 못해 '{elective}' 를 반영하지 못했습니다")
     else:
         doc.append_paragraph(title, para_pr_id=STYLE["para_cont"],
                              char_pr_id=STYLE["char_stem"])
@@ -580,24 +706,51 @@ def build(data: dict, out: Path, *, ref: str | Path | None = None,
 
     shown = [p for p in (data.get("problems") or [])
              if any(u["k"] != "choices" for u in prob_units(p)[0])]
-    breaks = column_starts(shown)
-    frame_used = False
-    for i, p in enumerate(shown):
-        before = doc.paragraph_count()
-        # 첫 문항은 틀 문단에 이어 쓴다 — 안 그러면 빈 줄 하나가 앞을 밀어낸다.
-        use_frame = (i == 0 and not frame_used
-                     and (PROFILE.get("_source") or "").endswith("(틀)"))
-        emit_problem(doc, p, rep, into=0 if use_frame else None)
-        frame_used = frame_used or use_frame
-        if i in breaks and doc.paragraph_count() > before:
-            # 문항의 '첫' 문단에 표시해야 한다 — 마지막에 하면 다음 문항이 넘어간다.
-            sec = doc.get_part("Contents/section0.xml")
-            paras = [k for k in sec.root.children if k.local_name == "p"]
-            if len(paras) > before:
-                paras[before].set_attr("columnBreak", "1")
-                sec.mark_modified()
-                rep.breaks += 1
-        rep.problems += 1
+
+    # ── 구역 배정 ─────────────────────────────────────────────────────────
+    # 공통은 구역 0, 선택은 구역 1 에 쓴다. 틀에 구역이 하나뿐이면(빈 문서 경로)
+    # 전부 구역 0 에 쓰되, 편집기와 배치가 달라진다는 것을 경고로 남긴다.
+    n_sections = sum(1 for x in doc.list_part_paths()
+                     if x.startswith("Contents/section") and x.endswith(".xml"))
+    groups: list[tuple[int, list[dict]]] = []
+    common = [q for q in shown if q.get("sect") != "선택"]
+    elective_qs = [q for q in shown if q.get("sect") == "선택"]
+    if common:
+        groups.append((0, common))
+    if elective_qs:
+        if n_sections >= 2:
+            groups.append((1, elective_qs))
+        else:
+            groups.append((0, elective_qs))
+            rep.warnings.append(
+                "틀에 선택과목 구역이 없어 선택 문항을 공통 구역에 이어 붙였습니다 "
+                "— 머리말과 쪽번호가 편집기 미리보기와 달라집니다")
+
+    # 각 구역의 첫 문항은 그 구역의 틀 문단에 이어 쓴다 — 새 문단을 만들면 비워진
+    # 틀 문단이 빈 줄로 남아 첫 문항이 한 줄 밀린다.
+    # ⚠️ '이미 썼는가' 는 **구역별로** 기억해야 한다. 묶음마다 새로 세면, 두 묶음이
+    #    같은 구역으로 갈 때(구역이 하나뿐인 틀) 선택 첫 문항이 공통 1번이 들어 있는
+    #    문단 0 에 덧쓰여 순서가 뒤엉킨다(1, 23, 2, 3 … 으로 나왔다).
+    framed: set[int] = set()
+    for sec_i, group in groups:
+        CUR["sec"] = sec_i
+        breaks = column_starts(group)
+        for i, q in enumerate(group):
+            before = doc.paragraph_count(sec_i)
+            use_frame = i == 0 and sec_i not in framed and from_template
+            emit_problem(doc, q, rep, into=0 if use_frame else None)
+            if use_frame:
+                framed.add(sec_i)
+            if i in breaks and doc.paragraph_count(sec_i) > before:
+                # 문항의 '첫' 문단에 표시해야 한다 — 마지막에 하면 다음 문항이 넘어간다.
+                sec = doc.get_part(f"Contents/section{sec_i}.xml")
+                paras = [k for k in sec.root.children if k.local_name == "p"]
+                if len(paras) > before:
+                    paras[before].set_attr("columnBreak", "1")
+                    sec.mark_modified()
+                    rep.breaks += 1
+            rep.problems += 1
+    CUR["sec"] = 0
 
     for name in ["xml_validation_errors", "reference_validation_errors",
                  "stale_paragraph_layout_validation_errors", "validation_errors",

@@ -112,6 +112,77 @@ if _row_para("2") != "para_ch2row":
 else:
     print("  ✅ 매핑을 바꾸면 결과가 따라 바뀐다(검사가 유효)")
 
+
+# ── 편집기가 실제로 내놓은 답과 맞는가 ────────────────────────────────────
+# `layout_of` 는 편집기 `layoutOf()` 의 사본이다. 편집기는 KaTeX 로 실제 렌더 폭을
+# 재지만 여기서는 잴 수 없어 어림한다. 그 어림이 편집기와 갈라지면 화면과 시험지의
+# 선지 배치가 달라진다 — 30문항 표본에서 실제로 21문항 중 3문항이 어긋났다.
+#
+# `samples/choice-layout-truth.json` 은 **진짜 편집기를 브라우저에 띄워 받아 적은
+# 답**이다(`node scripts/check-hwpx-parity.mjs`, 다시 받아쓰려면 UPDATE_HWPX_TRUTH=1).
+# 그 스크립트는 정답표가 낡았는지도 함께 본다 — 낡은 표를 상대로 통과하는 일이
+# 없어야 이 검사가 뜻을 갖는다.
+import json  # noqa: E402
+from mock_to_hwpx import prob_units  # noqa: E402
+
+HERE = Path(__file__).parent
+truth_file = HERE / "samples" / "choice-layout-truth.json"
+
+print("\n편집기 실측 답과 대조")
+if not truth_file.exists():
+    print(f"  ❌ 정답표가 없습니다: {truth_file}")
+    print("     node scripts/check-hwpx-parity.mjs 로 만들 수 있습니다")
+    fails += 1
+else:
+    truth = (json.loads(truth_file.read_text(encoding="utf-8")) or {}).get("layouts") or {}
+    checked = 0
+    if not truth:
+        print("  ❌ 정답표에 layouts 가 비어 있습니다 — 아무것도 검사하지 않게 됩니다")
+        fails += 1
+    for key, want in sorted(truth.items()):
+        name, _, num = key.partition("#")
+        src = HERE / "samples" / name
+        if not src.exists():
+            print(f"  ❌ {key}: 표본 파일이 없습니다 ({name})")
+            fails += 1
+            continue
+        probs = json.loads(src.read_text(encoding="utf-8")).get("problems") or []
+        p_ = next((x for x in probs if str(x.get("num")) == num), None)
+        if p_ is None:
+            print(f"  ❌ {key}: 표본에 그 문항이 없습니다")
+            fails += 1
+            continue
+        # 실측값이 붙어 있으면 어림을 타지 않는다 — 여기서 보려는 건 어림 쪽이다.
+        p_ = {k: v for k, v in p_.items() if k != "layoutResolved"}
+        unit = next((u for u in prob_units(p_)[0] if u["k"] == "choices"), None)
+        items = [c for c in (unit or {}).get("items", []) if c.strip()]
+        got = layout_of(p_, items)
+        checked += 1
+        if got != want:
+            print(f"  ❌ {key}: 편집기 {want} · 변환기 {got}")
+            fails += 1
+    print(f"  {'✅' if checked else '❌'} {checked}문항 대조")
+
+# ── 편집기가 보낸 실측값이 어림보다 우선인가 ──────────────────────────────
+# 실제 내보내기(편집기 → /hwpx)는 편집기가 잰 배치를 함께 보낸다. 그 값을 무시하고
+# 다시 어림하면 이 모든 노력이 무의미해진다.
+print("\n편집기 실측값 우선")
+long_items = ["아주 긴 선지가 들어가는 경우입니다 정말로 길어요"] * 5
+cases = [
+    ("실측값이 어림을 이긴다", {"layoutResolved": "1"}, long_items, "1"),
+    ("문항의 지정보다도 우선", {"layoutResolved": "v", "layout": "1"},
+     ["1", "2", "3", "4", "5"], "v"),
+    ("모르는 값은 무시하고 어림한다", {"layoutResolved": "3"},
+     ["1", "2", "3", "4", "5"], "1"),
+    ("값이 문자열이 아니어도 무시한다", {"layoutResolved": ["v"]},
+     ["1", "2", "3", "4", "5"], "1"),
+]
+for label, prob_, items, want in cases:
+    got = layout_of(prob_, items)
+    ok = got == want
+    fails += not ok
+    print(f"  {'✅' if ok else '❌'} {label}: {got}" + ("" if ok else f"  ← 기대 {want}"))
+
 if fails:
     print(f"\n실패 {fails}건")
     raise SystemExit(1)

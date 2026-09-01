@@ -46,9 +46,15 @@ def styles_of(path: Path) -> list[tuple[str, str, bool]]:
     return out
 
 
-if not TEMPLATE.exists() or not SAMPLE.exists():
-    print(f"틀이나 표본이 없어 건너뜁니다 ({TEMPLATE.name})")
-    raise SystemExit(0)
+SKIP_UNAVAILABLE = 2   # 저장소에 둘 수 없는 자료가 없어서 건너뜀(실물 틀 — 저작물)
+SKIP_FIXABLE = 3       # 설치하거나 파일을 두면 돌 수 있는 건너뜀 — CI 에서는 실패로 본다
+
+if not SAMPLE.exists():
+    print(f"표본이 없어 건너뜁니다 ({SAMPLE.name}) — 저장소에 있어야 하는 파일입니다")
+    raise SystemExit(SKIP_FIXABLE)
+if not TEMPLATE.exists():
+    print(f"실물 틀이 없어 건너뜁니다 ({TEMPLATE.name})")
+    raise SystemExit(SKIP_UNAVAILABLE)
 
 with tempfile.TemporaryDirectory() as tmp:
     out = Path(tmp) / "t.hwpx"
