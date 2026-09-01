@@ -60,6 +60,16 @@ STATIC = {
     "/legal.html": ("legal.html", "text/html; charset=utf-8"),
     # App Check site key 같은 공개 런타임 설정. 비밀키는 절대 이 파일에 넣지 않는다.
     "/service-config.js": ("service-config.js", "application/javascript; charset=utf-8"),
+    # 브라우저에서 도는 HWPX 조판기. 이것이 있으면 AI 문서는 **로컬 서버 없이** 내보낸다
+    # (배포본에서도 된다). 파이썬 변환기는 모의고사와 CLI 용으로 남는다.
+    "/hwpx-engine.js": ("hwpx-engine.js", "application/javascript; charset=utf-8"),
+    "/hwpx-document.js": ("hwpx-document.js", "application/javascript; charset=utf-8"),
+    # ⚠️ 빈 문서 골격 — **한글이 직접 저장한 실물 파일**이다. 브라우저 조판기가 이걸 받아
+    #    골격으로 쓴다. 코드로 지어 만들면 한글이 열지 못한다(docs/HWP-SPEC.md).
+    #    깃허브 페이지에서는 저장소 파일이 그대로 서비스되지만, 로컬에서는 이 목록에
+    #    없으면 404 라 내보내기가 통째로 죽는다.
+    "/experiments/hwp-export/templates/blank.hwpx":
+        ("experiments/hwp-export/templates/blank.hwpx", "application/vnd.hancom.hwpx"),
     # 구조 분리 전후의 회귀 입력. 로컬 regression-test.html에서만 읽는 고정 샘플이며,
     # 디렉터리 전체를 열지 않고 검증 대상 JSON 네 개만 명시한다.
     "/test-fixtures/refactor-baseline/01-math-formulas.json":

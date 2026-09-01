@@ -10,10 +10,11 @@
     "update:visual-baseline": "UPDATE_VISUAL_BASELINE=1 node scripts/visual-regression.mjs",
     "check:static": "node scripts/check-static.mjs && node scripts/check-document-blocks.mjs && node scripts/check-shared-design.mjs",
     "check:rules": "npx --yes firebase-tools emulators:exec --project pedagogy-rules-test --only firestore,storage \"node scripts/verify-rules-emulator.mjs\"",
-    "check:fast": "npm run test:worker && npm run test:fixtures && npm run test:mock-layout && npm run test:hwpx && npm run check:static",
+    "check:fast": "npm run test:worker && npm run test:fixtures && npm run test:mock-layout && npm run test:hwpx && npm run test:hwpx-browser && npm run check:static",
     "test:all": "npm run check:fast && npm run check:rules && npm run test:visual",
     "check:launch": "node scripts/check-launch-readiness.mjs",
     "test:hwpx": "node scripts/check-hwpx.mjs",
+    "test:hwpx-browser": "node scripts/check-hwpx-browser.mjs",
     "test:hwpx-parity": "node scripts/check-hwpx-parity.mjs",
     "update:hwpx-truth": "UPDATE_HWPX_TRUTH=1 node scripts/check-hwpx-parity.mjs",
     "test:hwpx-opens": "node scripts/check-hwpx-opens.mjs"

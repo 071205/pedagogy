@@ -17,6 +17,10 @@
 <script defer src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js" integrity="sha384-sEVIly94UBRLKWdkYoPpSG7GD/e79YHMrxVyZaOk712Ga7+EAw6w1EFi+xBzBdd+" crossorigin="anonymous"></script>
 <script defer src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js" integrity="sha384-EkqK+ezBWJuvO3hfrSx2iVqr3YQbhmnzn8kPhOpBZ+0GMVU5oGSgptwIu8D84HjE" crossorigin="anonymous"></script>
 <script src="service-config.js"></script>
+<!-- 브라우저에서 도는 HWPX 조판기. 이것이 있으면 한글 내보내기에 **로컬 서버가 필요 없다**
+     — 사이트만 열어도 파일이 나온다. 못 불러오면 예전처럼 serve.py 를 찾아 쓴다. -->
+<script src="hwpx-engine.js" defer></script>
+<script src="hwpx-document.js" defer></script>
 <style>
 /* ─────────────────────────────────────────────────────────────
    디자인 토큰 — index.html 과 **같은 이름·같은 값**을 쓴다.
@@ -207,7 +211,31 @@ async function findHwpxServer(){
 const NO_SERVER_HINT="로컬 서버를 찾지 못했습니다 · 터미널에서 python3 serve.py 를 실행한 뒤 "
                     +"http://127.0.0.1:8787 로 열어 주세요";
 
-async function download(){const docData=parseAndRender();if(!docData)return;const button=$("downloadBtn");button.disabled=true;setStatus("docStatus","한글 파일로 조판 중…");try{if(hwpxBase===null&&!await findHwpxServer()){setStatus("docStatus",NO_SERVER_HINT,"error");return}const r=await fetch(hwpxBase+"/document-hwpx",{method:"POST",headers:{"Content-Type":"application/json","X-Exam-Client":"1"},body:JSON.stringify({document:docData})});if(!r.ok){const data=await r.json().catch(()=>({}));throw Error(data.error||`HTTP ${r.status}`)}const blob=await r.blob(),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`${docData.title.replace(/[\\/:*?\"<>|]/g,"_")}.hwpx`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);const warnings=Number(r.headers.get("X-Hwpx-Warnings")||0);setStatus("docStatus",warnings?`내보냈지만 조판 경고 ${warnings}건이 있습니다`:"한글 HWPX 파일을 내보냈습니다",warnings?"error":"ok")}catch(e){hwpxBase=null;setStatus("docStatus",`내보내기 실패: ${e.message} · ${NO_SERVER_HINT}`,`error`)}finally{button.disabled=false}}
+/* 빈 문서 골격. **한글이 직접 저장한 실물 파일**이라 코드로 지어 만들면 한글이 못 연다. */
+const BLANK_URL="experiments/hwp-export/templates/blank.hwpx";
+function saveBlob(blob,title){const a=document.createElement("a");a.href=URL.createObjectURL(blob);
+  a.download=`${String(title).replace(/[\\/:*?\"<>|]/g,"_")}.hwpx`;a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
+
+/* 브라우저에서 직접 만든다 — 서버가 필요 없다. 못 하면 예전 서버 경로로 떨어진다. */
+async function downloadInBrowser(docData){
+  const {blob,report}=await window.PedagogyHwpxDocument.buildDocument(docData,BLANK_URL);
+  saveBlob(blob,docData.title);
+  setStatus("docStatus",report.warnings.length
+    ?`내보냈지만 조판 경고 ${report.warnings.length}건이 있습니다 · ${report.warnings[0]}`
+    :"한글 HWPX 파일을 내보냈습니다",report.warnings.length?"error":"ok");
+}
+
+async function download(){const docData=parseAndRender();if(!docData)return;const button=$("downloadBtn");button.disabled=true;setStatus("docStatus","한글 파일로 조판 중…");try{
+  if(window.PedagogyHwpxDocument&&window.CompressionStream){
+    try{ await downloadInBrowser(docData); return; }
+    catch(e){
+      // 브라우저에서 못 만들면 조용히 실패하지 않는다 — 서버가 있으면 그쪽으로 해 본다.
+      console.warn("브라우저 조판 실패, 서버로 넘어갑니다:",e);
+      setStatus("docStatus","브라우저 조판에 실패해 로컬 서버를 찾는 중…");
+    }
+  }
+  if(hwpxBase===null&&!await findHwpxServer()){setStatus("docStatus",NO_SERVER_HINT,"error");return}const r=await fetch(hwpxBase+"/document-hwpx",{method:"POST",headers:{"Content-Type":"application/json","X-Exam-Client":"1"},body:JSON.stringify({document:docData})});if(!r.ok){const data=await r.json().catch(()=>({}));throw Error(data.error||`HTTP ${r.status}`)}const blob=await r.blob(),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`${docData.title.replace(/[\\/:*?\"<>|]/g,"_")}.hwpx`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);const warnings=Number(r.headers.get("X-Hwpx-Warnings")||0);setStatus("docStatus",warnings?`내보냈지만 조판 경고 ${warnings}건이 있습니다`:"한글 HWPX 파일을 내보냈습니다",warnings?"error":"ok")}catch(e){hwpxBase=null;setStatus("docStatus",`내보내기 실패: ${e.message} · ${NO_SERVER_HINT}`,`error`)}finally{button.disabled=false}}
 function init(){try{firebase.initializeApp(firebaseConfig);auth=firebase.auth();auth.onAuthStateChanged(v=>{user=v;$("authState").textContent=v?`${v.displayName||v.email||"로그인됨"}`:"AI 초안은 로그인 후 사용";$("loginBtn").textContent=v?"로그아웃":"로그인"})}catch{$("authState").textContent="로그인 기능을 불러오지 못했습니다";$("loginBtn").disabled=true}const saved=localStorage.getItem("PEDAGOGY_DOCUMENT_BETA");$("json").value=saved||JSON.stringify(DEFAULT,null,2);parseAndRender();$("validateBtn").onclick=parseAndRender;$("draftBtn").onclick=makeDraft;$("downloadBtn").onclick=download;$("loginBtn").onclick=async()=>{if(!auth)return;if(user)return auth.signOut();await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider())}}
 window.addEventListener("DOMContentLoaded",init);
 

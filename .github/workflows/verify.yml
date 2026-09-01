@@ -84,3 +84,15 @@ jobs:
           HWPX_PYTHON: ${{ github.workspace }}/.hwpxvenv/bin/python
           HWPX_REQUIRE: '1'
         run: npm run test:hwpx
+      # 브라우저 조판기(`hwpx-engine.js`)는 파이썬을 **옮겨 적은 사본**이다. 사본은
+      # 갈라지므로 같은 입력으로 양쪽을 돌려 맞춰 본다. 이건 글꼴 실측이 아니라
+      # XML 결과 대조라 `test:hwpx-parity` 와 달리 깜빡이지 않는다 — 그래서 CI 에 건다.
+      - name: Install test dependencies for the browser comparison
+        run: npm ci
+      - name: Install fixed Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Browser vs Python HWPX comparison
+        env:
+          HWPX_PYTHON: ${{ github.workspace }}/.hwpxvenv/bin/python
+          HWPX_REQUIRE: '1'
+        run: npm run test:hwpx-browser

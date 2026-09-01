@@ -11,7 +11,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 |---|---|
 | **문제집 편집기**(`index.html`) | 안정. 상용 준비 항목은 `docs/COMMERCIAL-LAUNCH.md` |
 | **모의고사 → 한글**(`mock_to_hwpx.py`) | 동작. 30문항·선택과목 검증 완료. 열린 이슈 2건(아래) |
-| **범용 문서 → 한글**(`document_to_hwpx.py`) | 베타. 블록 11종. 실물 한글로 확인 완료 |
+| **범용 문서 → 한글**(`document_to_hwpx.py`) | 베타. 블록 11종. 실물 한글로 확인 완료. **브라우저만으로도 된다**(아래) |
 
 **바로 해 볼 수 있는 것**
 
@@ -478,8 +478,22 @@ own save/load — does not share PEDAGOGY's Firebase storage).
 모의고사와 **별개의 흐름**이다. 학습지·보고서·안내문처럼 시험지가 아닌 한글 문서를 만든다.
 
 ```
-사용자 요청 → Worker(AI) → 문서 JSON → 브라우저 검증·미리보기 → /document-hwpx → .hwpx
+사용자 요청 → Worker(AI) → 문서 JSON → 브라우저 검증·미리보기 → .hwpx
 ```
+
+**한글 내보내기는 브라우저가 직접 한다 — 로컬 서버가 필요 없다.**
+`hwpx-engine.js`(엔진·수식 변환) + `hwpx-document.js`(블록 → 문단)가 파이썬을 옮긴 것이고,
+`serve.py` 의 `/document-hwpx` 는 이제 대비책이다(브라우저 조판이 실패할 때만 탄다).
+빈 골격은 `templates/blank.hwpx` 를 **fetch 로 받아** 쓴다 — 그래서 `serve.py` 의 `STATIC`
+에 그 경로가 있어야 하고, 빼면 로컬에서 404 로 죽는다.
+
+⚠️ **JS 는 파이썬의 사본이다. 사본은 갈라진다.** `npm run test:hwpx-browser` 가 같은 문서
+JSON 을 진짜 브라우저(Playwright)와 파이썬에 넣어 결과를 대조한다(CI 의 `hwpx` 작업에
+`HWPX_REQUIRE=1` 로 걸려 있다). 한쪽만 고치지 말 것.
+
+⚠️ **모의고사(`/hwpx`)는 아직 서버가 필요하다.** 시험지는 실물 틀 파일을 읽어야 하는데
+그 틀이 저장소에 없다(내용을 벗긴 틀로도 결과가 같다는 것은 확인했다 —
+`HANDOFF-2026-029`). AI 문서만 저작물이 아닌 빈 골격을 써서 브라우저만으로 된다.
 
 - **계약이 제품이다.** `document_schema.py` 가 받는 블록만 조판된다. 지금 11종:
   `heading` `paragraph` `equation` `quote` `bullets` `numbered` `table` `image` `box`

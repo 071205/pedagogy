@@ -10,7 +10,8 @@
 | `REV-2026-010` | `P3` | HWPX 시험지에 '※ 확인 사항' 상자가 없다 | `issues/2026-08-31-mock-hwpx-missing-confirm-box.md` |
 | `REV-2026-016` | `P2` | 한 단 안의 문항이 실물처럼 벌어지지 않는다 | `issues/2026-09-01-mock-hwpx-problem-spacing-in-column.md` |
 
-둘 다 **실물 대조가 필요해 일부러 손대지 않았다** — 모양이 틀린 것을 넣으면 없는 것보다 나쁘다.
+셋 다 **일부러 손대지 않았다** — 모양이 틀린 것을 넣으면 없는 것보다 나쁘다.
+`009`·`010` 은 실물 대조가 필요하고, `016` 은 편집기가 문항 높이를 재서 보내는 설계 결정이 먼저다.
 
 ## 최근 해결
 
@@ -64,3 +65,4 @@
 | `HANDOFF-2026-026` | Claude | AI 문서 화면을 본체 디자인에 맞춤 | `handoffs/2026-09-01-document-editor-design-unified.md` |
 | `HANDOFF-2026-027` | Claude | 시험지 문항 번호(탭)와 이어지는 쪽 머리말 | `handoffs/2026-09-01-mock-hwpx-number-tab-and-page-header.md` |
 | `HANDOFF-2026-028` | Claude | 한글 내보내기가 로컬 서버를 제대로 찾게 | `handoffs/2026-09-01-hwpx-export-server-discovery.md` |
+| `HANDOFF-2026-029` | Claude | 브라우저에서 도는 HWPX 조판기 (AI 문서) | `handoffs/2026-09-01-browser-hwpx-engine.md` |
