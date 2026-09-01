@@ -210,6 +210,7 @@ export function createWorker({
   verifyToken = verifyIdToken,
   requestQuota = quotaRequest,
   generateProblems = callAI,
+  generateDocument = callDocumentAI,
 } = {}) {
   return {
   async fetch(request, env) {
@@ -278,15 +279,27 @@ export function createWorker({
       return json({ error: "잘못된 요청 형식입니다" }, 400, cors);
     }
 
-    const { imageBase64, mimeType } = body || {};
-    if (typeof imageBase64 !== "string" || !imageBase64) {
-      return json({ error: "이미지가 없습니다" }, 400, cors);
-    }
-    if (imageBase64.length > MAX_BODY_BYTES) {
-      return json({ error: "이미지가 너무 큽니다" }, 413, cors);
-    }
-    if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(mimeType)) {
-      return json({ error: "이미지 형식이 아닙니다" }, 400, cors);
+    const documentMode = body?.mode === "document";
+    const { imageBase64, mimeType, prompt } = body || {};
+    if (documentMode) {
+      // 범용 문서는 텍스트 지시만 받는다. HTML/HWPX/XML은 받지 않고, AI도 정해진
+      // JSON 블록만 돌려준다. 긴 원문을 통째로 보내 비용·개인정보 위험을 키우지 않는다.
+      if (typeof prompt !== "string" || !prompt.trim()) {
+        return json({ error: "작성할 내용이 없습니다" }, 400, cors);
+      }
+      if (prompt.length > 12_000) {
+        return json({ error: "요청이 너무 깁니다 (최대 12,000자)" }, 413, cors);
+      }
+    } else {
+      if (typeof imageBase64 !== "string" || !imageBase64) {
+        return json({ error: "이미지가 없습니다" }, 400, cors);
+      }
+      if (imageBase64.length > MAX_BODY_BYTES) {
+        return json({ error: "이미지가 너무 큽니다" }, 413, cors);
+      }
+      if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(mimeType)) {
+        return json({ error: "이미지 형식이 아닙니다" }, 400, cors);
+      }
     }
     if (!env.ANTHROPIC_KEY) {
       return json({ error: "AI 기능을 일시적으로 사용할 수 없습니다. 잠시 후 다시 시도해 주세요." }, 503, cors);
@@ -328,11 +341,18 @@ export function createWorker({
 
     // ── 5. AI 호출 (사용량은 이미 확정됨) ──
     try {
+      if (documentMode) {
+        const document = await generateDocument(env, prompt.trim());
+        validateDocumentResponse(document);
+        return json({ document, usage: { used: after.used, limit: after.limit } }, 200, cors);
+      }
       const problems = await generateProblems(env, imageBase64, mimeType);
       return json({ problems, usage: { used: after.used, limit: after.limit } }, 200, cors);
     } catch (e) {
       console.error("AI 호출 실패");
-      return json({ error: "AI 변환에 실패했습니다. 이미지와 네트워크 상태를 확인한 뒤 다시 시도해 주세요." }, 502, cors);
+      return json({ error: documentMode
+        ? "AI 문서 초안 생성에 실패했습니다. 요청과 네트워크 상태를 확인한 뒤 다시 시도해 주세요."
+        : "AI 변환에 실패했습니다. 이미지와 네트워크 상태를 확인한 뒤 다시 시도해 주세요." }, 502, cors);
     }
   },
   };
@@ -367,6 +387,61 @@ const SYSTEM_PROMPT = `너는 한국 수학 문제집 편집기의 입력 도우
 - 한글은 LaTeX 밖에 그대로 둔다. 수식 안 한글은 \\text{한글}을 쓴다.
 - 적분/시그마/극한이 인라인($...$)에 있으면 \\displaystyle을 붙인다.
 - JSON 외에는 아무것도 출력하지 않는다.`;
+
+const DOCUMENT_SYSTEM_PROMPT = `너는 한국어 문서 조판 도우미다.
+사용자의 요청을 읽고, 과제·보고서·안내문 등 인쇄 가능한 문서의 초안을 아래 JSON 하나로 만든다.
+수식은 LaTeX로 쓴다. 문장 안 수식은 $...$, 별도 줄 수식은 equation 블록의 $$...$$ 안에 둔다.
+
+출력은 설명, 마크다운, 코드블록 없이 JSON 객체 하나뿐이어야 한다.
+{
+  "version": 1,
+  "title": "문서 제목",
+  "blocks": [
+    { "type": "heading", "level": 1, "text": "제목글" },
+    { "type": "paragraph", "text": "문단" },
+    { "type": "equation", "text": "$$x^2+y^2=r^2$$" },
+    { "type": "bullets", "items": ["항목", "항목"] },
+    { "type": "numbered", "items": ["단계", "단계"] },
+    { "type": "quote", "text": "강조 또는 인용" }
+  ]
+}
+
+규칙:
+- 지원하는 type만 쓴다: heading, paragraph, equation, bullets, numbered, quote.
+- heading level은 1, 2, 3 중 하나다. 표·이미지·HTML·HWPX/XML 블록은 만들지 않는다.
+- 사용자가 제공하지 않은 사실·출처·인용은 지어내지 않는다. 필요한 정보가 없으면 [확인 필요]라고 적는다.
+- 한국어 문장으로 쓰고, 본문은 읽기 좋은 짧은 문단으로 나눈다.
+- 출력은 반드시 이 JSON 객체 하나뿐이다.`;
+
+function validateDocumentResponse(document) {
+  if (!document || typeof document !== "object" || Array.isArray(document)) {
+    throw new Error("AI 문서 응답 형식이 아닙니다");
+  }
+  if (typeof document.title !== "string" || !document.title.trim() || document.title.length > 180) {
+    throw new Error("AI 문서 제목이 유효하지 않습니다");
+  }
+  if (!Array.isArray(document.blocks) || !document.blocks.length || document.blocks.length > 180) {
+    throw new Error("AI 문서 블록이 유효하지 않습니다");
+  }
+  for (const block of document.blocks) {
+    if (!block || typeof block !== "object") throw new Error("AI 문서 블록 형식이 아닙니다");
+    if (["heading", "paragraph", "equation", "quote"].includes(block.type)) {
+      if (typeof block.text !== "string" || !block.text.trim() || block.text.length > 12_000) {
+        throw new Error("AI 문서 텍스트가 유효하지 않습니다");
+      }
+      if (block.type === "heading" && ![1, 2, 3].includes(block.level ?? 1)) {
+        throw new Error("AI 문서 제목글 수준이 유효하지 않습니다");
+      }
+    } else if (["bullets", "numbered"].includes(block.type)) {
+      if (!Array.isArray(block.items) || !block.items.length || block.items.length > 80
+        || block.items.some((item) => typeof item !== "string" || !item.trim() || item.length > 12_000)) {
+        throw new Error("AI 문서 목록이 유효하지 않습니다");
+      }
+    } else {
+      throw new Error("AI 문서에 지원하지 않는 블록이 있습니다");
+    }
+  }
+}
 
 /**
  * 이미지 → 문항 blocks 변환. 반환값은 index.html 의 aiBlocksToProblem() 이 기대하는 모양:
@@ -429,4 +504,34 @@ async function callAI(env, imageBase64, mimeType) {
   const problems = Array.isArray(parsed) ? parsed : parsed.problems;
   if (!Array.isArray(problems)) throw new Error("AI 응답에 problems 가 없습니다");
   return problems;
+}
+
+async function callDocumentAI(env, prompt) {
+  if (!env.ANTHROPIC_KEY) throw new Error("ANTHROPIC_KEY 가 설정되지 않았습니다");
+  const r = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": env.ANTHROPIC_KEY,
+      "anthropic-version": "2023-06-01",
+    },
+    body: JSON.stringify({
+      model: env.AI_MODEL || "claude-haiku-4-5",
+      max_tokens: 4096,
+      system: DOCUMENT_SYSTEM_PROMPT,
+      messages: [{ role: "user", content: [{ type: "text", text: prompt }] }],
+    }),
+  });
+  if (!r.ok) {
+    console.error("Anthropic API 오류:", r.status);
+    throw new Error("AI 공급자 오류 (" + r.status + ")");
+  }
+  const data = await r.json();
+  const text = data?.content?.[0]?.text || "";
+  try {
+    return JSON.parse(text.replace(/```json|```/g, "").trim());
+  } catch {
+    console.error("AI 문서 JSON 파싱 실패");
+    throw new Error("AI 문서 응답을 해석하지 못했습니다");
+  }
 }

@@ -30,6 +30,7 @@ function testWorker({
   verifyToken = async () => ({ uid: "user-1", claims: { pedagogy_plan: "pro" } }),
   quotaResult = {},
   generateProblems = async () => [{ title: "변환됨", blocks: [] }],
+  generateDocument = async () => ({ title: "초안", blocks: [{ type: "paragraph", text: "본문" }] }),
 } = {}) {
   const calls = [];
   const worker = createWorker({
@@ -50,6 +51,10 @@ function testWorker({
     generateProblems: async (...args) => {
       calls.push({ kind: "ai", args });
       return generateProblems(...args);
+    },
+    generateDocument: async (...args) => {
+      calls.push({ kind: "document-ai", args });
+      return generateDocument(...args);
     },
   });
   return { worker, calls };
@@ -138,6 +143,41 @@ async function testQuotaAndProviderContract() {
     ["reserve", "consume"], "제공자 실패도 비용 상한을 위해 사용량을 확정한 뒤 처리한다");
 }
 
+async function testDocumentDraftContract() {
+  const badInput = testWorker();
+  const missing = await badInput.worker.fetch(request("POST", { body: { mode: "document", prompt: "" } }), env);
+  assert.equal(missing.status, 400);
+  assert.equal(badInput.calls.filter((call) => call.kind === "quota").length, 0,
+    "빈 문서 요청은 quota를 차감하면 안 된다");
+
+  const draft = testWorker({
+    generateDocument: async (_env, prompt) => ({
+      version: 1, title: "과제 초안", blocks: [
+        { type: "heading", level: 1, text: "서론" },
+        { type: "paragraph", text: prompt },
+        { type: "equation", text: "$$x^2$$" },
+      ],
+    }),
+  });
+  const response = await draft.worker.fetch(request("POST", {
+    body: { mode: "document", prompt: "수식을 포함한 보고서 초안을 써 줘" },
+  }), env);
+  assert.equal(response.status, 200);
+  assert.equal((await body(response)).document.title, "과제 초안");
+  assert.deepEqual(draft.calls.map((call) => call.kind), ["verify", "quota", "quota", "document-ai"],
+    "문서 초안도 인증 → reserve → consume → 제공자 순서여야 한다");
+
+  const malformed = testWorker({
+    generateDocument: async () => ({ title: "x", blocks: [{ type: "rawXml", text: "<hp:p/>" }] }),
+  });
+  const rejected = await malformed.worker.fetch(request("POST", {
+    body: { mode: "document", prompt: "테스트" },
+  }), env);
+  assert.equal(rejected.status, 502);
+  assert.equal((await body(rejected)).error,
+    "AI 문서 초안 생성에 실패했습니다. 요청과 네트워크 상태를 확인한 뒤 다시 시도해 주세요.");
+}
+
 async function testDeletionPurgeContract() {
   const deletion = testWorker();
   const response = await deletion.worker.fetch(request("DELETE"), env);
@@ -150,6 +190,7 @@ async function testDeletionPurgeContract() {
 await testHealthAndOriginBoundary();
 await testAuthenticationAndInputBoundary();
 await testQuotaAndProviderContract();
+await testDocumentDraftContract();
 await testDeletionPurgeContract();
 
 console.log("Worker request contract tests passed");
