@@ -100,6 +100,60 @@ with tempfile.TemporaryDirectory() as tmp:
     check(header_chars and body_chars and header_chars.isdisjoint(body_chars),
           f"머리글 행과 본문 행이 같은 글자 모양을 쓰면 안 됩니다 (머리글={header_chars}, 본문={body_chars})")
 
+# ── 보기(ㄱㄴㄷ)·선지(①②③④⑤) 블록 ────────────────────────────────────
+EXAM_SAMPLE = {"title": "문제지 검사", "blocks": [
+    {"type": "examples", "items": ["$f(x)$는 연속이다.", "최댓값을 갖는다."]},
+    {"type": "choices", "items": ["$\\dfrac12$", "$1$", "$\\dfrac32$", "$2$", "$3$"],
+     "layout": "1"},
+]}
+
+with tempfile.TemporaryDirectory() as tmp:
+    out = Path(tmp) / "exam.hwpx"
+    report = document_to_hwpx.build(EXAM_SAMPLE, out)
+    text = zipfile.ZipFile(out).read("Contents/section0.xml").decode("utf-8")
+
+    check("ㄱ." in text and "ㄴ." in text, "보기 항목에 ㄱ·ㄴ 라벨이 붙어야 합니다")
+    for mark in "①②③④⑤":
+        check(mark in text, f"선지 라벨 {mark} 가 있어야 합니다")
+
+    # ⚠️ **탭으로 이어 붙인 선지도 수식 변환을 타야 한다.** 예전에는 첫 선지만
+    #    emit_rich 를 타서 분수로 나오고, 둘째부터 `$\dfrac32$` 가 달러 기호째
+    #    글자로 찍혔다. 파일은 멀쩡히 열리므로 **눈으로 보기 전엔 모르는** 결함이다.
+    check("$" not in text,
+          f"선지 안 수식이 원문 그대로 남았습니다: {[w for w in text.split() if '$' in w][:3]}")
+    # 보기 중 수식이 든 것 1개 + 선지 5개 = 6개.
+    check(report.equations == 6, f"수식 6개가 나와야 합니다 (지금 {report.equations})")
+
+    # 한 줄 배치는 **한 문단**에 탭으로 이어 붙어야 한다. 문단을 나누면 세로로 쌓인다.
+    check(text.count("<hp:tab") >= 4, f"선지 사이에 탭이 있어야 합니다 ({text.count('<hp:tab')}개)")
+
+# 배치 세 가지가 문단 수로 구분되는가
+for layout, want in (("1", 1), ("2", 2), ("v", 5)):
+    with tempfile.TemporaryDirectory() as tmp:
+        out = Path(tmp) / f"{layout}.hwpx"
+        document_to_hwpx.build({"title": "x", "blocks": [
+            {"type": "choices", "items": list("abcde"), "layout": layout}]}, out)
+        body = zipfile.ZipFile(out).read("Contents/section0.xml").decode("utf-8")
+        rows = len(re.findall(r"①|④(?![^<]*⑤)", body)) if False else None
+        marks_per_para = [len(re.findall(r"[①②③④⑤]", para))
+                          for para in re.findall(r"<hp:p\b.*?</hp:p>", body, re.S)
+                          if re.search(r"[①②③④⑤]", para)]
+        check(len(marks_per_para) == want,
+              f"layout={layout} 은 선지 문단이 {want}개여야 합니다 (지금 {len(marks_per_para)})")
+
+# 계약이 거절해야 하는 것
+for label, bad in [
+    ("보기 7개(라벨은 ㄱ~ㅂ 뿐)", {"type": "examples", "items": ["a"] * 7}),
+    ("선지 6개(라벨은 ①~⑤ 뿐)", {"type": "choices", "items": ["a"] * 6}),
+    ("모르는 배치", {"type": "choices", "items": ["a"], "layout": "3"}),
+]:
+    try:
+        validate({"title": "x", "blocks": [bad]})
+    except DocumentValidationError:
+        continue
+    raise AssertionError(f"'{label}' 를 거절해야 합니다")
+
+
 # ── 상자 블록 ────────────────────────────────────────────────────────────
 BOX_SAMPLE = {"title": "상자 검사", "blocks": [
     {"type": "paragraph", "text": "상자 앞 문단."},

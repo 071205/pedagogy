@@ -23,7 +23,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-from pedagogy_hwpx import HwpxDocument, MM_TO_HWPUNIT, image_size  # noqa: E402
+from pedagogy_hwpx import (HGND, MARKS, HwpxDocument, MM_TO_HWPUNIT,  # noqa: E402
+                           image_size)
 
 import exam_profile  # noqa: E402
 import template as tmpl  # noqa: E402
@@ -38,8 +39,7 @@ ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_TEMPLATE = ROOT / "평가원 수학 양식.hwpx"
 DEFAULT_REF = ROOT / "2025학년도 수능 수학 문제.hwp"
 
-MARKS = ["①", "②", "③", "④", "⑤"]
-HGND = ["ㄱ", "ㄴ", "ㄷ", "ㄹ", "ㅁ"]
+
 
 
 @dataclass

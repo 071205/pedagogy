@@ -19,7 +19,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 
 from document_schema import DocumentValidationError, validate  # noqa: E402
-from pedagogy_hwpx import HwpxDocument, MM_TO_HWPUNIT  # noqa: E402
+from pedagogy_hwpx import HGND, MARKS, HwpxDocument, MM_TO_HWPUNIT  # noqa: E402
 from tex_to_hwp import UnsupportedTex, convert  # noqa: E402
 
 
@@ -129,6 +129,7 @@ def install_styles(doc: HwpxDocument) -> dict[str, str]:
         "table": dict(align="CENTER", before_mm=2.0, after_mm=3.0, line=140),
         "image": dict(align="CENTER", before_mm=2.0, after_mm=2.0, line=140),
         "box": dict(left_mm=3.0, right_mm=3.0, before_mm=0, after_mm=0, line=165),
+        "choice": dict(left_mm=2.0, before_mm=0, after_mm=1.0, line=160),
         "boxtop": dict(before_mm=2.5, after_mm=0, line=40),
         "boxbottom": dict(before_mm=0, after_mm=2.5, line=40),
     }.items():
@@ -149,7 +150,7 @@ def _append_text(doc: HwpxDocument, paragraph: int, text: str, char: str) -> Non
 
 def emit_rich(doc: HwpxDocument, text: str, report: Report, styles: dict[str, str],
               *, para: str = "body", char: str = "body", where: str,
-              into: int | None = None) -> None:
+              into: int | None = None) -> int:
     """문단 하나. `into` 를 주면 새 문단을 만들지 않고 그 문단에 이어 쓴다.
 
     골격의 첫 문단은 구역 정의를 안고 있어 지울 수 없으므로, 문서의 첫 글은 거기에
@@ -177,6 +178,7 @@ def emit_rich(doc: HwpxDocument, text: str, report: Report, styles: dict[str, st
         except UnsupportedTex as exc:
             report.warnings.append(f"{where}: 인라인 수식 변환 실패 — {exc} ({value})")
             _append_text(doc, paragraph, f"[수식 변환 실패: {value}]", styles[f"char_{char}"])
+    return paragraph
 
 
 def emit_display_equation(doc: HwpxDocument, tex: str, report: Report, styles: dict[str, str], *, where: str) -> None:
@@ -244,6 +246,73 @@ def emit_box(doc: HwpxDocument, text: str, label: str | None, report: Report,
     doc.append_paragraph("", para_pr_id=styles["para_boxbottom"], char_pr_id=styles["char_body"])
 
 
+def emit_examples(doc: HwpxDocument, items: list[str], label: str | None, report: Report,
+                  styles: dict[str, str], *, where: str) -> None:
+    """<보기> 상자 — ㄱ·ㄴ·ㄷ 라벨을 붙여 테두리 상자에 담는다.
+
+    상자 자체는 `emit_box()` 와 같은 문단 모양을 쓴다(테두리는 `connect="1"` 로 합쳐진다).
+    라벨(`ㄱ`·`ㄴ`…)은 엔진의 `HGND` 를 쓴다 — 시험지 조판기와 같은 것이어야 한다.
+    """
+    emit_box(doc, "\n".join(f"{HGND[i % len(HGND)]}. {item}" for i, item in enumerate(items)),
+             label, report, styles, where=where)
+
+
+def emit_choices(doc: HwpxDocument, items: list[str], layout: str, report: Report,
+                 styles: dict[str, str], *, where: str) -> None:
+    """선지 ①②③④⑤.
+
+    배치: `1` 한 줄 · `2` 3+2 두 줄 · `v` 한 줄에 하나 · `auto` 는 길이로 고른다.
+
+    ⚠️ **시험지 조판기(`mock_to_hwpx`)의 배치와 같지 않다.** 그쪽은 시험지 2단 폭
+       (111mm)에 맞춘 탭 위치를 실물에서 재어 쓰고, 여기는 A4 한 단 문서의 기본 탭을
+       쓴다. 폭이 다르니 같은 값을 쓸 수 없다 — 라벨(`MARKS`)과 배치 규칙만 공유한다.
+    ⚠️ 한 줄 안의 선지는 **한 문단**에 탭으로 이어 붙인다. 문단을 나누면 세로로 쌓인다.
+    """
+    used = [item for item in items if item.strip()]
+    if not used:
+        return
+    if layout == "auto":
+        # 글자 수로 어림한다. 정확한 폭은 잴 수 없으므로 넉넉하게 잡는다.
+        longest = max(len(item) for item in used)
+        layout = "1" if longest <= 6 else ("2" if longest <= 16 else "v")
+    rows = ([used] if layout == "1"
+            else [used[:3], used[3:]] if layout == "2"
+            else [[item] for item in used])
+    mark = 0
+    for row in rows:
+        if not row:
+            continue
+        first = True
+        paragraph = None
+        for item in row:
+            label = f"{MARKS[mark % len(MARKS)]} "
+            mark += 1
+            if first:
+                paragraph = emit_rich(doc, label + item, report, styles,
+                                      para="choice", char="body", where=where)
+                first = False
+                continue
+            # 같은 문단에 탭으로 이어 붙인다 — 탭은 <hp:t> 안에 들어간다.
+            doc.append_run_xml(
+                f'<hp:t xmlns:hp="{HP}"><hp:tab width="0" leader="0" type="1"/>'
+                f'{xml_escape(label)}</hp:t>',
+                paragraph_index=paragraph, char_pr_id=styles["char_body"])
+            # ⚠️ 라벨 뒤 본문도 **수식 처리를 거쳐야 한다.** 글자로 그냥 붙이면 둘째
+            #    선지부터 `$\dfrac32$` 가 원문 그대로 찍힌다(실제로 그랬다 — 첫 선지만
+            #    emit_rich 를 타서 분수로 나오고 나머지는 달러 기호째 나왔다).
+            for kind_, value in split_inline(item):
+                if kind_ == "text":
+                    _append_text(doc, paragraph, value, styles["char_body"])
+                    continue
+                try:
+                    doc.append_inline_equation(convert(value), paragraph_index=paragraph,
+                                               char_pr_id=styles["char_body"], base_unit=1050)
+                    report.equations += 1
+                except UnsupportedTex as exc:
+                    report.warnings.append(f"{where}: 선지 수식 변환 실패 — {exc} ({value})")
+                    _append_text(doc, paragraph, f"[수식 변환 실패: {value}]", styles["char_body"])
+
+
 def build(raw: object, output: str | Path) -> Report:
     document = validate(raw)
     doc = HwpxDocument.blank()
@@ -273,6 +342,10 @@ def build(raw: object, output: str | Path) -> Report:
                        styles, where=where)
         elif kind == "box":
             emit_box(doc, block["text"], block["label"], report, styles, where=where)
+        elif kind == "examples":
+            emit_examples(doc, block["items"], block["label"], report, styles, where=where)
+        elif kind == "choices":
+            emit_choices(doc, block["items"], block["layout"], report, styles, where=where)
         else:
             mark = "•" if kind == "bullets" else None
             for item_no, item in enumerate(block["items"], 1):

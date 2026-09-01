@@ -3,7 +3,8 @@
 AI에게 HWPX/XML을 직접 만들게 하지 않는다. 이 계약을 통과한 블록만 브라우저 미리보기와
 HWPX 조판기로 넘긴다. 새 블록을 추가할 때는 여기와 두 출력기를 함께 확장해야 한다.
 
-지원 블록: heading·paragraph·equation·quote·bullets·numbered·table·image·box.
+지원 블록: heading·paragraph·equation·quote·bullets·numbered·table·image·box
+          ·examples(<보기> ㄱㄴㄷ)·choices(선지 ①②③④⑤).
 
 표 칸 안에는 수식을 넣을 수 없다(`_cell_text` 가 `$` 를 거절한다) — 조용히 글자 그대로
 찍히면 사용자가 렌더된 줄 착각한다.
@@ -26,7 +27,7 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-from pedagogy_hwpx import image_size  # noqa: E402
+from pedagogy_hwpx import MARKS, image_size  # noqa: E402
 
 
 MAX_TITLE = 180
@@ -46,6 +47,10 @@ TABLE_BLOCKS = {"table"}
 IMAGE_BLOCKS = {"image"}
 BOX_BLOCKS = {"box"}
 MAX_BOX_LABEL = 40
+EXAMPLE_BLOCKS = {"examples"}     # <보기> — ㄱㄴㄷ 항목
+CHOICE_BLOCKS = {"choices"}       # 선지 — ①②③④⑤
+MAX_EXAMPLES = 6                  # HGND 가 ㄱ~ㅂ 여섯 개다
+CHOICE_LAYOUTS = ("auto", "1", "2", "v")
 
 
 class DocumentValidationError(ValueError):
@@ -154,6 +159,33 @@ def validate(raw: Any) -> Document:
             if label is not None:
                 label = _text(label, f"{where}.label", limit=MAX_BOX_LABEL)
             clean.append({"type": kind, "text": text, "label": label})
+        elif kind in EXAMPLE_BLOCKS:
+            items = block.get("items")
+            if not isinstance(items, list) or not items:
+                raise DocumentValidationError(f"{where}.items 가 한 개 이상 필요합니다")
+            if len(items) > MAX_EXAMPLES:
+                raise DocumentValidationError(
+                    f"{where}.items 는 최대 {MAX_EXAMPLES}개입니다 (라벨이 ㄱ~ㅂ 뿐입니다)")
+            label = block.get("label", "<보기>")
+            if label is not None:
+                label = _text(label, f"{where}.label", limit=MAX_BOX_LABEL)
+            clean.append({"type": kind, "label": label,
+                          "items": [_text(item, f"{where}.items[{i}]")
+                                    for i, item in enumerate(items, 1)]})
+        elif kind in CHOICE_BLOCKS:
+            items = block.get("items")
+            if not isinstance(items, list) or not items:
+                raise DocumentValidationError(f"{where}.items 가 한 개 이상 필요합니다")
+            if len(items) > len(MARKS):
+                raise DocumentValidationError(
+                    f"{where}.items 는 최대 {len(MARKS)}개입니다 (라벨이 ①~⑤ 뿐입니다)")
+            layout = block.get("layout", "auto")
+            if layout not in CHOICE_LAYOUTS:
+                raise DocumentValidationError(
+                    f"{where}.layout 은 {'·'.join(CHOICE_LAYOUTS)} 중 하나여야 합니다")
+            clean.append({"type": kind, "layout": layout,
+                          "items": [_text(item, f"{where}.items[{i}]")
+                                    for i, item in enumerate(items, 1)]})
         elif kind in IMAGE_BLOCKS:
             # ⚠️ **파일 경로를 받지 않는다.** `serve.py` 의 `/document-hwpx` 는 "경로도 임의
             #    XML 도 받지 않는다" 를 보안 전제로 명시하고 있다. 그림은 base64 로 실어

@@ -105,17 +105,44 @@ function dismissError() {
  *    그래서 앱은 **한 번만 띄우고 끝까지 살려 둔다.** 파일을 전부 연 뒤 창 목록을
  *    한 번에 읽어 판정하고, 문서는 ⌘W 로 닫는다(앱은 그대로 둔다).
  */
-function closeDocuments() {
-  // 앱을 끄지 않고 열린 문서만 닫는다. 저장 여부를 묻지 않도록 변경 없는 문서만 연다.
-  osa(`tell application "System Events" to tell process "${APP}" `
-    + 'to keystroke "w" using {command down, option down}');
-  spawnSync("sleep", ["2"]);
+function closeDocuments(stem) {
+  /* 앱을 끄지 않고 문서 창만 닫는다.
+   *
+   * ⚠️ `⌘W` 나 `⌘⌥W` 는 이 앱에 먹지 않는다(창이 그대로 남았다). **창의 닫기 단추를
+   *    직접 눌러야** 닫힌다. 이름을 주면 그 이름의 창만, 안 주면 전부 닫는다. */
+  const match = stem
+    ? `whose name contains ${JSON.stringify(stem)}`
+    : "";
+  for (let i = 0; i < 8; i++) {
+    const r = osa(`tell application "System Events" to tell process "${APP}"
+      set targets to (every window ${match})
+      if (count of targets) is 0 then return "done"
+      click (first button of item 1 of targets whose subrole is "AXCloseButton")
+      return "closed"
+    end tell`);
+    if (r.status !== 0 || r.stdout.includes("done")) break;
+    spawnSync("sleep", ["1"]);
+  }
 }
 
 let failed = 0;
 const results = [];
 for (const target of targets) {
   const name = basename(target);
+  /* ⚠️ 같은 이름의 문서가 이미 열려 있으면 `open` 은 **다시 읽지 않고 그 창을 앞으로
+   *    가져올 뿐이다.** 그러면 고치기 전 내용을 보면서 ✅ 를 받는다(실제로 그랬다 —
+   *    수식이 원문으로 찍히는 버그를 고쳤는데 화면은 옛 내용을 계속 보여 줬다).
+   *    그래서 판정 전에 같은 이름의 창을 먼저 닫는다. */
+  const stemBefore = name.replace(/\.hwpx$/, "").normalize("NFC");
+  if (openWindows().some((w) => w.normalize("NFC").includes(stemBefore))) {
+    closeDocuments(stemBefore);
+    if (openWindows().some((w) => w.normalize("NFC").includes(stemBefore))) {
+      console.error(`  ⚠️ ${name} 이 이미 열려 있고 닫지 못했습니다. `
+        + "옛 내용을 보고 판정할 수 있어 건너뜁니다 — 한글에서 닫고 다시 실행하세요.");
+      failed++;
+      continue;
+    }
+  }
   spawnSync("open", ["-a", APP, target]);
   // 한글이 뜨고 문서를 읽을 때까지 기다린다. 오류 대화상자도 이 안에 뜬다.
   spawnSync("sleep", ["8"]);

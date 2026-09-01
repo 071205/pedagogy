@@ -42,6 +42,11 @@ BLANK_TEMPLATE = Path(__file__).resolve().parent / "templates" / "blank.hwpx"
 
 MM_TO_HWPUNIT = 7200 / 25.4
 
+# 문항 라벨. **양쪽 조판기(시험지·범용 문서)가 같은 것을 써야 한다** — 한쪽에만 두면
+# 다른 쪽이 베껴 쓰게 되고, 그러다 갈라진다(이 저장소가 여러 번 겪은 방식이다).
+MARKS = ["①", "②", "③", "④", "⑤"]        # 선지
+HGND = ["ㄱ", "ㄴ", "ㄷ", "ㄹ", "ㅁ", "ㅂ"]   # <보기> 항목
+
 
 def image_size(data: bytes) -> tuple[int, int] | None:
     """PNG·JPEG 의 가로·세로(px). 비율을 지키려면 필요하다.

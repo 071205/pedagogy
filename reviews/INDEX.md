@@ -25,6 +25,8 @@
 | `REV-2026-008` | `P2` | HWPX 내보내기가 편집기 work/ 그림 폴더를 탐색하지 않음 | `issues/2026-08-31-hwpx-work-images-not-exported.md` |
 | `REV-2026-011` | `P3` | HWPX 엔드포인트 검사가 기동 실패 때 그림 파일을 남김 | `issues/2026-08-31-tests-hwpx-endpoint-leaves-fixtures.md` |
 | `REV-2026-012` | `P0` | 빈 문서 골격의 끊어진 참조로 한글이 파일을 못 엶 | `issues/2026-08-31-document-blank-scaffold-dangling-refs.md` |
+| `REV-2026-013` | `P1` | 새 범용 문서 블록이 AI·브라우저에서 내보내기 전 차단됨 | `issues/2026-09-01-document-new-blocks-blocked-before-export.md` |
+| `REV-2026-014` | `P2` | 허용된 큰 그림이 base64 HTTP 본문 상한을 넘음 | `issues/2026-09-01-document-image-limit-exceeds-http-limit.md` |
 
 ## 최근 인계
 
@@ -52,3 +54,4 @@
 | `HANDOFF-2026-020` | Claude | 한컴 공개 규격서 확보 · 수식 변환기 규격 기반 전환 | `handoffs/2026-08-31-hwp-spec-based-equations.md` |
 | `HANDOFF-2026-021` | Claude | 범용 문서에 그림 블록 추가 (base64) | `handoffs/2026-09-01-document-image-block.md` |
 | `HANDOFF-2026-022` | Claude | 범용 문서에 테두리 상자 블록 추가 | `handoffs/2026-09-01-document-box-block.md` |
+| `HANDOFF-2026-023` | Claude | 범용 문서에 <보기>·선지 블록 추가 | `handoffs/2026-09-01-document-exam-blocks.md` |
