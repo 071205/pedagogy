@@ -58,3 +58,4 @@
 | `HANDOFF-2026-023` | Claude | 범용 문서에 <보기>·선지 블록 추가 | `handoffs/2026-09-01-document-exam-blocks.md` |
 | `HANDOFF-2026-024` | Codex | 범용 문서 블록 경계 독립 검토 | `handoffs/2026-09-01-independent-review-document-block-boundaries.md` |
 | `HANDOFF-2026-025` | Claude | 새 블록을 네 경계에 함께 반영 (Codex 검토 반영) | `handoffs/2026-09-01-document-block-boundaries-fix.md` |
+| `HANDOFF-2026-026` | Claude | AI 문서 화면을 본체 디자인에 맞춤 | `handoffs/2026-09-01-document-editor-design-unified.md` |
