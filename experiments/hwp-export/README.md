@@ -53,9 +53,8 @@ b[16:18] = 직계 PARA_LINE_SEG   줄 수
 그래서 **HWPX(ZIP + XML)** 로 옮겼다(`make_probe_hwpx.py`).
 
 - 크기·개수 카운터가 없어 조용히 깨질 여지가 적다.
-- jakal-hwpx 의 검증기가 HWPX 쪽에 훨씬 두껍다 —
-  `strict_validate`, `xml_validation_errors`, `reference_validation_errors`,
-  `stale_paragraph_layout_validation_errors`, `strict_lint_errors`.
+- HWPX 검사와 패키지 조립은 PEDAGOGY 내부 `pedagogy_hwpx.py`가 맡는다. 외부 자칼은
+  초기 실험·바이너리 HWP 분석에만 참고했으며, 내보내기 런타임에는 포함하지 않는다.
 - 파일이 작다: 같은 내용이 HWP 10MB → **HWPX 5KB**
   (HWP 쪽은 원본 틀·그림을 통째로 안고 갔기 때문이다. HWPX 는 빈 문서에서 새로 만든다.)
 - 원본 파일에서 파생되지 않으므로 **저작물 문제도 함께 사라진다.** 가져오는 것은
@@ -63,15 +62,14 @@ b[16:18] = 직계 PARA_LINE_SEG   줄 수
 
 ### 줄 나눔 캐시 — 답이 나왔다
 
-jakal-hwpx 의 진단 문구가 답을 알려 준다:
+초기 실험의 진단 결과가 답을 알려 줬다:
 
 > "Plain-text paragraph carries linesegarray text positions beyond the text length;
 > **Hancom may drop following content.**"
 
 즉 **한글은 낡은 줄 나눔 캐시가 남아 있으면 뒤 내용을 버린다.** 해결책은 캐시를 맞게
-고치는 것이 아니라 **아예 넣지 않는 것**이다 — 라이브러리의 `repair_stale_paragraph_layout()`
-도 정확히 그렇게 한다(`linesegarray` 를 제거). `make_probe_hwpx.py` 는 처음부터 만들지
-않고, 저장 전에 `stale_paragraph_layout_validation_errors()` 로 남은 것이 없는지 확인한다.
+고치는 것이 아니라 **아예 넣지 않는 것**이다. 내부 엔진도 새 문단에는 줄 나눔 캐시를
+쓰지 않는다.
 
 ### ✅ 한글에서 실제로 확인함 (2026-08-30)
 
@@ -327,6 +325,13 @@ run4: linesegarray            → 낡은 줄 캐시       지운다
 
 - **구역이 여럿이다**(공통·선택). `section0` 만 비우면 `section1` 이 실물 문항과 그림을
   그대로 안고 있어, 지운 그림을 참조하는 깨진 문서가 된다.
+
+  ⚠️ **비우는 것만으로는 부족하다.** 한동안 30문항을 전부 `section0` 에 쓰고 `section1` 은
+  빈 채로 두었다. 그래서 선택과목 문항이 공통 머리말 아래 이어 붙고, 선택 구역은 빈 쪽
+  하나로 나왔다. 실물은 공통과 선택이 **서로 다른 구역**이라(머리말이 다르고 쪽번호가
+  1부터 다시 매겨진다) `build()` 가 `CUR["sec"]` 로 구역을 갈라 쓴다 —
+  **모든 `doc.*` 호출에 `section_index` 를 넘겨야 한다.** 하나만 빠져도 그 조각이 공통
+  구역으로 떨어진다. `test_sections.py` 가 검사한다.
 - **그림 파일만 지우면 안 된다.** `content.hpf` 의 목록에 참조가 남아
   `manifest references missing part` 로 깨진다. 목록에서도 지워야 한다.
 
@@ -458,8 +463,6 @@ python3 test_layout.py     # 편집기 규칙과 일치하는지
 - **그림 배치** — 넣는 것은 되지만 항상 문단 흐름에 붙는다. 실물처럼 글 옆에 두거나
   단 폭에 맞춰 감싸는 배치는 아직 없다.
 
-- **제품 UI 연결** — 편집기에 '한글로 내보내기' 단추를 붙이는 일. 파이썬 변환기이므로
-  `serve.py` 에 엔드포인트를 두는 방식이 기존 `/render` 와 결이 같다.
 - 한 문단 안에 굵게/밑줄이 섞인 경우의 글자모양 구간 경계 (`hwpdoc.py` 쪽)
 
 실물 시험지는 양끝맞춤을 위해 한 문단에 글자모양 구간을 8개까지 나눠 자간을 손으로
@@ -477,3 +480,23 @@ python3 make_probe.py   # 한글로 열어 볼 실험 파일 생성
 
 실물 시험지 `.hwp` 는 저작물이라 저장소에 넣지 않는다(`.gitignore`). 없으면 검사를
 건너뛴다. 생성물(`out/`)도 원본의 틀·그림을 그대로 품으므로 함께 무시한다.
+
+## 범용 AI 문서 조판 베타
+
+`document-editor.html`은 과제·보고서·안내문처럼 모의고사가 아닌 문서를 다룬다.
+AI는 HWPX/XML을 직접 만들지 않고 `document_schema.py`가 제한한 JSON 블록만 돌려준다.
+그 JSON을 브라우저에서 다시 검증·미리보기 한 뒤, 로컬 `POST /document-hwpx`가
+`document_to_hwpx.py`로 조판한다.
+
+현재 지원: 제목, 제목글 1~3단계, 본문·인라인 LaTex 수식, 별행 수식, 글머리표,
+번호 목록, 인용문. 표·이미지·복잡한 고정 양식의 정밀 재현은 아직 지원하지 않는다.
+
+```bash
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r experiments/hwp-export/requirements.txt
+python3 serve.py
+```
+
+그다음 `http://127.0.0.1:8787/document-editor.html`을 연다. AI 초안은 배포된 Worker의
+로그인·일일 사용량을 그대로 따르고, HWPX 내보내기는 위처럼 `lxml`을 설치한 로컬 서버에서만
+가능하다.

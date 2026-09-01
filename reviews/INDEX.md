@@ -4,7 +4,12 @@
 
 ## 열린 이슈
 
-현재 열린 이슈 없음.
+| ID | 심각도 | 요약 | 파일 |
+| --- | --- | --- | --- |
+| `REV-2026-009` | `P2` | HWPX 시험지에 '단답형' 구획 태그가 없다 | `issues/2026-08-31-mock-hwpx-missing-short-answer-tag.md` |
+| `REV-2026-010` | `P3` | HWPX 시험지에 '※ 확인 사항' 상자가 없다 | `issues/2026-08-31-mock-hwpx-missing-confirm-box.md` |
+
+둘 다 **실물 대조가 필요해 일부러 손대지 않았다** — 모양이 틀린 것을 넣으면 없는 것보다 나쁘다.
 
 ## 최근 해결
 
@@ -18,6 +23,8 @@
 | `REV-2026-006` | `P2` | CI 얕은 클론에서 `git diff --check HEAD~1 HEAD` 항상 실패 | `issues/2026-08-28-tests-ci-shallow-checkout-diff-check-fails.md` |
 | `REV-2026-007` | `P2` | HWPX 그림 경로가 작업 폴더 밖 파일을 읽음 | `issues/2026-08-31-hwpx-image-path-traversal.md` |
 | `REV-2026-008` | `P2` | HWPX 내보내기가 편집기 work/ 그림 폴더를 탐색하지 않음 | `issues/2026-08-31-hwpx-work-images-not-exported.md` |
+| `REV-2026-011` | `P3` | HWPX 엔드포인트 검사가 기동 실패 때 그림 파일을 남김 | `issues/2026-08-31-tests-hwpx-endpoint-leaves-fixtures.md` |
+| `REV-2026-012` | `P0` | 빈 문서 골격의 끊어진 참조로 한글이 파일을 못 엶 | `issues/2026-08-31-document-blank-scaffold-dangling-refs.md` |
 
 ## 최근 인계
 
@@ -37,3 +44,11 @@
 | `HANDOFF-2026-012` | Claude | 모의고사 한글(HWPX) 내보내기 · 베타 (제품 연결) | `handoffs/2026-08-31-mock-hwpx-export-beta.md` |
 | `HANDOFF-2026-013` | Codex | HWPX 그림 경로 제한 및 `work` 폴더 연결 | `handoffs/2026-08-31-hwpx-image-path-safety.md` |
 | `HANDOFF-2026-014` | Claude | HWPX 검사를 실행 경로에 연결 + 엔드포인트 동작 검사 | `handoffs/2026-08-31-hwpx-tests-wired-and-endpoint-check.md` |
+| `HANDOFF-2026-015` | Claude | 30문항·선택과목 검증 · 구역 분리 · HWPX 검사 CI 연결 | `handoffs/2026-08-31-hwpx-full-exam-sections-and-ci.md` |
+| `HANDOFF-2026-016` | Codex | HWPX 엔드포인트 검사 실패 시 임시 그림 정리 | `handoffs/2026-08-31-hwpx-endpoint-cleanup.md` |
+| `HANDOFF-2026-017` | Codex | 자칼 런타임 제거 및 내부 HWPX 엔진 이관 | `handoffs/2026-08-31-internal-hwpx-runtime.md` |
+| `HANDOFF-2026-018` | Codex | 범용 AI 문서 JSON·미리보기·HWPX 베타 | `handoffs/2026-08-31-document-ai-json-hwpx-beta.md` |
+| `HANDOFF-2026-019` | Claude | 범용 문서 HWPX에 표 블록 추가 | `handoffs/2026-08-31-document-table-block.md` |
+| `HANDOFF-2026-020` | Claude | 한컴 공개 규격서 확보 · 수식 변환기 규격 기반 전환 | `handoffs/2026-08-31-hwp-spec-based-equations.md` |
+| `HANDOFF-2026-021` | Claude | 범용 문서에 그림 블록 추가 (base64) | `handoffs/2026-09-01-document-image-block.md` |
+| `HANDOFF-2026-022` | Claude | 범용 문서에 테두리 상자 블록 추가 | `handoffs/2026-09-01-document-box-block.md` |

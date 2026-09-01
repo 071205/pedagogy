@@ -51,6 +51,9 @@ python3 serve.py --open
 - `/` serves `index.html` if present, else falls back to `mock-exam-editor.html`.
 - `--port <n>` to change the port; `--allow-origin <https://...>` to allow an additional
   https origin to call `/render` (localhost is always allowed).
+- `--reload-hwpx` 는 `experiments/hwp-export` 의 변환기를 **요청마다 다시 불러온다**.
+  변환기를 고쳐 가며 실험할 때만 쓴다 — 평소에는 서버가 켜질 때 한 번만 불러온다
+  (이 서버는 스레드로 동시 요청을 받아, 도중에 모듈을 갈아 끼우면 섞인다).
 - `--lan` 은 같은 와이파이의 다른 기기(아이패드 등)에서 쓰려고 `0.0.0.0` 에 여는 옵션이다.
   **임의 호스트명은 그때도 계속 거절하고**, 이 PC 의 사설 IP 만 Host/Origin 허용에 더한다
   (그렇게 해야 DNS 리바인딩 방어가 유지된다). 이 모드에서는 상용 글꼴을 내보내는
@@ -92,11 +95,39 @@ node worker/quota.test.mjs
 
 한글(HWPX) 내보내기 검사는 `npm run test:hwpx` 로 돈다(`check:fast` 에 포함).
 변환기 의존성(`jakal-hwpx`)은 **제품 의존성이 아니라** `experiments/hwp-export/requirements.txt`
-에만 있으므로, 없는 환경에서는 **건너뛴다고 출력하고 통과**한다 — 건너뛴 것과 통과한 것을
-출력에서 구분하니, '도는 줄 알았는데 안 돌던' 상태가 생기지 않는다.
+에만 있으므로, 없는 환경에서는 **건너뛴다고 출력하고 통과**한다.
+
+**건너뜀은 통과가 아니다.** 러너가 셋을 구분해 찍는다 — `✅` 실행·통과 / `⏭` 건너뜀 /
+`❌` 실패. 검사 스크립트는 종료코드로 이유를 알린다:
+
+| 코드 | 뜻 | `HWPX_REQUIRE=1` 에서 |
+|---|---|---|
+| `0` | 통과 | 통과 |
+| `2` | 저장소에 둘 수 없는 자료가 없어 건너뜀 (실물 틀 — 저작물) | 통과(갖출 방법이 없다) |
+| `3` | 설치·파일로 해결 가능한 건너뜀 (의존성·표본) | **실패** |
+
+CI 는 `.github/workflows/verify.yml` 의 **`hwpx` 작업**에서 `HWPX_REQUIRE=1` 로 돈다.
+제품 검사(`verify`)와 **분리된 작업**이라 베타 의존성이 제품 검사 환경에 섞이지 않는다.
+CI 에는 실물 틀이 없으므로 `test_structure` · `test_sections` 는 `⏭` 로 남는다 — **그 둘은
+사람이 로컬에서 돌려야 한다.**
 
 ⚠️ 이 검사들은 한동안 **어떤 실행 경로에도 걸려 있지 않았다.** 편집기 규칙을 옮겨 적은
 사본이 어긋나도 아무도 모르는 상태였다. 새 검사를 만들면 러너에 거는 것까지 해야 한다.
+
+**선지 배치 정답표.** `experiments/hwp-export/samples/choice-layout-truth.json` 은 **진짜
+편집기를 브라우저에 띄워 받아 적은 답**이고, `test_layout.py` 가 파이썬 변환기를 그것과
+대조한다. 다시 재려면 `npm run update:hwpx-truth`.
+
+⚠️ 그 정답표는 **낡을 수 있다.** 그래서 파일에 편집기 규칙의 지문(`_editorRules`)을 함께
+적어 두고 `check:static` 이 맞춰 본다(브라우저도 파이썬도 필요 없어 CI 에서 항상 돈다).
+편집기의 `SPEC`·`measureCh`·`layoutOf`·`hasGND`·`choiceItems` 를 고치면 빨간불이 나며 다시
+재라고 알려 준다 — 규칙 조각의 **모양**을 바꿨다면 `scripts/editor-layout-rules.mjs` 의
+패턴도 함께 고쳐야 한다.
+
+⚠️ 브라우저로 실제 폭을 재는 대조(`npm run test:hwpx-parity`)는 **일부러 CI 에 걸지
+않았다.** `measureCh()` 는 글꼴 실측이라 CI 리눅스와 개발 컴퓨터의 값이 다르고, 임계값에
+1mm 차로 붙은 선지가 있어(문항 28의 마지막 선지 21.2mm vs 한도 22.2mm) 쉽게 깜빡인다.
+깜빡이는 검사는 없느니만 못하다. 대신 지문으로 '낡음' 을 잡는다.
 
 **A check that always passes is worse than no check.** Every trap below was found by
 deliberately breaking the thing under test and confirming the suite went red — do that for any
@@ -336,6 +367,27 @@ own save/load — does not share PEDAGOGY's Firebase storage).
   ⚠️ 변환기는 편집기의 `probUnits()`·`buildPages()`·`layoutOf()` 를 **옮겨 적은 사본**이다.
   편집기 쪽 규칙이 바뀌면 `experiments/hwp-export/mock_to_hwpx.py` 도 같이 고쳐야 한다
   (`test_layout.py` 가 그 일치를 검사한다).
+  - **공통과 선택은 서로 다른 구역(section)이다.** 틀 파일에 구역이 둘 있고
+    (`section0` 공통 · `section1` 선택), 선택 구역의 머리말이 `수학 영역(확률과 통계)` 이며
+    쪽번호가 1 부터 다시 매겨진다. 편집기의 `buildPages()` 도 공통→선택에서 반드시 새 쪽
+    왼쪽 단부터 시작한다. `build()` 가 `CUR["sec"]` 로 어느 구역에 쓸지 정하고,
+    **모든 `doc.*` 호출이 그 값을 함께 넘긴다** — 하나라도 빠지면 그 조각만 공통 구역으로
+    떨어져 선지나 그림만 앞 쪽에 남는 식으로 조용히 깨진다(`test_sections.py`).
+    선택과목 이름은 `template.set_masthead_elective()` 가 넣는다. 안 하면 사용자가 미적분을
+    골라도 틀에 박힌 `확률과 통계` 가 인쇄된다.
+  - **선지 배치는 편집기가 정해서 보낸다.** 편집기는 KaTeX 로 실제 렌더 폭을 재지만
+    (`measureCh`) 파이썬은 못 잰다. 그래서 `toHwpx()` 가 `hwpxPayload()` 로 문항마다
+    `layoutResolved`(`'1'|'2'|'v'`)를 실어 보내고, 변환기는 그 값을 최우선으로 쓴다.
+    ⚠️ `hwpxPayload()` 는 **반드시 사본을 만들어** 필드를 붙인다. `currentData()` 의
+    `problems` 는 `state.problems` 그 자체라, 여기에 쓰면 저장 JSON 과 임시저장까지 오염된다.
+    변환기의 어림(`_text_mm`/`_math_mm`)은 CLI·손으로 쓴 JSON 용 대비책이다 — `$…$` 는
+    마크업이 아니라 **조판된 모습**으로 재야 한다(글자를 그대로 세면 분수 하나가 30mm 를
+    넘어 멀쩡한 선지가 세로로 떨어진다).
+  - **변환기는 서버가 켜질 때 한 번만 불러온다**(`serve.py` 의 `load_hwpx()`).
+    ⚠️ 요청마다 `importlib.reload()` 하면 안 된다 — 이 서버는 `ThreadingHTTPServer` 라
+    한 요청이 `build()` 를 도는 사이 다른 요청이 모듈을 갈아 끼울 수 있다. 변환기를 고쳐
+    가며 실험할 때만 `python3 serve.py --reload-hwpx` 로 예전 동작을 켠다.
+  - 아직 없는 것: `단답형` 구획 태그(`REV-2026-009`), `※ 확인 사항` 상자(`REV-2026-010`).
 
 ### serve.py
 
