@@ -20,6 +20,18 @@ LaTeX 을 HWP 수식 스크립트로 바꿔야 한다. 웹 변환기(foreducator
 ⚠️ 이 변환기는 **모의고사에 실제로 쓰이는 범위**만 다룬다. LaTeX 전체를 덮지 않는다.
    모르는 명령을 만나면 조용히 버리지 않고 `UnsupportedTex` 를 던진다 —
    조용히 버리면 시험지에 수식이 빠진 채로 인쇄된다.
+
+출처와 고지
+-----------
+아래 대응표는 한글과컴퓨터가 공개한 **『한글 문서 파일 구조 - 수식』 revision 1.3** 을
+근거로 한다(그 전에는 실물 시험지 522개 수식에서 역으로 추측한 것이었다).
+
+⚠️ 그 공개 문서의 저작권 조항은 참고해 만든 결과물에 다음을 **반드시 기재**하도록 요구한다:
+
+    "본 제품은 한글과컴퓨터의 한글 문서 파일(.hwp) 공개 문서를 참고하여 개발하였습니다."
+
+그래서 이 고지는 소스(이 주석)와 사용자에게 보이는 곳 양쪽에 남아 있어야 한다.
+이 문구를 지우지 말 것 — 배포 조건이다.
 """
 
 from __future__ import annotations
@@ -50,12 +62,39 @@ SIMPLE = {
     "cap": "cap", "emptyset": "emptyset", "forall": "forall", "exists": "exists",
     "prime": "prime", "circ": "circ", "angle": "angle", "perp": "perp",
     "quad": "~~", "qquad": "~~~~", ",": "`", ";": "`", "!": "",
+    # 규격서(수식 revision 1.3) 1.2 기본 명령어·1.2.4 기호 종류에서 확인한 것들.
+    # 예전에는 실물 시험지에 나온 것만 넣어서 이 아래가 통째로 빠져 있었다.
+    "oint": "oint", "iint": "dint", "iiint": "tint",
+    "cong": "cong", "sim": "sim", "propto": "propto",
+    "supset": "supset", "subseteq": "subseteq", "supseteq": "supseteq",
+    "setminus": "\\", "nabla": "nabla", "partial": "partial",
+    "aleph": "aleph", "hbar": "hbar", "ell": "ell", "Re": "imag", "wp": "wp",
+    "vartheta": "vartheta", "varpi": "varpi", "varsigma": "varsigma",
+    "varupsilon": "varupsilon", "varepsilon": "varepsilon",
+    "eta": "eta", "zeta": "zeta", "iota": "iota", "kappa": "kappa", "nu": "nu",
+    "xi": "xi", "rho": "rho", "tau": "tau", "upsilon": "upsilon", "chi": "chi",
+    "psi": "psi", "Gamma": "GAMMA", "Theta": "THETA", "Lambda": "LAMBDA",
+    "Xi": "XI", "Pi": "PI", "Phi": "PHI", "Psi": "PSI",
+    "leftrightarrow": "lrarrow", "Leftarrow": "LARROW",
+    "Leftrightarrow": "LRARROW", "mp2": "-+",
+    # ⚠️ `\ `(역슬래시+공백)와 `\:` 도 LaTeX 의 공백 명령이다. 30문항 시험지를 처음
+    #    변환해 보고서야 빠진 것을 알았다 — `\mathrm{B}\!\left(20,\ \frac13\right)`
+    #    처럼 실제로 흔히 쓰는 표기가 통째로 `[수식 변환 실패]` 로 나갔다.
+    " ": "`", ":": "`",
 }
 
 # 인자 하나를 받아 앞에 붙는 것들
+# 규격서(수식 revision 1.3) 1.2.1 '글자 장식 명령어' 표를 그대로 옮긴 것.
 ACCENT = {"vec": "vec", "bar": "bar", "hat": "hat", "tilde": "tilde",
           "dot": "dot", "ddot": "ddot", "overline": "bar",
-          "mathrm": "rm", "mathit": "it", "mathbf": "bold", "text": "rm"}
+          "acute": "acute", "grave": "grave", "check": "check",
+          "breve": "arch", "underline": "under", "widehat": "hat",
+          "widetilde": "tilde",
+          "mathrm": "rm", "mathit": "it", "mathbf": "bold", "text": "rm",
+          "operatorname": "rm", "mathsf": "rm", "mathbb": "rm"}
+
+# 규격서 1.1.2.3 — 한 낱말이 이 길이를 넘으면 한글이 두 항으로 쪼갠다.
+MAX_TERM_CHARS = 9
 
 # LaTeX 의 '조판 힌트' — HWP 에는 대응물이 없고 한글이 알아서 크기를 정한다.
 # 버려도 뜻이 달라지지 않으므로 조용히 무시하는 것이 맞다. 반대로 뜻이 있는 명령을
@@ -146,6 +185,15 @@ def convert(tex: str) -> str:
                 arg, i = _read_group(tex, i + 1)
                 out.append(c + "{" + convert(arg) + "}")
                 continue
+            # ⚠️ 규격서 1.1.2.3 — **한 낱말이 9자를 넘으면 한글이 두 항으로 쪼갠다.**
+            #    그래서 긴 낱말은 영문 따옴표로 묶어 하나로 만들어야 한다. 안 그러면
+            #    수식이 조용히 다른 모양으로 조판된다(오류가 아니라 결과가 달라진다).
+            run = re.match(r"[A-Za-z0-9]+", tex[i:])
+            if run:
+                word = run.group(0)
+                out.append(f'"{word}"' if len(word) > MAX_TERM_CHARS else word)
+                i += run.end()
+                continue
             out.append(c)
             i += 1
             continue
@@ -220,9 +268,13 @@ def _convert_env(env: str, body: str) -> str:
 
     if env == "cases":
         return "cases{ " + joined + " }"
-    if env in ("pmatrix", "bmatrix", "matrix", "vmatrix"):
-        return {"pmatrix": "pmatrix", "bmatrix": "bmatrix",
-                "matrix": "matrix", "vmatrix": "vmatrix"}[env] + "{ " + joined + " }"
+    if env in ("pmatrix", "bmatrix", "matrix", "vmatrix", "Vmatrix"):
+        # ⚠️ 한글에는 `vmatrix` 라는 명령이 **없다**. 규격서(수식 revision 1.3, 1.2절)의
+        #    행렬 명령은 MATRIX · PMATRIX · BMATRIX · DMATRIX 넷뿐이고, 세로줄로 감싸는
+        #    것이 DMATRIX 다. 예전에는 `vmatrix` 를 그대로 내보내 한글이 모르는 명령이
+        #    시험지에 들어갔다.
+        return {"pmatrix": "pmatrix", "bmatrix": "bmatrix", "matrix": "matrix",
+                "vmatrix": "dmatrix", "Vmatrix": "dmatrix"}[env] + "{ " + joined + " }"
     if env in ("aligned", "align", "eqalign", "array"):
         return "eqalign{ " + joined + " }"
     raise UnsupportedTex(f"아직 지원하지 않는 환경: {env}")
