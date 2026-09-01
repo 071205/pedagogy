@@ -43,3 +43,44 @@ jobs:
         run: python3 -c 'from pathlib import Path; compile(Path("serve.py").read_text(encoding="utf-8"), "serve.py", "exec")'
       - name: Whitespace errors
         run: git diff --check HEAD~1 HEAD
+
+  # ── 한글(HWPX) 내보내기 — 베타 ──────────────────────────────────────────
+  # 본 검사(verify)와 **분리된 작업**이다. 변환기 XML 의존성(lxml)은 제품 의존성이
+  # 아니므로 제품 검사 환경에 섞지 않는다. 여기서만 venv 에 깔고, 여기서만 쓴다.
+  # 이 작업을 통째로 지우면 예전 상태(= CI 에서 아무것도 검사하지 않음)로 돌아간다.
+  #
+  # ⚠️ HWPX_REQUIRE=1 이 핵심이다. 이게 없으면 의존성이 없을 때 '건너뛰고 통과' 라
+  #    CI 는 아무것도 검사하지 않으면서 초록불이 된다 — 이 저장소가 세 번 겪은
+  #    실패 방식이다. 설치가 깨지면 여기서 빨간불이 난다.
+  #
+  # ⚠️ 실물 틀(`평가원 수학 양식.hwpx`)은 저작물이라 저장소에 없다. 그래서 틀이 필요한
+  #    검사(test_structure · test_sections)는 CI 에서 ⏭ 로 건너뛴다. 러너가 건너뜀과
+  #    통과를 구분해 찍으므로, 로그만 봐도 무엇이 실제로 돌았는지 알 수 있다.
+  #    그 둘은 지금도 사람이 로컬에서 돌려야 한다.
+  #
+  # ⚠️ 브라우저로 실제 폭을 재는 대조(`test:hwpx-parity`)는 **일부러 걸지 않았다.**
+  #    `measureCh()` 는 글꼴 실측이라 CI 리눅스와 개발 컴퓨터의 값이 다르고, 임계값에
+  #    1mm 차로 붙은 선지가 있어 깜빡이는 검사가 된다. 대신 정답표에 편집기 규칙의
+  #    지문을 적어 두고 `check:static` 이 낡음을 잡는다(그건 CI 에서 항상 돈다).
+  hwpx:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install the beta converter dependencies
+        run: |
+          python3 -m venv .hwpxvenv
+          .hwpxvenv/bin/pip install --disable-pip-version-check \
+            -r experiments/hwp-export/requirements.txt
+      - name: HWPX export checks
+        env:
+          # 상대 경로를 쓰면 검사가 experiments/hwp-export 를 작업 폴더로 자식을
+          # 띄우는 자리에서 어긋난다. 절대 경로로 준다.
+          HWPX_PYTHON: ${{ github.workspace }}/.hwpxvenv/bin/python
+          HWPX_REQUIRE: '1'
+        run: npm run test:hwpx

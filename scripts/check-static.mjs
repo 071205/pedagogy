@@ -72,5 +72,28 @@ assert.match(integration, /fitPrintDoc\(\)/, "격리 통합 검사는 인쇄 오
 assert.match(server, /"\/integration-test\.html"/, "로컬 서버는 격리 통합 검사 페이지만 화이트리스트로 제공해야 합니다");
 assert.match(server, /mock_to_hwpx\.build\(req, out, images=\[WORK\]\)/,
   "HWPX 내보내기는 편집기가 안내한 work 그림 폴더만 전달해야 합니다");
+assert.match(server, /"\/document-hwpx"/, "범용 문서 HWPX 내보내기 경로가 필요합니다");
+assert.match(server, /load_document_hwpx/, "범용 문서 변환기도 잠금 안에서 불러와야 합니다");
+const hwpxConverter = await text("experiments/hwp-export/mock_to_hwpx.py");
+assert.doesNotMatch(hwpxConverter, /from jakal_hwpx|import jakal_hwpx/,
+  "HWPX 내보내기 런타임은 외부 jakal-hwpx를 직접 불러오면 안 됩니다");
+assert.doesNotMatch(server, /importlib\.reload\(mock_to_hwpx\)/,
+  "요청마다 변환기를 reload 하면 안 됩니다 — 이 서버는 스레드로 동시 요청을 받습니다");
+assert.match(server, /def load_hwpx\(/, "HWPX 변환기는 잠금 안에서 한 번만 불러와야 합니다");
+
+// ── 선지 배치 정답표가 낡지 않았는가 ──────────────────────────────────────
+// 파이썬 검사(test_layout.py)는 이 정답표를 상대로 변환기를 대조한다. 편집기의 배치
+// 규칙이 바뀌면 정답표가 조용히 낡고, 그 검사는 **낡은 표를 상대로 계속 통과**한다.
+// 여기서 지문을 맞춰 그 상태를 막는다. 브라우저도 파이썬도 필요 없어 항상 돈다.
+if (await exists("experiments/hwp-export/samples/choice-layout-truth.json")) {
+  const { fingerprint } = await import("./editor-layout-rules.mjs");
+  const mockEditor = await text("mock-exam-editor.html");
+  const truth = JSON.parse(await text("experiments/hwp-export/samples/choice-layout-truth.json"));
+  assert.ok(Object.keys(truth.layouts || {}).length,
+    "선지 배치 정답표가 비어 있습니다 — 아무것도 검사하지 않게 됩니다");
+  assert.equal(truth._editorRules, fingerprint(mockEditor),
+    "편집기의 선지 배치 규칙이 바뀌었는데 정답표를 다시 재지 않았습니다. "
+    + "UPDATE_HWPX_TRUTH=1 node scripts/check-hwpx-parity.mjs 를 실행하세요");
+}
 
 console.log("Commercial static checks passed");

@@ -44,6 +44,7 @@ STATIC = {
     "/": ("index.html" if (HERE / "index.html").is_file() else "mock-exam-editor.html",
           "text/html; charset=utf-8"),
     "/mock-exam-editor.html": ("mock-exam-editor.html", "text/html; charset=utf-8"),
+    "/document-editor.html": ("document-editor.html", "text/html; charset=utf-8"),
     # PEDAGOGY 본체를 같은 폴더에 두면 여기서 같이 띄울 수 있다 (같은 출처가 되어
     # 모의고사 모드에서 /render 를 그대로 부를 수 있다)
     "/index.html": ("index.html", "text/html; charset=utf-8"),
@@ -228,6 +229,79 @@ def _compile_typ_locked(src: str, ppi: int) -> dict:
         return {"ok": True, "pages": out, "log": log}
 
 
+# ── 한글(HWPX) 변환기 불러오기 ────────────────────────────────────────────
+# ⚠️ 예전에는 요청마다 `importlib.reload()` 를 했다. 변환기를 고쳐 가며 실험할 때
+#    서버를 껐다 켜지 않아도 돼 편했지만, 이 서버는 `ThreadingHTTPServer` 라 동시
+#    요청이 실제로 겹친다. 한 요청이 `build()` 를 도는 사이 다른 요청이 모듈을 갈아
+#    끼우면 옛 클래스와 새 클래스가 섞이고, `sys.path` 를 넣었다 빼는 것도 스레드
+#    사이에서 안전하지 않다(남이 끼워 넣은 항목을 `pop(0)` 할 수 있다).
+#    그래서 **잠금 안에서 한 번만** 불러 두고 그 뒤로는 그대로 쓴다.
+#    변환기를 고쳐 가며 실험할 때만 `--reload-hwpx` 로 예전 동작을 켠다.
+_HWPX: dict = {"mod": None}
+_DOCUMENT_HWPX: dict = {"mod": None}
+_HWPX_LOCK = threading.Lock()
+HWPX_RELOAD = False
+
+
+def load_hwpx(exp: Path):
+    """(변환기 모듈, 실패 사유). 성공한 것만 기억한다.
+
+    실패는 기억하지 않는다 — 서버를 켜 둔 채 의존성을 설치하고 다시 눌러 보는 것이
+    가장 흔한 흐름인데, 실패까지 캐시하면 서버를 껐다 켜야만 한다.
+    """
+    with _HWPX_LOCK:
+        if _HWPX["mod"] is not None and not HWPX_RELOAD:
+            return _HWPX["mod"], None
+        import importlib
+        added = str(exp) not in sys.path
+        if added:
+            sys.path.insert(0, str(exp))
+        try:
+            mod = importlib.import_module("mock_to_hwpx")
+            if HWPX_RELOAD:
+                mod = importlib.reload(mod)
+            _HWPX["mod"] = mod
+            return mod, None
+        except Exception as e:                      # noqa: BLE001
+            return None, e
+        finally:
+            if added:
+                # 값으로 지운다 — 다른 스레드가 끼워 넣었을 수 있어 pop(0) 은 위험하다.
+                try:
+                    sys.path.remove(str(exp))
+                except ValueError:
+                    pass
+
+
+def load_document_hwpx(exp: Path):
+    """범용 문서 변환기를 한 번만 불러온다.
+
+    모의고사 변환기와 같은 내부 HWPX 엔진을 쓰되 입력 계약이 달라 별도 모듈로 둔다.
+    요청 때마다 reload하지 않는 이유와 잠금은 `load_hwpx()`와 같다.
+    """
+    with _HWPX_LOCK:
+        if _DOCUMENT_HWPX["mod"] is not None and not HWPX_RELOAD:
+            return _DOCUMENT_HWPX["mod"], None
+        import importlib
+        added = str(exp) not in sys.path
+        if added:
+            sys.path.insert(0, str(exp))
+        try:
+            mod = importlib.import_module("document_to_hwpx")
+            if HWPX_RELOAD:
+                mod = importlib.reload(mod)
+            _DOCUMENT_HWPX["mod"] = mod
+            return mod, None
+        except Exception as e:                      # noqa: BLE001
+            return None, e
+        finally:
+            if added:
+                try:
+                    sys.path.remove(str(exp))
+                except ValueError:
+                    pass
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "ExamRender/1.0"
     protocol_version = "HTTP/1.1"
@@ -393,7 +467,7 @@ class Handler(BaseHTTPRequestHandler):
     # ── POST /render ──
     def do_POST(self):
         path = self.path.split("?", 1)[0]
-        if path not in ("/render", "/hwpx"):
+        if path not in ("/render", "/hwpx", "/document-hwpx"):
             return self._json(404, {"error": "not found"})
         if not self._host_ok():
             return self._json(403, {"error": "forbidden host"})
@@ -421,6 +495,8 @@ class Handler(BaseHTTPRequestHandler):
 
         if path == "/hwpx":
             return self._hwpx(req)
+        if path == "/document-hwpx":
+            return self._document_hwpx(req)
 
         src = req.get("typ")
         if not isinstance(src, str) or not src.strip():
@@ -458,18 +534,11 @@ class Handler(BaseHTTPRequestHandler):
         if not isinstance(problems, list) or not problems:
             return self._json(400, {"error": "문항이 없습니다"})
 
-        sys.path.insert(0, str(exp))
-        try:
-            import importlib
-            mock_to_hwpx = importlib.import_module("mock_to_hwpx")
-            importlib.reload(mock_to_hwpx)
-        except Exception as e:
+        mock_to_hwpx, err = load_hwpx(exp)
+        if mock_to_hwpx is None:
             return self._json(501, {
                 "error": "한글 내보내기 준비가 되지 않았습니다 · "
-                         f"experiments/hwp-export/requirements.txt 를 설치해 주세요 ({e})"})
-        finally:
-            if sys.path and sys.path[0] == str(exp):
-                sys.path.pop(0)
+                         f"experiments/hwp-export/requirements.txt 를 설치해 주세요 ({err})"})
 
         with tempfile.TemporaryDirectory() as tmp:
             out = Path(tmp) / "exam.hwpx"
@@ -496,6 +565,44 @@ class Handler(BaseHTTPRequestHandler):
         except BrokenPipeError:
             pass
 
+    # ── 범용 문서 한글(HWPX) 내보내기 · 베타 ─────────────────────────────
+    # AI와 브라우저 미리보기는 `document_schema.py`의 JSON 블록만 주고받는다.
+    # 이 경로는 파일 경로나 임의 XML을 받지 않으며, 위 do_POST의 같은 로컬 보안
+    # 관문을 지난 요청만 처리한다.
+    def _document_hwpx(self, req: dict):
+        raw = req.get("document")
+        if not isinstance(raw, dict):
+            return self._json(400, {"error": "문서 JSON이 없습니다"})
+        exp = HERE / "experiments" / "hwp-export"
+        if not (exp / "document_to_hwpx.py").exists():
+            return self._json(501, {"error": "범용 문서 한글 내보내기 준비가 되지 않았습니다"})
+        converter, err = load_document_hwpx(exp)
+        if converter is None:
+            return self._json(501, {"error": "한글 내보내기 준비가 되지 않았습니다 · "
+                                     f"requirements.txt를 설치해 주세요 ({err})"})
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                out = Path(tmp) / "document.hwpx"
+                report = converter.build(raw, out)
+                if not out.exists():
+                    return self._json(500, {"error": "결과 파일이 만들어지지 않았습니다"})
+                data = out.read_bytes()
+        except converter.DocumentValidationError as e:
+            return self._json(400, {"error": f"문서 JSON 오류: {e}"})
+        except Exception:
+            # 내부 파일 경로·스택은 응답에 노출하지 않는다.
+            return self._json(500, {"error": "문서를 한글 파일로 조판하지 못했습니다"})
+        self.send_response(200)
+        self.send_header("Content-Type", "application/vnd.hancom.hwpx")
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("X-Hwpx-Warnings", str(len(report.warnings)))
+        self._cors()
+        self.end_headers()
+        try:
+            self.wfile.write(data)
+        except BrokenPipeError:
+            pass
+
 
 def main():
     ap = argparse.ArgumentParser()
@@ -503,15 +610,19 @@ def main():
     ap.add_argument("--open", action="store_true", help="브라우저를 자동으로 연다")
     ap.add_argument("--allow-origin", action="append", default=[],
                     help="이 로컬 서버를 부를 수 있는 https 사이트 주소 (여러 번 지정 가능)")
+    ap.add_argument("--reload-hwpx", action="store_true",
+                    help="요청마다 한글 변환기를 다시 불러온다 "
+                         "(experiments/hwp-export 를 고쳐 가며 실험할 때만)")
     ap.add_argument("--lan", action="store_true",
                     help="같은 와이파이의 다른 기기(아이패드 등)에서 접속할 수 있게 연다 "
                          "— 보안이 약해지므로 개인 와이파이에서만 사용")
     a = ap.parse_args()
 
-    global LAN_MODE, LAN_IPS
+    global LAN_MODE, LAN_IPS, HWPX_RELOAD
     LAN_MODE = a.lan
     if LAN_MODE:
         LAN_IPS = private_ips()
+    HWPX_RELOAD = a.reload_hwpx
 
     for o in a.allow_origin:
         ALLOW_ORIGINS.add(o.rstrip("/"))
