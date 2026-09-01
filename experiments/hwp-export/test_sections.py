@@ -44,8 +44,16 @@ if not TEMPLATE.exists():
 
 def section_text(z: zipfile.ZipFile, index: int) -> str:
     xml = z.read(f"Contents/section{index}.xml").decode("utf-8")
+    # 쪽 머리말·꼬리말은 **본문이 아니다.** 같이 펴면 그 글자가 본문 앞에 달라붙어
+    # `수학 영역(확률과 통계)3` + `27.` = `…)327.` 이 되고, 번호 정규식의 앞막음에
+    # 걸려 27번이 통째로 없는 것처럼 보인다(실제로 그렇게 오진했다).
+    xml = re.sub(r"<hp:(header|footer)\b.*?</hp:\1>", "", xml, flags=re.S)
     runs = re.findall(r"<hp:t(?:\s[^>]*)?>(.*?)</hp:t>", xml, re.S)
-    return re.sub(r"<[^>]+>", "", "".join(runs))
+    joined = "".join(runs)
+    # 탭은 글자 사이를 벌리는 **공백**이다. 그냥 지우면 `16.` 과 발문이 붙어
+    # `16. ` 을 찾는 검사가 헛돈다(실물처럼 번호 뒤를 탭으로 바꾸자 그렇게 됐다).
+    joined = re.sub(r"<hp:tab[^>]*/>", " ", joined)
+    return re.sub(r"<[^>]+>", "", joined)
 
 
 def problem_numbers(text: str) -> list[int]:

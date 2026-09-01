@@ -48,6 +48,7 @@ class Report:
     equations: int = 0
     figures: int = 0
     breaks: int = 0
+    pages: int = 0
     choice_rows: int = 0
     warnings: list[str] = field(default_factory=list)
 
@@ -367,6 +368,20 @@ def column_starts(problems: list[dict]) -> set[int]:
     return starts
 
 
+def page_starts(problems: list[dict]) -> set[int]:
+    """새 쪽에서 시작해야 하는 문항의 인덱스(첫 쪽은 뺀다).
+
+    편집기 `buildPages()` 와 같은 규칙이다 — **한 쪽은 두 단**이므로 단 시작을
+    두 번 셀 때마다 새 쪽이다.
+
+    ⚠️ 예전에는 쪽나눔을 아예 내보내지 않고 한글이 알아서 넘기기를 기대했다.
+       그러면 쪽 경계가 편집기 미리보기와 어긋나고, 무엇보다 **이어지는 쪽의
+       머리말을 붙일 자리를 알 수 없다**(실물은 2쪽 첫 문단에 머리말을 단다).
+    """
+    cols = [0] + sorted(column_starts(problems))
+    return {c for n, c in enumerate(cols) if n and n % 2 == 0}
+
+
 def mark_column_break(doc: HwpxDocument) -> bool:
     """마지막으로 만든 문단을 '새 단에서 시작' 으로 표시한다.
 
@@ -515,6 +530,22 @@ def _sty(para: str) -> str | None:
     return STYLE.get("style_" + para.removeprefix("para_"))
 
 
+# 실물에서 잰 값이다. 번호 뒤는 **공백이 아니라 탭**이고, 자릿수마다 탭 구성이 다르다.
+#   한 자리(1~9)  : 탭 하나(636)
+#   두 자리(10~)  : 탭 둘(132·671)
+# ⚠️ 공백으로 두면 발문이 번호 바로 뒤에서 시작해 **한 자리와 두 자리 문항의 발문
+#    시작 위치가 어긋난다** — 번호만 삐뚤어 보이는 증상이 이것이다(실물 대조로 확인).
+NUM_TAB_WIDTHS = {1: (636,), 2: (132, 671)}
+
+
+def num_prefix_xml(num: object) -> str:
+    """`12.` + 탭 — 문항 번호 앞머리 한 조각."""
+    label = str(num)
+    widths = NUM_TAB_WIDTHS.get(min(len(label), 2), NUM_TAB_WIDTHS[2])
+    tabs = "".join(f'<hp:tab width="{w}" leader="0" type="1"/>' for w in widths)
+    return f'<hp:t xmlns:hp="{HP}">{xml_escape(label)}.{tabs}</hp:t>'
+
+
 def emit_rich(doc: HwpxDocument, text: str, rep: Report, *, where: str,
               para: str = "para_stem", char: str = "char_stem",
               prefix: str = "", into: int | None = None) -> int:
@@ -529,16 +560,19 @@ def emit_rich(doc: HwpxDocument, text: str, rep: Report, *, where: str,
         # 새 문단을 만들면 비워진 틀 문단이 빈 줄로 남아 첫 문항이 밀린다.
         idx = into
         if prefix:
-            doc.append_run_xml(f'<hp:t xmlns:hp="{HP}">{xml_escape(prefix)}</hp:t>',
-                               section_index=cur_sec(),
+            doc.append_run_xml(num_prefix_xml(prefix), section_index=cur_sec(),
                                paragraph_index=idx, char_pr_id=STYLE.get("char_num"))
         rest = parts
     elif prefix:
-        doc.append_paragraph(prefix, section_index=cur_sec(),
+        # 번호는 빈 문단을 만든 뒤 **run 으로** 넣는다 — `append_paragraph()` 는
+        # 글자만 받아 탭을 넣을 수 없다(탭은 `<hp:t>` 안의 요소다).
+        doc.append_paragraph("", section_index=cur_sec(),
                              para_pr_id=STYLE.get(para),
                              style_id=_sty(para),
                              char_pr_id=STYLE.get("char_num"))
         idx = doc.paragraph_count(cur_sec()) - 1
+        doc.append_run_xml(num_prefix_xml(prefix), section_index=cur_sec(),
+                           paragraph_index=idx, char_pr_id=STYLE.get("char_num"))
         rest = parts
     else:
         lead = parts[0][1] if parts and parts[0][0] == "text" else ""
@@ -606,7 +640,7 @@ def emit_problem(doc: HwpxDocument, p: dict, rep: Report,
         if u["k"] == "text":
             if first:
                 emit_rich(doc, u["t"] + tail, rep, where=where,
-                          para="para_stem", char="char_stem", prefix=f"{num}. ",
+                          para="para_stem", char="char_stem", prefix=str(num),
                           into=into)
                 into = None
             else:
@@ -664,9 +698,11 @@ def build(data: dict, out: Path, *, ref: str | Path | None = None,
     CUR["sec"] = 0          # 앞 호출이 예외로 끊겼어도 공통 구역에서 다시 시작한다
 
     template = Path(ref) if ref else DEFAULT_TEMPLATE
+    roles_page_header: dict[int, list[str]] = {}
     if template.suffix.lower() == ".hwpx" and template.exists():
         # 실물 틀을 그대로 쓴다 — 서식 id 만 알아내면 되고 새로 만들 것이 없다.
         doc, roles = tmpl.open_template(template)
+        roles_page_header = roles.get("_page_header") or {}
         PROFILE["_source"] = f"{template.name} (틀)"
         for role, spec in roles.items():
             if role.startswith("_"):
@@ -732,16 +768,36 @@ def build(data: dict, out: Path, *, ref: str | Path | None = None,
     #    같은 구역으로 갈 때(구역이 하나뿐인 틀) 선택 첫 문항이 공통 1번이 들어 있는
     #    문단 0 에 덧쓰여 순서가 뒤엉킨다(1, 23, 2, 3 … 으로 나왔다).
     framed: set[int] = set()
+    # 이어지는 쪽 머리말은 **구역마다 한 번만** 넣는다(실물과 같다 — 그 뒤 쪽은 물려받는다).
+    headers_done: set[int] = set()
+    page_header = (roles_page_header or {}) if from_template else {}
     for sec_i, group in groups:
         CUR["sec"] = sec_i
         breaks = column_starts(group)
+        pages = page_starts(group)
         for i, q in enumerate(group):
             before = doc.paragraph_count(sec_i)
             use_frame = i == 0 and sec_i not in framed and from_template
             emit_problem(doc, q, rep, into=0 if use_frame else None)
             if use_frame:
                 framed.add(sec_i)
-            if i in breaks and doc.paragraph_count(sec_i) > before:
+            if i in pages and doc.paragraph_count(sec_i) > before:
+                sec = doc.get_part(f"Contents/section{sec_i}.xml")
+                paras = [k for k in sec.root.children if k.local_name == "p"]
+                if len(paras) > before:
+                    paras[before].set_attr("pageBreak", "1")
+                    rep.pages += 1
+                    # 실물은 2쪽 첫 문단에 머리말을 한 번 정의한다. 안 넣으면 2쪽부터
+                    # 머리말이 사라져 '시험지 형식이 없어진' 것처럼 보인다.
+                    if sec_i not in headers_done and page_header.get(sec_i):
+                        for at, run_xml in enumerate(page_header[sec_i]):
+                            paras[before].insert_xml(at, run_xml)
+                        headers_done.add(sec_i)
+                    sec.mark_modified()
+            # ⚠️ 쪽나눔을 준 문단에 단나눔까지 주면 안 된다. 한글이 **둘 다** 수행해
+            #    새 쪽으로 넘어간 뒤 다시 단을 넘겨, 새 쪽 왼쪽 단이 통째로 빈다.
+            #    쪽나눔은 그 자체로 '새 쪽의 첫 단' 에서 시작한다.
+            if i in breaks and i not in pages and doc.paragraph_count(sec_i) > before:
                 # 문항의 '첫' 문단에 표시해야 한다 — 마지막에 하면 다음 문항이 넘어간다.
                 sec = doc.get_part(f"Contents/section{sec_i}.xml")
                 paras = [k for k in sec.root.children if k.local_name == "p"]
@@ -751,6 +807,13 @@ def build(data: dict, out: Path, *, ref: str | Path | None = None,
                     rep.breaks += 1
             rep.problems += 1
     CUR["sec"] = 0
+
+    # ⚠️ 이어지는 쪽 머리말은 **위 반복문에서야** 문서에 들어간다. 앞에서 부른
+    #    set_masthead_elective() 는 그때 없던 것을 고칠 수 없어 표지만 바뀌었고,
+    #    2쪽부터는 틀의 `확률과 통계` 가 그대로 인쇄됐다. 여기서 한 번 더 맞춘다.
+    late_elective = str(data.get("elective") or "").strip()
+    if from_template and late_elective:
+        tmpl.set_masthead_elective(doc, late_elective)
 
     for name in ["xml_validation_errors", "reference_validation_errors",
                  "stale_paragraph_layout_validation_errors", "validation_errors",
@@ -778,7 +841,7 @@ def main(argv: list[str]) -> int:
     imgs = [Path(argv[3])] if len(argv) > 3 else [src.parent]
     rep = build(data, out, images=imgs)
     print("조판 규격 출처:", PROFILE.get("_source") or "(없음)")
-    print(f"문항 {rep.problems}개, 수식 {rep.equations}개, 그림 {rep.figures}개, 단나눔 {rep.breaks}회 → {out} ({out.stat().st_size:,} bytes)")
+    print(f"문항 {rep.problems}개, 수식 {rep.equations}개, 그림 {rep.figures}개, 단나눔 {rep.breaks}회, 쪽나눔 {rep.pages}회 → {out} ({out.stat().st_size:,} bytes)")
     if rep.warnings:
         print(f"\n⚠️ 경고 {len(rep.warnings)}건 (조용히 넘기지 않습니다):")
         for w in rep.warnings[:20]:

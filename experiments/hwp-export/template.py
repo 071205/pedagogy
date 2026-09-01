@@ -153,6 +153,37 @@ def read_roles(path: Path) -> dict:
     return out
 
 
+def capture_page_headers(doc: HwpxDocument) -> dict[int, list[str]]:
+    """이어지는 쪽의 머리말 정의를 **본문을 비우기 전에** 떠 둔다.
+
+    ⚠️ 실물은 쪽마다 머리말을 다시 넣지 않는다. `수학 영역` 머리말은 **2쪽 첫 문단**의
+       `<hp:ctrl><hp:header>…</hp:header></hp:ctrl>` 한 번뿐이고, 3쪽부터는 그것을
+       물려받는다(실물 대조: 5번 문단에만 있고 8·13·18번 문단에는 없다).
+       그래서 `clear_body()` 가 그 문단을 지우면 **2쪽부터 머리말이 통째로 사라진다.**
+       여기서 먼저 떠 두었다가 `mock_to_hwpx.build()` 가 새 2쪽 첫 문단에 도로 넣는다.
+
+    돌려주는 값은 `{구역 번호: [run XML, …]}` 이다. 머리말이 없는 틀이면 빈 dict.
+    """
+    found: dict[int, list[str]] = {}
+    for path in [p for p in doc.list_part_paths()
+                 if p.startswith("Contents/section") and p.endswith(".xml")]:
+        try:
+            sec_i = int(path.removeprefix("Contents/section").removesuffix(".xml"))
+        except ValueError:
+            continue
+        sec = doc.get_part(path)
+        for para in [k for k in sec.root.children if k.local_name == "p"]:
+            runs = [r for r in para.children
+                    if r.local_name == "run"
+                    and any(n.local_name == "header" for n in r.iter())]
+            if runs:
+                # 첫 번째로 나오는 것만 쓴다 — 실물에 하나뿐이고, 여러 개를 넣으면
+                # 쪽마다 머리말이 겹쳐 찍힌다.
+                found[sec_i] = [r.to_xml() for r in runs]
+                break
+    return found
+
+
 def clear_body(doc: HwpxDocument) -> int:
     """본문을 비우되 **첫 문단은 남긴다** — 거기에 구역·단 정의가 들어 있다.
 
@@ -269,24 +300,41 @@ def set_masthead_elective(doc: HwpxDocument, elective: str) -> bool:
     ⚠️ 틀에는 `확률과 통계` 가 박혀 있다. 이걸 바꾸지 않으면 사용자가 미적분을 골라도
        시험지에는 확률과 통계로 인쇄된다(실제로 그랬다). 공통 구역의 머리말은
        괄호가 없는 `수학 영역` 이라 여기에 걸리지 않는다.
+
+    ⚠️ 한 구역에 `수학 영역(…)` 은 **하나가 아니다.** 표지 머리말 하나에 더해
+       이어지는 쪽 머리말(짝수 쪽·홀수 쪽)이 있다. 첫 것만 바꾸면 1쪽만 미적분이고
+       2쪽부터는 틀에 박힌 확률과 통계가 그대로 인쇄된다. 그래서 **다른 이름이
+       남아 있는 곳이 없을 때까지** 되풀이한다.
+
+    ⚠️ 돌려주는 값은 '고쳤는가' 가 아니라 **'머리말이 이제 맞는가'** 다. 고른 과목이
+       틀에 박힌 것과 같으면 고칠 것이 없는데, 그걸 실패로 보고하면 호출한 쪽이
+       "틀에서 선택과목 머리말을 찾지 못했다" 는 헛경고를 붙인다(실제로 그랬다).
     """
-    changed = False
+    found = False
     for path in [p for p in doc.list_part_paths()
                  if p.startswith("Contents/section") and p.endswith(".xml")]:
         sec = doc.get_part(path)
-        texts = [n for n in sec.root.iter() if n.local_name == "t"]
-        joined = "".join(n.text or "" for n in texts)
-        at = joined.find(_AREA_OPEN)
-        if at < 0:
-            continue
-        start = at + len(_AREA_OPEN)
-        close = joined.find(")", start)
-        if close < 0:
-            continue
-        if _replace_span(texts, start, close, elective):
+        for _ in range(8):          # 되풀이 상한 — 못 고치는 자리에서 맴돌지 않게
+            texts = [n for n in sec.root.iter() if n.local_name == "t"]
+            joined = "".join(n.text or "" for n in texts)
+            hit, at = None, 0
+            while True:
+                at = joined.find(_AREA_OPEN, at)
+                if at < 0:
+                    break
+                start = at + len(_AREA_OPEN)
+                close = joined.find(")", start)
+                if close < 0:
+                    break
+                found = True
+                if joined[start:close] != elective:
+                    hit = (start, close)
+                    break
+                at = close + 1
+            if hit is None or not _replace_span(texts, hit[0], hit[1], elective):
+                break
             sec.mark_modified()
-            changed = True
-    return changed
+    return found
 
 
 def strip_bindata(doc: HwpxDocument) -> int:
@@ -330,6 +378,8 @@ def open_template(path: Path | str) -> tuple[HwpxDocument, dict]:
         # 이름 붙은 스타일이 없는 틀이면 내용을 보고 추측하는 쪽으로 내려간다.
         roles = read_roles(path)
     doc = HwpxDocument.open(str(path))
+    # ⚠️ 순서가 중요하다 — `clear_body()` 뒤에 부르면 머리말은 이미 지워진 뒤다.
+    roles["_page_header"] = capture_page_headers(doc)
     clear_body(doc)
     strip_bindata(doc)
     return doc, roles

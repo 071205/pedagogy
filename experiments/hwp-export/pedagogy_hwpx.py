@@ -149,6 +149,14 @@ class XmlNode:
         self.part.mark_modified()
         return XmlNode(node, self.part)
 
+    def to_xml(self) -> str:
+        """이 노드를 XML 문자열로 돌려준다.
+
+        틀에서 조각(이어지는 쪽 머리말 등)을 **본문을 비우기 전에** 떠 두려고 쓴다.
+        조판기가 `element` 를 직접 만지지 않도록 이 표면으로만 내보낸다.
+        """
+        return etree.tostring(self.element, encoding="unicode")
+
     def insert_xml(self, index: int, xml: str | bytes) -> "XmlNode":
         node = etree.fromstring(xml.encode("utf-8") if isinstance(xml, str) else xml)
         self.element.insert(index, node)
