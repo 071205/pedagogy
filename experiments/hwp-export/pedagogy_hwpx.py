@@ -274,15 +274,22 @@ class HwpxDocument:
 
     def append_paragraph(self, text: str, *, section_index: int = 0,
                          para_pr_id: str | None = None, style_id: str | None = None,
-                         char_pr_id: str | None = None) -> XmlNode:
+                         char_pr_id: str | None = None, with_run: bool = True) -> XmlNode:
+        """빈 문단을 하나 잇는다.
+
+        `with_run=False` 면 **글자 run 을 만들지 않는다.** 곧바로 다른 run 을 붙일
+        자리에 쓴다 — 그러지 않으면 빈 `<hp:t/>` run 이 앞에 남는다. 실물 시험지의
+        문항 문단은 번호 run 으로 바로 시작하므로 그 모양을 맞추려는 것이다.
+        """
         section = self._section(section_index)
         paragraph = etree.SubElement(section.element, qn("hp", "p"))
         paragraph.attrib.update({"id": str(self.paragraph_count(section_index) - 1),
                                  "paraPrIDRef": str(para_pr_id or "0"),
                                  "styleIDRef": str(style_id or "0"),
                                  "pageBreak": "0", "columnBreak": "0", "merged": "0"})
-        run = etree.SubElement(paragraph, qn("hp", "run"), charPrIDRef=str(char_pr_id or "0"))
-        etree.SubElement(run, qn("hp", "t")).text = text
+        if with_run:
+            run = etree.SubElement(paragraph, qn("hp", "run"), charPrIDRef=str(char_pr_id or "0"))
+            etree.SubElement(run, qn("hp", "t")).text = text
         section.mark_modified()
         return XmlNode(paragraph, section)
 

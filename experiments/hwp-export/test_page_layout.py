@@ -197,7 +197,11 @@ def blanks_before_numbers(xml: str) -> dict[str, int]:
     return out
 
 
-LINE_MM = 6.694          # 본문 11.5pt × 줄간격 165% (틀에서 읽은 값)
+# 빈 문단 **하나가 실제로 차지하는 길이**. 줄 높이(6.696) + 문단 여백(4.057) 이다.
+# ⚠️ 줄 높이만 쓰면 안 된다 — 그렇게 계산했다가 둘째 문항이 목표 168.1mm 자리에
+#    219.6mm 로 놓였다(한글에 저장시켜 `linesegarray` 로 확인). 틀에서 읽는다.
+import template as _tmpl                                            # noqa: E402
+PAD_STEP_MM = _tmpl.open_template(TEMPLATE)[1]["_line_mm"]
 MASTHEAD_MM = 40.67      # 표제부가 먹는 높이 — 틀의 linesegarray 에서 잰 값
 
 # ── 실물에서 잰 '둘째 문항이 시작하는 자리'. `linesegarray` 의 vertpos 다.
@@ -225,7 +229,7 @@ gaps_tall = blanks_before_numbers(section_xml(build(tall), 0))
 gaps_none = blanks_before_numbers(sec0)          # 높이 없는 원래 표본
 
 check("높이를 주면 한 단 안 둘째 문항 앞이 벌어진다",
-      gaps_tall.get("2", 0) > 10, f"2번 앞 빈 문단 {gaps_tall.get('2')}개")
+      gaps_tall.get("2", 0) >= 8, f"2번 앞 빈 문단 {gaps_tall.get('2')}개")
 check("높이가 없으면 벌리지 않는다 (CLI·손으로 쓴 JSON 대비책)",
       gaps_none.get("2", 0) <= 1, f"2번 앞 빈 문단 {gaps_none.get('2')}개")
 # 3번은 새 단의 첫 문항이다 — 단의 마지막 문항 뒤를 벌리면 그 단이 넘친다.
@@ -234,13 +238,16 @@ check("단이 바뀌는 자리는 벌리지 않는다",
 
 # 빈 문단으로 실제로 도달하는 자리가 목표(=실물 자리)와 한 줄 안쪽이어야 한다.
 target = mock_to_hwpx.slot_top_mm(1, 2, mock_to_hwpx.COL_H_FIRST_MM, MASTHEAD_MM)
-reached = MASTHEAD_MM + 20.0 + gaps_tall.get("2", 0) * LINE_MM
-check("빈 문단으로 도달하는 자리가 목표와 한 줄 안쪽이다",
-      abs(reached - target) <= LINE_MM,
+reached = MASTHEAD_MM + 20.0 + gaps_tall.get("2", 0) * PAD_STEP_MM
+check("빈 문단으로 도달하는 자리가 목표와 한 칸 안쪽이다",
+      abs(reached - target) <= PAD_STEP_MM,
       f"도달 {reached:.1f}mm · 목표 {target:.1f}mm")
 check("벌려도 단을 넘기지 않는다",
       reached <= mock_to_hwpx.COL_H_FIRST_MM,
       f"{reached:.1f}mm ≤ 단 {mock_to_hwpx.COL_H_FIRST_MM:.1f}mm")
+
+check("빈 문단 한 칸은 줄 높이보다 크다 (문단 여백을 빠뜨리면 잡힌다)",
+      PAD_STEP_MM > 8.0, f"{PAD_STEP_MM:.3f}mm (줄 높이만이면 6.694mm)")
 
 # 칸보다 큰 문항을 주면 음수가 되는데, 그때 벌리지 않아야 한다(칸 밖으로 밀지 않게).
 huge = {**data, "problems": [{**p, "heightMm": 400.0} for p in data["problems"]]}

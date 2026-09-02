@@ -153,45 +153,67 @@ def read_roles(path: Path) -> dict:
     return out
 
 
-def read_masthead_top_mm(doc: HwpxDocument) -> dict[int, float]:
-    """구역마다 **표제부가 먹는 높이**(mm). 첫 문항이 시작하는 자리다.
+def read_column_tops_mm(doc: HwpxDocument) -> dict[int, list[float]]:
+    """구역마다 **단별로 첫 내용이 시작하는 자리**(mm). 그 단의 '위 여백' 이다.
 
-    구역의 첫 문단에는 표제부(회차·수학 영역·제2교시·5지선다형 상자)와 **1번 문항이
-    함께** 들어 있다. 표제부가 글의 흐름 안에서 자리를 차지하므로 첫 문항은 단 맨 위가
-    아니라 그만큼 내려온 자리에서 시작한다. 실물에서 재면 40.7mm 다.
+    첫 쪽은 표제부(회차·수학 영역·제2교시·5지선다형 상자)가 글의 흐름에서 자리를
+    차지하므로 문항이 단 맨 위에서 시작하지 않는다. 실물에서 재면 두 구역 모두
 
-    ⚠️ 이 값을 빼지 않고 단 전체를 반으로 나누면 **둘째 문항이 그만큼 아래로 내려간다.**
-       실물 1쪽 왼단은 `40.7 + (295.43-40.7)/2 = 168.1mm` 에서 2번이 시작하는데(실측
-       168.5), 빼지 않으면 188.4mm 가 나온다 — 20mm 아래다. 실제로 그렇게 틀렸다.
+        단0 = 40.7mm · 단1 = 24.7mm · 단2 이후 = 0mm
+
+    이고, 우리가 만든 파일도 한글이 같은 자리에 놓는다(저장시켜 확인했다).
+
+    ⚠️ **이 값을 빼지 않으면 그만큼 아래로 내려간다.** 단 전체를 반으로 나누면 1쪽
+       왼단 둘째 문항이 188.4mm 에 놓인다 — 실물 168.5mm 보다 20mm 아래다.
+       오른단(24.7)을 0 으로 보면 12mm 어긋난다. 둘 다 실제로 겪었다.
 
     ⚠️ `clear_body()` 앞에서 읽어야 한다. 한글이 저장한 줄 정보(`linesegarray`)를 보는데,
        그건 본문을 비우면 함께 사라진다.
     """
-    out: dict[int, float] = {}
+    out: dict[int, list[float]] = {}
     for path in [p for p in doc.list_part_paths()
                  if p.startswith("Contents/section") and p.endswith(".xml")]:
         try:
             sec_i = int(path.removeprefix("Contents/section").removesuffix(".xml"))
         except ValueError:
             continue
-        paras = [k for k in doc.get_part(path).root.children if k.local_name == "p"]
-        if not paras:
-            continue
-        segs = [c for c in paras[0].children if c.local_name == "linesegarray"]
-        if not segs or not segs[0].children:
-            continue
-        try:
-            out[sec_i] = int(segs[0].children[0].get_attr("vertpos")) / MM_TO_HWPUNIT
-        except (TypeError, ValueError):
-            continue
+        tops: list[float] = []
+        want = True
+        for para in [k for k in doc.get_part(path).root.children if k.local_name == "p"]:
+            if para.get_attr("columnBreak") == "1" or para.get_attr("pageBreak") == "1":
+                want = True
+            if not want:
+                continue
+            segs = [c for c in para.children if c.local_name == "linesegarray"]
+            if not segs or not segs[0].children:
+                continue
+            try:
+                tops.append(int(segs[0].children[0].get_attr("vertpos")) / MM_TO_HWPUNIT)
+            except (TypeError, ValueError):
+                tops.append(0.0)
+            want = False
+            if len(tops) >= 4:
+                break
+        if tops:
+            out[sec_i] = tops
     return out
 
 
-def read_body_line_mm(doc: HwpxDocument, roles: dict) -> float | None:
-    """본문 한 줄의 높이(mm). 문항 사이를 빈 문단으로 벌릴 때 몇 개가 필요한지 센다.
+def read_pad_step_mm(doc: HwpxDocument, roles: dict) -> float | None:
+    """빈 문단 **하나가 실제로 차지하는 세로 길이**(mm).
 
-    글자 크기(1/100pt) × 줄간격(%) 로 구한다. 실물 틀은 11.5pt · 165% = 6.69mm 다.
-    ⚠️ 값을 박아 두지 않는다 — 틀을 바꾸면 줄 높이도 바뀌므로 틀에서 읽어야 한다.
+    문항 사이를 빈 문단으로 벌릴 때 몇 개가 필요한지 세는 값이다.
+
+    ⚠️ **줄 높이만 세면 안 된다.** 빈 문단 하나는 `줄 높이 + 문단 위·아래 여백` 만큼
+       차지한다. 실물 틀에서 재면
+
+           줄 높이 6.696mm(11.5pt × 165%) + 문단 아래 여백 4.057mm = 10.753mm
+
+       인데, 여백을 빼고 6.694mm 로 계산했더니 빈 문단이 실제보다 1.6배 크게 벌어져
+       둘째 문항이 219.6mm 까지 내려갔다(목표 168.1mm). 한글이 저장한 줄 정보
+       (`linesegarray` 의 vertpos 간격)로 확인한 값이다.
+
+    ⚠️ 값을 박아 두지 않는다 — 틀을 바꾸면 함께 바뀌므로 틀에서 읽어야 한다.
     """
     spec = roles.get("cont") or roles.get("stem") or {}
     para_id, char_id = spec.get("para"), spec.get("char")
@@ -216,7 +238,27 @@ def read_body_line_mm(doc: HwpxDocument, roles: dict) -> float | None:
         size = 1150            # 실물 본문 11.5pt — 글자 모양이 0(기본)이면 여기로 온다
     if not spacing:
         return None
-    return (size / 100) * (spacing / 100) / 72 * 25.4
+    line_mm = (size / 100) * (spacing / 100) / 72 * 25.4
+    return line_mm + _para_gap_mm(head, para_id)
+
+
+def _para_gap_mm(head, para_id) -> float:
+    """문단 위·아래 여백의 합(mm). 빈 문단 하나가 줄 높이에 더해 차지하는 만큼이다."""
+    for node in head.iter():
+        if node.local_name != "paraPr" or node.get_attr("id") != str(para_id):
+            continue
+        margin = next((c for c in node.iter() if c.local_name == "margin"), None)
+        if margin is None:
+            return 0.0
+        total = 0.0
+        for side in margin.children:
+            if side.local_name in ("prev", "next"):
+                try:
+                    total += int(side.get_attr("value")) / MM_TO_HWPUNIT
+                except (TypeError, ValueError):
+                    pass
+        return total
+    return 0.0
 
 
 def capture_page_headers(doc: HwpxDocument) -> dict[int, list[str]]:
@@ -446,8 +488,8 @@ def open_template(path: Path | str) -> tuple[HwpxDocument, dict]:
     doc = HwpxDocument.open(str(path))
     # ⚠️ 순서가 중요하다 — `clear_body()` 뒤에 부르면 머리말은 이미 지워진 뒤다.
     roles["_page_header"] = capture_page_headers(doc)
-    roles["_line_mm"] = read_body_line_mm(doc, roles)
-    roles["_masthead_mm"] = read_masthead_top_mm(doc)
+    roles["_line_mm"] = read_pad_step_mm(doc, roles)
+    roles["_column_tops"] = read_column_tops_mm(doc)
     clear_body(doc)
     strip_bindata(doc)
     return doc, roles

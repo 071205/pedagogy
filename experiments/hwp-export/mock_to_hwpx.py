@@ -429,13 +429,16 @@ def pad_lines(now_mm: float, target_mm: float, line_mm: float | None) -> int:
     ⚠️ 문항 높이는 **편집기가 실제로 재서 보낸 값**이다(`hwpxPayload`). 파이썬은 글꼴
        실측을 못 하므로, 값이 없으면 **벌리지 않는다** — 어림으로 넣으면 하나만 많아도
        다음 문항이 다음 단으로 밀려 배치가 통째로 어긋난다. 없는 것보다 나쁘다.
-    ⚠️ 내림으로 자른다. 올림하면 칸을 넘겨 같은 사고가 난다.
+    ⚠️ **반올림한다.** 처음에 내림으로 잘랐더니 빈 문단 한 개가 10.75mm 나 되어 최대
+       그만큼을 잃었고, 목표 168.1mm 자리에 155.1mm 로 놓였다(한글 실측). 반올림하면
+       어긋남이 반 칸(5.4mm) 안으로 줄고, 넘쳐도 그 문항 몫의 칸 안이라 배치가 깨지지
+       않는다.
     ⚠️ `emit_problem()` 이 문항마다 빈 문단을 **이미 하나** 붙인다(문항 사이 한 줄).
        그것도 한 줄을 차지하므로 여기서 빼지 않으면 칸마다 한 줄씩 넉넉해진다.
     """
     if not line_mm or line_mm <= 0:
         return 0
-    return max(0, int((target_mm - now_mm) // line_mm) - 1)
+    return max(0, round((target_mm - now_mm) / line_mm) - 1)
 
 
 def mark_column_break(doc: HwpxDocument) -> bool:
@@ -622,10 +625,12 @@ def emit_rich(doc: HwpxDocument, text: str, rep: Report, *, where: str,
     elif prefix:
         # 번호는 빈 문단을 만든 뒤 **run 으로** 넣는다 — `append_paragraph()` 는
         # 글자만 받아 탭을 넣을 수 없다(탭은 `<hp:t>` 안의 요소다).
+        # ⚠️ `with_run=False` 다. 기본값으로 두면 빈 `<hp:t/>` run 이 번호 앞에 남는데,
+        #    실물 문항 문단은 번호 run 으로 바로 시작한다.
         doc.append_paragraph("", section_index=cur_sec(),
                              para_pr_id=STYLE.get(para),
                              style_id=_sty(para),
-                             char_pr_id=STYLE.get("char_num"))
+                             char_pr_id=STYLE.get("char_num"), with_run=False)
         idx = doc.paragraph_count(cur_sec()) - 1
         doc.append_run_xml(num_prefix_xml(prefix), section_index=cur_sec(),
                            paragraph_index=idx, char_pr_id=STYLE.get("char_num"))
@@ -755,13 +760,13 @@ def build(data: dict, out: Path, *, ref: str | Path | None = None,
 
     template = Path(ref) if ref else DEFAULT_TEMPLATE
     roles_page_header: dict[int, list[str]] = {}
-    roles_masthead_mm: dict[int, float] = {}
+    roles_column_tops: dict[int, list[float]] = {}
     roles_line_mm: float | None = None
     if template.suffix.lower() == ".hwpx" and template.exists():
         # 실물 틀을 그대로 쓴다 — 서식 id 만 알아내면 되고 새로 만들 것이 없다.
         doc, roles = tmpl.open_template(template)
         roles_page_header = roles.get("_page_header") or {}
-        roles_masthead_mm = roles.get("_masthead_mm") or {}
+        roles_column_tops = roles.get("_column_tops") or {}
         roles_line_mm = roles.get("_line_mm")
         PROFILE["_source"] = f"{template.name} (틀)"
         for role, spec in roles.items():
@@ -842,8 +847,9 @@ def build(data: dict, out: Path, *, ref: str | Path | None = None,
         pads: dict[int, int] = {}
         for c_i, col in enumerate(column_slots(group)):
             col_h = COL_H_FIRST_MM if c_i // 2 == 0 else COL_H_NEXT_MM
-            # 구역의 **첫 단**만 표제부가 자리를 차지한다(그 문단에 1번이 함께 들어 있다).
-            top = (roles_masthead_mm.get(sec_i, 0.0) if c_i == 0 and from_template else 0.0)
+            # 단마다 위 여백이 다르다 — 첫 쪽은 표제부가 자리를 차지한다(단0 40.7 · 단1 24.7).
+            tops = roles_column_tops.get(sec_i, []) if from_template else []
+            top = tops[c_i] if c_i < len(tops) else 0.0
             for j, idx in enumerate(col[:-1]):
                 height = group[idx].get("heightMm")
                 if not height:
