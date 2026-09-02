@@ -8,10 +8,8 @@
 | --- | --- | --- | --- |
 | `REV-2026-009` | `P2` | HWPX 시험지에 '단답형' 구획 태그가 없다 | `issues/2026-08-31-mock-hwpx-missing-short-answer-tag.md` |
 | `REV-2026-010` | `P3` | HWPX 시험지에 '※ 확인 사항' 상자가 없다 | `issues/2026-08-31-mock-hwpx-missing-confirm-box.md` |
-| `REV-2026-016` | `P2` | 한 단 안의 문항이 실물처럼 벌어지지 않는다 | `issues/2026-09-01-mock-hwpx-problem-spacing-in-column.md` |
 
-셋 다 **일부러 손대지 않았다** — 모양이 틀린 것을 넣으면 없는 것보다 나쁘다.
-`009`·`010` 은 실물 대조가 필요하고, `016` 은 편집기가 문항 높이를 재서 보내는 설계 결정이 먼저다.
+둘 다 **실물 대조가 필요해 일부러 손대지 않았다** — 모양이 틀린 것을 넣으면 없는 것보다 나쁘다.
 
 ## 최근 해결
 
@@ -31,6 +29,7 @@
 | `REV-2026-014` | `P2` | 허용된 큰 그림이 base64 HTTP 본문 상한을 넘음 | `issues/2026-09-01-document-image-limit-exceeds-http-limit.md` |
 | `REV-2026-015` | `P1` | 시험지 번호 뒤 공백·2쪽부터 머리말 사라짐 | `issues/2026-09-01-mock-hwpx-number-tab-and-page-header.md` |
 | `REV-2026-017` | `P1` | 배포본에서 한글 내보내기가 제 주소로 요청해 404 | `issues/2026-09-01-hwpx-export-posts-to-page-origin.md` |
+| `REV-2026-016` | `P2` | 한 단 안의 문항이 실물처럼 벌어지지 않는다 | `issues/2026-09-01-mock-hwpx-problem-spacing-in-column.md` |
 
 ## 최근 인계
 
@@ -66,3 +65,4 @@
 | `HANDOFF-2026-027` | Claude | 시험지 문항 번호(탭)와 이어지는 쪽 머리말 | `handoffs/2026-09-01-mock-hwpx-number-tab-and-page-header.md` |
 | `HANDOFF-2026-028` | Claude | 한글 내보내기가 로컬 서버를 제대로 찾게 | `handoffs/2026-09-01-hwpx-export-server-discovery.md` |
 | `HANDOFF-2026-029` | Claude | 브라우저에서 도는 HWPX 조판기 (AI 문서) | `handoffs/2026-09-01-browser-hwpx-engine.md` |
+| `HANDOFF-2026-030` | Claude | 한 단 안 문항 간격 — 편집기가 재서 보낸다 | `handoffs/2026-09-01-mock-hwpx-column-spacing.md` |

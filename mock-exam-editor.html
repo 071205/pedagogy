@@ -1966,11 +1966,48 @@ $('#exportBtn').onclick=toTypst;
    ①~⑤ 를 한 줄로 그리는데 시험지는 세로로 나갔다(30문항 표본에서 21문항 중 3문항).
    그래서 **여기서 정한 배치를 함께 실어 보낸다.** 서버는 '1'·'2'·'v' 만 받아들이고,
    값이 없으면 예전처럼 어림한다(손으로 쓴 JSON·CLI 경로). */
+/* 문항이 시험지에서 차지하는 높이(mm)를 **실제로 재서** 준다.
+   ⚠️ 파이썬 변환기는 글꼴 실측을 못 한다 — 선지 배치(`layoutResolved`)를 여기서 정해
+      보내는 것과 같은 이유다. 이 값이 없으면 변환기는 문항 사이를 벌리지 못하고,
+      한 단에 든 문항 둘이 위쪽에 붙어 버린다(`REV-2026-016`).
+   ⚠️ 미리보기 모드('이 문항'/'전체')와 상관없이 항상 잴 수 있도록 화면 밖에 따로
+      그린다. 지금 화면을 건드리지 않는다.
+   ⚠️ `.slots` 의 균등 분할(`1fr`)을 꺼야 한다. 켜 두면 칸 높이가 나오지 지금 재려는
+      **문항 자신의 높이**가 나오지 않는다. */
+function measureProblemHeights(){
+  const paper=document.createElement('div');
+  paper.className='paper';
+  paper.style.cssText='position:absolute;left:-10000px;top:0;visibility:hidden;height:auto';
+  const body=document.createElement('div');
+  body.className='body';
+  body.style.cssText='position:static;height:auto;bottom:auto;left:0';
+  const col=document.createElement('div'); col.className='col';
+  const slots=document.createElement('div'); slots.className='slots';
+  slots.style.gridTemplateRows='none';
+  col.appendChild(slots); body.appendChild(col); paper.appendChild(body);
+  document.body.appendChild(paper);
+  const out={};
+  try{
+    const pairs=state.problems.map(p=>{
+      const cell=document.createElement('div');
+      cell.className='slot';
+      cell.innerHTML=renderProb(p);
+      slots.appendChild(cell);
+      return [p,cell];
+    });
+    // 쓰기(붙이기)를 다 끝낸 뒤에 읽는다 — 번갈아 하면 레이아웃을 매번 다시 계산한다.
+    for(const [p,cell] of pairs) out[p.id]=+(cell.getBoundingClientRect().height/MM).toFixed(2);
+  }finally{ paper.remove(); }
+  return out;
+}
+
 function hwpxPayload(){
   const d=currentData();
+  const heights=measureProblemHeights();
   // ⚠️ currentData() 의 problems 는 state.problems **그 자체**다. 여기에 필드를
   //    더하면 저장 JSON 과 임시저장까지 오염된다. 사본을 만들어 붙인다.
-  return {...d, problems:(d.problems||[]).map(p=>({...p, layoutResolved:layoutOf(p)}))};
+  return {...d, problems:(d.problems||[]).map(p=>({
+    ...p, layoutResolved:layoutOf(p), heightMm:heights[p.id]}))};
 }
 
 /* 서버가 없을 때 하는 말은 한 곳에만 둔다 — 두 자리(못 찾음·통신 실패)에서 같은 말을

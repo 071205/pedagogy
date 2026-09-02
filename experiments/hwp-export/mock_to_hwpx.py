@@ -49,6 +49,7 @@ class Report:
     figures: int = 0
     breaks: int = 0
     pages: int = 0
+    padded: int = 0
     choice_rows: int = 0
     warnings: list[str] = field(default_factory=list)
 
@@ -354,6 +355,14 @@ def emit_choices(doc: HwpxDocument, p: dict, unit: dict, rep: Report,
 # ⚠️ 편집기의 SPEC.perCol 이 바뀌면 이 값도 함께 고쳐야 한다.
 PER_COL = 2
 
+# ── 단 높이 (mm) ─────────────────────────────────────────────────────────
+# 편집기 Typst 정본의 `BOT - ruleY - 4.5mm` 와 같은 값이다.
+#   1쪽   : 359.41 - 59.48 - 4.5   (표지 머리말이 있어 괘선이 아래에 있다)
+#   2쪽~  : 359.41 - 35.01 - 4.5
+# ⚠️ 편집기의 RULE1 · RULEN · BOT 이 바뀌면 여기도 함께 고쳐야 한다.
+COL_H_FIRST_MM = 295.43
+COL_H_NEXT_MM = 319.90
+
 
 def column_starts(problems: list[dict]) -> set[int]:
     """새 단에서 시작해야 하는 문항의 인덱스."""
@@ -380,6 +389,36 @@ def page_starts(problems: list[dict]) -> set[int]:
     """
     cols = [0] + sorted(column_starts(problems))
     return {c for n, c in enumerate(cols) if n and n % 2 == 0}
+
+
+def column_slots(problems: list[dict]) -> list[list[int]]:
+    """단마다 어떤 문항 인덱스가 들어가는지. `column_starts()` 와 같은 규칙이다."""
+    starts = column_starts(problems)
+    cols: list[list[int]] = []
+    for i in range(len(problems)):
+        if i == 0 or i in starts:
+            cols.append([])
+        cols[-1].append(i)
+    return cols
+
+
+def pad_lines(height_mm: float | None, slot_mm: float, line_mm: float | None) -> int:
+    """문항 뒤에 넣을 빈 문단 수.
+
+    실물도 편집기도 **단을 균등하게 나눠 각 문항을 자기 칸 맨 위에 둔다**
+    (편집기 CSS `grid-template-rows: repeat(n, 1fr)` · Typst `rows: (1fr,) * n`).
+    그래서 앞 문항이 차지하고 남은 만큼을 빈 문단으로 메워 다음 문항을 자기 칸으로 민다.
+
+    ⚠️ `height_mm` 은 **편집기가 실제로 재서 보낸 값**이다(`hwpxPayload`). 파이썬은
+       글꼴 실측을 못 하므로, 값이 없으면 **벌리지 않는다** — 어림으로 넣으면 하나만
+       많아도 다음 문항이 다음 단으로 밀려 배치가 통째로 어긋난다. 없는 것보다 나쁘다.
+    ⚠️ 내림으로 자른다. 올림하면 칸을 넘겨 같은 사고가 난다.
+    ⚠️ `emit_problem()` 이 문항마다 빈 문단을 **이미 하나** 붙인다(문항 사이 한 줄).
+       그것도 한 줄을 차지하므로 여기서 빼지 않으면 칸마다 한 줄씩 넉넉해진다.
+    """
+    if not height_mm or not line_mm or line_mm <= 0:
+        return 0
+    return max(0, int((slot_mm - height_mm) // line_mm) - 1)
 
 
 def mark_column_break(doc: HwpxDocument) -> bool:
@@ -699,10 +738,12 @@ def build(data: dict, out: Path, *, ref: str | Path | None = None,
 
     template = Path(ref) if ref else DEFAULT_TEMPLATE
     roles_page_header: dict[int, list[str]] = {}
+    roles_line_mm: float | None = None
     if template.suffix.lower() == ".hwpx" and template.exists():
         # 실물 틀을 그대로 쓴다 — 서식 id 만 알아내면 되고 새로 만들 것이 없다.
         doc, roles = tmpl.open_template(template)
         roles_page_header = roles.get("_page_header") or {}
+        roles_line_mm = roles.get("_line_mm")
         PROFILE["_source"] = f"{template.name} (틀)"
         for role, spec in roles.items():
             if role.startswith("_"):
@@ -775,6 +816,16 @@ def build(data: dict, out: Path, *, ref: str | Path | None = None,
         CUR["sec"] = sec_i
         breaks = column_starts(group)
         pages = page_starts(group)
+
+        # 단 안에서 문항을 벌릴 양. 단의 **마지막 문항 뒤는 벌리지 않는다.**
+        # 한 쪽은 두 단이므로 단 번호를 2로 나눈 것이 쪽 번호이고, 그 구역의 첫 쪽만
+        # 표지 머리말 때문에 단이 짧다.
+        pads: dict[int, int] = {}
+        for c_i, col in enumerate(column_slots(group)):
+            slot_mm = (COL_H_FIRST_MM if c_i // 2 == 0 else COL_H_NEXT_MM) / PER_COL
+            for j, idx in enumerate(col[:-1]):
+                pads[idx] = pad_lines(group[idx].get("heightMm"), slot_mm, roles_line_mm)
+
         for i, q in enumerate(group):
             before = doc.paragraph_count(sec_i)
             use_frame = i == 0 and sec_i not in framed and from_template
@@ -805,6 +856,13 @@ def build(data: dict, out: Path, *, ref: str | Path | None = None,
                     paras[before].set_attr("columnBreak", "1")
                     sec.mark_modified()
                     rep.breaks += 1
+            # 다음 문항을 자기 칸으로 밀어 내린다(실물·편집기 모두 균등 분할이다).
+            for _ in range(pads.get(i, 0)):
+                doc.append_paragraph("", section_index=sec_i,
+                                     para_pr_id=STYLE.get("para_cont"),
+                                     style_id=_sty("para_cont"),
+                                     char_pr_id=STYLE.get("char_cont", STYLE.get("char_stem")))
+            rep.padded += pads.get(i, 0)
             rep.problems += 1
     CUR["sec"] = 0
 
@@ -841,7 +899,7 @@ def main(argv: list[str]) -> int:
     imgs = [Path(argv[3])] if len(argv) > 3 else [src.parent]
     rep = build(data, out, images=imgs)
     print("조판 규격 출처:", PROFILE.get("_source") or "(없음)")
-    print(f"문항 {rep.problems}개, 수식 {rep.equations}개, 그림 {rep.figures}개, 단나눔 {rep.breaks}회, 쪽나눔 {rep.pages}회 → {out} ({out.stat().st_size:,} bytes)")
+    print(f"문항 {rep.problems}개, 수식 {rep.equations}개, 그림 {rep.figures}개, 단나눔 {rep.breaks}회, 쪽나눔 {rep.pages}회, 벌린 줄 {rep.padded}개 → {out} ({out.stat().st_size:,} bytes)")
     if rep.warnings:
         print(f"\n⚠️ 경고 {len(rep.warnings)}건 (조용히 넘기지 않습니다):")
         for w in rep.warnings[:20]:

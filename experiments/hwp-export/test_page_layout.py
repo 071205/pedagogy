@@ -173,7 +173,60 @@ for name in ("미적분", "기하", "확률과 통계"):
           bool(texts) and all(f"수학 영역({name})" in t for t in texts),
           str(texts))
 
-# ── 4. 이 검사가 실제로 무언가를 검사하는가 ───────────────────────────────
+# ── 4. 한 단 안에서 문항을 벌린다 (REV-2026-016) ──────────────────────────
+# 실물도 편집기도 단을 균등하게 나눠 각 문항을 자기 칸 맨 위에 둔다. 높이는 편집기가
+# 재서 `heightMm` 으로 보낸다 — 파이썬은 글꼴 실측을 못 하기 때문이다.
+print("\n문항 간격")
+
+
+def blanks_before_numbers(xml: str) -> dict[str, int]:
+    """번호 문단마다 그 앞에 빈 문단이 몇 개인지."""
+    out, blank = {}, 0
+    for para in paragraphs(xml):
+        body = re.sub(r"<hp:(header|footer)\b.*?</hp:\1>", "", para, flags=re.S)
+        texts = "".join(re.findall(r"<hp:t(?:\s[^>]*)?>([\s\S]*?)</hp:t>", body))
+        num = re.match(r"\s*(\d{1,2})\.", re.sub(r"<[^>]+>", "", texts))
+        has_content = bool(re.sub(r"<[^>]+>", "", texts).strip()) or "<hp:equation" in body
+        if num:
+            out[num.group(1)] = blank
+            blank = 0
+        elif not has_content:
+            blank += 1
+        else:
+            blank = 0
+    return out
+
+
+LINE_MM = 6.694          # 본문 11.5pt × 줄간격 165% (틀에서 읽은 값)
+SLOT_FIRST = mock_to_hwpx.COL_H_FIRST_MM / mock_to_hwpx.PER_COL
+
+# 편집기가 잰 것처럼 높이를 붙인 표본. 브라우저 없이 돌아야 하므로 값을 직접 준다.
+tall = {**data, "problems": [{**p, "heightMm": 20.0} for p in data["problems"]]}
+z_tall = build(tall)
+gaps_tall = blanks_before_numbers(section_xml(z_tall, 0))
+gaps_none = blanks_before_numbers(sec0)          # 높이 없는 원래 표본
+
+check("높이를 주면 한 단 안 둘째 문항 앞이 벌어진다",
+      gaps_tall.get("2", 0) > 10, f"2번 앞 빈 문단 {gaps_tall.get('2')}개")
+check("높이가 없으면 벌리지 않는다 (CLI·손으로 쓴 JSON 대비책)",
+      gaps_none.get("2", 0) <= 1, f"2번 앞 빈 문단 {gaps_none.get('2')}개")
+# 3번은 새 단의 첫 문항이다 — 단의 마지막 문항 뒤를 벌리면 그 단이 넘친다.
+check("단이 바뀌는 자리는 벌리지 않는다",
+      gaps_tall.get("3", 0) <= 1, f"3번 앞 빈 문단 {gaps_tall.get('3')}개")
+expected = int((SLOT_FIRST - 20.0) // LINE_MM) - 1
+check("벌린 양이 칸 높이에서 문항 높이를 뺀 만큼이다",
+      gaps_tall.get("2", 0) == expected + 1,        # +1 은 emit_problem 이 늘 붙이는 한 줄
+      f"기대 {expected + 1} · 실제 {gaps_tall.get('2')}")
+check("벌려도 칸을 넘기지 않는다",
+      (gaps_tall.get("2", 0) * LINE_MM) + 20.0 <= SLOT_FIRST + LINE_MM,
+      f"{gaps_tall.get('2', 0) * LINE_MM + 20.0:.1f}mm ≤ 칸 {SLOT_FIRST:.1f}mm")
+
+# 칸보다 큰 문항을 주면 음수가 되는데, 그때 벌리지 않아야 한다(칸 밖으로 밀지 않게).
+huge = {**data, "problems": [{**p, "heightMm": 400.0} for p in data["problems"]]}
+check("문항이 칸보다 크면 벌리지 않는다",
+      blanks_before_numbers(section_xml(build(huge), 0)).get("2", 0) <= 1)
+
+# ── 5. 이 검사가 실제로 무언가를 검사하는가 ───────────────────────────────
 # 고친 것을 되돌려 놓고 빨간불이 되는지 본다. 안 되면 이 검사는 아무것도 지키지 않는다.
 print("\n검사가 유효한지")
 
@@ -196,6 +249,16 @@ finally:
 check("쪽나눔을 없애면 잡힌다", breaks_of(nobreak)[0] == [])
 check("그때 이어지는 쪽 머리말도 함께 사라진다 (둘은 같은 자리에 붙는다)",
       header_texts(nobreak) == [], str(header_texts(nobreak)))
+
+real_pad = mock_to_hwpx.pad_lines
+try:
+    mock_to_hwpx.pad_lines = lambda *a, **k: 0                              # 옛 동작
+    flat = section_xml(build(tall), 0)
+finally:
+    mock_to_hwpx.pad_lines = real_pad
+check("문항 간격을 없애면 잡힌다",
+      blanks_before_numbers(flat).get("2", 0) <= 1,
+      f"2번 앞 빈 문단 {blanks_before_numbers(flat).get('2')}개")
 
 if fails:
     print(f"\n실패 {fails}건")

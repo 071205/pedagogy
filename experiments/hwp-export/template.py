@@ -153,6 +153,38 @@ def read_roles(path: Path) -> dict:
     return out
 
 
+def read_body_line_mm(doc: HwpxDocument, roles: dict) -> float | None:
+    """본문 한 줄의 높이(mm). 문항 사이를 빈 문단으로 벌릴 때 몇 개가 필요한지 센다.
+
+    글자 크기(1/100pt) × 줄간격(%) 로 구한다. 실물 틀은 11.5pt · 165% = 6.69mm 다.
+    ⚠️ 값을 박아 두지 않는다 — 틀을 바꾸면 줄 높이도 바뀌므로 틀에서 읽어야 한다.
+    """
+    spec = roles.get("cont") or roles.get("stem") or {}
+    para_id, char_id = spec.get("para"), spec.get("char")
+    if para_id is None:
+        return None
+    head = doc.get_part("Contents/header.xml").root
+    size = spacing = None
+    for node in head.iter():
+        if node.local_name == "charPr" and char_id is not None and node.get_attr("id") == str(char_id):
+            try:
+                size = int(node.get_attr("height"))
+            except (TypeError, ValueError):
+                pass
+        elif node.local_name == "paraPr" and node.get_attr("id") == str(para_id):
+            line = next((c for c in node.iter() if c.local_name == "lineSpacing"), None)
+            if line is not None and line.get_attr("type") == "PERCENT":
+                try:
+                    spacing = int(line.get_attr("value"))
+                except (TypeError, ValueError):
+                    pass
+    if not size:
+        size = 1150            # 실물 본문 11.5pt — 글자 모양이 0(기본)이면 여기로 온다
+    if not spacing:
+        return None
+    return (size / 100) * (spacing / 100) / 72 * 25.4
+
+
 def capture_page_headers(doc: HwpxDocument) -> dict[int, list[str]]:
     """이어지는 쪽의 머리말 정의를 **본문을 비우기 전에** 떠 둔다.
 
@@ -380,6 +412,7 @@ def open_template(path: Path | str) -> tuple[HwpxDocument, dict]:
     doc = HwpxDocument.open(str(path))
     # ⚠️ 순서가 중요하다 — `clear_body()` 뒤에 부르면 머리말은 이미 지워진 뒤다.
     roles["_page_header"] = capture_page_headers(doc)
+    roles["_line_mm"] = read_body_line_mm(doc, roles)
     clear_body(doc)
     strip_bindata(doc)
     return doc, roles
