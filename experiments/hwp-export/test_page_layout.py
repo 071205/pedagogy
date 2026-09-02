@@ -198,12 +198,30 @@ def blanks_before_numbers(xml: str) -> dict[str, int]:
 
 
 LINE_MM = 6.694          # 본문 11.5pt × 줄간격 165% (틀에서 읽은 값)
-SLOT_FIRST = mock_to_hwpx.COL_H_FIRST_MM / mock_to_hwpx.PER_COL
+MASTHEAD_MM = 40.67      # 표제부가 먹는 높이 — 틀의 linesegarray 에서 잰 값
+
+# ── 실물에서 잰 '둘째 문항이 시작하는 자리'. `linesegarray` 의 vertpos 다.
+#    이 숫자들이 이 기능의 **정답표**다 — 우리 공식을 우리 공식으로 검사하면 아무것도
+#    지키지 못하므로, 실물 값과 직접 맞춘다.
+REAL_STARTS = [
+    # (설명, 위 여백 mm, 단 높이 mm, 실물에서 잰 둘째 문항 시작 mm)
+    ("1쪽 왼단 (2번)", MASTHEAD_MM, mock_to_hwpx.COL_H_FIRST_MM, 168.5),
+    ("1쪽 오른단 (4번)", 24.7, mock_to_hwpx.COL_H_FIRST_MM, 162.6),
+    ("16·17번 단", 15.9, mock_to_hwpx.COL_H_NEXT_MM, 172.8),
+]
+for label, top, col_h, real in REAL_STARTS:
+    got = mock_to_hwpx.slot_top_mm(1, 2, col_h, top)
+    check(f"{label} — 실물 자리와 맞는다", abs(got - real) <= 5.0,
+          f"우리 {got:.1f}mm · 실물 {real:.1f}mm (차 {abs(got - real):.1f}mm)")
+
+# ⚠️ 위 여백을 빼지 않으면 그만큼 아래로 내려간다 — 처음에 그렇게 틀렸다.
+naive = mock_to_hwpx.COL_H_FIRST_MM / mock_to_hwpx.PER_COL + MASTHEAD_MM
+check("위 여백을 빼지 않으면 실물보다 한참 아래다 (되돌림 감지)",
+      abs(naive - 168.5) > 15, f"안 빼면 {naive:.1f}mm · 실물 168.5mm")
 
 # 편집기가 잰 것처럼 높이를 붙인 표본. 브라우저 없이 돌아야 하므로 값을 직접 준다.
 tall = {**data, "problems": [{**p, "heightMm": 20.0} for p in data["problems"]]}
-z_tall = build(tall)
-gaps_tall = blanks_before_numbers(section_xml(z_tall, 0))
+gaps_tall = blanks_before_numbers(section_xml(build(tall), 0))
 gaps_none = blanks_before_numbers(sec0)          # 높이 없는 원래 표본
 
 check("높이를 주면 한 단 안 둘째 문항 앞이 벌어진다",
@@ -213,13 +231,16 @@ check("높이가 없으면 벌리지 않는다 (CLI·손으로 쓴 JSON 대비�
 # 3번은 새 단의 첫 문항이다 — 단의 마지막 문항 뒤를 벌리면 그 단이 넘친다.
 check("단이 바뀌는 자리는 벌리지 않는다",
       gaps_tall.get("3", 0) <= 1, f"3번 앞 빈 문단 {gaps_tall.get('3')}개")
-expected = int((SLOT_FIRST - 20.0) // LINE_MM) - 1
-check("벌린 양이 칸 높이에서 문항 높이를 뺀 만큼이다",
-      gaps_tall.get("2", 0) == expected + 1,        # +1 은 emit_problem 이 늘 붙이는 한 줄
-      f"기대 {expected + 1} · 실제 {gaps_tall.get('2')}")
-check("벌려도 칸을 넘기지 않는다",
-      (gaps_tall.get("2", 0) * LINE_MM) + 20.0 <= SLOT_FIRST + LINE_MM,
-      f"{gaps_tall.get('2', 0) * LINE_MM + 20.0:.1f}mm ≤ 칸 {SLOT_FIRST:.1f}mm")
+
+# 빈 문단으로 실제로 도달하는 자리가 목표(=실물 자리)와 한 줄 안쪽이어야 한다.
+target = mock_to_hwpx.slot_top_mm(1, 2, mock_to_hwpx.COL_H_FIRST_MM, MASTHEAD_MM)
+reached = MASTHEAD_MM + 20.0 + gaps_tall.get("2", 0) * LINE_MM
+check("빈 문단으로 도달하는 자리가 목표와 한 줄 안쪽이다",
+      abs(reached - target) <= LINE_MM,
+      f"도달 {reached:.1f}mm · 목표 {target:.1f}mm")
+check("벌려도 단을 넘기지 않는다",
+      reached <= mock_to_hwpx.COL_H_FIRST_MM,
+      f"{reached:.1f}mm ≤ 단 {mock_to_hwpx.COL_H_FIRST_MM:.1f}mm")
 
 # 칸보다 큰 문항을 주면 음수가 되는데, 그때 벌리지 않아야 한다(칸 밖으로 밀지 않게).
 huge = {**data, "problems": [{**p, "heightMm": 400.0} for p in data["problems"]]}

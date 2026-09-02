@@ -402,23 +402,40 @@ def column_slots(problems: list[dict]) -> list[list[int]]:
     return cols
 
 
-def pad_lines(height_mm: float | None, slot_mm: float, line_mm: float | None) -> int:
-    """문항 뒤에 넣을 빈 문단 수.
+def slot_top_mm(index: int, count: int, col_h_mm: float, top_mm: float) -> float:
+    """단 안에서 `index` 번째 문항이 **시작해야 하는 자리**(단 위 기준 mm).
 
-    실물도 편집기도 **단을 균등하게 나눠 각 문항을 자기 칸 맨 위에 둔다**
-    (편집기 CSS `grid-template-rows: repeat(n, 1fr)` · Typst `rows: (1fr,) * n`).
-    그래서 앞 문항이 차지하고 남은 만큼을 빈 문단으로 메워 다음 문항을 자기 칸으로 민다.
+    '앞 문항 아래로 몇 칸 띄운다' 가 아니라 **'몇 번째 줄에서 시작한다'** 로 잡는다.
+    앞 문항 길이는 매번 다르므로 상대값으로 두면 오차가 쌓이고, 무엇보다 실물이
+    그렇게 만들어져 있지 않다.
 
-    ⚠️ `height_mm` 은 **편집기가 실제로 재서 보낸 값**이다(`hwpxPayload`). 파이썬은
-       글꼴 실측을 못 하므로, 값이 없으면 **벌리지 않는다** — 어림으로 넣으면 하나만
-       많아도 다음 문항이 다음 단으로 밀려 배치가 통째로 어긋난다. 없는 것보다 나쁘다.
+    규칙은 실물 `평가원 수학 양식.hwpx` 의 줄 정보(`linesegarray` 의 `vertpos`)를 재서
+    얻었다 — **위 여백을 뺀 남은 공간**을 문항 수로 균등하게 나눈다.
+
+        1쪽 왼단 : 위 40.7 · 2번 168.5  → (168.5-40.7)/(295.43-40.7) = 0.502
+        1쪽 오른단: 위 24.7 · 4번 162.6  → 0.509
+        16·17    : 위 15.9 · 17번 172.8 → 0.516
+
+    ⚠️ **`top_mm` 을 빼지 않으면 그만큼 아래로 내려간다.** 처음에 단 전체를 반으로
+       나눠 1쪽 둘째 문항이 188.4mm 에 놓였다(실물 168.5). 20mm 아래여서 '너무 밑에
+       있다' 고 보였다.
+    """
+    return top_mm + (col_h_mm - top_mm) * index / max(1, count)
+
+
+def pad_lines(now_mm: float, target_mm: float, line_mm: float | None) -> int:
+    """지금 자리에서 목표 자리까지 채울 빈 문단 수.
+
+    ⚠️ 문항 높이는 **편집기가 실제로 재서 보낸 값**이다(`hwpxPayload`). 파이썬은 글꼴
+       실측을 못 하므로, 값이 없으면 **벌리지 않는다** — 어림으로 넣으면 하나만 많아도
+       다음 문항이 다음 단으로 밀려 배치가 통째로 어긋난다. 없는 것보다 나쁘다.
     ⚠️ 내림으로 자른다. 올림하면 칸을 넘겨 같은 사고가 난다.
     ⚠️ `emit_problem()` 이 문항마다 빈 문단을 **이미 하나** 붙인다(문항 사이 한 줄).
        그것도 한 줄을 차지하므로 여기서 빼지 않으면 칸마다 한 줄씩 넉넉해진다.
     """
-    if not height_mm or not line_mm or line_mm <= 0:
+    if not line_mm or line_mm <= 0:
         return 0
-    return max(0, int((slot_mm - height_mm) // line_mm) - 1)
+    return max(0, int((target_mm - now_mm) // line_mm) - 1)
 
 
 def mark_column_break(doc: HwpxDocument) -> bool:
@@ -738,11 +755,13 @@ def build(data: dict, out: Path, *, ref: str | Path | None = None,
 
     template = Path(ref) if ref else DEFAULT_TEMPLATE
     roles_page_header: dict[int, list[str]] = {}
+    roles_masthead_mm: dict[int, float] = {}
     roles_line_mm: float | None = None
     if template.suffix.lower() == ".hwpx" and template.exists():
         # 실물 틀을 그대로 쓴다 — 서식 id 만 알아내면 되고 새로 만들 것이 없다.
         doc, roles = tmpl.open_template(template)
         roles_page_header = roles.get("_page_header") or {}
+        roles_masthead_mm = roles.get("_masthead_mm") or {}
         roles_line_mm = roles.get("_line_mm")
         PROFILE["_source"] = f"{template.name} (틀)"
         for role, spec in roles.items():
@@ -822,9 +841,16 @@ def build(data: dict, out: Path, *, ref: str | Path | None = None,
         # 표지 머리말 때문에 단이 짧다.
         pads: dict[int, int] = {}
         for c_i, col in enumerate(column_slots(group)):
-            slot_mm = (COL_H_FIRST_MM if c_i // 2 == 0 else COL_H_NEXT_MM) / PER_COL
+            col_h = COL_H_FIRST_MM if c_i // 2 == 0 else COL_H_NEXT_MM
+            # 구역의 **첫 단**만 표제부가 자리를 차지한다(그 문단에 1번이 함께 들어 있다).
+            top = (roles_masthead_mm.get(sec_i, 0.0) if c_i == 0 and from_template else 0.0)
             for j, idx in enumerate(col[:-1]):
-                pads[idx] = pad_lines(group[idx].get("heightMm"), slot_mm, roles_line_mm)
+                height = group[idx].get("heightMm")
+                if not height:
+                    continue            # 편집기가 재 주지 않았다 — 벌리지 않는다
+                now = slot_top_mm(j, len(col), col_h, top) + height
+                target = slot_top_mm(j + 1, len(col), col_h, top)
+                pads[idx] = pad_lines(now, target, roles_line_mm)
 
         for i, q in enumerate(group):
             before = doc.paragraph_count(sec_i)

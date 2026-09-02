@@ -22,7 +22,7 @@ import re
 import zipfile
 from pathlib import Path
 
-from pedagogy_hwpx import HwpxDocument
+from pedagogy_hwpx import HwpxDocument, MM_TO_HWPUNIT
 
 _NUM = re.compile(r"^\s*\d{1,2}\s*\.")
 
@@ -150,6 +150,40 @@ def read_roles(path: Path) -> dict:
     if num_votes:
         cid, n = num_votes.most_common(1)[0]
         out["num"] = {"char": cid, "count": n}
+    return out
+
+
+def read_masthead_top_mm(doc: HwpxDocument) -> dict[int, float]:
+    """구역마다 **표제부가 먹는 높이**(mm). 첫 문항이 시작하는 자리다.
+
+    구역의 첫 문단에는 표제부(회차·수학 영역·제2교시·5지선다형 상자)와 **1번 문항이
+    함께** 들어 있다. 표제부가 글의 흐름 안에서 자리를 차지하므로 첫 문항은 단 맨 위가
+    아니라 그만큼 내려온 자리에서 시작한다. 실물에서 재면 40.7mm 다.
+
+    ⚠️ 이 값을 빼지 않고 단 전체를 반으로 나누면 **둘째 문항이 그만큼 아래로 내려간다.**
+       실물 1쪽 왼단은 `40.7 + (295.43-40.7)/2 = 168.1mm` 에서 2번이 시작하는데(실측
+       168.5), 빼지 않으면 188.4mm 가 나온다 — 20mm 아래다. 실제로 그렇게 틀렸다.
+
+    ⚠️ `clear_body()` 앞에서 읽어야 한다. 한글이 저장한 줄 정보(`linesegarray`)를 보는데,
+       그건 본문을 비우면 함께 사라진다.
+    """
+    out: dict[int, float] = {}
+    for path in [p for p in doc.list_part_paths()
+                 if p.startswith("Contents/section") and p.endswith(".xml")]:
+        try:
+            sec_i = int(path.removeprefix("Contents/section").removesuffix(".xml"))
+        except ValueError:
+            continue
+        paras = [k for k in doc.get_part(path).root.children if k.local_name == "p"]
+        if not paras:
+            continue
+        segs = [c for c in paras[0].children if c.local_name == "linesegarray"]
+        if not segs or not segs[0].children:
+            continue
+        try:
+            out[sec_i] = int(segs[0].children[0].get_attr("vertpos")) / MM_TO_HWPUNIT
+        except (TypeError, ValueError):
+            continue
     return out
 
 
@@ -413,6 +447,7 @@ def open_template(path: Path | str) -> tuple[HwpxDocument, dict]:
     # ⚠️ 순서가 중요하다 — `clear_body()` 뒤에 부르면 머리말은 이미 지워진 뒤다.
     roles["_page_header"] = capture_page_headers(doc)
     roles["_line_mm"] = read_body_line_mm(doc, roles)
+    roles["_masthead_mm"] = read_masthead_top_mm(doc)
     clear_body(doc)
     strip_bindata(doc)
     return doc, roles
