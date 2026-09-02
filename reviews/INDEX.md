@@ -69,3 +69,4 @@
 | `HANDOFF-2026-030` | Claude | 한 단 안 문항 간격 — 편집기가 재서 보낸다 | `handoffs/2026-09-01-mock-hwpx-column-spacing.md` |
 | `HANDOFF-2026-031` | Claude | 문항 간격 2차 — 한글에게 좌표를 물어 보정 | `handoffs/2026-09-01-mock-hwpx-column-spacing-2.md` |
 | `HANDOFF-2026-032` | Claude | 문항별 단 배치 기본값을 실물에서 가져옴 | `handoffs/2026-09-01-mock-default-column-layout.md` |
+| `HANDOFF-2026-033` | Claude | 실물 조판 1·2단계 (수식 앞 공백 · 그림 문단 모양) | `handoffs/2026-09-01-mock-style-step12.md` |

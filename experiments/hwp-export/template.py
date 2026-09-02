@@ -153,6 +153,52 @@ def read_roles(path: Path) -> dict:
     return out
 
 
+def read_roles_by_usage(path: Path) -> dict:
+    """본문에 **무엇이 들어 있는지**로 역할을 찾는다(이름이 아니라 쓰임으로).
+
+    ⚠️ 이름으로 찾는 `STYLE_NAMES` 가 통하지 않는 것들이 있다. 실물의 **그림은 이름 없는
+       문단 모양**을 쓰고(17회), 이름이 그럴듯한 `보기`·`표 내용` 은 **한 번도 쓰이지
+       않는다.** 그런데 우리 변환기는 그 `보기` 에 매핑돼 있었다 — 실물이 그림에 쓰지
+       않는 모양으로 우리 그림이 나가고 있었다. 값이 가까워(줄간격만 165 vs 160) 눈에
+       띄지 않았다. `docs/MOCK-STYLE-DESIGN.md` §8-④ 참고.
+
+    ⚠️ `※ 확인 사항` 도 같다. 이름 붙은 `확인사항-` 은 0회이고 실제로는 이름 없는
+       문단 모양을 쓴다.
+
+    이름으로 찾은 것을 **덮어쓴다** — 이름은 그럴듯해도 실물이 안 쓰면 틀린 답이다.
+    """
+    with zipfile.ZipFile(path) as z:
+        sections = [z.read(n).decode("utf-8")
+                    for n in z.namelist() if n.startswith("Contents/section")]
+
+    from collections import Counter
+    votes: dict[str, Counter] = {"figure": Counter(), "note": Counter()}
+    for sec in sections:
+        for p in re.findall(r"<hp:p\b[^>]*>.*?</hp:p>", sec, re.S):
+            pid = re.search(r'paraPrIDRef="(\d+)"', p)
+            if not pid:
+                continue
+            role = None
+            if "<hp:pic" in p:
+                role = "figure"
+            elif "확인 사항" in _visible(p):
+                role = "note"
+            if role is None:
+                continue
+            # 그 문단에서 가장 많이 쓰인 글자 모양을 함께 잡는다.
+            chars = Counter(re.findall(r'<hp:run\b[^>]*charPrIDRef="(\d+)"', p))
+            cid = chars.most_common(1)[0][0] if chars else "0"
+            votes[role][(pid.group(1), cid)] += 1
+
+    out: dict = {}
+    for role, c in votes.items():
+        if not c:
+            continue
+        (pid, cid), n = c.most_common(1)[0]
+        out[role] = {"para": pid, "char": cid, "count": n}
+    return out
+
+
 def read_column_tops_mm(doc: HwpxDocument) -> dict[int, list[float]]:
     """구역마다 **단별로 첫 내용이 시작하는 자리**(mm). 그 단의 '위 여백' 이다.
 
@@ -485,6 +531,9 @@ def open_template(path: Path | str) -> tuple[HwpxDocument, dict]:
     if len(roles) < 3:
         # 이름 붙은 스타일이 없는 틀이면 내용을 보고 추측하는 쪽으로 내려간다.
         roles = read_roles(path)
+    # ⚠️ 이름으로 찾은 것을 **쓰임으로 찾은 것이 덮는다.** 이름이 그럴듯해도 실물이
+    #    쓰지 않으면 틀린 답이다 — 그림이 실제로 그랬다(docs/MOCK-STYLE-DESIGN.md §8-④).
+    roles.update(read_roles_by_usage(path))
     doc = HwpxDocument.open(str(path))
     # ⚠️ 순서가 중요하다 — `clear_body()` 뒤에 부르면 머리말은 이미 지워진 뒤다.
     roles["_page_header"] = capture_page_headers(doc)

@@ -61,6 +61,10 @@ with tempfile.TemporaryDirectory() as tmp:
     mock_to_hwpx.build(json.loads(SAMPLE.read_text(encoding="utf-8")), out,
                        ref=TEMPLATE, images=[HERE / "samples" / "images"])
     seq = styles_of(out)
+    # ⚠️ 임시 폴더는 이 블록을 벗어나면 지워진다. 뒤에서 볼 XML 은 여기서 떠 둔다.
+    _z = zipfile.ZipFile(out)
+    HEAD_XML = _z.read("Contents/header.xml").decode("utf-8")
+    SEC0_XML = _z.read("Contents/section0.xml").decode("utf-8")
 
 names = [s for s, _, _ in seq]
 fails = 0
@@ -83,9 +87,21 @@ if box:
     check("그 뒤 발문은 '21 문제다음'", names[last + 2] == "21 문제다음", names[last + 2])
 
 # 그림은 가운데 정렬 문단에
-figs = [(n, t) for n, t, pic in seq if pic]
+# ⚠️ **스타일 이름으로 보면 안 된다.** 실물이 그림에 쓰는 문단 모양은 **이름이 없다**
+#    (paraPr 49). 이름이 그럴듯한 `보기`·`표 내용` 은 실물에서 0회 쓰인다 —
+#    예전에 이 검사가 그 이름을 요구해서, 우리 그림이 실물과 다른 모양으로 나가는데도
+#    초록불이었다(docs/MOCK-STYLE-DESIGN.md §8-④). **정렬을 직접 본다.**
+def _align_of(para_id: str) -> str:
+    m = re.search(rf'<hh:paraPr\b[^>]*\bid="{para_id}"[^>]*>.*?</hh:paraPr>', HEAD_XML, re.S)
+    a = re.search(r'<hh:align\b[^>]*horizontal="([A-Z]+)"', m.group(0)) if m else None
+    return a.group(1) if a else "?"
+
+
+_fig_ids = re.findall(r'<hp:p\b[^>]*paraPrIDRef="(\d+)"[^>]*>(?:(?!</hp:p>).)*?<hp:pic\b',
+                      SEC0_XML, re.S)
 check("그림이 가운데 정렬 문단에 있다",
-      bool(figs) and figs[0][0] in ("보기", "표 내용"), str(figs[:1]))
+      bool(_fig_ids) and all(_align_of(i) == "CENTER" for i in _fig_ids),
+      f"문단 모양 {_fig_ids} → 정렬 {[_align_of(i) for i in _fig_ids]}")
 
 # 첫 문항은 틀 문단(머리말과 같은 문단)에 이어 써야 빈 줄이 안 생긴다
 check("첫 문단에 머리말과 1번이 함께 있다",

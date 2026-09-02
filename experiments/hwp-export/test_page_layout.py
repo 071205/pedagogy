@@ -306,6 +306,47 @@ huge = {**data, "problems": [{**p, "heightMm": 400.0} for p in data["problems"]]
 check("문항이 칸보다 크면 벌리지 않는다",
       blanks_before_numbers(section_xml(build(huge), 0)).get("2", 0) <= 1)
 
+# ── 5. 수식 앞 공백 · 그림 문단 모양 (실물 조판 관례) ───────────────────
+print("\n실물 조판 관례")
+
+
+def math_prefix_stats(xml: str) -> dict:
+    """수식 바로 앞이 무엇인지 센다 — 실물 522개를 셌던 것과 같은 방법."""
+    from collections import Counter
+    c = Counter()
+    for para in paragraphs(xml):
+        prev = None
+        for m in re.finditer(r"<hp:t(?:\s[^>]*)?>([\s\S]*?)</hp:t>|<hp:t\b[^>]*/>|<hp:equation\b", para):
+            if m.group(0).startswith("<hp:equation"):
+                c["공백" if (prev or "").endswith(" ")
+                  else ("없음" if prev else "문단시작")] += 1
+                prev = None
+            else:
+                # ⚠️ 탭은 **공백이다.** 지우면 `1.`+탭+수식 이 '붙어 있다' 로 잘못 세어진다
+                #    (실물도 같은 모양이라 실물 통계에서도 12건이 그렇게 세어졌었다).
+                body = re.sub(r"<hp:tab[^>]*/>", " ", m.group(1) or "")
+                prev = re.sub(r"<[^>]+>", "", body)
+    return dict(c)
+
+
+stats = math_prefix_stats(sec0)
+check("수식 바로 앞에 붙은 글자가 없다 (실물 관례 — 공백 아니면 문단 시작)",
+      stats.get("없음", 0) == 0, str(stats))
+check("실제로 수식이 들어 있다 (빈 문서를 통과시키지 않는다)",
+      sum(stats.values()) > 50, f"수식 {sum(stats.values())}개")
+
+# 그림은 실물이 실제로 쓰는 문단 모양이어야 한다. 이름이 그럴듯한 `보기`·`표 내용` 은
+# 실물에서 0회 쓰인다 — 이름으로 찾으면 틀린 답이 나온다(docs/MOCK-STYLE-DESIGN.md §8-④).
+import template as _t                                                # noqa: E402
+_usage = _t.read_roles_by_usage(TEMPLATE)
+check("그림 문단 모양을 실물의 쓰임에서 찾는다",
+      _usage.get("figure", {}).get("para") == "49",
+      f"찾은 값 {_usage.get('figure')}")
+_fig = [p for p in paragraphs(sec0) if "<hp:pic" in p]
+check("우리 그림도 그 문단 모양을 쓴다",
+      bool(_fig) and all(f'paraPrIDRef="{_usage["figure"]["para"]}"' in p for p in _fig),
+      f"그림 {len(_fig)}개")
+
 # ── 6. 이 검사가 실제로 무언가를 검사하는가 ───────────────────────────────
 # 고친 것을 되돌려 놓고 빨간불이 되는지 본다. 안 되면 이 검사는 아무것도 지키지 않는다.
 print("\n검사가 유효한지")
@@ -336,6 +377,25 @@ try:
     flat = section_xml(build(tall), 0)
 finally:
     mock_to_hwpx.pad_lines = real_pad
+# ⚠️ 표본은 이미 공백이 잘 들어 있어, 규칙을 꺼도 결과가 같다 — 그걸로는 아무것도
+#    증명하지 못한다. **공백을 일부러 뺀 입력**으로 확인한다.
+tight = {**data, "problems": [
+    {**q, "blocks": [{"type": "statement", "data": {"text": "함수$f(x)=x^2$의 값은?"}}]}
+    if q["num"] == 1 else q for q in data["problems"]]}
+check("공백 없이 써도 수식 앞이 벌어진다",
+      math_prefix_stats(section_xml(build(tight), 0)).get("없음", 0) == 0,
+      str(math_prefix_stats(section_xml(build(tight), 0))))
+
+real_sbm = mock_to_hwpx.space_before_math
+try:
+    mock_to_hwpx.space_before_math = lambda t: t                         # 옛 동작
+    nospace = section_xml(build(tight), 0)
+finally:
+    mock_to_hwpx.space_before_math = real_sbm
+check("그 규칙을 끄면 잡힌다",
+      math_prefix_stats(nospace).get("없음", 0) > 0,
+      str(math_prefix_stats(nospace)))
+
 check("문항 간격을 없애면 잡힌다",
       blanks_before_numbers(flat).get("2", 0) <= 1,
       f"2번 앞 빈 문단 {blanks_before_numbers(flat).get('2')}개")

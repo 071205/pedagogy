@@ -608,9 +608,27 @@ const $=s=>document.querySelector(s);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>(
   {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
+/* 실물의 조판 관례 — 수식 **앞**에는 공백 한 칸, 뒤에는 조사를 바로 붙인다.
+   실물 522개를 세어 확인했다: 인라인 수식 361개 중 349개(96.7%)가 앞에 공백을 둔다.
+   ⚠️ 여는 괄호 뒤(`($x$)`)와 줄 첫머리에는 넣지 않는다.
+   ⚠️ **사용자가 친 글을 바꾸지 않는다.** 그리는 순간에만 적용한다 — 저장 시점에 고치면
+      되돌리기·병합·재편집이 꼬인다. 파이썬 변환기의 space_before_math() 와 같은 규칙이다. */
+/* ⚠️ 정규식 하나로 하지 말 것 — `$1$,$2$` 에서 앞 수식의 닫는 `$` 와 뒤 수식의 여는 `$`
+      를 짝지어 수식 안에 공백이 들어갔다. 쪼갠 뒤 이어 붙인다(파이썬 쪽과 같은 방식). */
+function spaceBeforeMath(s){
+  let out='';
+  for(const chunk of String(s||'').split(/(\$[^$\n]*\$)/g)){
+    if(!chunk) continue;
+    if(chunk.length>=2&&chunk[0]==='$'&&chunk[chunk.length-1]==='$'
+       && out && !' \t([{'.includes(out[out.length-1])) out+=' ';
+    out+=chunk;
+  }
+  return out;
+}
+
 function tex(src){
   if(!src) return '';
-  return String(src).split(/(\$[^$]*\$)/g).map(p=>{
+  return spaceBeforeMath(src).split(/(\$[^$]*\$)/g).map(p=>{
     if(p.length>2&&p.startsWith('$')&&p.endsWith('$')){
       /* 정본(Typst) 경로와 같은 cases 간격 보정을 적용해야 미리보기와 결과물이 어긋나지 않는다.
          fixCases 는 함수 선언이라 이 시점에도 호이스팅되어 있다. */
@@ -1724,7 +1742,7 @@ function texToTypst(latex,disp){
    수식 바로 뒤의 '.' '(' 는 필드접근·함수호출로 잘못 읽히므로 이스케이프한다.
    (검증: `#mi(`x`).이다` → error / `#mi(`x`)\.이다` → 정상) */
 function tline(s){
-  const segs=String(s).split(/(\$[^$]*\$)/g);let out='',eq=false;
+  const segs=spaceBeforeMath(s).split(/(\$[^$]*\$)/g);let out='',eq=false;
   segs.forEach(seg=>{
     if(!seg)return;
     if(seg.length>2&&seg.startsWith('$')&&seg.endsWith('$')){
