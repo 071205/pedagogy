@@ -1,878 +1,878 @@
 {
- "v": 1,
- "round": "2027학년도 대학수학능력시험 대비 모의평가",
- "elective": "확률과 통계",
- "problems": [
-  {
-   "id": "p1",
-   "num": 1,
-   "sect": "공통",
-   "type": "choice",
-   "pts": 2,
-   "blocks": [
+  "v": 1,
+  "round": "2027학년도 대학수학능력시험 대비 모의평가",
+  "elective": "확률과 통계",
+  "problems": [
     {
-     "type": "statement",
-     "data": {
-      "text": "$\\sqrt[3]{5}\\times 25^{\\frac13}$의 값은?"
-     }
-    },
-    {
-     "type": "choices",
-     "data": {
-      "items": [
-       "$1$",
-       "$2$",
-       "$3$",
-       "$4$",
-       "$5$"
+      "id": "p1",
+      "num": 1,
+      "sect": "공통",
+      "type": "choice",
+      "pts": 2,
+      "blocks": [
+        {
+          "type": "statement",
+          "data": {
+            "text": "$\\sqrt[3]{5}\\times 25^{\\frac13}$의 값은?"
+          }
+        },
+        {
+          "type": "choices",
+          "data": {
+            "items": [
+              "$1$",
+              "$2$",
+              "$3$",
+              "$4$",
+              "$5$"
+            ],
+            "layout": "auto"
+          }
+        }
       ],
-      "layout": "auto"
-     }
-    }
-   ],
-   "layout": "auto",
-   "breakAfter": false
-  },
-  {
-   "id": "p2",
-   "num": 2,
-   "sect": "공통",
-   "type": "choice",
-   "pts": 2,
-   "blocks": [
-    {
-     "type": "statement",
-     "data": {
-      "text": "함수 $f(x)=x^3-8x+7$에 대하여 $\\lim\\limits_{h\\to0}\\dfrac{f(2+h)-f(2)}{h}$의 값은?"
-     }
+      "layout": "auto",
+      "breakAfter": false
     },
     {
-     "type": "choices",
-     "data": {
-      "items": [
-       "$1$",
-       "$2$",
-       "$3$",
-       "$4$",
-       "$5$"
+      "id": "p2",
+      "num": 2,
+      "sect": "공통",
+      "type": "choice",
+      "pts": 2,
+      "blocks": [
+        {
+          "type": "statement",
+          "data": {
+            "text": "함수 $f(x)=x^3-8x+7$에 대하여 $\\lim\\limits_{h\\to0}\\dfrac{f(2+h)-f(2)}{h}$의 값은?"
+          }
+        },
+        {
+          "type": "choices",
+          "data": {
+            "items": [
+              "$1$",
+              "$2$",
+              "$3$",
+              "$4$",
+              "$5$"
+            ],
+            "layout": "auto"
+          }
+        }
       ],
-      "layout": "auto"
-     }
-    }
-   ],
-   "layout": "auto",
-   "breakAfter": false
-  },
-  {
-   "id": "p3",
-   "num": 3,
-   "sect": "공통",
-   "type": "choice",
-   "pts": 3,
-   "blocks": [
-    {
-     "type": "statement",
-     "data": {
-      "text": "첫째항과 공비가 모두 양수 $k$인 등비수열 $\\{a_n\\}$이\n$\\dfrac{a_4}{a_2}+\\dfrac{a_2}{a_1}=30$\n을 만족시킬 때, $k$의 값은?"
-     }
+      "layout": "auto",
+      "breakAfter": false
     },
     {
-     "type": "choices",
-     "data": {
-      "items": [
-       "$1$",
-       "$2$",
-       "$3$",
-       "$4$",
-       "$5$"
+      "id": "p3",
+      "num": 3,
+      "sect": "공통",
+      "type": "choice",
+      "pts": 3,
+      "blocks": [
+        {
+          "type": "statement",
+          "data": {
+            "text": "첫째항과 공비가 모두 양수 $k$인 등비수열 $\\{a_n\\}$이\n$\\dfrac{a_4}{a_2}+\\dfrac{a_2}{a_1}=30$\n을 만족시킬 때, $k$의 값은?"
+          }
+        },
+        {
+          "type": "choices",
+          "data": {
+            "items": [
+              "$1$",
+              "$2$",
+              "$3$",
+              "$4$",
+              "$5$"
+            ],
+            "layout": "auto"
+          }
+        }
       ],
-      "layout": "auto"
-     }
-    }
-   ],
-   "layout": "auto",
-   "breakAfter": false
-  },
-  {
-   "id": "p4",
-   "num": 4,
-   "sect": "공통",
-   "type": "choice",
-   "pts": 3,
-   "blocks": [
-    {
-     "type": "statement",
-     "data": {
-      "text": "$\\displaystyle\\lim_{n\\to\\infty}\\dfrac{3n^2-2n}{n^2+5}$의 값은?"
-     }
+      "layout": "auto",
+      "breakAfter": false
     },
     {
-     "type": "choices",
-     "data": {
-      "items": [
-       "$1$",
-       "$2$",
-       "$3$",
-       "$4$",
-       "$5$"
+      "id": "p4",
+      "num": 4,
+      "sect": "공통",
+      "type": "choice",
+      "pts": 3,
+      "blocks": [
+        {
+          "type": "statement",
+          "data": {
+            "text": "$\\displaystyle\\lim_{n\\to\\infty}\\dfrac{3n^2-2n}{n^2+5}$의 값은?"
+          }
+        },
+        {
+          "type": "choices",
+          "data": {
+            "items": [
+              "$1$",
+              "$2$",
+              "$3$",
+              "$4$",
+              "$5$"
+            ],
+            "layout": "auto"
+          }
+        }
       ],
-      "layout": "auto"
-     }
-    }
-   ],
-   "layout": "auto",
-   "breakAfter": false
-  },
-  {
-   "id": "p5",
-   "num": 5,
-   "sect": "공통",
-   "type": "choice",
-   "pts": 3,
-   "blocks": [
-    {
-     "type": "statement",
-     "data": {
-      "text": "등차수열 $\\{a_n\\}$에 대하여 $a_3=7$, $a_7=19$일 때, $a_{10}$의 값은?"
-     }
+      "layout": "auto",
+      "breakAfter": false
     },
     {
-     "type": "choices",
-     "data": {
-      "items": [
-       "$25$",
-       "$26$",
-       "$27$",
-       "$28$",
-       "$29$"
+      "id": "p5",
+      "num": 5,
+      "sect": "공통",
+      "type": "choice",
+      "pts": 3,
+      "blocks": [
+        {
+          "type": "statement",
+          "data": {
+            "text": "등차수열 $\\{a_n\\}$에 대하여 $a_3=7$, $a_7=19$일 때, $a_{10}$의 값은?"
+          }
+        },
+        {
+          "type": "choices",
+          "data": {
+            "items": [
+              "$25$",
+              "$26$",
+              "$27$",
+              "$28$",
+              "$29$"
+            ],
+            "layout": "auto"
+          }
+        }
       ],
-      "layout": "auto"
-     }
-    }
-   ],
-   "layout": "auto",
-   "breakAfter": false
-  },
-  {
-   "id": "p6",
-   "num": 6,
-   "sect": "공통",
-   "type": "choice",
-   "pts": 3,
-   "blocks": [
-    {
-     "type": "statement",
-     "data": {
-      "text": "$0\\le x<2\\pi$일 때, 방정식 $2\\sin x=\\sqrt3$의 모든 해의 합은?"
-     }
+      "layout": "auto",
+      "breakAfter": false
     },
     {
-     "type": "choices",
-     "data": {
-      "items": [
-       "$\\dfrac{\\pi}{3}$",
-       "$\\dfrac{2\\pi}{3}$",
-       "$\\pi$",
-       "$\\dfrac{4\\pi}{3}$",
-       "$\\dfrac{5\\pi}{3}$"
+      "id": "p6",
+      "num": 6,
+      "sect": "공통",
+      "type": "choice",
+      "pts": 3,
+      "blocks": [
+        {
+          "type": "statement",
+          "data": {
+            "text": "$0\\le x<2\\pi$일 때, 방정식 $2\\sin x=\\sqrt3$의 모든 해의 합은?"
+          }
+        },
+        {
+          "type": "choices",
+          "data": {
+            "items": [
+              "$\\dfrac{\\pi}{3}$",
+              "$\\dfrac{2\\pi}{3}$",
+              "$\\pi$",
+              "$\\dfrac{4\\pi}{3}$",
+              "$\\dfrac{5\\pi}{3}$"
+            ],
+            "layout": "auto"
+          }
+        }
       ],
-      "layout": "auto"
-     }
-    }
-   ],
-   "layout": "auto",
-   "breakAfter": false
-  },
-  {
-   "id": "p7",
-   "num": 7,
-   "sect": "공통",
-   "type": "choice",
-   "pts": 3,
-   "blocks": [
-    {
-     "type": "statement",
-     "data": {
-      "text": "함수 $f(x)=\\int_{0}^{x}(t^2-3t)\\,dt$의 극솟값은?"
-     }
+      "layout": "auto",
+      "breakAfter": false
     },
     {
-     "type": "choices",
-     "data": {
-      "items": [
-       "$-\\dfrac{9}{2}$",
-       "$-4$",
-       "$-\\dfrac{7}{2}$",
-       "$-3$",
-       "$-\\dfrac{5}{2}$"
+      "id": "p7",
+      "num": 7,
+      "sect": "공통",
+      "type": "choice",
+      "pts": 3,
+      "blocks": [
+        {
+          "type": "statement",
+          "data": {
+            "text": "함수 $f(x)=\\int_{0}^{x}(t^2-3t)\\,dt$의 극솟값은?"
+          }
+        },
+        {
+          "type": "choices",
+          "data": {
+            "items": [
+              "$-\\dfrac{9}{2}$",
+              "$-4$",
+              "$-\\dfrac{7}{2}$",
+              "$-3$",
+              "$-\\dfrac{5}{2}$"
+            ],
+            "layout": "auto"
+          }
+        }
       ],
-      "layout": "auto"
-     }
-    }
-   ],
-   "layout": "auto",
-   "breakAfter": false
-  },
-  {
-   "id": "p8",
-   "num": 8,
-   "sect": "공통",
-   "type": "choice",
-   "pts": 3,
-   "blocks": [
-    {
-     "type": "statement",
-     "data": {
-      "text": "수열 $\\{a_n\\}$이 모든 자연수 $n$에 대하여 다음 조건을 만족시킬 때, $a_{12}$의 값은?"
-     }
+      "layout": "auto",
+      "breakAfter": true
     },
     {
-     "type": "conditions",
-     "data": {
-      "items": [
-       "(가) $a_1=3$",
-       "(나) $a_{n+1}=a_n+2n$"
-      ]
-     }
-    },
-    {
-     "type": "choices",
-     "data": {
-      "items": [
-       "$135$",
-       "$137$",
-       "$139$",
-       "$141$",
-       "$143$"
+      "id": "p8",
+      "num": 8,
+      "sect": "공통",
+      "type": "choice",
+      "pts": 3,
+      "blocks": [
+        {
+          "type": "statement",
+          "data": {
+            "text": "수열 $\\{a_n\\}$이 모든 자연수 $n$에 대하여 다음 조건을 만족시킬 때, $a_{12}$의 값은?"
+          }
+        },
+        {
+          "type": "conditions",
+          "data": {
+            "items": [
+              "(가) $a_1=3$",
+              "(나) $a_{n+1}=a_n+2n$"
+            ]
+          }
+        },
+        {
+          "type": "choices",
+          "data": {
+            "items": [
+              "$135$",
+              "$137$",
+              "$139$",
+              "$141$",
+              "$143$"
+            ],
+            "layout": "auto"
+          }
+        }
       ],
-      "layout": "auto"
-     }
-    }
-   ],
-   "layout": "auto",
-   "breakAfter": false
-  },
-  {
-   "id": "p9",
-   "num": 9,
-   "sect": "공통",
-   "type": "choice",
-   "pts": 4,
-   "blocks": [
-    {
-     "type": "statement",
-     "data": {
-      "text": "함수 $f(x)=3x^2-16x-20$에 대하여 $\\displaystyle\\int_{-2}^{a}f(x)\\,dx=\\int_{-2}^{0}f(x)\\,dx$일 때, 양수 $a$의 값은?"
-     }
+      "layout": "auto",
+      "breakAfter": false
     },
     {
-     "type": "choices",
-     "data": {
-      "items": [
-       "$16$",
-       "$14$",
-       "$12$",
-       "$10$",
-       "$8$"
+      "id": "p9",
+      "num": 9,
+      "sect": "공통",
+      "type": "choice",
+      "pts": 4,
+      "blocks": [
+        {
+          "type": "statement",
+          "data": {
+            "text": "함수 $f(x)=3x^2-16x-20$에 대하여 $\\displaystyle\\int_{-2}^{a}f(x)\\,dx=\\int_{-2}^{0}f(x)\\,dx$일 때, 양수 $a$의 값은?"
+          }
+        },
+        {
+          "type": "choices",
+          "data": {
+            "items": [
+              "$16$",
+              "$14$",
+              "$12$",
+              "$10$",
+              "$8$"
+            ],
+            "layout": "auto"
+          }
+        }
       ],
-      "layout": "auto"
-     }
-    }
-   ],
-   "layout": "auto",
-   "breakAfter": false
-  },
-  {
-   "id": "p10",
-   "num": 10,
-   "sect": "공통",
-   "type": "choice",
-   "pts": 4,
-   "blocks": [
-    {
-     "type": "statement",
-     "data": {
-      "text": "함수 $f(x)$가 실수 전체의 집합에서 연속일 때, <보기>에서 옳은 것만을 있는 대로 고른 것은?"
-     }
+      "layout": "auto",
+      "breakAfter": false
     },
     {
-     "type": "examples",
-     "data": {
-      "items": [
-       "$f(x)$는 $x=0$에서 미분가능하다.",
-       "$\\displaystyle\\lim_{x\\to0}f(x)=f(0)$이다.",
-       "$f(x)$는 최댓값을 갖는다."
-      ]
-     }
-    },
-    {
-     "type": "choices",
-     "data": {
-      "items": [
-       "ㄱ",
-       "ㄴ",
-       "ㄱ, ㄴ",
-       "ㄴ, ㄷ",
-       "ㄱ, ㄴ, ㄷ"
+      "id": "p10",
+      "num": 10,
+      "sect": "공통",
+      "type": "choice",
+      "pts": 4,
+      "blocks": [
+        {
+          "type": "statement",
+          "data": {
+            "text": "함수 $f(x)$가 실수 전체의 집합에서 연속일 때, <보기>에서 옳은 것만을 있는 대로 고른 것은?"
+          }
+        },
+        {
+          "type": "examples",
+          "data": {
+            "items": [
+              "$f(x)$는 $x=0$에서 미분가능하다.",
+              "$\\displaystyle\\lim_{x\\to0}f(x)=f(0)$이다.",
+              "$f(x)$는 최댓값을 갖는다."
+            ]
+          }
+        },
+        {
+          "type": "choices",
+          "data": {
+            "items": [
+              "ㄱ",
+              "ㄴ",
+              "ㄱ, ㄴ",
+              "ㄴ, ㄷ",
+              "ㄱ, ㄴ, ㄷ"
+            ],
+            "layout": "auto"
+          }
+        }
       ],
-      "layout": "auto"
-     }
-    }
-   ],
-   "layout": "auto",
-   "breakAfter": false
-  },
-  {
-   "id": "p11",
-   "num": 11,
-   "sect": "공통",
-   "type": "choice",
-   "pts": 4,
-   "blocks": [
-    {
-     "type": "statement",
-     "data": {
-      "text": "곡선 $y=x^3-3x+1$ 위의 점 $(1,-1)$에서의 접선의 방정식이 $y=ax+b$일 때, $a+b$의 값은?"
-     }
+      "layout": "auto",
+      "breakAfter": true
     },
     {
-     "type": "choices",
-     "data": {
-      "items": [
-       "$-2$",
-       "$-1$",
-       "$0$",
-       "$1$",
-       "$2$"
+      "id": "p11",
+      "num": 11,
+      "sect": "공통",
+      "type": "choice",
+      "pts": 4,
+      "blocks": [
+        {
+          "type": "statement",
+          "data": {
+            "text": "곡선 $y=x^3-3x+1$ 위의 점 $(1,-1)$에서의 접선의 방정식이 $y=ax+b$일 때, $a+b$의 값은?"
+          }
+        },
+        {
+          "type": "choices",
+          "data": {
+            "items": [
+              "$-2$",
+              "$-1$",
+              "$0$",
+              "$1$",
+              "$2$"
+            ],
+            "layout": "auto"
+          }
+        }
       ],
-      "layout": "auto"
-     }
-    }
-   ],
-   "layout": "auto",
-   "breakAfter": false
-  },
-  {
-   "id": "p12",
-   "num": 12,
-   "sect": "공통",
-   "type": "choice",
-   "pts": 4,
-   "blocks": [
-    {
-     "type": "statement",
-     "data": {
-      "text": "다음 중 함수 $f(x)$의 그래프에 대한 설명으로 옳은 것은?"
-     }
+      "layout": "auto",
+      "breakAfter": true
     },
     {
-     "type": "choices",
-     "data": {
-      "items": [
-       "$f(x)$는 구간 $(-\\infty,\\,0)$에서 증가하고 구간 $(0,\\,\\infty)$에서 감소한다.",
-       "$f(x)$는 $x=0$에서 극댓값 $2$를 가지며 변곡점은 존재하지 않는다.",
-       "$f(x)$의 그래프는 원점에 대하여 대칭이고 점근선은 $y=1$이다.",
-       "$f(x)=0$의 서로 다른 실근의 개수는 $3$이고 모두 양수이다.",
-       "$f(x)$의 최솟값은 $-2$이고 이때 $x=1$이다."
+      "id": "p12",
+      "num": 12,
+      "sect": "공통",
+      "type": "choice",
+      "pts": 4,
+      "blocks": [
+        {
+          "type": "statement",
+          "data": {
+            "text": "다음 중 함수 $f(x)$의 그래프에 대한 설명으로 옳은 것은?"
+          }
+        },
+        {
+          "type": "choices",
+          "data": {
+            "items": [
+              "$f(x)$는 구간 $(-\\infty,\\,0)$에서 증가하고 구간 $(0,\\,\\infty)$에서 감소한다.",
+              "$f(x)$는 $x=0$에서 극댓값 $2$를 가지며 변곡점은 존재하지 않는다.",
+              "$f(x)$의 그래프는 원점에 대하여 대칭이고 점근선은 $y=1$이다.",
+              "$f(x)=0$의 서로 다른 실근의 개수는 $3$이고 모두 양수이다.",
+              "$f(x)$의 최솟값은 $-2$이고 이때 $x=1$이다."
+            ],
+            "layout": "v"
+          }
+        }
       ],
-      "layout": "v"
-     }
-    }
-   ],
-   "layout": "auto",
-   "breakAfter": false
-  },
-  {
-   "id": "p13",
-   "num": 13,
-   "sect": "공통",
-   "type": "choice",
-   "pts": 4,
-   "blocks": [
-    {
-     "type": "statement",
-     "data": {
-      "text": "$\\log_2 x+\\log_2(x-2)=3$을 만족시키는 실수 $x$의 값은?"
-     }
+      "layout": "auto",
+      "breakAfter": true
     },
     {
-     "type": "choices",
-     "data": {
-      "items": [
-       "$1$",
-       "$2$",
-       "$3$",
-       "$4$",
-       "$5$"
+      "id": "p13",
+      "num": 13,
+      "sect": "공통",
+      "type": "choice",
+      "pts": 4,
+      "blocks": [
+        {
+          "type": "statement",
+          "data": {
+            "text": "$\\log_2 x+\\log_2(x-2)=3$을 만족시키는 실수 $x$의 값은?"
+          }
+        },
+        {
+          "type": "choices",
+          "data": {
+            "items": [
+              "$1$",
+              "$2$",
+              "$3$",
+              "$4$",
+              "$5$"
+            ],
+            "layout": "auto"
+          }
+        }
       ],
-      "layout": "auto"
-     }
-    }
-   ],
-   "layout": "auto",
-   "breakAfter": false
-  },
-  {
-   "id": "p14",
-   "num": 14,
-   "sect": "공통",
-   "type": "choice",
-   "pts": 4,
-   "blocks": [
-    {
-     "type": "statement",
-     "data": {
-      "text": "그림과 같이 삼각형 $ABC$에서 선분 $AB$ 위에 $\\overline{AD}:\\overline{DB}=3:2$인 점 $D$를 잡고, 점 $A$를 중심으로 하고 점 $D$를 지나는 원을 $O$라 하자.\n원 $O$ 위의 점 $P$에 대하여 삼각형 $PBC$의 넓이의 최댓값은? (단, $\\overline{AB}<\\overline{AC}$)"
-     }
+      "layout": "auto",
+      "breakAfter": true
     },
     {
-     "type": "image",
-     "data": {
-      "width": 58,
-      "src": "fig14.png"
-     }
-    },
-    {
-     "type": "choices",
-     "data": {
-      "items": [
-       "$18+15\\sqrt3$",
-       "$24+20\\sqrt3$",
-       "$30+25\\sqrt3$",
-       "$36+30\\sqrt3$",
-       "$42+35\\sqrt3$"
+      "id": "p14",
+      "num": 14,
+      "sect": "공통",
+      "type": "choice",
+      "pts": 4,
+      "blocks": [
+        {
+          "type": "statement",
+          "data": {
+            "text": "그림과 같이 삼각형 $ABC$에서 선분 $AB$ 위에 $\\overline{AD}:\\overline{DB}=3:2$인 점 $D$를 잡고, 점 $A$를 중심으로 하고 점 $D$를 지나는 원을 $O$라 하자.\n원 $O$ 위의 점 $P$에 대하여 삼각형 $PBC$의 넓이의 최댓값은? (단, $\\overline{AB}<\\overline{AC}$)"
+          }
+        },
+        {
+          "type": "image",
+          "data": {
+            "width": 58,
+            "src": "fig14.png"
+          }
+        },
+        {
+          "type": "choices",
+          "data": {
+            "items": [
+              "$18+15\\sqrt3$",
+              "$24+20\\sqrt3$",
+              "$30+25\\sqrt3$",
+              "$36+30\\sqrt3$",
+              "$42+35\\sqrt3$"
+            ],
+            "layout": "auto"
+          }
+        }
       ],
-      "layout": "auto"
-     }
-    }
-   ],
-   "layout": "auto",
-   "breakAfter": false
-  },
-  {
-   "id": "p15",
-   "num": 15,
-   "sect": "공통",
-   "type": "choice",
-   "pts": 4,
-   "blocks": [
-    {
-     "type": "statement",
-     "data": {
-      "text": "상수 $a$와 최고차항의 계수가 음수인 이차함수 $f(x)$에 대하여 함수 $g(x)$가 다음 조건을 만족시킨다."
-     }
+      "layout": "auto",
+      "breakAfter": true
     },
     {
-     "type": "conditions",
-     "data": {
-      "items": [
-       "(가) 모든 실수 $x$에 대하여 $g(x)=f(x)+a$이다.",
-       "(나) $g(-2)=g(2)$이고 $g(0)=5$이다."
-      ]
-     }
-    },
-    {
-     "type": "statement",
-     "data": {
-      "text": "$g(-2)+g(2)$의 값은?"
-     }
-    },
-    {
-     "type": "choices",
-     "data": {
-      "items": [
-       "$1$",
-       "$2$",
-       "$3$",
-       "$4$",
-       "$5$"
+      "id": "p15",
+      "num": 15,
+      "sect": "공통",
+      "type": "choice",
+      "pts": 4,
+      "blocks": [
+        {
+          "type": "statement",
+          "data": {
+            "text": "상수 $a$와 최고차항의 계수가 음수인 이차함수 $f(x)$에 대하여 함수 $g(x)$가 다음 조건을 만족시킨다."
+          }
+        },
+        {
+          "type": "conditions",
+          "data": {
+            "items": [
+              "(가) 모든 실수 $x$에 대하여 $g(x)=f(x)+a$이다.",
+              "(나) $g(-2)=g(2)$이고 $g(0)=5$이다."
+            ]
+          }
+        },
+        {
+          "type": "statement",
+          "data": {
+            "text": "$g(-2)+g(2)$의 값은?"
+          }
+        },
+        {
+          "type": "choices",
+          "data": {
+            "items": [
+              "$1$",
+              "$2$",
+              "$3$",
+              "$4$",
+              "$5$"
+            ],
+            "layout": "auto"
+          }
+        }
       ],
-      "layout": "auto"
-     }
-    }
-   ],
-   "layout": "auto",
-   "breakAfter": true
-  },
-  {
-   "id": "p16",
-   "num": 16,
-   "sect": "공통",
-   "type": "short",
-   "pts": 3,
-   "blocks": [
-    {
-     "type": "statement",
-     "data": {
-      "text": "$\\log_3 27+\\log_2 \\frac18$의 값을 구하시오."
-     }
+      "layout": "auto",
+      "breakAfter": true
     },
     {
-     "type": "choices",
-     "data": {
-      "items": [
-       "$1$",
-       "$2$",
-       "$3$",
-       "$4$",
-       "$5$"
+      "id": "p16",
+      "num": 16,
+      "sect": "공통",
+      "type": "short",
+      "pts": 3,
+      "blocks": [
+        {
+          "type": "statement",
+          "data": {
+            "text": "$\\log_3 27+\\log_2 \\frac18$의 값을 구하시오."
+          }
+        },
+        {
+          "type": "choices",
+          "data": {
+            "items": [
+              "$1$",
+              "$2$",
+              "$3$",
+              "$4$",
+              "$5$"
+            ],
+            "layout": "auto"
+          }
+        }
       ],
-      "layout": "auto"
-     }
-    }
-   ],
-   "layout": "auto",
-   "breakAfter": false
-  },
-  {
-   "id": "p17",
-   "num": 17,
-   "sect": "공통",
-   "type": "short",
-   "pts": 3,
-   "blocks": [
-    {
-     "type": "statement",
-     "data": {
-      "text": "함수 $f(x)=2x^3-3x^2+1$에 대하여 $f'(2)$의 값을 구하시오."
-     }
-    }
-   ],
-   "layout": "auto",
-   "breakAfter": false
-  },
-  {
-   "id": "p18",
-   "num": 18,
-   "sect": "공통",
-   "type": "short",
-   "pts": 3,
-   "blocks": [
-    {
-     "type": "statement",
-     "data": {
-      "text": "$\\displaystyle\\sum_{k=1}^{10}(2k-1)$의 값을 구하시오."
-     }
-    }
-   ],
-   "layout": "auto",
-   "breakAfter": false
-  },
-  {
-   "id": "p19",
-   "num": 19,
-   "sect": "공통",
-   "type": "short",
-   "pts": 3,
-   "blocks": [
-    {
-     "type": "statement",
-     "data": {
-      "text": "$\\displaystyle\\int_{0}^{2}(3x^2-2x)\\,dx$의 값을 구하시오."
-     }
-    }
-   ],
-   "layout": "auto",
-   "breakAfter": false
-  },
-  {
-   "id": "p20",
-   "num": 20,
-   "sect": "공통",
-   "type": "short",
-   "pts": 4,
-   "blocks": [
-    {
-     "type": "statement",
-     "data": {
-      "text": "수열 $\\{a_n\\}$이 다음 조건을 만족시킬 때, $a_{20}$의 값을 구하시오."
-     }
+      "layout": "auto",
+      "breakAfter": false
     },
     {
-     "type": "conditions",
-     "data": {
-      "items": [
-       "(가) $a_1=2$",
-       "(나) 모든 자연수 $n$에 대하여 $a_{n+1}=2a_n-1$"
-      ]
-     }
-    }
-   ],
-   "layout": "auto",
-   "breakAfter": false
-  },
-  {
-   "id": "p21",
-   "num": 21,
-   "sect": "공통",
-   "type": "short",
-   "pts": 4,
-   "blocks": [
-    {
-     "type": "statement",
-     "data": {
-      "text": "함수 $f(x)=x^3-6x^2+9x$의 극댓값과 극솟값의 차를 구하시오."
-     }
-    }
-   ],
-   "layout": "auto",
-   "breakAfter": false
-  },
-  {
-   "id": "p22",
-   "num": 22,
-   "sect": "공통",
-   "type": "short",
-   "pts": 4,
-   "blocks": [
-    {
-     "type": "statement",
-     "data": {
-      "text": "최고차항의 계수가 $1$인 삼차함수 $f(x)$가 다음 조건을 만족시킬 때, $f(4)$의 값을 구하시오."
-     }
-    },
-    {
-     "type": "conditions",
-     "data": {
-      "items": [
-       "(가) $f(0)=f(2)=0$",
-       "(나) 모든 실수 $x$에 대하여 $f(x)\\ge f(1)$"
-      ]
-     }
-    }
-   ],
-   "layout": "auto",
-   "breakAfter": false
-  },
-  {
-   "id": "p23",
-   "num": 23,
-   "sect": "선택",
-   "type": "choice",
-   "pts": 2,
-   "blocks": [
-    {
-     "type": "statement",
-     "data": {
-      "text": "$_6\\mathrm{C}_2$의 값은?"
-     }
-    },
-    {
-     "type": "choices",
-     "data": {
-      "items": [
-       "$10$",
-       "$12$",
-       "$15$",
-       "$18$",
-       "$20$"
+      "id": "p17",
+      "num": 17,
+      "sect": "공통",
+      "type": "short",
+      "pts": 3,
+      "blocks": [
+        {
+          "type": "statement",
+          "data": {
+            "text": "함수 $f(x)=2x^3-3x^2+1$에 대하여 $f'(2)$의 값을 구하시오."
+          }
+        }
       ],
-      "layout": "auto"
-     }
-    }
-   ],
-   "layout": "auto",
-   "breakAfter": false
-  },
-  {
-   "id": "p24",
-   "num": 24,
-   "sect": "선택",
-   "type": "choice",
-   "pts": 3,
-   "blocks": [
-    {
-     "type": "statement",
-     "data": {
-      "text": "다항식 $(x+2)^7$의 전개식에서 $x^3$의 계수는?"
-     }
+      "layout": "auto",
+      "breakAfter": false
     },
     {
-     "type": "choices",
-     "data": {
-      "items": [
-       "$280$",
-       "$420$",
-       "$560$",
-       "$672$",
-       "$840$"
+      "id": "p18",
+      "num": 18,
+      "sect": "공통",
+      "type": "short",
+      "pts": 3,
+      "blocks": [
+        {
+          "type": "statement",
+          "data": {
+            "text": "$\\displaystyle\\sum_{k=1}^{10}(2k-1)$의 값을 구하시오."
+          }
+        }
       ],
-      "layout": "auto"
-     }
-    }
-   ],
-   "layout": "auto",
-   "breakAfter": false
-  },
-  {
-   "id": "p25",
-   "num": 25,
-   "sect": "선택",
-   "type": "choice",
-   "pts": 3,
-   "blocks": [
-    {
-     "type": "statement",
-     "data": {
-      "text": "확률변수 $X$가 이항분포 $\\mathrm{B}\\!\\left(20,\\ \\dfrac13\\right)$을 따를 때, $\\mathrm{E}(3X+2)$의 값은?"
-     }
+      "layout": "auto",
+      "breakAfter": false
     },
     {
-     "type": "choices",
-     "data": {
-      "items": [
-       "$18$",
-       "$20$",
-       "$22$",
-       "$24$",
-       "$26$"
+      "id": "p19",
+      "num": 19,
+      "sect": "공통",
+      "type": "short",
+      "pts": 3,
+      "blocks": [
+        {
+          "type": "statement",
+          "data": {
+            "text": "$\\displaystyle\\int_{0}^{2}(3x^2-2x)\\,dx$의 값을 구하시오."
+          }
+        }
       ],
-      "layout": "auto"
-     }
-    }
-   ],
-   "layout": "auto",
-   "breakAfter": false
-  },
-  {
-   "id": "p26",
-   "num": 26,
-   "sect": "선택",
-   "type": "choice",
-   "pts": 3,
-   "blocks": [
-    {
-     "type": "statement",
-     "data": {
-      "text": "서로 다른 $5$개의 공을 서로 다른 $3$개의 상자에 넣는 경우의 수는?\n(단, 빈 상자가 있어도 된다.)"
-     }
+      "layout": "auto",
+      "breakAfter": false
     },
     {
-     "type": "choices",
-     "data": {
-      "items": [
-       "$81$",
-       "$125$",
-       "$150$",
-       "$225$",
-       "$243$"
+      "id": "p20",
+      "num": 20,
+      "sect": "공통",
+      "type": "short",
+      "pts": 4,
+      "blocks": [
+        {
+          "type": "statement",
+          "data": {
+            "text": "수열 $\\{a_n\\}$이 다음 조건을 만족시킬 때, $a_{20}$의 값을 구하시오."
+          }
+        },
+        {
+          "type": "conditions",
+          "data": {
+            "items": [
+              "(가) $a_1=2$",
+              "(나) 모든 자연수 $n$에 대하여 $a_{n+1}=2a_n-1$"
+            ]
+          }
+        }
       ],
-      "layout": "auto"
-     }
-    }
-   ],
-   "layout": "auto",
-   "breakAfter": false
-  },
-  {
-   "id": "p27",
-   "num": 27,
-   "sect": "선택",
-   "type": "choice",
-   "pts": 3,
-   "blocks": [
-    {
-     "type": "statement",
-     "data": {
-      "text": "두 사건 $A$, $B$에 대하여 다음이 성립할 때, $\\mathrm{P}(B)$의 값은?"
-     }
+      "layout": "auto",
+      "breakAfter": true
     },
     {
-     "type": "boxed",
-     "data": {
-      "text": "$\\mathrm{P}(A)=\\dfrac25$, $\\mathrm{P}(A\\cap B)=\\dfrac15$, $\\mathrm{P}(A\\cup B)=\\dfrac45$"
-     }
-    },
-    {
-     "type": "choices",
-     "data": {
-      "items": [
-       "$\\dfrac15$",
-       "$\\dfrac25$",
-       "$\\dfrac35$",
-       "$\\dfrac45$",
-       "$1$"
+      "id": "p21",
+      "num": 21,
+      "sect": "공통",
+      "type": "short",
+      "pts": 4,
+      "blocks": [
+        {
+          "type": "statement",
+          "data": {
+            "text": "함수 $f(x)=x^3-6x^2+9x$의 극댓값과 극솟값의 차를 구하시오."
+          }
+        }
       ],
-      "layout": "auto"
-     }
-    }
-   ],
-   "layout": "auto",
-   "breakAfter": false
-  },
-  {
-   "id": "p28",
-   "num": 28,
-   "sect": "선택",
-   "type": "choice",
-   "pts": 4,
-   "blocks": [
-    {
-     "type": "statement",
-     "data": {
-      "text": "정규분포 $\\mathrm{N}(m,\\ \\sigma^2)$을 따르는 모집단에서 크기가 $16$인 표본을 임의추출하여 얻은 표본평균이 $\\overline{X}$일 때, 다음 <보기>에서 옳은 것만을 있는 대로 고른 것은?"
-     }
+      "layout": "auto",
+      "breakAfter": true
     },
     {
-     "type": "examples",
-     "data": {
-      "items": [
-       "$\\mathrm{E}(\\overline{X})=m$이다.",
-       "$\\mathrm{V}(\\overline{X})=\\dfrac{\\sigma^2}{16}$이다.",
-       "$\\overline{X}$는 정규분포를 따른다."
-      ]
-     }
-    },
-    {
-     "type": "choices",
-     "data": {
-      "items": [
-       "ㄱ",
-       "ㄷ",
-       "ㄱ, ㄴ",
-       "ㄴ, ㄷ",
-       "ㄱ, ㄴ, ㄷ"
+      "id": "p22",
+      "num": 22,
+      "sect": "공통",
+      "type": "short",
+      "pts": 4,
+      "blocks": [
+        {
+          "type": "statement",
+          "data": {
+            "text": "최고차항의 계수가 $1$인 삼차함수 $f(x)$가 다음 조건을 만족시킬 때, $f(4)$의 값을 구하시오."
+          }
+        },
+        {
+          "type": "conditions",
+          "data": {
+            "items": [
+              "(가) $f(0)=f(2)=0$",
+              "(나) 모든 실수 $x$에 대하여 $f(x)\\ge f(1)$"
+            ]
+          }
+        }
       ],
-      "layout": "auto"
-     }
-    }
-   ],
-   "layout": "auto",
-   "breakAfter": false
-  },
-  {
-   "id": "p29",
-   "num": 29,
-   "sect": "선택",
-   "type": "short",
-   "pts": 4,
-   "blocks": [
+      "layout": "auto",
+      "breakAfter": true
+    },
     {
-     "type": "statement",
-     "data": {
-      "text": "숫자 $1$, $2$, $3$, $4$, $5$ 중에서 중복을 허락하여 $4$개를 택해 일렬로 나열할 때, $1$이 두 번 이상 나오는 경우의 수를 구하시오."
-     }
-    }
-   ],
-   "layout": "auto",
-   "breakAfter": false
-  },
-  {
-   "id": "p30",
-   "num": 30,
-   "sect": "선택",
-   "type": "short",
-   "pts": 4,
-   "blocks": [
+      "id": "p23",
+      "num": 23,
+      "sect": "선택",
+      "type": "choice",
+      "pts": 2,
+      "blocks": [
+        {
+          "type": "statement",
+          "data": {
+            "text": "$_6\\mathrm{C}_2$의 값은?"
+          }
+        },
+        {
+          "type": "choices",
+          "data": {
+            "items": [
+              "$10$",
+              "$12$",
+              "$15$",
+              "$18$",
+              "$20$"
+            ],
+            "layout": "auto"
+          }
+        }
+      ],
+      "layout": "auto",
+      "breakAfter": true
+    },
     {
-     "type": "statement",
-     "data": {
-      "text": "주머니에 흰 공 $4$개와 검은 공 $3$개가 들어 있다. 이 주머니에서 임의로 $3$개의 공을 동시에 꺼낼 때, 흰 공이 $2$개 이하일 확률을 $\\dfrac{q}{p}$라 하자.\n$p+q$의 값을 구하시오. (단, $p$와 $q$는 서로소인 자연수이다.)"
-     }
+      "id": "p24",
+      "num": 24,
+      "sect": "선택",
+      "type": "choice",
+      "pts": 3,
+      "blocks": [
+        {
+          "type": "statement",
+          "data": {
+            "text": "다항식 $(x+2)^7$의 전개식에서 $x^3$의 계수는?"
+          }
+        },
+        {
+          "type": "choices",
+          "data": {
+            "items": [
+              "$280$",
+              "$420$",
+              "$560$",
+              "$672$",
+              "$840$"
+            ],
+            "layout": "auto"
+          }
+        }
+      ],
+      "layout": "auto",
+      "breakAfter": true
+    },
+    {
+      "id": "p25",
+      "num": 25,
+      "sect": "선택",
+      "type": "choice",
+      "pts": 3,
+      "blocks": [
+        {
+          "type": "statement",
+          "data": {
+            "text": "확률변수 $X$가 이항분포 $\\mathrm{B}\\!\\left(20,\\ \\dfrac13\\right)$을 따를 때, $\\mathrm{E}(3X+2)$의 값은?"
+          }
+        },
+        {
+          "type": "choices",
+          "data": {
+            "items": [
+              "$18$",
+              "$20$",
+              "$22$",
+              "$24$",
+              "$26$"
+            ],
+            "layout": "auto"
+          }
+        }
+      ],
+      "layout": "auto",
+      "breakAfter": true
+    },
+    {
+      "id": "p26",
+      "num": 26,
+      "sect": "선택",
+      "type": "choice",
+      "pts": 3,
+      "blocks": [
+        {
+          "type": "statement",
+          "data": {
+            "text": "서로 다른 $5$개의 공을 서로 다른 $3$개의 상자에 넣는 경우의 수는?\n(단, 빈 상자가 있어도 된다.)"
+          }
+        },
+        {
+          "type": "choices",
+          "data": {
+            "items": [
+              "$81$",
+              "$125$",
+              "$150$",
+              "$225$",
+              "$243$"
+            ],
+            "layout": "auto"
+          }
+        }
+      ],
+      "layout": "auto",
+      "breakAfter": true
+    },
+    {
+      "id": "p27",
+      "num": 27,
+      "sect": "선택",
+      "type": "choice",
+      "pts": 3,
+      "blocks": [
+        {
+          "type": "statement",
+          "data": {
+            "text": "두 사건 $A$, $B$에 대하여 다음이 성립할 때, $\\mathrm{P}(B)$의 값은?"
+          }
+        },
+        {
+          "type": "boxed",
+          "data": {
+            "text": "$\\mathrm{P}(A)=\\dfrac25$, $\\mathrm{P}(A\\cap B)=\\dfrac15$, $\\mathrm{P}(A\\cup B)=\\dfrac45$"
+          }
+        },
+        {
+          "type": "choices",
+          "data": {
+            "items": [
+              "$\\dfrac15$",
+              "$\\dfrac25$",
+              "$\\dfrac35$",
+              "$\\dfrac45$",
+              "$1$"
+            ],
+            "layout": "auto"
+          }
+        }
+      ],
+      "layout": "auto",
+      "breakAfter": true
+    },
+    {
+      "id": "p28",
+      "num": 28,
+      "sect": "선택",
+      "type": "choice",
+      "pts": 4,
+      "blocks": [
+        {
+          "type": "statement",
+          "data": {
+            "text": "정규분포 $\\mathrm{N}(m,\\ \\sigma^2)$을 따르는 모집단에서 크기가 $16$인 표본을 임의추출하여 얻은 표본평균이 $\\overline{X}$일 때, 다음 <보기>에서 옳은 것만을 있는 대로 고른 것은?"
+          }
+        },
+        {
+          "type": "examples",
+          "data": {
+            "items": [
+              "$\\mathrm{E}(\\overline{X})=m$이다.",
+              "$\\mathrm{V}(\\overline{X})=\\dfrac{\\sigma^2}{16}$이다.",
+              "$\\overline{X}$는 정규분포를 따른다."
+            ]
+          }
+        },
+        {
+          "type": "choices",
+          "data": {
+            "items": [
+              "ㄱ",
+              "ㄷ",
+              "ㄱ, ㄴ",
+              "ㄴ, ㄷ",
+              "ㄱ, ㄴ, ㄷ"
+            ],
+            "layout": "auto"
+          }
+        }
+      ],
+      "layout": "auto",
+      "breakAfter": true
+    },
+    {
+      "id": "p29",
+      "num": 29,
+      "sect": "선택",
+      "type": "short",
+      "pts": 4,
+      "blocks": [
+        {
+          "type": "statement",
+          "data": {
+            "text": "숫자 $1$, $2$, $3$, $4$, $5$ 중에서 중복을 허락하여 $4$개를 택해 일렬로 나열할 때, $1$이 두 번 이상 나오는 경우의 수를 구하시오."
+          }
+        }
+      ],
+      "layout": "auto",
+      "breakAfter": true
+    },
+    {
+      "id": "p30",
+      "num": 30,
+      "sect": "선택",
+      "type": "short",
+      "pts": 4,
+      "blocks": [
+        {
+          "type": "statement",
+          "data": {
+            "text": "주머니에 흰 공 $4$개와 검은 공 $3$개가 들어 있다. 이 주머니에서 임의로 $3$개의 공을 동시에 꺼낼 때, 흰 공이 $2$개 이하일 확률을 $\\dfrac{q}{p}$라 하자.\n$p+q$의 값을 구하시오. (단, $p$와 $q$는 서로소인 자연수이다.)"
+          }
+        }
+      ],
+      "layout": "auto",
+      "breakAfter": true
     }
-   ],
-   "layout": "auto",
-   "breakAfter": false
-  }
- ]
+  ]
 }

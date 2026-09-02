@@ -173,6 +173,58 @@ for name in ("미적분", "기하", "확률과 통계"):
           bool(texts) and all(f"수학 영역({name})" in t for t in texts),
           str(texts))
 
+# ── 4. 문항별 단 배치가 실물과 같은가 ────────────────────────────────────
+# 실물은 앞쪽 쉬운 문항만 둘씩 묶고 뒤로 갈수록 한 단에 하나씩 둔다. 그 배치를
+# `평가원 수학 양식.hwpx` 의 단나눔에서 읽어 기본값으로 삼았다(편집기 `COL_SOLO`).
+print("\n문항별 단 배치")
+
+
+def real_column_groups(path: Path, index: int) -> list[list[str]]:
+    """실물 틀에서 '한 단에 어떤 문항들이 들어 있는지' 를 읽는다."""
+    with zipfile.ZipFile(path) as z:
+        xml = z.read(f"Contents/section{index}.xml").decode("utf-8")
+    cols, cur = [], []
+    for para in paragraphs(xml):
+        if re.match(r"<hp:p\b[^>]*(columnBreak|pageBreak)=\"1\"", para):
+            cols.append(cur)
+            cur = []
+        m = re.search(r"<hp:t(?:\s[^>]*)?>\s*(\d{1,2})\.", para)
+        if m:
+            cur.append(m.group(1))
+    cols.append(cur)
+    return [c for c in cols if c]
+
+
+# ⚠️ `column_slots()` 가 주는 인덱스는 **넘긴 묶음 안에서의 자리**다. 전체 목록에
+#    그대로 쓰면 선택 문항이 1~8번으로 보인다(실제로 그렇게 틀렸다).
+common_qs = [q for q in data["problems"] if q.get("sect") != "선택"]
+elective_qs = [q for q in data["problems"] if q.get("sect") == "선택"]
+
+real_common = real_column_groups(TEMPLATE, 0)
+ours_common = [[str(common_qs[i]["num"]) for i in col]
+               for col in mock_to_hwpx.column_slots(common_qs)]
+check("공통 구역 단 배치가 실물과 같다",
+      ours_common == real_common,
+      f"우리 {' / '.join(','.join(c) for c in ours_common)}")
+check("실물 배치를 실제로 읽어 왔다 (빈 표를 통과시키지 않는다)",
+      len(real_common) > 10 and any(len(c) == 1 for c in real_common)
+      and any(len(c) == 2 for c in real_common),
+      f"{len(real_common)}단 · 단독 {sum(1 for c in real_common if len(c)==1)}개")
+
+# 선택은 실물에 세 과목이 이어져 있다 — 한 과목 몫(23~30)만 견준다.
+real_elective = real_column_groups(TEMPLATE, 1)[:8]
+ours_elective = [[str(elective_qs[i]["num"]) for i in col]
+                 for col in mock_to_hwpx.column_slots(elective_qs)]
+check("선택 구역은 한 단에 한 문항씩이다 (실물과 같다)",
+      ours_elective == real_elective,
+      f"우리 {' / '.join(','.join(c) for c in ours_elective)}")
+
+# 되돌림 감지 — 옛 기본값(전부 두 문항씩)이면 실물과 달라야 한다.
+flat = [dict(q, breakAfter=False) for q in common_qs]
+check("전부 두 문항씩으로 되돌리면 실물과 달라진다",
+      [[str(flat[i]["num"]) for i in col]
+       for col in mock_to_hwpx.column_slots(flat)] != real_common)
+
 # ── 4. 한 단 안에서 문항을 벌린다 (REV-2026-016) ──────────────────────────
 # 실물도 편집기도 단을 균등하게 나눠 각 문항을 자기 칸 맨 위에 둔다. 높이는 편집기가
 # 재서 `heightMm` 으로 보낸다 — 파이썬은 글꼴 실측을 못 하기 때문이다.
@@ -254,7 +306,7 @@ huge = {**data, "problems": [{**p, "heightMm": 400.0} for p in data["problems"]]
 check("문항이 칸보다 크면 벌리지 않는다",
       blanks_before_numbers(section_xml(build(huge), 0)).get("2", 0) <= 1)
 
-# ── 5. 이 검사가 실제로 무언가를 검사하는가 ───────────────────────────────
+# ── 6. 이 검사가 실제로 무언가를 검사하는가 ───────────────────────────────
 # 고친 것을 되돌려 놓고 빨간불이 되는지 본다. 안 되면 이 검사는 아무것도 지키지 않는다.
 print("\n검사가 유효한지")
 
