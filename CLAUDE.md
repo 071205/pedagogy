@@ -21,6 +21,11 @@ python3 experiments/hwp-export/document_to_hwpx.py \
         experiments/hwp-export/samples/document-sample.json 결과.hwpx
 ```
 
+**다음에 할 일이 설계돼 있다** — [`docs/MOCK-STYLE-DESIGN.md`](docs/MOCK-STYLE-DESIGN.md).
+모의고사 편집기에 실물 조판 디테일(수식 앞 공백·구획 태그·※확인 사항·그림 문단 모양)을
+들이는 6단계 계획이다. **설계 중에 버그를 하나 찾았다** — 우리 그림이 실물이 쓰지 않는
+문단 모양으로 나간다(그 문서 §8-④). 이어서 할 때 그 문서부터 읽을 것.
+
 **열린 이슈 2건** — `REV-2026-009`(단답형 태그) · `REV-2026-010`(※확인 사항 상자).
 둘 다 **실물 대조가 필요해 일부러 손대지 않았다** — 모양이 틀린 것을 넣으면 없는 것보다 나쁘다.
 
