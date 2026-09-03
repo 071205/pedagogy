@@ -28,6 +28,16 @@ jobs:
         run: npm run check:fast
       - name: Install fixed Chromium for visual regression
         run: npx playwright install --with-deps chromium
+      # ⚠️ 기준 시각본은 **만든 OS 별로** 있다(`visual-baseline/<platform>/`).
+      #    지금 저장소에는 맥(`darwin/`) 것만 있어서, 이 리눅스 러너에서는 비교를
+      #    ⏭ 로 건너뛴다. 글리프 래스터화가 OS 마다 달라 맥 기준본과 견주면 글자마다
+      #    어긋나 쪽의 1.8% 가 다르게 나오고 — 그건 진짜 배치 회귀(1.5%)보다도 커서
+      #    아무것도 판정하지 못한다. 그래서 이 검사는 2026-08-28 이후 **19회 연속
+      #    실패**했고 뒤 단계들이 아예 돌지 못했다(`REV-2026-018`).
+      #    건너뛰어도 **인쇄 경로가 예외 없이 돌고 칸 넘침이 없는지는 확인한다** —
+      #    렌더는 하고 비교만 건너뛰기 때문이다.
+      #    리눅스에서도 견주고 싶으면 이 러너에서 UPDATE_VISUAL_BASELINE=1 로 한 번
+      #    돌려 `visual-baseline/linux/` 를 만들어 커밋하면 된다.
       - name: Visual print regression
         run: npm run test:visual
       - name: Upload visual diff on failure

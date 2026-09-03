@@ -30,6 +30,7 @@
 | `REV-2026-016` | `P2` | 한 단 안의 문항이 실물처럼 벌어지지 않는다 | `issues/2026-09-01-mock-hwpx-problem-spacing-in-column.md` |
 | `REV-2026-009` | `P2` | HWPX 시험지에 '단답형' 구획 태그가 없다 | `issues/2026-08-31-mock-hwpx-missing-short-answer-tag.md` |
 | `REV-2026-010` | `P3` | HWPX 시험지에 '※ 확인 사항' 상자가 없다 | `issues/2026-08-31-mock-hwpx-missing-confirm-box.md` |
+| `REV-2026-018` | `P2` | 시각 회귀 검사가 CI 에서 한 번도 통과한 적이 없다 | `issues/2026-09-03-visual-regression-never-passed-in-ci.md` |
 
 ## 최근 인계
 
@@ -72,3 +73,4 @@
 | `HANDOFF-2026-034` | Claude | 실물 조판 4단계 (조건 상자 안 별행 수식) | `handoffs/2026-09-02-mock-style-step4-cond-display-eq.md` |
 | `HANDOFF-2026-035` | Claude | 실물 조판 3+5단계 (구획 태그 · ※ 확인 사항) | `handoffs/2026-09-03-mock-style-step35-section-tag-and-note.md` |
 | `HANDOFF-2026-036` | Claude | 실물 조판 6단계 (역할 표 대조 검사) | `handoffs/2026-09-03-mock-style-step6-role-table.md` |
+| `HANDOFF-2026-037` | Claude | 시각 회귀 — 같은 OS 끼리만 견주고, 국소 변화를 잡게 | `handoffs/2026-09-03-visual-regression-cross-platform.md` |
