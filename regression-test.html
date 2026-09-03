@@ -536,6 +536,19 @@ async function runIndexTests(){
              note: en.includes("psg-en") ? undefined : "과목이 렌더에 전달되지 않음" };
   });
 
+  await check(G, "지문 산문은 문단마다 요소가 되고, $$ 수식은 잘리지 않는다", () => {
+    /* 실물은 문단마다 첫 줄을 들여쓴다(국어 3.56mm · 영어 3.72mm). 들여쓰려면 문단이
+       각각 요소여야 한다. ⚠️ 그런데 `\n` 으로 그냥 쪼개면 여러 줄에 걸친 $$…$$ 가
+       두 조각으로 깨진다 — 그래서 $$ 밖의 줄바꿈에서만 쪼갠다. */
+    const html = win.blockHTML(win.normBlock({type:"passage", data:{parts:[
+      {kind:"prose", text:"첫 문단.\n둘째 문단 $$x\n+y$$ 끝.\n셋째 문단."}]}}), {});
+    const paras = (html.match(/class="psg-p"/g)||[]).length;
+    /* 문단은 셋이어야 한다 — $$ 안의 줄바꿈에서 쪼개면 넷이 되고 수식이 깨진다.
+       그리고 수식은 KaTeX 가 받을 수 있게 살아 있어야 한다(pdm 래퍼). */
+    return { pass: paras===3 && html.includes("pdm"),
+             note: `문단 ${paras}개 (셋이어야 한다)` };
+  });
+
   await check(G, "선지 배치는 5열·3열·2열·세로 네 가지다", () => {
     const H2 = installHooks(win, ["CHOICE_LAYOUTS"]);
     const keep = v => win.normBlock({type:"choices", data:{items:["a"], layout:v}}).data.layout;
@@ -616,9 +629,15 @@ async function runIndexTests(){
       data:{parts:[{kind:"verse", text:"1행\n2행\n\n3행"}]}}), {});
     const prose = win.blockHTML(win.normBlock({type:"passage",
       data:{parts:[{kind:"prose", text:"1행\n2행"}]}}), {});
-    const okV = verse.includes("v-line") && verse.includes("v-gap") && !verse.includes("vspace");
-    return { pass: okV && prose.includes("vspace"),
-             note: okV ? "산문 조판이 바뀜" : "운문이 행으로 안 나뉨" };
+    /* 산문은 문단마다 요소(`psg-p`)로 나뉘고 간격은 CSS 가 준다. 예전에는 `\n` 이
+       6pt 간격 span(`vspace`)이 됐는데, 그러면 문단이라는 상자가 없어 실물처럼
+       **문단마다 첫 줄을 들여쓸** 수가 없었다. 운문은 그때도 지금도 행 단위다. */
+    /* ⚠️ "psg-p" 로 부분 검색하면 바깥 div 의 `psg-part` 에도 걸린다(실제로 걸렸다).
+       `psg-box` ↔ `psg-boxed` 와 같은 함정이라 클래스를 통째로 맞춘다. */
+    const okV = verse.includes("v-line") && verse.includes("v-gap")
+                && !verse.includes('class="psg-p"');
+    return { pass: okV && prose.includes('class="psg-p"') && !prose.includes("v-line"),
+             note: okV ? "산문이 문단으로 안 나뉨" : "운문이 행으로 안 나뉨" };
   });
 
   await check(G, "<보기> 상자가 라벨과 함께 렌더된다", () => {

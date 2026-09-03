@@ -75,3 +75,4 @@
 | `HANDOFF-2026-036` | Claude | 실물 조판 6단계 (역할 표 대조 검사) | `handoffs/2026-09-03-mock-style-step6-role-table.md` |
 | `HANDOFF-2026-037` | Claude | 시각 회귀 — 같은 OS 끼리만 견주고, 국소 변화를 잡게 | `handoffs/2026-09-03-visual-regression-cross-platform.md` |
 | `HANDOFF-2026-038` | Claude | 영어 과목 조판의 토대 (실물 대조) | `handoffs/2026-09-03-english-subject-foundation.md` |
+| `HANDOFF-2026-039` | Claude | 지문 문단 모델 — 문단마다 첫 줄 들여쓰기 | `handoffs/2026-09-03-passage-paragraph-model.md` |

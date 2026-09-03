@@ -700,12 +700,13 @@ body.col-resizing{cursor:col-resize;user-select:none}
 .preview .psg-label{font-weight:700;margin-bottom:5px}
 .preview .psg-body{font-size:.94em;line-height:1.75;text-align:justify}
 .preview .psg-verse .psg-body{text-align:left}
-/* ── 영어 지문 ── 2025 수능 영어 실물에서 잰 값이다.
-   · 첫 줄 들여쓰기 3.72mm (본문 12.2pt = 4.30mm 기준 0.87em)
-     영어 지문은 실물에서 거의 언제나 한 문단이라 첫 줄만 들여쓰면 된다.
-     ⚠️ 국어는 문단마다 들여쓰기라 이 규칙을 그대로 쓰면 안 된다(첫 문단만 들어간다).
-   · 각주는 오른쪽 끝에 붙고 여러 개가 한 줄에 나란히 온다 */
-.preview .psg-en .psg-body{text-indent:.87em}
+/* 지문 문단 — 실물은 **문단마다** 첫 줄을 들여쓴다(국어 3.56mm · 영어 3.72mm, 둘 다
+   약 한 글자). 우리 단은 실물보다 좁으므로(82.37 vs 109.07mm) mm 가 아니라 em 으로 쓴다.
+   ⚠️ margin-top 6pt 는 예전에 `\n` 이 만들던 문단 간격이다 — 빼면 문단이 붙는다.
+   ⚠️ 운문(verse)은 verseHTML 이 따로 그리므로 이 규칙이 가지 않는다(가면 시 행이 밀린다). */
+.preview .psg-p{text-indent:.87em}
+.preview .psg-p + .psg-p{margin-top:6pt}
+/* ── 영어 지문 ── 각주는 오른쪽 끝에 붙고 여러 개가 한 줄에 나란히 온다(실물 확인) */
 .preview .psg-note-row{text-align:right}
 .preview .psg-note-row span+span{margin-left:1.6em}
 .preview .v-line{line-height:1.65}
@@ -832,7 +833,8 @@ body.col-resizing{cursor:col-resize;user-select:none}
 .pq .psg-body{font-size:.94em;line-height:1.8;text-align:justify;word-break:keep-all}
 .pq .psg-verse .psg-body{text-align:left}
 /* 화면(.preview)과 같은 규칙 — 한쪽만 고치면 미리보기와 인쇄가 갈라진다. */
-.pq .psg-en .psg-body{text-indent:.87em}
+.pq .psg-p{text-indent:.87em}
+.pq .psg-p + .psg-p{margin-top:6pt}
 .pq .psg-note-row{text-align:right}
 .pq .psg-note-row span+span{margin-left:1.6em}
 .pq .v-line{line-height:1.7}
@@ -4313,22 +4315,38 @@ function rangeWrap(inner, label){
   return `<div class="psg-range">${inner}<span class="psg-range-tag">[${sanitize(label)}]</span></div>`;
 }
 
+/* 지문을 문단으로 나눈다.
+   ⚠️ **`$$…$$` 안의 줄바꿈에서 자르면 안 된다.** 표시 수식은 여러 줄에 걸칠 수 있어서
+      (`processText` 의 `[\s\S]+?`), 가운데서 자르면 수식이 두 조각으로 깨진다.
+      그래서 그냥 split 하지 않고 `$$` 밖의 `\n` 만 경계로 삼는다. */
+function splitParagraphs(raw){
+  const s=String(raw||""), out=[];
+  let buf="", i=0;
+  while(i<s.length){
+    if(s.startsWith("$$",i)){
+      const end=s.indexOf("$$",i+2);
+      if(end<0){ buf+=s.slice(i); break; }     // 닫히지 않은 $$ — 통째로 둔다
+      buf+=s.slice(i,end+2); i=end+2; continue;
+    }
+    if(s[i]==="\n"){ out.push(buf); buf=""; i++; continue; }
+    buf+=s[i++];
+  }
+  out.push(buf);
+  return out;
+}
+
 function proseHTML(raw){
-  const lines=String(raw||"").split(/\r?\n/);
-  const plain = !lines.some(l=>isEllipsisLine(l)||rangeOpen(l)!==null||isRangeClose(l));
-  if(plain) return processText(raw);          // 표시가 없으면 기존 경로 그대로
-  /* 산문은 줄바꿈이 '문단' 이라 줄을 낱개로 조판하면 문단 간격이 달라진다.
-     그래서 (중략) 을 뺀 나머지는 덩어리째 모아 한 번에 processText 를 태운다. */
-  const paintSeg = segLines => {
-    let out="", buf=[];
-    const flush=()=>{ if(buf.length){ out+=processText(buf.join("\n")); buf=[]; } };
-    segLines.forEach(l=>{
-      if(isEllipsisLine(l)){ flush(); out+=`<div class="psg-mid">${sanitize(l.trim())}</div>`; }
-      else buf.push(l);
-    });
-    flush();
-    return out;
-  };
+  const lines=splitParagraphs(raw);
+  /* 산문은 줄바꿈이 '문단' 이다. 실물은 **문단마다 첫 줄을 들여쓰므로**(국어 3.56mm ·
+     영어 3.72mm — 둘 다 약 한 글자) 문단이 각각 요소여야 한다.
+     ⚠️ 예전에는 덩어리째 `processText` 에 넘겼다. `\n` 이 6pt 간격 span 이 되어 문단이라는
+        상자가 없었고, 그래서 들여쓸 곳이 없었다. 나눈 대신 그 6pt 는 CSS 로 되살린다
+        (`.psg-p + .psg-p`) — 안 그러면 문단 간격이 사라진다. */
+  const paintSeg = segLines => segLines.map(l =>
+      isEllipsisLine(l)
+        ? `<div class="psg-mid">${sanitize(l.trim())}</div>`
+        : `<div class="psg-p">${processText(l)}</div>`
+    ).join("");
   return splitRanges(lines).map(seg=>{
     const inner=paintSeg(seg.lines);
     return seg.label===null ? inner : rangeWrap(inner, seg.label);
