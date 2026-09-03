@@ -332,7 +332,9 @@ body.embedded .brand-tag{margin-left:0}
   bottom:calc(var(--body-bot)*1mm)}
 .col{width:calc(var(--col-w)*1mm);flex:none;display:flex;flex-direction:column;min-height:0}
 .tag{align-self:flex-start;display:flex;align-items:center;justify-content:center;
-  border:.35mm solid #000;width:38.99mm;height:8.29mm;margin:0 0 11.21mm .51mm;
+  /* 아래 여백 7.63mm = 태그가 먹는 15.92mm − 상자 높이 8.29mm.
+     15.92mm 는 실물 틀에서 잰 값이다(Typst 의 TAGH · 한글 내보내기와 같아야 한다). */
+  border:.35mm solid #000;width:38.99mm;height:8.29mm;margin:0 0 7.63mm .51mm;
   font-family:var(--exam-g);font-weight:400;font-size:15.7pt;letter-spacing:0}
 .tag.inline{align-self:auto;display:inline-flex;margin:0 0 11.21mm .51mm}
 .tag.short{width:27.84mm}
@@ -361,6 +363,11 @@ body.embedded .brand-tag{margin-left:0}
   margin:3.4mm 0 3.4mm calc(var(--ind)*1mm);font-size:var(--fs);line-height:1.5;
   letter-spacing:var(--track-ch)}
 .condbox div+div{margin-top:1.6mm}
+/* 상자 안 별행 수식 — KaTeX 의 디스플레이 기본값(가운데·위아래 1em)은 실물과 다르다.
+   실물은 상자 왼쪽 끝에서 시작하고 줄 간격을 더 벌리지 않는다(문단 여백은 다른 줄과 같다). */
+.condbox .condeq .katex-display{margin:0;text-align:left}
+/* KaTeX 는 안쪽 .katex 에도 가운데 정렬을 걸어 둔다 — 바깥만 고치면 안 먹는다. */
+.condbox .condeq .katex-display>.katex{text-align:left}
 /* 확인 사항 — 각 과목 마지막 쪽 오른쪽 단 아래 (본문 끝 y=359.41) */
 .notebox{position:absolute;left:141.75mm;width:112mm;
   bottom:34.69mm;border:.12mm solid #000;padding:2.6mm 3mm;
@@ -626,13 +633,16 @@ function spaceBeforeMath(s){
   return out;
 }
 
-function tex(src){
+/* disp=true 면 디스플레이(별행) 크기로 조판한다.
+   Typst 정본은 별행 수식에 mitex(디스플레이)를 쓰는데 미리보기가 인라인 크기로 그리면
+   \sum·\frac 의 높이가 달라 '한 단 안 문항 간격'(measureProblemHeights)까지 어긋난다. */
+function tex(src,disp){
   if(!src) return '';
   return spaceBeforeMath(src).split(/(\$[^$]*\$)/g).map(p=>{
     if(p.length>2&&p.startsWith('$')&&p.endsWith('$')){
       /* 정본(Typst) 경로와 같은 cases 간격 보정을 적용해야 미리보기와 결과물이 어긋나지 않는다.
          fixCases 는 함수 선언이라 이 시점에도 호이스팅되어 있다. */
-      try{return katex.renderToString(fixCases(p.slice(1,-1)),{throwOnError:false,output:'html'});}
+      try{return katex.renderToString(fixCases(p.slice(1,-1)),{throwOnError:false,output:'html',displayMode:!!disp});}
       catch(e){return '<span style="color:#F04452">'+esc(p)+'</span>';}
     }
     return esc(p);
@@ -685,6 +695,9 @@ function renderChoices(p,u){
    · 수식만 있는 줄 → 별행(디스플레이) 수식, 가운데 정렬
    · (단, ~) 은 별도 줄로 내림                                        */
 const JOSA=/^[의이가은는을를에와과로도만나며서라人]/;
+/* 한 줄이 통째로 수식이면 별행(디스플레이) 수식이다.
+   발문과 조건 상자가 **같은 규칙**을 쓰도록 여기 한 곳에만 둔다. */
+const EQ_LINE=/^\$[^$]*\$$/;
 /* 지문 안에서 조건 박스·그림이 놓일 자리를 [조건] / [그림] 한 줄로 지정한다.
    마커가 없으면 지금까지처럼 지문 뒤·선지 앞에 붙는다. */
 const MK_C=/^\[조건\]$/, MK_F=/^\[그림\]$/;
@@ -778,14 +791,22 @@ function probUnits(p){
     if(b.type==='statement'){
       String(d.text||'').replace(/\s*(\(단,)/g,'\n$1').split('\n')
         .map(x=>x.trim()).filter(Boolean)
-        .forEach(t=>units.push(/^\$[^$]*\$$/.test(t)?{k:'eq',t}:{k:'text',t}));
+        .forEach(t=>units.push(EQ_LINE.test(t)?{k:'eq',t}:{k:'text',t}));
     }
     else if(b.type==='boxed'){
       const t=String(d.text||'').trim(); if(t) units.push({k:'boxed',t});
     }
     else if(b.type==='conditions'||b.type==='examples'){
-      const items=(d.items||[]).map(x=>String(x)).filter(x=>x.trim());
-      if(items.length) units.push({k:b.type==='conditions'?'cond':'ex',items});
+      let items=(d.items||[]).map(x=>String(x)).filter(x=>x.trim());
+      if(!items.length) return;
+      if(b.type!=='conditions'){ units.push({k:'ex',items}); return; }
+      /* 조건 상자 안에서도 '수식만 있는 줄' 은 별행 수식이다(발문과 같은 규칙).
+         상자를 쪼개지 않으려고 별도 유닛으로 내지 않고, 같은 cond 유닛 안에서
+         줄마다 종류를 표시한다 — items 는 지금까지처럼 문자열 배열 그대로다
+         (모양을 바꾸면 블록 내용을 훑는 곳이 조용히 터진다). */
+      const kinds=items.map(t=>EQ_LINE.test(t.trim())?'eq':'text');
+      items=items.map((t,j)=>kinds[j]==='eq'?t.trim():t);
+      units.push({k:'cond',items,kinds});
     }
     else if(b.type==='choices'){
       // 단답형 문항이면 선지 블록이 남아 있어도 시험지에는 싣지 않는다.
@@ -834,7 +855,7 @@ function paintProblem(p, R){
       first = false;
     }
     else if(u.k==='eq')      piece = R.eq(p,u.t,pts);
-    else if(u.k==='cond')    piece = R.cond(p,u.items);
+    else if(u.k==='cond')    piece = R.cond(p,u);
     else if(u.k==='ex')      piece = R.ex(p,u.items);
     else if(u.k==='boxed')   piece = R.boxed(p,u.t);
     else if(u.k==='fig')     piece = R.fig(p,u);
@@ -850,7 +871,13 @@ const PAINT_HTML = {
   head: (p,t,pts) => `<div class="stmt"><span class="no">${p.num}.</span>${tex(t)}${pts?ptsHTML(p):''}</div>`,
   cont: (p,t,pts) => `<div class="cont">${tex(t)}${pts?ptsHTML(p):''}</div>`,
   eq:   (p,t,pts) => `<div class="dispeq">${tex(t)}${pts?ptsHTML(p):''}</div>`,
-  cond: (p,items) => `<div class="condbox">${items.map(c=>`<div>${tex(c)}</div>`).join('')}</div>`,
+  /* 상자 안 '수식만 있는 줄' 은 별행 수식 — 실물은 상자 왼쪽 끝에서 시작하고
+     위아래 여백을 더 주지 않는다(문단 자체의 높이만 커진다). 그래서 줄 모양은
+     그대로 두고 수식만 디스플레이 크기로 조판한다. */
+  cond: (p,u) => `<div class="condbox">${u.items.map((c,j)=>
+          (u.kinds&&u.kinds[j]==='eq')
+            ? `<div class="condeq">${tex(c,true)}</div>`
+            : `<div>${tex(c)}</div>`).join('')}</div>`,
   ex:   (p,items) => `<div class="condbox exbox">${items.map((c,j)=>
           `<div><span class="exmk">${HGND[j%HGND.length]}.</span> ${tex(c)}</div>`).join('')}</div>`,
   boxed:(p,t)     => `<div class="condbox">${tex(t)}</div>`,
@@ -869,7 +896,10 @@ const PAINT_TYPST = {
         : `#probhead(${p.num})[${tline(t)}${pts?' #ptsmark('+p.pts+')':''}]`,
   cont: (p,t,pts) => `#contline[${tline(t)}${pts?' #ptsmark('+p.pts+')':''}]`,
   eq:   (p,t,pts) => `#dispeq[${texToTypst(t.slice(1,-1),true)}${pts?' #ptsmark('+p.pts+')':''}]`,
-  cond: (p,items) => `#condbox(${items.map(c=>`\n       [${tline(c)}],`).join('')}\n     )`,
+  cond: (p,u) => `#condbox(${u.items.map((c,j)=>
+          (u.kinds&&u.kinds[j]==='eq')
+            ? `\n       [#condeq[${texToTypst(c.slice(1,-1),true)}]],`
+            : `\n       [${tline(c)}],`).join('')}\n     )`,
   ex:   (p,items) => `#exbox(${items.map((c,j)=>`\n       [${tq(HGND[j%HGND.length])}. ${tline(c)}],`).join('')}\n     )`,
   boxed:(p,t)     => `#condbox(\n       [${tline(t)}],\n     )`,
   /* 그림 경로 앞의 '/' 는 Typst 에서 '루트 기준 절대경로' 라는 뜻이다.
@@ -1574,6 +1604,11 @@ const TYPST_FRAME = `#import "@preview/mitex:0.2.7": mi, mitex
   #pad(left: 3.99mm)[#body]]
 // 별행 수식 — 단 안에서 가운데, 위아래 2.8mm
 #let dispeq(body) = block(width: 100%, above: 2.8mm, below: 2.8mm)[#align(center)[#body]]
+// 조건 상자 안 별행 수식 — 실물은 상자 **왼쪽 끝**에서 시작한다(가운데가 아니다).
+//   근거: 평가원 양식 22번 조건 (가)의 별행 수식이 상자 안 왼쪽 8.0mm 에서 시작한다.
+// ⚠️ #align(left) 로는 안 된다. Typst 의 별행 수식은 스스로 가운데로 가므로
+//    show 규칙으로 정렬을 바꿔야 한다(#box 로 싸면 줄바꿈을 잃는다).
+#let condeq(body) = { show math.equation: set align(left); body }
 // 조건 박스 (가)(나) — 1행1열 표, 테두리 0.12mm, 안여백 3mm
 // CONDW: 25 양식 실측 104mm / 09 정본 스타일 정의는 108.07mm (바꾸려면 여기만)
 #let CONDW = 104mm
@@ -1618,6 +1653,10 @@ const TYPST_FRAME = `#import "@preview/mitex:0.2.7": mi, mitex
 
 // 단 첫머리가 아닌 곳에서 구획이 바뀔 때 — 문항 위에 흐름대로 넣는다
 #let sectag-inline(t) = block(above: 0pt, below: 11.21mm)[#sectag(t)]
+// 태그가 단 위에서 먹는 높이 — 실물 틀에서 잰 값이다(태그 문단 위 끝 → 첫 문항 15.92mm).
+// 한글 내보내기가 template.capture_marks() 로 읽는 값과 같아야 한다.
+// (⚠️ 이 문자열은 JS 템플릿 리터럴 안이다 — 여기에 backtick 을 쓰면 편집기가 통째로 죽는다)
+#let TAGH = 15.92mm
 
 // ── 확인 사항 박스 ──
 // 09 정본: 폭 112.00mm · 높이 22.34mm(3줄) · 테두리 0.12mm,
@@ -1636,13 +1675,19 @@ const TYPST_FRAME = `#import "@preview/mitex:0.2.7": mi, mitex
   #place(bottom + right, dx: -1.5mm, dy: -0.3mm, text(font: F-PNO, size: 11.4pt)[#total])]
 
 // ── 단: 높이를 균등 분할해 각 문항을 자기 칸 상단에 고정 ──
-#let column-slots(items, pad-top: 0mm) = {
-  let n = calc.max(items.len(), 2)
-  grid(columns: 1, rows: (1fr,) * n,
-    ..items.enumerate().map(((i, x)) => block(width: 100%)[
-      #if i == 0 and pad-top != 0mm { v(pad-top) }
-      #x]))
-}
+// ⚠️ 구획 태그 자리는 첫 칸 **안**이 아니라 단 높이에서 통째로 뺀다.
+//    · 첫 항목 앞에 v(pad-top) 만 넣으면 칸 경계가 그대로여서 둘째 문항이 제자리에 남고,
+//    · 격자 앞에 v() 를 두면 1fr 이 여전히 단 전체 높이로 풀려 격자가 통째로 밀린다
+//      (실측: 17번이 176.1mm — 목표 167.9mm 보다 8mm 아래).
+//    그래서 **격자 자체를 (단 높이 − 태그) 로 만들어** place 로 내려 놓는다.
+//    실물은 태그가 먹은 만큼 남은 공간을 다시 균등하게 나눈다(16·17번 단: 17번 172.8mm).
+//    화면 미리보기(.col > .tag + .slots)와 한글 내보내기도 같은 방식이다.
+#let column-slots(items, height: 0mm, pad-top: 0mm) = box(width: 100%, height: height)[
+  #place(top + left, dy: pad-top,
+    box(width: 100%, height: height - pad-top)[
+      #grid(columns: 1, rows: (1fr,) * calc.max(items.len(), 2),
+        ..items.map(x => block(width: 100%)[#x]))])
+]
 
 // ── 페이지 프레임 ──
 //   pageno  : 과목별 쪽번호 (선택과목에서 1로 되돌아감) — 머리말 모양·좌우 결정
@@ -1699,10 +1744,12 @@ const TYPST_FRAME = `#import "@preview/mitex:0.2.7": mi, mitex
     box(width: BW, height: bodyH)[
       #grid(columns: (CW, CW), column-gutter: CG,
         box(width: CW, height: bodyH)[
-          #column-slots(left-items, pad-top: if tag-l != none { 19.5mm } else { 0mm })
+          #column-slots(left-items, height: bodyH,
+                        pad-top: if tag-l != none { TAGH } else { 0mm })
         ],
         box(width: CW, height: bodyH)[
-          #column-slots(right-items, pad-top: if tag-r != none { 19.5mm } else { 0mm })
+          #column-slots(right-items, height: bodyH,
+                        pad-top: if tag-r != none { TAGH } else { 0mm })
         ])
     ])
 

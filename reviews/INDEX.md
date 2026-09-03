@@ -1,16 +1,13 @@
 # 리뷰 현황
 
-마지막 정리: 2026-09-01
+마지막 정리: 2026-09-03
 
 ## 열린 이슈
 
-| ID | 심각도 | 요약 | 파일 |
-| --- | --- | --- | --- |
-| `REV-2026-009` | `P2` | HWPX 시험지에 '단답형' 구획 태그가 없다 | `issues/2026-08-31-mock-hwpx-missing-short-answer-tag.md` |
-| `REV-2026-010` | `P3` | HWPX 시험지에 '※ 확인 사항' 상자가 없다 | `issues/2026-08-31-mock-hwpx-missing-confirm-box.md` |
+없다.
 
-둘 다 **실물 대조가 필요해 일부러 손대지 않았다** — 모양이 틀린 것을 넣으면 없는 것보다 나쁘다.
-둘을 포함한 실행 계획이 [`docs/MOCK-STYLE-DESIGN.md`](../docs/MOCK-STYLE-DESIGN.md) 에 있다.
+[`docs/MOCK-STYLE-DESIGN.md`](../docs/MOCK-STYLE-DESIGN.md) 의 실물 조판 계획은
+**여섯 단계가 모두 끝났다**.
 
 ## 최근 해결
 
@@ -31,6 +28,8 @@
 | `REV-2026-015` | `P1` | 시험지 번호 뒤 공백·2쪽부터 머리말 사라짐 | `issues/2026-09-01-mock-hwpx-number-tab-and-page-header.md` |
 | `REV-2026-017` | `P1` | 배포본에서 한글 내보내기가 제 주소로 요청해 404 | `issues/2026-09-01-hwpx-export-posts-to-page-origin.md` |
 | `REV-2026-016` | `P2` | 한 단 안의 문항이 실물처럼 벌어지지 않는다 | `issues/2026-09-01-mock-hwpx-problem-spacing-in-column.md` |
+| `REV-2026-009` | `P2` | HWPX 시험지에 '단답형' 구획 태그가 없다 | `issues/2026-08-31-mock-hwpx-missing-short-answer-tag.md` |
+| `REV-2026-010` | `P3` | HWPX 시험지에 '※ 확인 사항' 상자가 없다 | `issues/2026-08-31-mock-hwpx-missing-confirm-box.md` |
 
 ## 최근 인계
 
@@ -70,3 +69,6 @@
 | `HANDOFF-2026-031` | Claude | 문항 간격 2차 — 한글에게 좌표를 물어 보정 | `handoffs/2026-09-01-mock-hwpx-column-spacing-2.md` |
 | `HANDOFF-2026-032` | Claude | 문항별 단 배치 기본값을 실물에서 가져옴 | `handoffs/2026-09-01-mock-default-column-layout.md` |
 | `HANDOFF-2026-033` | Claude | 실물 조판 1·2단계 (수식 앞 공백 · 그림 문단 모양) | `handoffs/2026-09-01-mock-style-step12.md` |
+| `HANDOFF-2026-034` | Claude | 실물 조판 4단계 (조건 상자 안 별행 수식) | `handoffs/2026-09-02-mock-style-step4-cond-display-eq.md` |
+| `HANDOFF-2026-035` | Claude | 실물 조판 3+5단계 (구획 태그 · ※ 확인 사항) | `handoffs/2026-09-03-mock-style-step35-section-tag-and-note.md` |
+| `HANDOFF-2026-036` | Claude | 실물 조판 6단계 (역할 표 대조 검사) | `handoffs/2026-09-03-mock-style-step6-role-table.md` |

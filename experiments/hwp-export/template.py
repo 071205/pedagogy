@@ -60,8 +60,11 @@ STYLE_NAMES = {
     "condeq": ["21 박스(테두리) 별행", "21 박스(테두리)"],
     "boxtop": ["21 박스위"],      # 상자 '앞' 여백 문단
     "boxbot": ["21 박스아래"],     # 상자 '뒤' 여백 문단 — 없으면 발문이 상자에 붙는다
-    "figure": ["보기", "표 내용"],  # 그림 — 가운데 정렬 문단
     "ex":     ["21 보기", "02-보기"],
+    # ⚠️ `figure` 와 `note` 는 **여기 두지 않는다.** 실물이 쓰는 문단 모양에 이름이 없고,
+    #    이름이 그럴듯한 `보기`·`표 내용`·`확인사항-` 은 실물에서 **0회** 쓰인다.
+    #    예전에 `figure` 를 `보기` 로 두어, 실물이 그림에 쓰지 않는 모양으로 우리 그림이
+    #    나가고 있었다(`docs/MOCK-STYLE-DESIGN.md` §8-④). `read_roles_by_usage()` 가 찾는다.
 }
 
 
@@ -338,6 +341,80 @@ def capture_page_headers(doc: HwpxDocument) -> dict[int, list[str]]:
     return found
 
 
+# ── 구획 태그(5지선다형·단답형)와 ※ 확인 사항 ──────────────────────────────
+#
+# ⚠️ 이 둘은 **문단이 아니라 표 개체**(`<hp:tbl>`)다. 문단 모양만 맞춰서는 아무것도
+#    나오지 않는다(docs/MOCK-STYLE-DESIGN.md §9).
+#
+# 크기·테두리·안여백을 우리가 지어내지 않는다 — **실물 표를 통째로 떠서 도로 심는다.**
+# 머리말을 그렇게 다루는 것과 같은 방식이고, 같은 이유로 `clear_body()` **전에** 불러야 한다.
+#
+# 실물에서 잰 값(참고 — 아래 코드는 이 숫자를 쓰지 않고 표를 그대로 옮긴다):
+#   5지선다형 38.82 × 8.28mm · 단답형 27.84 × 8.28mm · ※ 확인 사항 111.00 × 35.64mm(3줄)
+#   · 21.15mm(2줄) · 테두리 0.12mm · 안여백 0.49mm
+_TAG_NAMES = {"단답형": "short", "5지선다형": "choice"}
+
+
+def _squeeze(s: str) -> str:
+    return re.sub(r"\s+", "", s)
+
+
+def capture_marks(doc: HwpxDocument) -> dict:
+    """본문을 비우기 전에 구획 태그·※ 확인 사항 표를 떠 둔다.
+
+    돌려주는 값:
+
+        {"tag": {"short": {...}}, "note": {3: {...}, 2: {...}}, "tag_step_mm": 15.9}
+
+    각 항목은 `{"tbl": 표 XML, "para": 문단모양, "style": 스타일, "char": 글자모양}` 이다.
+    `tag_step_mm` 은 **태그 문단 위 끝에서 다음 문항이 시작하는 자리까지**의 거리로,
+    한글이 실제로 그렇게 놓은 값을 `linesegarray` 에서 읽은 것이다(실물 15.9mm).
+    이 값이 그 단의 '위 여백' 이 된다 — 안 빼면 그만큼 문항이 아래로 밀린다.
+
+    ⚠️ 태그 표는 **셀 안 문단이 하나인 사본**을 고른다. 실물의 어떤 사본은 셀 안에
+       이어지는 쪽 머리말(`<hp:ctrl><hp:header>`)을 품고 있어서, 그걸 떠다 심으면
+       머리말이 태그마다 다시 정의돼 쪽마다 겹쳐 찍힌다.
+    """
+    tags: dict[str, dict] = {}
+    notes: dict[int, dict] = {}
+    step_mm: float | None = None
+    for path in [p for p in doc.list_part_paths()
+                 if p.startswith("Contents/section") and p.endswith(".xml")]:
+        paras = [k for k in doc.get_part(path).root.children if k.local_name == "p"]
+        for i, para in enumerate(paras):
+            for run in [r for r in para.children if r.local_name == "run"]:
+                for tbl in [t for t in run.children if t.local_name == "tbl"]:
+                    body = _squeeze(tbl.text_content())
+                    inner = [n for n in tbl.iter() if n.local_name == "p"]
+                    spec = {"tbl": tbl.to_xml(),
+                            "para": para.get_attr("paraPrIDRef"),
+                            "style": para.get_attr("styleIDRef"),
+                            "char": run.get_attr("charPrIDRef")}
+                    role = _TAG_NAMES.get(body)
+                    if role:
+                        if role in tags and len(inner) != 1:
+                            continue        # 머리말을 품은 사본은 버린다
+                        tags[role] = spec
+                        if role == "short" and len(inner) == 1:
+                            step_mm = _next_para_top_mm(paras, i) or step_mm
+                    elif body.startswith("*확인사항") or body.startswith("※확인사항"):
+                        notes.setdefault(len(inner), spec)
+    return {"tag": tags, "note": notes, "tag_step_mm": step_mm}
+
+
+def _next_para_top_mm(paras: list, i: int) -> float | None:
+    """`paras[i]` 다음 문단의 첫 줄이 놓인 자리(단 위 기준 mm)."""
+    for para in paras[i + 1:]:
+        segs = [c for c in para.children if c.local_name == "linesegarray"]
+        if not segs or not segs[0].children:
+            continue
+        try:
+            return int(segs[0].children[0].get_attr("vertpos")) / MM_TO_HWPUNIT
+        except (TypeError, ValueError):
+            return None
+    return None
+
+
 def clear_body(doc: HwpxDocument) -> int:
     """본문을 비우되 **첫 문단은 남긴다** — 거기에 구역·단 정의가 들어 있다.
 
@@ -539,6 +616,7 @@ def open_template(path: Path | str) -> tuple[HwpxDocument, dict]:
     roles["_page_header"] = capture_page_headers(doc)
     roles["_line_mm"] = read_pad_step_mm(doc, roles)
     roles["_column_tops"] = read_column_tops_mm(doc)
+    roles["_marks"] = capture_marks(doc)
     clear_body(doc)
     strip_bindata(doc)
     return doc, roles

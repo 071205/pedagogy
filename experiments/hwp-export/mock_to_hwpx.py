@@ -51,6 +51,8 @@ class Report:
     pages: int = 0
     padded: int = 0
     choice_rows: int = 0
+    tags: int = 0
+    notes: int = 0
     warnings: list[str] = field(default_factory=list)
 
 
@@ -520,6 +522,11 @@ def emit_figure(doc: HwpxDocument, unit: dict, rep: Report, *, where: str,
 
 # ── 편집기의 probUnits() 를 옮긴 것 ────────────────────────────────────────
 
+# 한 줄이 통째로 수식이면 별행(디스플레이) 수식이다.
+# 발문과 조건 상자가 **같은 규칙**을 쓰도록 여기 한 곳에만 둔다(편집기 `EQ_LINE`).
+EQ_LINE = re.compile(r"\$[^$]*\$")
+
+
 def blocks_of(p: dict) -> list[dict]:
     b = p.get("blocks")
     return b if isinstance(b, list) and b else []
@@ -535,7 +542,7 @@ def prob_units(p: dict) -> tuple[list[dict], int]:
             for line in (x.strip() for x in raw.split("\n")):
                 if not line:
                     continue
-                kind = "eq" if re.fullmatch(r"\$[^$]*\$", line) else "text"
+                kind = "eq" if EQ_LINE.fullmatch(line) else "text"
                 units.append({"k": kind, "t": line})
         elif t == "boxed":
             s = str(d.get("text") or "").strip()
@@ -543,8 +550,17 @@ def prob_units(p: dict) -> tuple[list[dict], int]:
                 units.append({"k": "boxed", "t": s})
         elif t in ("conditions", "examples"):
             items = [str(x) for x in (d.get("items") or []) if str(x).strip()]
-            if items:
-                units.append({"k": "cond" if t == "conditions" else "ex", "items": items})
+            if not items:
+                continue
+            if t != "conditions":
+                units.append({"k": "ex", "items": items})
+                continue
+            # 조건 상자 안에서도 '수식만 있는 줄' 은 별행 수식이다(발문과 같은 규칙).
+            # 상자를 쪼개지 않으려고 별도 유닛으로 내지 않고 줄마다 종류를 붙인다 —
+            # `items` 는 지금까지처럼 문자열 배열 그대로다(편집기 `probUnits()` 와 같은 모양).
+            kinds = ["eq" if EQ_LINE.fullmatch(x.strip()) else "text" for x in items]
+            items = [x.strip() if k == "eq" else x for x, k in zip(items, kinds)]
+            units.append({"k": "cond", "items": items, "kinds": kinds})
         elif t == "choices":
             if p.get("type") == "short":     # 단답형은 선지를 시험지에 싣지 않는다
                 continue
@@ -687,24 +703,145 @@ def emit_rich(doc: HwpxDocument, text: str, rep: Report, *, where: str,
     return idx
 
 
-def emit_display_eq(doc: HwpxDocument, tex: str, rep: Report, *, where: str) -> None:
-    """`$...$` 한 줄만 있는 유닛 — 별행 수식."""
+def emit_display_eq(doc: HwpxDocument, tex: str, rep: Report, *, where: str,
+                    roles: tuple[str, ...] = ("eq", "cont")) -> None:
+    """`$...$` 한 줄만 있는 유닛 — 별행 수식.
+
+    `roles` 는 쓰고 싶은 문단 역할을 앞에서부터 적은 것이다. 발문 아래는
+    `eq`(`21 문제다음 별행`), 조건 상자 안은 `condeq`(`21 박스(테두리) 별행`) 를 쓴다.
+    ⚠️ 상자 안에서 `eq` 로 떨어지면 **그 줄만 상자 밖으로 나간다** — 테두리는 문단
+       모양이 그리는 것이라, 다른 문단 모양을 주면 상자가 그 줄에서 끊긴다.
+    """
     body = tex[1:-1] if tex.startswith("$") and tex.endswith("$") else tex
+    eqp = next((f"para_{r}" for r in roles if f"para_{r}" in STYLE), "para_cont")
+    # ⚠️ 글자 모양은 '0'(문서 기본)을 고른 것으로 치지 않는다 — `21 문제다음 별행` 의
+    #    글자 모양이 실제로 0 이라, 그대로 쓰면 본문 글자 모양을 잃는다.
+    char = next((STYLE[f"char_{r}"] for r in roles
+                 if STYLE.get(f"char_{r}", "0") != "0"),
+                STYLE.get("char_cont", STYLE.get("char_stem")))
     try:
         script = convert(body)
     except UnsupportedTex as e:
+        # ⚠️ 안내 문단도 같은 문단 모양으로 낸다. 기본 모양으로 두면 조건 상자 안에서
+        #    그 줄만 테두리 밖으로 떨어져 나간다(테두리는 문단 모양이 그린다).
         rep.warnings.append(f"{where}: 별행 수식 변환 실패 — {e}  ({body})")
-        doc.append_paragraph(f"[수식 변환 실패: {body}]", section_index=cur_sec())
+        doc.append_paragraph(f"[수식 변환 실패: {body}]", section_index=cur_sec(),
+                             para_pr_id=STYLE.get(eqp), style_id=_sty(eqp),
+                             char_pr_id=char)
         return
-    eqp = "para_eq" if "para_eq" in STYLE else "para_cont"
     doc.append_paragraph("", section_index=cur_sec(),
                          para_pr_id=STYLE.get(eqp), style_id=_sty(eqp),
-                         char_pr_id=STYLE.get("char_cont", STYLE.get("char_stem")))
+                         char_pr_id=char)
     doc.append_equation(script, section_index=cur_sec(),
                         paragraph_index=doc.paragraph_count(cur_sec()) - 1,
                         char_pr_id=STYLE.get("char_stem"),
                         base_unit=eq_base())
     rep.equations += 1
+
+
+# ── 구획 태그 · ※ 확인 사항 ───────────────────────────────────────────────
+#
+# 둘 다 **문단이 아니라 표 개체**다(docs/MOCK-STYLE-DESIGN.md §9). 크기·테두리·안여백을
+# 지어내지 않고 `template.capture_marks()` 가 실물에서 떠 온 표를 그대로 심는다.
+#
+# 실물에서 확인한 것:
+#   · `5지선다형` 은 **틀의 표제부에 이미 있다**(종이 기준 절대배치). 다시 넣으면 두 번 나온다.
+#   · `단답형` 은 그 구역에서 처음 나오는 단답형 문항 **앞**에 문단 하나로 들어가고,
+#     그 문단이 단나눔을 안는다(실물 `columnBreak="1"`).
+#   · `※ 확인 사항` 은 **쪽 기준 절대배치**(오른쪽 아래)라 흐름에 자리를 차지하지 않는다.
+#     어느 문단에 매다는지는 '어느 쪽에 나오는가' 만 정한다 → 그 구역 **마지막 쪽**의 문단.
+TMPL_MARKS: dict = {}   # template.capture_marks() 결과 — build() 에서 채운다
+                        # ⚠️ 이름을 `MARKS` 로 두면 선지 라벨 ①②③④⑤ 를 가린다(실제로 그랬다).
+OBJ_ID = {"n": 0}       # 심을 때마다 새로 매기는 개체 id
+
+
+def _stamp_ids(tbl_xml: str) -> str:
+    """떠 온 표를 다시 심을 때 개체 id 를 새로 매긴다.
+
+    ⚠️ 같은 id·zOrder 를 가진 개체가 둘이면 한글이 문서를 이상하게 읽는다. 표를 여러 번
+       심으므로(공통·선택) 그때마다 새 번호를 준다.
+    """
+    OBJ_ID["n"] += 1
+    n = 90_000_000 + OBJ_ID["n"]
+    head = re.match(r"<hp:tbl\b[^>]*>", tbl_xml)
+    if not head:
+        return tbl_xml
+    tag = head.group(0)
+    tag = re.sub(r'\bid="\d+"', f'id="{n}"', tag, count=1)
+    tag = re.sub(r'\bzOrder="\d+"', f'zOrder="{OBJ_ID["n"]}"', tag, count=1)
+    return tag + tbl_xml[head.end():]
+
+
+def _paras(doc: HwpxDocument, sec_i: int) -> list:
+    sec = doc.get_part(f"Contents/section{sec_i}.xml")
+    return [k for k in sec.root.children if k.local_name == "p"]
+
+
+def _add_run(para, run_xml: str) -> None:
+    """문단의 **run 들 뒤**에 run 하나를 더한다.
+
+    ⚠️ 그냥 붙이면 `linesegarray` 뒤로 가서 순서가 어긋난다 — run 이 아닌 첫 자식 앞에 넣는다.
+    """
+    at = len(para.children)
+    for j, child in enumerate(para.children):
+        if child.local_name != "run":
+            at = j
+            break
+    para.insert_xml(at, run_xml)
+
+
+def _run_wrap(char_pr: str | None, body: str) -> str:
+    return (f'<hp:run xmlns:hp="{HP}" charPrIDRef="{char_pr or "0"}">{body}</hp:run>')
+
+
+def tag_index(group: list[dict]) -> int | None:
+    """구획 태그(`단답형`)를 붙일 문항 — 그 구역에서 **처음 나오는** 단답형 문항.
+
+    편집기 `isGroupFirst()` 와 같은 규칙이다(그쪽은 과목구분 × 유형으로 본다).
+    """
+    for i, q in enumerate(group):
+        if q.get("type") == "short":
+            return i
+    return None
+
+
+def emit_section_tag(doc: HwpxDocument, rep: Report, *, into: int | None = None) -> bool:
+    """`단답형` 태그 표를 심는다. `into` 가 있으면 그 문단에 이어 붙인다."""
+    spec = (TMPL_MARKS.get("tag") or {}).get("short")
+    if not spec:
+        return False
+    body = _stamp_ids(spec["tbl"]) + "<hp:t/>"      # 실물도 표 뒤에 빈 글자 조각을 둔다
+    if into is None:
+        doc.append_paragraph("", section_index=cur_sec(),
+                             para_pr_id=spec["para"], style_id=spec["style"],
+                             char_pr_id=spec["char"], with_run=False)
+        into = doc.paragraph_count(cur_sec()) - 1
+    _add_run(_paras(doc, cur_sec())[into], _run_wrap(spec["char"], body))
+    rep.tags += 1
+    return True
+
+
+def attach_note(doc: HwpxDocument, rep: Report, para_idx: int, *,
+                lines: int, elective: str = "") -> bool:
+    """`※ 확인 사항` 상자를 그 쪽에 매단다(쪽 기준 절대배치라 흐름은 건드리지 않는다)."""
+    spec = (TMPL_MARKS.get("note") or {}).get(lines)
+    if not spec:
+        return False
+    body = _stamp_ids(spec["tbl"])
+    if elective:
+        # 실물 글을 그대로 두고 **과목 이름만** 갈아 끼운다.
+        # ⚠️ 글을 새로 쓰지 않는 이유: 첫 줄의 `※` 는 기호 글꼴로 찍힌 글자라
+        #    우리가 유니코드 `※` 를 넣으면 다른 모양이 나온다.
+        # ⚠️ `「」` 까지 함께 찾으면 못 찾는다 — 실물은 괄호와 과목 이름이 **다른 run**
+        #    (글자 모양 61 · 86)이라 그 사이에 태그가 끼어 있다. 실제로 그래서 한 번
+        #    바뀌지 않은 채(틀의 '미적분' 그대로) 나갔다.
+        body = re.sub(r"선택과목\([^)<]*\)", f"선택과목({xml_escape(elective)})", body)
+    paras = _paras(doc, cur_sec())
+    if para_idx >= len(paras):
+        return False
+    _add_run(paras[para_idx], _run_wrap(spec["char"], body))
+    rep.notes += 1
+    return True
 
 
 def emit_problem(doc: HwpxDocument, p: dict, rep: Report,
@@ -745,7 +882,14 @@ def emit_problem(doc: HwpxDocument, p: dict, rep: Report,
                                      para_pr_id=STYLE["para_boxtop"],
                                      style_id=_sty("para_boxtop"),
                                      char_pr_id=STYLE.get("char_boxtop"))
-            for item in u["items"]:
+            kinds = u.get("kinds") or ["text"] * len(u["items"])
+            for item, kind in zip(u["items"], kinds):
+                if kind == "eq":
+                    # 상자 안 별행 수식 — 실물 `21 박스(테두리) 별행`.
+                    # 상자를 끊지 않도록 상자 스타일(`cond`)로 내려간다.
+                    emit_display_eq(doc, item, rep, where=where,
+                                    roles=("condeq", "cond"))
+                    continue
                 emit_rich(doc, item, rep, where=where,
                           para="para_cond" if "para_cond" in STYLE else "para_cont",
                           char="char_cond" if "char_cond" in STYLE else "char_cont")
@@ -786,12 +930,17 @@ def build(data: dict, out: Path, *, ref: str | Path | None = None,
     roles_page_header: dict[int, list[str]] = {}
     roles_column_tops: dict[int, list[float]] = {}
     roles_line_mm: float | None = None
+    tag_step_mm: float = 0.0
+    TMPL_MARKS.clear()
+    OBJ_ID["n"] = 0
     if template.suffix.lower() == ".hwpx" and template.exists():
         # 실물 틀을 그대로 쓴다 — 서식 id 만 알아내면 되고 새로 만들 것이 없다.
         doc, roles = tmpl.open_template(template)
         roles_page_header = roles.get("_page_header") or {}
         roles_column_tops = roles.get("_column_tops") or {}
         roles_line_mm = roles.get("_line_mm")
+        TMPL_MARKS.update(roles.get("_marks") or {})
+        tag_step_mm = float(TMPL_MARKS.get("tag_step_mm") or 0.0)
         PROFILE["_source"] = f"{template.name} (틀)"
         for role, spec in roles.items():
             if role.startswith("_"):
@@ -868,27 +1017,59 @@ def build(data: dict, out: Path, *, ref: str | Path | None = None,
         # 단 안에서 문항을 벌릴 양. 단의 **마지막 문항 뒤는 벌리지 않는다.**
         # 한 쪽은 두 단이므로 단 번호를 2로 나눈 것이 쪽 번호이고, 그 구역의 첫 쪽만
         # 표지 머리말 때문에 단이 짧다.
+        # 구획 태그(`단답형`)가 붙는 문항. 단 첫머리면 그 단의 '위 여백' 이 늘고,
+        # 단 중간이면 그 문항이 그만큼 길어진다(편집기 `.tag` / `.tag.inline` 과 같다).
+        tag_at = tag_index(group)
+        tag_at_col_top = tag_at is not None and (tag_at == 0 or tag_at in breaks)
+        # ⚠️ 아래 경고들은 **틀을 쓸 때만** 낸다. 틀이 없는 경로(빈 문서에 값만 심는
+        #    예전 경로)에는 구획 태그도 확인 사항 표도 애초에 없다 — 그걸 매번 경고로
+        #    올리면 '경고 없음' 을 확인하는 검사가 틀 없는 환경(CI)에서 전부 빨간불이
+        #    된다(실제로 그렇게 만들었다).
+        if from_template and tag_at is not None and not TMPL_MARKS.get("tag", {}).get("short"):
+            rep.warnings.append("틀에서 '단답형' 구획 태그를 찾지 못해 넣지 못했습니다")
+        if from_template and group and group[0].get("type") == "short":
+            # 표제부의 `5지선다형` 상자는 틀에 박혀 있어 바꿀 수 없다.
+            rep.warnings.append(
+                f"{group[0].get('num', '?')}번이 이 구역의 첫 문항인데 단답형입니다 "
+                "— 표제부의 '5지선다형' 상자는 틀에 박혀 있어 그대로 인쇄됩니다")
+
         pads: dict[int, int] = {}
         for c_i, col in enumerate(column_slots(group)):
             col_h = COL_H_FIRST_MM if c_i // 2 == 0 else COL_H_NEXT_MM
             # 단마다 위 여백이 다르다 — 첫 쪽은 표제부가 자리를 차지한다(단0 40.7 · 단1 24.7).
             tops = roles_column_tops.get(sec_i, []) if from_template else []
             top = tops[c_i] if c_i < len(tops) else 0.0
+            # ⚠️ 태그가 단 첫머리에 오면 그만큼 문항이 내려간다. 안 더하면 그 단의
+            #    둘째 문항이 태그 높이만큼 위로 올라붙는다(실물 15.9mm).
+            #    ⚠️ `read_column_tops_mm()` 과 이중으로 세지 않는다 — 그쪽이 읽는 값은
+            #       그 단의 **첫 문단**(= 태그 문단) 자리라 태그 높이를 담고 있지 않다.
+            if tag_at_col_top and col and col[0] == tag_at:
+                top += tag_step_mm
             for j, idx in enumerate(col[:-1]):
                 height = group[idx].get("heightMm")
                 if not height:
                     continue            # 편집기가 재 주지 않았다 — 벌리지 않는다
+                if idx == tag_at and not tag_at_col_top:
+                    height += tag_step_mm      # 단 중간에 낀 태그는 그 문항을 길게 만든다
                 now = slot_top_mm(j, len(col), col_h, top) + height
                 target = slot_top_mm(j + 1, len(col), col_h, top)
                 pads[idx] = pad_lines(now, target, roles_line_mm)
 
+        # ※ 확인 사항을 매달 문단 — 그 구역 **마지막 쪽**의 첫 문단.
+        # (쪽 기준 절대배치라 '어느 쪽에 나오는가' 만 정해 주면 된다)
+        last_page_para = 0
         for i, q in enumerate(group):
             before = doc.paragraph_count(sec_i)
             use_frame = i == 0 and sec_i not in framed and from_template
+            # 구획 태그는 그 문항 **앞**에 온다. `before` 를 태그보다 먼저 잡아 두었으므로
+            # 쪽나눔·단나눔·이어지는 쪽 머리말이 모두 태그 문단에 붙는다(실물과 같다).
+            if i == tag_at:
+                emit_section_tag(doc, rep, into=0 if use_frame else None)
             emit_problem(doc, q, rep, into=0 if use_frame else None)
             if use_frame:
                 framed.add(sec_i)
             if i in pages and doc.paragraph_count(sec_i) > before:
+                last_page_para = before
                 sec = doc.get_part(f"Contents/section{sec_i}.xml")
                 paras = [k for k in sec.root.children if k.local_name == "p"]
                 if len(paras) > before:
@@ -920,6 +1101,14 @@ def build(data: dict, out: Path, *, ref: str | Path | None = None,
                                      char_pr_id=STYLE.get("char_cont", STYLE.get("char_stem")))
             rep.padded += pads.get(i, 0)
             rep.problems += 1
+
+        # ※ 확인 사항 — 편집기 `noteFor()` 와 같은 규칙이다.
+        #   공통 : 3줄(이어서 「선택과목(…)」 안내 포함) · 선택 : 2줄
+        want = 2 if group[0].get("sect") == "선택" else 3
+        elective = str(data.get("elective") or "").strip() if want == 3 else ""
+        placed = attach_note(doc, rep, last_page_para, lines=want, elective=elective)
+        if from_template and group and not placed:
+            rep.warnings.append("틀에서 '※ 확인 사항' 상자를 찾지 못해 넣지 못했습니다")
     CUR["sec"] = 0
 
     # ⚠️ 이어지는 쪽 머리말은 **위 반복문에서야** 문서에 들어간다. 앞에서 부른
@@ -955,7 +1144,7 @@ def main(argv: list[str]) -> int:
     imgs = [Path(argv[3])] if len(argv) > 3 else [src.parent]
     rep = build(data, out, images=imgs)
     print("조판 규격 출처:", PROFILE.get("_source") or "(없음)")
-    print(f"문항 {rep.problems}개, 수식 {rep.equations}개, 그림 {rep.figures}개, 단나눔 {rep.breaks}회, 쪽나눔 {rep.pages}회, 벌린 줄 {rep.padded}개 → {out} ({out.stat().st_size:,} bytes)")
+    print(f"문항 {rep.problems}개, 수식 {rep.equations}개, 그림 {rep.figures}개, 단나눔 {rep.breaks}회, 쪽나눔 {rep.pages}회, 벌린 줄 {rep.padded}개, 태그 {rep.tags}개, 확인사항 {rep.notes}개 → {out} ({out.stat().st_size:,} bytes)")
     if rep.warnings:
         print(f"\n⚠️ 경고 {len(rep.warnings)}건 (조용히 넘기지 않습니다):")
         for w in rep.warnings[:20]:

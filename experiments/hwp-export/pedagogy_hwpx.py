@@ -136,6 +136,15 @@ class XmlNode:
             if isinstance(node.tag, str):
                 yield XmlNode(node, self.part)
 
+    def text_content(self) -> str:
+        """이 노드 아래의 **모든** 글자.
+
+        ⚠️ `.text` 만 모으면 안 된다 — `<hp:t>단<hp:fwSpace/>답<hp:fwSpace/>형</hp:t>` 처럼
+           중간에 요소가 끼면 '답'·'형' 은 그 요소의 **꼬리 글자**라 `.text` 에 없다.
+           실물의 구획 태그가 정확히 그 모양이어서, 이걸로 찾지 않으면 '단' 만 읽힌다.
+        """
+        return "".join(self.element.itertext())
+
     def get_attr(self, name: str) -> str | None:
         return self.element.get(name)
 

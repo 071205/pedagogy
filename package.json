@@ -8,7 +8,7 @@
     "test:mock-layout": "node scripts/mock-exam-layout.test.mjs",
     "test:visual": "node scripts/visual-regression.mjs",
     "update:visual-baseline": "UPDATE_VISUAL_BASELINE=1 node scripts/visual-regression.mjs",
-    "check:static": "node scripts/check-static.mjs && node scripts/check-document-blocks.mjs && node scripts/check-shared-design.mjs",
+    "check:static": "node scripts/check-static.mjs && node scripts/check-document-blocks.mjs && node scripts/check-shared-design.mjs && node scripts/check-exam-style-roles.mjs",
     "check:rules": "npx --yes firebase-tools emulators:exec --project pedagogy-rules-test --only firestore,storage \"node scripts/verify-rules-emulator.mjs\"",
     "check:fast": "npm run test:worker && npm run test:fixtures && npm run test:mock-layout && npm run test:hwpx && npm run test:hwpx-browser && npm run check:static",
     "test:all": "npm run check:fast && npm run check:rules && npm run test:visual",

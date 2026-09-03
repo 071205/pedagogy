@@ -120,6 +120,116 @@ only_common = {**data, "problems": [p for p in data["problems"] if p["sect"] != 
 z3 = build(only_common)
 check("선택 구역에 문항이 들어가지 않는다", problem_numbers(section_text(z3, 1)) == [])
 
+# ── 4-2. 구획 태그(단답형)와 ※ 확인 사항 ─────────────────────────────────
+#
+# 둘 다 **표 개체**다(docs/MOCK-STYLE-DESIGN.md §9). 실물에서 잰 값과 직접 맞춘다 —
+# 우리 코드가 우리 코드를 검사하지 않게 하려는 것이다(설계 원칙 4).
+#
+#   단답형 태그   27.84 × 8.28mm   · 태그가 먹는 높이 15.9mm(태그 위 끝 → 첫 문항)
+#   ※ 확인 사항   111.00 × 35.64mm(3줄) · 111.00 × 21.15mm(2줄)
+print("\n구획 태그 · ※ 확인 사항")
+HP = "http://www.hancom.co.kr/hwpml/2011/paragraph"
+MM = 7200 / 25.4
+
+# ⚠️ 여기서는 **정규식으로 문단을 자르면 안 된다.** 표 안에 문단이 또 있어서
+#    `<hp:p ...>.*?</hp:p>` 가 표 안쪽에서 먼저 닫힌다 — 표가 통째로 안 보인다
+#    (실제로 그렇게 만들었다가 검사 6건이 헛돌았다). 문서 트리로 훑는다.
+from lxml import etree  # noqa: E402
+
+
+def top_paragraphs(z: zipfile.ZipFile, index: int) -> list:
+    root = etree.fromstring(z.read(f"Contents/section{index}.xml"))
+    return [e for e in root if etree.QName(e).localname == "p"]
+
+
+def tables(z: zipfile.ZipFile, index: int) -> list[dict]:
+    """구역 안의 표들 — 문단 번호·크기(mm)·글·붙은 문단의 나눔 속성."""
+    out = []
+    for pi, para in enumerate(top_paragraphs(z, index)):
+        for tbl in para.iter(f"{{{HP}}}tbl"):
+            sz = tbl.find(f"{{{HP}}}sz")
+            pos = tbl.find(f"{{{HP}}}pos")
+            out.append({
+                "para": pi,
+                "w": int(sz.get("width")) / MM, "h": int(sz.get("height")) / MM,
+                "text": re.sub(r"\s+", "", "".join(tbl.itertext())),
+                "lines": len([x for x in tbl.iter(f"{{{HP}}}p")]),
+                "pos": dict(pos.attrib) if pos is not None else {},
+                "cb": para.get("columnBreak") == "1",
+                "pb": para.get("pageBreak") == "1",
+            })
+    return out
+
+
+def para_numbers(z: zipfile.ZipFile, index: int) -> dict[int, int]:
+    """문단 번호 → 그 문단이 시작하는 문항 번호(표·머리말 글자는 뺀다)."""
+    found = {}
+    for pi, para in enumerate(top_paragraphs(z, index)):
+        clone = etree.fromstring(etree.tostring(para))
+        for junk in list(clone.iter(f"{{{HP}}}tbl")) + list(clone.iter(f"{{{HP}}}header")):
+            junk.getparent().remove(junk)
+        m = re.match(r"\s*(\d{1,2})\.", "".join(clone.itertext()))
+        if m:
+            found[pi] = int(m.group(1))
+    return found
+
+
+z4 = build(data)
+for sec_i, first_short, label in ((0, 16, "공통"), (1, 29, "선택")):
+    tbl = tables(z4, sec_i)
+    tags = [t for t in tbl if t["text"] == "단답형"]
+    check(f"{label} 구역에 '단답형' 태그가 하나 있다", len(tags) == 1, f"{len(tags)}개")
+    if tags:
+        t = tags[0]
+        check(f"{label} 태그 크기가 실물과 같다 (27.84×8.28mm)",
+              abs(t["w"] - 27.84) < 0.1 and abs(t["h"] - 8.28) < 0.1,
+              f"{t['w']:.2f}×{t['h']:.2f}mm")
+        nums = para_numbers(z4, sec_i)
+        after = [n for pi, n in sorted(nums.items()) if pi > t["para"]]
+        check(f"{label} 태그 바로 뒤가 첫 단답형 문항({first_short}번)이다",
+              bool(after) and after[0] == first_short, str(after[:2]))
+        # 태그가 단(또는 쪽) 첫머리를 안아야 문항이 태그 아래로 온다.
+        check(f"{label} 태그 문단이 단나눔·쪽나눔을 안고 있다", t["cb"] or t["pb"],
+              f"cb={t['cb']} pb={t['pb']}")
+
+    notes = [t for t in tbl if t["text"].startswith("*확인사항")]
+    check(f"{label} 구역에 '※ 확인 사항' 이 하나 있다", len(notes) == 1, f"{len(notes)}개")
+    if notes:
+        n = notes[0]
+        want_h, want_lines = (35.64, 3) if sec_i == 0 else (21.15, 2)
+        check(f"{label} 확인 사항 크기가 실물과 같다 (111.00×{want_h}mm)",
+              abs(n["w"] - 111.0) < 0.1 and abs(n["h"] - want_h) < 0.1,
+              f"{n['w']:.2f}×{n['h']:.2f}mm")
+        check(f"{label} 확인 사항은 {want_lines}줄이다", n["lines"] == want_lines, f"{n['lines']}줄")
+        # 쪽 기준 절대배치 — 흐름에 자리를 차지하지 않고 오른쪽 아래에 붙는다.
+        # ⚠️ **마지막 쪽**에 있어야 한다. 쪽 기준 절대배치라 어느 문단에 매다느냐가
+        #    '몇 쪽에 나오는가' 를 정한다 — 앞 쪽 문단에 매달면 시험 도중에 튀어나온다.
+        breaks = [pi for pi, para in enumerate(top_paragraphs(z4, sec_i))
+                  if para.get("pageBreak") == "1"]
+        check(f"{label} 확인 사항이 그 구역 마지막 쪽에 있다",
+              n["para"] >= (max(breaks) if breaks else 0),
+              f"문단 {n['para']} · 마지막 쪽 시작 {max(breaks) if breaks else 0}")
+        check(f"{label} 확인 사항이 쪽 기준 오른쪽 아래에 붙는다",
+              n["pos"].get("vertRelTo") == "PAGE" and n["pos"].get("vertAlign") == "BOTTOM"
+              and n["pos"].get("treatAsChar") == "0",
+              str({k: n["pos"].get(k) for k in ("treatAsChar", "vertRelTo", "vertAlign")}))
+
+# 공통 상자에는 고른 선택과목 이름이 들어간다(틀의 '미적분' 이 그대로 나가면 안 된다).
+note0 = [t for t in tables(z4, 0) if t["text"].startswith("*확인사항")]
+check("공통 확인 사항에 고른 과목 이름이 들어간다",
+      bool(note0) and "선택과목(확률과통계)" in note0[0]["text"],
+      note0[0]["text"][-40:] if note0 else "없음")
+z5 = build({**data, "elective": "기하"})
+note5 = [t for t in tables(z5, 0) if t["text"].startswith("*확인사항")]
+check("과목을 바꾸면 그 이름으로 바뀐다",
+      bool(note5) and "선택과목(기하)" in note5[0]["text"],
+      note5[0]["text"][-40:] if note5 else "없음")
+
+# 태그가 먹는 높이 — 실물에서 잰 15.9mm 여야 한다(단의 '위 여백' 이 된다).
+step = float((mock_to_hwpx.TMPL_MARKS.get("tag_step_mm") or 0))
+check("태그가 먹는 높이를 틀에서 읽는다 (실물 15.9mm)", abs(step - 15.9) < 0.5,
+      f"{step:.2f}mm")
+
 # ── 5. 이 검사가 실제로 무언가를 검사하는가 ───────────────────────────────
 # 구역 배정을 뭉개면(전부 구역 0) 위 검사들이 빨간불이어야 한다.
 print("\n검사가 유효한지")

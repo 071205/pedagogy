@@ -69,6 +69,17 @@ with tempfile.TemporaryDirectory() as tmp:
 names = [s for s, _, _ in seq]
 fails = 0
 
+# 스타일 이름 → id (아래 조건 상자 별행 수식 검사에서 문단을 집어내는 데 쓴다)
+STYLE_IDS = {m.group(2): m.group(1) for m in
+             re.finditer(r'<hh:style id="(\d+)"[^>]*name="([^"]*)"', HEAD_XML)}
+STYLE_ID_CONDEQ = STYLE_IDS.get("21 박스(테두리) 별행", "-1")
+
+
+def _visible_text(paragraph_xml: str) -> str:
+    """문단의 글자(수식 script 는 빼고)."""
+    without_eq = re.sub(r"<hp:equation\b.*?</hp:equation>", "", paragraph_xml, flags=re.S)
+    return "".join(re.findall(r"<hp:t[^>]*>(.*?)</hp:t>", without_eq, re.S))
+
 
 def check(label: str, ok: bool, detail: str = "") -> None:
     global fails
@@ -77,14 +88,28 @@ def check(label: str, ok: bool, detail: str = "") -> None:
 
 
 print("문단 흐름")
-# 조건 상자는 앞뒤 여백 문단으로 감싸여야 한다
-box = [i for i, n in enumerate(names) if n == "21 박스(테두리)"]
-check("조건 상자가 있다", bool(box))
-if box:
-    first, last = box[0], box[-1]
-    check("상자 앞에 '21 박스위'", names[first - 1] == "21 박스위", names[first - 1])
-    check("상자 뒤에 '21 박스아래'", names[last + 1] == "21 박스아래", names[last + 1])
-    check("그 뒤 발문은 '21 문제다음'", names[last + 2] == "21 문제다음", names[last + 2])
+# 조건 상자는 앞뒤 여백 문단으로 감싸여야 한다.
+# ⚠️ 상자를 **하나로 가정하면 안 된다** — 표본에 상자가 여럿이면 `box[0]`~`box[-1]` 이
+#    문항을 건너뛰어 엉뚱한 자리를 본다(문항 22를 넣자 바로 그렇게 됐다).
+#    상자마다(이어진 상자 문단 덩어리마다) 따로 본다.
+BOX_STYLES = {"21 박스(테두리)", "21 박스(테두리) 별행"}
+boxes: list[list[int]] = []
+for i, n in enumerate(names):
+    if n not in BOX_STYLES:
+        continue
+    if boxes and boxes[-1][-1] == i - 1:
+        boxes[-1].append(i)
+    else:
+        boxes.append([i])
+check("조건 상자가 있다", bool(boxes))
+for b in boxes:
+    check(f"상자({b[0]}) 앞에 '21 박스위'", names[b[0] - 1] == "21 박스위", names[b[0] - 1])
+    check(f"상자({b[0]}) 뒤에 '21 박스아래'", names[b[-1] + 1] == "21 박스아래", names[b[-1] + 1])
+if boxes:
+    # 상자 뒤에 발문이 이어지는 경우(문항 15) — 상자에 딱 붙지 않고 '이어지는 줄' 로 나간다.
+    # ⚠️ 모든 상자가 그렇지는 않다. 실물 22번처럼 상자로 문항이 끝나기도 한다.
+    b = boxes[0]
+    check("그 뒤 발문은 '21 문제다음'", names[b[-1] + 2] == "21 문제다음", names[b[-1] + 2])
 
 # 그림은 가운데 정렬 문단에
 # ⚠️ **스타일 이름으로 보면 안 된다.** 실물이 그림에 쓰는 문단 모양은 **이름이 없다**
@@ -102,6 +127,25 @@ _fig_ids = re.findall(r'<hp:p\b[^>]*paraPrIDRef="(\d+)"[^>]*>(?:(?!</hp:p>).)*?<
 check("그림이 가운데 정렬 문단에 있다",
       bool(_fig_ids) and all(_align_of(i) == "CENTER" for i in _fig_ids),
       f"문단 모양 {_fig_ids} → 정렬 {[_align_of(i) for i in _fig_ids]}")
+
+# 조건 상자 안의 '수식만 있는 줄' 은 별행 수식이다 — 실물 22번 (가) 가 그렇다.
+#   실물: 상자 안 왼쪽 8.0mm · 줄 높이 14.4mm · 문단 모양 17(`21 박스(테두리) 별행`).
+# ⚠️ **상자 밖으로 나가면 안 된다.** 테두리는 문단 모양이 그리므로, 상자와 다른 모양을
+#    주면 그 줄에서 상자가 끊긴다. 그래서 '상자 문단들 사이에 있는가' 까지 본다.
+if boxes:
+    eq_rows = [i for i, n in enumerate(names) if n == "21 박스(테두리) 별행"]
+    inside = {i for b in boxes for i in b[1:-1]}   # 상자의 첫·끝 줄이 아닌 자리
+    check("상자 안 별행 수식이 '21 박스(테두리) 별행' 로 나간다", bool(eq_rows),
+          "그 스타일을 쓰는 문단이 없다")
+    check("그 줄은 상자 안에 있다(앞뒤가 상자 문단)",
+          bool(eq_rows) and all(i in inside for i in eq_rows), str(eq_rows))
+    # 그 문단은 수식 하나만 있고 글자는 없어야 한다(발문의 별행 수식과 같은 모양).
+    _eq_paras = [p for p in re.findall(r"<hp:p\b[^>]*>.*?</hp:p>", SEC0_XML, re.S)
+                 if re.search(rf'styleIDRef="{STYLE_ID_CONDEQ}"', p)]
+    check("그 문단은 수식 하나만 담는다",
+          bool(_eq_paras) and all("<hp:equation" in p and not _visible_text(p).strip()
+                                  for p in _eq_paras),
+          f"{len(_eq_paras)}개")
 
 # 첫 문항은 틀 문단(머리말과 같은 문단)에 이어 써야 빈 줄이 안 생긴다
 check("첫 문단에 머리말과 1번이 함께 있다",

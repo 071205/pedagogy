@@ -28,6 +28,7 @@ const TESTS = [
   "test_structure.py",    // 실물 문단 흐름(박스 앞뒤 여백 등)
   "test_sections.py",     // 공통·선택이 서로 다른 구역으로 갈리는지
   "test_page_layout.py",  // 번호 뒤 탭 · 쪽나눔 · 이어지는 쪽 머리말
+  "test_style_roles.py",  // 역할 표(scripts/exam-style-roles.mjs)가 실물 틀과 같은지
   "test_endpoint.py",     // /hwpx 를 실제로 띄워 그림·보안 관문 확인
 ];
 

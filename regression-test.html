@@ -956,6 +956,37 @@ async function runMockTests(){
         && seen.headers["X-Exam-Client"] === "1";
   });
 
+  /* ── 조건 상자 안 별행 수식 (`docs/MOCK-STYLE-DESIGN.md` 4단계) ──
+     실물은 조건 한 줄이 통째로 수식이면 **별행(디스플레이) 수식**으로 조판한다
+     (평가원 양식 22번 (가) — 상자 안 왼쪽 8.0mm, 줄 높이 14.4mm).
+     발문의 '수식만 있는 줄' 과 **같은 규칙**이어야 하고, 세 경로가 함께 움직여야 한다.
+     ⚠️ 이 검사를 만들 때 일부러 규칙을 되돌려 빨간불이 나는 것을 확인했다. */
+  await check(G, "조건 상자의 수식만 있는 줄은 별행 수식이 된다", () => {
+    const p = win.blank(9);
+    p.blocks = [{type:"conditions", data:{items:["(가) 모든 자연수 $n$에 대하여",
+                                                 " $a_{n+1}=\\dfrac{1}{2}a_n$ ",
+                                                 "이다."]}}];
+    const u = win.probUnits(p).units.find(x=>x.k==="cond");
+    const html = win.renderProb(p), typ = win.probTypst(p);
+    return { pass: !!u && String(u.kinds) === "text,eq,text"
+                && u.items.length === 3          // 상자는 쪼개지지 않는다
+                && (html.match(/class="condbox"/g)||[]).length === 1
+                && html.includes('class="condeq"')
+                && (typ.match(/#condbox\(/g)||[]).length === 1
+                && typ.includes("#condeq[#mitex(")   // 디스플레이 수식 · 왼쪽 정렬
+                && !typ.includes("#condeq[#mi("),
+             note: u ? `kinds=${u.kinds}` : "cond 유닛이 없음" };
+  });
+
+  await check(G, "조건 상자의 보통 줄은 그대로 인라인 수식이다", () => {
+    const p = win.blank(9);
+    p.blocks = [{type:"conditions", data:{items:["(가) $a_1=3$ 이다."]}}];
+    const u = win.probUnits(p).units.find(x=>x.k==="cond");
+    return String(u.kinds) === "text"
+        && !win.renderProb(p).includes('class="condeq"')
+        && !win.probTypst(p).includes("#condeq[");
+  });
+
   await check(G, "renderProb/probTypst 가 paintProblem 을 거친다", () => {
     const p = win.blank(5);
     p.blocks=[{type:"statement", data:{text:"확인용"}}];
