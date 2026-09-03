@@ -2,16 +2,41 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## 지금 어디까지 왔나 (2026-09-01)
+## 지금 어디까지 왔나 (2026-09-03)
 
 세 갈래가 동시에 살아 있다. 새 세션이면 **관련된 갈래의 인계 기록부터** 읽는 것이 빠르다
 ([`reviews/INDEX.md`](reviews/INDEX.md)).
 
 | 갈래 | 상태 |
 |---|---|
-| **문제집 편집기**(`index.html`) | 안정. 상용 준비 항목은 `docs/COMMERCIAL-LAUNCH.md` |
-| **모의고사 → 한글**(`mock_to_hwpx.py`) | 동작. 30문항·선택과목 검증 완료. 열린 이슈 2건(아래) |
+| **문제집 편집기**(`index.html`) | 안정. **지금 하는 일 = 영어 과목**(아래). 상용 준비는 `docs/COMMERCIAL-LAUNCH.md` |
+| **모의고사 → 한글**(`mock_to_hwpx.py`) | 동작. 30문항·선택과목 검증 완료. **실물 조판 6단계 완료** |
 | **범용 문서 → 한글**(`document_to_hwpx.py`) | 베타. 블록 11종. 실물 한글로 확인 완료. **브라우저만으로도 된다**(아래) |
+
+### ▶ 다음에 할 일 — 영어 과목
+
+[`docs/ENGLISH-SUBJECT-DESIGN.md`](docs/ENGLISH-SUBJECT-DESIGN.md) **부터 읽는다.**
+영어는 블록 메뉴에만 있고 조판은 국어 규칙을 쓰고 있었다. 실물(`평가원 영어 양식.hwp`)이
+들어와 네 가지를 고쳤고(테두리·각주·선지 배치·문단 들여쓰기), **남은 다섯 개는 설계까지
+끝나 있다** — 근거·계약·고칠 곳·위험이 그 문서에 적혀 있으니 그대로 실행하면 된다.
+권하는 순서: ⑥ 순서 라벨 → ④ 듣기 답란 → ⑤ 묶음 안내 → ③ 안내문 상자.
+⚠️ **② 어휘 세로 2단 네모는 실물 근거가 없다**(2025 수능 영어에 그 유형이 없다).
+   모의고사 시험지 한 부를 받기 전에는 만들지 말 것 — 값을 지어내면 틀린 것이 맞아 보인다.
+
+### 이 컴퓨터에만 있는 자료 (저작물 — 저장소에 없다)
+
+`.gitignore` 가 막고 있다. **없으면 관련 검사가 `⏭` 로 건너뛰고**, 실물 대조가 필요한
+작업은 시작할 수 없다.
+
+| 파일 | 무엇에 쓰나 |
+|---|---|
+| `평가원 수학 양식.hwpx` | 모의고사 HWPX 의 **틀**. 없으면 `test_structure`·`test_sections`·`test_page_layout`·`test_style_roles` 가 ⏭ |
+| `평가원 영어 양식.hwp` | 영어 과목 조판의 근거(`docs/ENGLISH-SUBJECT-DESIGN.md`) |
+| `평가원 국어 양식.pdf` | 국어 지문 조판의 근거 |
+| `2025학년도 수능 수학 문제.hwp` | 틀이 없을 때 값만 읽는 대비 경로 |
+
+⚠️ 실물에서 값을 잴 때는 한글로 PDF 를 뽑아 `PyMuPDF` 로 좌표를 읽었다
+(`파일 → PDF로 저장하기` 를 `System Events` 로 누른다 — 단축키는 이 앱에 안 먹는다).
 
 **바로 해 볼 수 있는 것**
 
@@ -30,6 +55,13 @@ python3 experiments/hwp-export/document_to_hwpx.py \
 (실물 틀이 있어야 하므로 CI 에서는 ⏭).
 
 **열린 이슈 없음.**
+
+⚠️ **`main` 에 아직 안 올라간 작업이 있을 수 있다.** 새 세션이면 먼저 확인할 것:
+```bash
+git status -sb && git log --oneline main..HEAD
+```
+브랜치에 쌓여 있으면 `git checkout main && git merge --ff-only <브랜치>` 로 올린다.
+(푸시는 GitHub Pages 배포로 이어지므로 사람이 판단한다)
 
 **아직 확인 못 한 것**
 - 모의고사 시험지의 **실물 인쇄 대조** — 신명 계열 글꼴이 이 컴퓨터에 없다.

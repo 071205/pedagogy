@@ -9,6 +9,10 @@
 [`docs/MOCK-STYLE-DESIGN.md`](../docs/MOCK-STYLE-DESIGN.md) 의 실물 조판 계획은
 **여섯 단계가 모두 끝났다**.
 
+**지금 하는 일은 영어 과목**이다 — [`docs/ENGLISH-SUBJECT-DESIGN.md`](../docs/ENGLISH-SUBJECT-DESIGN.md)
+에 남은 다섯 개의 근거·계약·고칠 곳·위험이 적혀 있다. 최근 인계는
+`HANDOFF-2026-038`(토대) · `HANDOFF-2026-039`(문단 모델).
+
 ## 최근 해결
 
 | ID | 심각도 | 요약 | 파일 |
