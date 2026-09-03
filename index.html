@@ -707,7 +707,9 @@ body.col-resizing{cursor:col-resize;user-select:none}
 .preview .psg-note{font-size:.85em;margin-top:.35em;line-height:1.5}
 /* 개념어 네모 — 글자에 딱 붙는 얇은 상자 */
 .preview .wbox{border:1px solid #333;padding:0 .25em;border-radius:2px;
-  display:inline-block;line-height:1.35}
+  display:inline-block;line-height:1.35;margin:0 .12em}
+/* 라벨 + 네모는 한 덩어리다 — 줄 끝에서 갈라지면 (A) 만 앞줄에 남는다. */
+.preview .wbox-set{white-space:nowrap}
 /* 구간 표시 — 오른쪽에 세로 괄호와 [A] 라벨 */
 .preview .psg-range{position:relative;padding-right:2.6em;margin:.15em 0}
 .preview .psg-range::before{content:"";position:absolute;right:1.7em;top:.3em;bottom:.3em;
@@ -822,7 +824,9 @@ body.col-resizing{cursor:col-resize;user-select:none}
 .pq .psg-source{text-align:right;font-size:.92em;margin-top:.5em}
 .pq .psg-note{font-size:.85em;margin-top:.3em;line-height:1.5}
 .pq .wbox{border:0.4pt solid #000;padding:0 .25em;border-radius:0.4mm;
-  display:inline-block;line-height:1.35}
+  display:inline-block;line-height:1.35;margin:0 .12em}
+/* 화면(.preview)과 같은 규칙 — 한쪽만 고치면 미리보기와 인쇄가 갈라진다. */
+.pq .wbox-set{white-space:nowrap}
 .pq .psg-range{position:relative;padding-right:2.6em;margin:.15em 0}
 .pq .psg-range::before{content:"";position:absolute;right:1.7em;top:.3em;bottom:.3em;
   width:.42em;border:0.4pt solid #000;border-left:0}
@@ -4174,7 +4178,15 @@ function addCasesRowGap(src){
    여는/닫는 표시 사이에 줄바꿈 표시가 끼면 안 되므로 한 조각 안에서만 맞춘다. */
 function inlineMarks(esc){
   return String(esc)
-    .replace(/\[\[([^\[\]\n]{1,80})\]\]/g, '<span class="wbox">$1</span>')
+    /* 네모 앞에 (A)·(B) 같은 라벨이 바로 붙어 있으면 **함께 묶는다.**
+       영어 어휘 문항이 그 모양인데(“(A)[[strengthened / weakened]]”), 묶지 않으면
+       줄 끝에서 라벨과 상자가 다른 줄로 갈린다(실제로 그렇게 나왔다).
+       ⚠️ 이 함수는 sanitize() 를 거친 글에만 쓴다 — 순서를 바꾸면 서식이 글자로 보이거나
+          본문의 < > 가 살아남는다. */
+    .replace(/(\((?:[A-Za-z]|[가-힣])\))?\[\[([^\[\]\n]{1,80})\]\]/g,
+             (m, label, inner) => label
+               ? `<span class="wbox-set">${label}<span class="wbox">${inner}</span></span>`
+               : `<span class="wbox">${inner}</span>`)
     .replace(/\*\*([^*\n]{1,200})\*\*/g,     '<b>$1</b>')
     .replace(/__([^_\n]{1,200})__/g,          '<u>$1</u>');
 }

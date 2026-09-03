@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFile, stat } from "node:fs/promises";
+import { readdir, readFile, stat } from "node:fs/promises";
 
 const root = new URL("../", import.meta.url);
 const text = async (path) => readFile(new URL(path, root), "utf8");
@@ -61,9 +61,17 @@ assert.match(visual, /setInputFiles\("#importAllInput"/, "시각 검사는 실�
 assert.match(visual, /buildPrintDoc\(false\)/, "시각 검사는 실제 인쇄 문서를 만들어야 합니다");
 assert.match(visual, /pixelmatch\(/, "시각 검사는 PNG 픽셀 비교를 해야 합니다");
 assert.match(visual, /MAX_DIFF_RATIO/, "시각 검사는 제한된 픽셀 차이 한도를 가져야 합니다");
-for (const name of ["math-print", "korean-passage-print", "image-print", "overflow-print"]) {
-  assert.equal(await exists(`test-fixtures/visual-baseline/${name}.png`), true,
-    `시각 회귀 기준본 ${name}.png이 필요합니다`);
+/* 기준 시각본은 **만든 OS 별**로 둔다(`REV-2026-018`). 어느 OS 것이든 한 벌은 있어야
+   하고, 있는 벌은 네 장이 다 있어야 한다 — 한 장만 빠지면 그 문항만 조용히 안 보게 된다. */
+const platforms = (await readdir(new URL("test-fixtures/visual-baseline", root), { withFileTypes: true }))
+  .filter((e) => e.isDirectory()).map((e) => e.name);
+assert.ok(platforms.length > 0,
+  "시각 회귀 기준본이 한 벌도 없습니다 (test-fixtures/visual-baseline/<platform>/)");
+for (const platform of platforms) {
+  for (const name of ["math-print", "korean-passage-print", "image-print", "overflow-print"]) {
+    assert.equal(await exists(`test-fixtures/visual-baseline/${platform}/${name}.png`), true,
+      `시각 회귀 기준본 ${platform}/${name}.png이 필요합니다`);
+  }
 }
 assert.match(integration, /#importAllInput/, "격리 통합 검사는 실제 전체 가져오기 input을 거쳐야 합니다");
 assert.match(integration, /await loadApp\(\)/, "격리 통합 검사는 저장 뒤 앱을 새로고침해 복원을 확인해야 합니다");
