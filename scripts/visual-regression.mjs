@@ -15,6 +15,7 @@ const fixtures = [
   ["02-korean-passage.json", "korean-passage-print"],
   ["03-image-storage.json", "image-print"],
   ["04-print-overflow.json", "overflow-print"],
+  ["05-english-order.json", "english-order-print"],
 ];
 const fixtureDir = join(root, "test-fixtures", "refactor-baseline");
 /* ── 기준 시각본은 **만든 운영체제별로** 둔다 ────────────────────────────────

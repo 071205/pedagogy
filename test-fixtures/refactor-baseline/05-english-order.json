@@ -1,0 +1,66 @@
+{
+  "name": "[기준] 영어 순서 문항",
+  "header": "리팩터링 기준 샘플 · 영어",
+  "subject": "english",
+  "lineColor": "navy",
+  "problems": [
+    {
+      "title": "순서 문항",
+      "desc": "주어진 글 다음에 이어질 글의 순서로 가장 적절한 것을 고르시오.",
+      "answer": "③",
+      "span": "col",
+      "blocks": [
+        {
+          "type": "passage",
+          "data": {
+            "lead": "",
+            "boxed": false,
+            "parts": [
+              {
+                "label": "",
+                "kind": "prose",
+                "text": "Watch the small birds that gather at a feeder in winter. If one of them startles and lifts away, the rest follow at once, without pausing to weigh whether the danger was ever real.",
+                "source": "",
+                "notes": ""
+              },
+              {
+                "label": "(A)",
+                "kind": "prose",
+                "text": "He wondered whether the birds standing in a line were the more anxious of the two groups simply because they could not see what their neighbours were doing.",
+                "source": "",
+                "notes": ""
+              },
+              {
+                "label": "(B)",
+                "kind": "prose",
+                "text": "In a long study of how such birds scan for danger, a researcher and his students found that those arranged in a circle settled into a steady rhythm of looking up and looking down.",
+                "source": "자작 예시",
+                "notes": "forage: 먹이를 찾다\npredator: 포식자"
+              },
+              {
+                "label": "(C)",
+                "kind": "prose",
+                "text": "The birds in the line, who could see only their nearest neighbour, were not merely less coordinated. They shifted their heads far more often, as though each were keeping watch alone.",
+                "source": "",
+                "notes": ""
+              }
+            ]
+          }
+        },
+        {
+          "type": "choices",
+          "data": {
+            "layout": "cols2",
+            "items": [
+              "(A) – (C) – (B)",
+              "(B) – (A) – (C)",
+              "(B) – (C) – (A)",
+              "(C) – (A) – (B)",
+              "(C) – (B) – (A)"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

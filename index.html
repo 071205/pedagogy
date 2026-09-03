@@ -706,6 +706,20 @@ body.col-resizing{cursor:col-resize;user-select:none}
    ⚠️ 운문(verse)은 verseHTML 이 따로 그리므로 이 규칙이 가지 않는다(가면 시 행이 밀린다). */
 .preview .psg-p{text-indent:.87em}
 .preview .psg-p + .psg-p{margin-top:6pt}
+/* ── 영어 순서 문항의 (A)(B)(C) ── 라벨이 문단 첫머리에 인라인으로 오고, 이어지는
+   줄은 라벨 폭만큼 들어가 라벨 뒤 본문에 맞춰진다(행잡기). 실물 `평가원 영어 양식.hwp`
+   36·37번 문단 모양에서 잰 내어쓰기 7.62mm ÷ 본문 11.5pt(4.057mm) = **1.88em**.
+   ⚠️ mm 가 아니라 em 으로 옮긴다 — 우리 단이 실물보다 좁다.
+   라벨을 같은 폭의 inline-block 으로 두어야 첫 줄 본문이 이어지는 줄과 정확히 맞는다.
+   min-width 라 (가) 처럼 더 넓은 라벨이 들어와도 잘리지 않는다(그 줄만 밀린다).
+   ⚠️ .psg-p 의 첫 줄 들여쓰기(.87em)를 덮어써야 한다 — 실물은 라벨이 단 왼쪽에 붙는다.
+   ⚠️⚠️ **라벨의 text-indent 를 0 으로 되돌리는 것을 빼지 말 것.** text-indent 는
+      상속되고 라벨은 inline-block(= 제 블록)이라, 그대로 두면 음수 들여쓰기를 **한 번 더**
+      적용해 글자가 자기 상자 왼쪽 밖으로 나간다. 그 자리는 단 밖이라 .pq 의
+      overflow:hidden 에 잘려 **라벨이 통째로 안 보인다.** DOM·계산된 스타일·자리는 전부
+      정상으로 나오고 인쇄물을 눈으로 봐야만 보인다 — 실제로 그렇게 찾았다. */
+.preview .psg-p-lab{text-indent:-1.88em;padding-left:1.88em}
+.preview .psg-lab-in{display:inline-block;min-width:1.88em;text-indent:0}
 /* ── 영어 지문 ── 각주는 오른쪽 끝에 붙고 여러 개가 한 줄에 나란히 온다(실물 확인) */
 .preview .psg-note-row{text-align:right}
 .preview .psg-note-row span+span{margin-left:1.6em}
@@ -835,6 +849,20 @@ body.col-resizing{cursor:col-resize;user-select:none}
 /* 화면(.preview)과 같은 규칙 — 한쪽만 고치면 미리보기와 인쇄가 갈라진다. */
 .pq .psg-p{text-indent:.87em}
 .pq .psg-p + .psg-p{margin-top:6pt}
+/* ── 영어 순서 문항의 (A)(B)(C) ── 라벨이 문단 첫머리에 인라인으로 오고, 이어지는
+   줄은 라벨 폭만큼 들어가 라벨 뒤 본문에 맞춰진다(행잡기). 실물 `평가원 영어 양식.hwp`
+   36·37번 문단 모양에서 잰 내어쓰기 7.62mm ÷ 본문 11.5pt(4.057mm) = **1.88em**.
+   ⚠️ mm 가 아니라 em 으로 옮긴다 — 우리 단이 실물보다 좁다.
+   라벨을 같은 폭의 inline-block 으로 두어야 첫 줄 본문이 이어지는 줄과 정확히 맞는다.
+   min-width 라 (가) 처럼 더 넓은 라벨이 들어와도 잘리지 않는다(그 줄만 밀린다).
+   ⚠️ .psg-p 의 첫 줄 들여쓰기(.87em)를 덮어써야 한다 — 실물은 라벨이 단 왼쪽에 붙는다.
+   ⚠️⚠️ **라벨의 text-indent 를 0 으로 되돌리는 것을 빼지 말 것.** text-indent 는
+      상속되고 라벨은 inline-block(= 제 블록)이라, 그대로 두면 음수 들여쓰기를 **한 번 더**
+      적용해 글자가 자기 상자 왼쪽 밖으로 나간다. 그 자리는 단 밖이라 .pq 의
+      overflow:hidden 에 잘려 **라벨이 통째로 안 보인다.** DOM·계산된 스타일·자리는 전부
+      정상으로 나오고 인쇄물을 눈으로 봐야만 보인다 — 실제로 그렇게 찾았다. */
+.pq .psg-p-lab{text-indent:-1.88em;padding-left:1.88em}
+.pq .psg-lab-in{display:inline-block;min-width:1.88em;text-indent:0}
 .pq .psg-note-row{text-align:right}
 .pq .psg-note-row span+span{margin-left:1.6em}
 .pq .v-line{line-height:1.7}
@@ -4335,18 +4363,23 @@ function splitParagraphs(raw){
   return out;
 }
 
-function proseHTML(raw){
+/* lead 는 **첫 문단 첫머리에 인라인으로** 들어갈 라벨이다((A)(B)(C) 순서 문항).
+   ⚠️ 호출하는 쪽에서 이미 sanitize 된 문자열을 넘긴다 — 여기서 다시 이스케이프하면
+      우리가 만든 표시가 글자로 보인다(CLAUDE.md 의 sanitize → inlineMarks 순서와 같은 이야기). */
+function proseHTML(raw, lead){
   const lines=splitParagraphs(raw);
   /* 산문은 줄바꿈이 '문단' 이다. 실물은 **문단마다 첫 줄을 들여쓰므로**(국어 3.56mm ·
      영어 3.72mm — 둘 다 약 한 글자) 문단이 각각 요소여야 한다.
      ⚠️ 예전에는 덩어리째 `processText` 에 넘겼다. `\n` 이 6pt 간격 span 이 되어 문단이라는
         상자가 없었고, 그래서 들여쓸 곳이 없었다. 나눈 대신 그 6pt 는 CSS 로 되살린다
         (`.psg-p + .psg-p`) — 안 그러면 문단 간격이 사라진다. */
-  const paintSeg = segLines => segLines.map(l =>
-      isEllipsisLine(l)
-        ? `<div class="psg-mid">${sanitize(l.trim())}</div>`
-        : `<div class="psg-p">${processText(l)}</div>`
-    ).join("");
+  let pending = lead || "";   // 첫 산문 문단 하나에만 붙인다
+  const paintSeg = segLines => segLines.map(l => {
+      if(isEllipsisLine(l)) return `<div class="psg-mid">${sanitize(l.trim())}</div>`;
+      if(!pending) return `<div class="psg-p">${processText(l)}</div>`;
+      const lab=`<span class="psg-lab-in">${pending}</span>`; pending="";
+      return `<div class="psg-p psg-p-lab">${lab}${processText(l)}</div>`;
+    }).join("");
   return splitRanges(lines).map(seg=>{
     const inner=paintSeg(seg.lines);
     return seg.label===null ? inner : rangeWrap(inner, seg.label);
@@ -4384,15 +4417,27 @@ function blockHTML(blk, ctx){
     const head=(range||d.lead)
       ? `<div class="psg-head">${range?`<b>[${sanitize(range)}]</b> `:""}${sanitize(str(d.lead,200))}</div>`
       : "";
+    const english=(ctx&&ctx.subject)==="english";
     const parts=(d.parts||[]).map(pt=>{
-      const label=pt.label?`<div class="psg-label">${sanitize(pt.label)}</div>`:"";
-      const body=(pt.kind==="verse")?verseHTML(pt.text):proseHTML(pt.text);
+      /* ── 조각 라벨의 자리는 과목이 정한다 (둘 다 실물에서 확인) ──
+         국어  `평가원 국어 양식.hwp` (가)(나)(다)는 **자기 혼자 있는 문단**이고
+               본문은 그 다음 문단이다 → 별도 줄.
+         영어  `평가원 영어 양식.hwp` 36번(문단 363~365)·37번(436~438)의 (A)(B)(C)는
+               **본문과 같은 문단의 첫머리**다(`(A)`+묶음빈칸+본문). 그 문단 모양은
+               왼쪽 여백 3.99mm에 **내어쓰기 7.62mm** — 이어지는 줄이 라벨 폭만큼
+               들어가 라벨 뒤 본문에 맞춰진다(행잡기). 라벨은 본문과 같은 글자
+               모양이다(11.5pt · 굵지 않음).
+         ⚠️ 운문은 verseHTML 이 따로 그리므로 인라인으로 넣지 않는다. */
+      const lab=pt.label?sanitize(pt.label):"";
+      const inlineLab = english && lab && pt.kind!=="verse";
+      const label=(lab && !inlineLab)?`<div class="psg-label">${lab}</div>`:"";
+      const body=(pt.kind==="verse")?verseHTML(pt.text):proseHTML(pt.text, inlineLab?lab:"");
       const src=pt.source?`<div class="psg-source">– ${sanitize(pt.source)} –</div>`:"";
       /* 각주 — 국어는 줄당 하나(왼쪽), 영어는 **한 줄에 나란히 두고 오른쪽 끝에 붙인다.**
          2025 수능 영어 실물에서 잰 것: 각주 줄의 오른쪽 끝이 본문 오른쪽 끝과 같다
          (왼단 142.1~142.8mm vs 본문 142.8~143.3mm). 여러 개면 *, **, *** 로 늘어난다. */
       const noteList=str(pt.notes,1000).split(/\r?\n/).map(n=>n.trim()).filter(Boolean);
-      const notes=(ctx&&ctx.subject)==="english"
+      const notes=english
         ? (noteList.length
             ? `<div class="psg-note psg-note-row">`
               + noteList.map((n,i)=>`<span>${"*".repeat(i+1)} ${sanitize(n)}</span>`).join("")
@@ -4404,7 +4449,7 @@ function blockHTML(blk, ctx){
     }).join("");
     /* 과목을 클래스로 넘긴다 — 조판 규칙이 과목마다 다르고(아래 CSS), 그 갈래를
        미리보기와 인쇄 두 곳에 각각 적어 두면 갈라진다. */
-    const subj=(ctx&&ctx.subject)==="english" ? " psg-en" : "";
+    const subj=english ? " psg-en" : "";
     return `<div class="passage${d.boxed!==false?" psg-boxed":""}${subj}">${head}`+
            `<div class="psg-box">${parts}</div></div>`;
   }

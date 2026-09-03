@@ -536,6 +536,75 @@ async function runIndexTests(){
              note: en.includes("psg-en") ? undefined : "과목이 렌더에 전달되지 않음" };
   });
 
+  await check(G, "영어 순서 문항의 (A) 라벨은 문단 첫머리에 인라인, 국어는 별도 줄", () => {
+    /* 실물 `.hwp` 두 벌을 직접 읽어 확인했다.
+       영어 36·37번: `(A)`+묶음빈칸+본문이 **한 문단**이고 그 문단 모양이 내어쓰기
+                     7.62mm(본문 11.5pt → 1.88em)를 갖는다 → 인라인 + 행잡기.
+       국어 (가)(나)(다): 라벨이 **자기 혼자 있는 문단**이고 본문은 다음 문단 → 별도 줄.
+       ⚠️ 한 규칙으로 묶으면 한쪽이 반드시 틀린다. */
+    const blk = win.normBlock({type:"passage", data:{boxed:false, parts:[
+      {label:"(A)", kind:"prose", text:"Marc wondered whether the birds were fearful."}]}});
+    const en = win.blockHTML(blk, {subject:"english"});
+    const ko = win.blockHTML(blk, {subject:"korean"});
+    /* 운문에는 가지 않는다 — verseHTML 이 따로 그린다(가면 시 행이 밀린다). */
+    const verse = win.blockHTML(win.normBlock({type:"passage", data:{parts:[
+      {label:"(A)", kind:"verse", text:"배를 민다"}]}}), {subject:"english"});
+    /* ⚠️ 클래스는 통째로 맞춘다 — "psg-p" 로 부분 검색하면 psg-part·psg-p-lab 에 걸린다. */
+    const enInline = en.includes('class="psg-p psg-p-lab"') && en.includes('class="psg-lab-in">(A)<')
+                     && !en.includes('class="psg-label"');
+    const koSeparate = ko.includes('class="psg-label">(A)<') && !ko.includes("psg-p-lab");
+    const verseOK = verse.includes('class="psg-label">(A)<') && !verse.includes("psg-p-lab");
+    return { pass: enInline && koSeparate && verseOK,
+             note: !enInline ? "영어 라벨이 인라인이 아님"
+                 : !koSeparate ? "국어 라벨이 별도 줄이 아님" : "운문에 인라인 라벨이 갔음" };
+  });
+
+  await check(G, "인라인 라벨은 첫 문단에만 붙고 라벨의 태그는 이스케이프된다", () => {
+    const html = win.blockHTML(win.normBlock({type:"passage", data:{parts:[
+      {label:"(A)", kind:"prose", text:"첫 문단.\n둘째 문단.\n셋째 문단."}]}}), {subject:"english"});
+    const labs = (html.match(/class="psg-lab-in"/g)||[]).length;
+    const paras = (html.match(/class="psg-p[ "]/g)||[]).length;
+    /* 라벨에 넣은 태그는 sanitize 를 거쳐야 한다 — 인라인이 되면서 라벨이
+       문단 HTML 안으로 들어가므로 여기서 빠뜨리면 주입 통로가 열린다. */
+    const evil = win.blockHTML(win.normBlock({type:"passage", data:{parts:[
+      {label:'<img src=x onerror=alert(1)>', kind:"prose", text:"t"}]}}), {subject:"english"});
+    return { pass: labs===1 && paras===3 && !evil.includes("<img") && evil.includes("&lt;img"),
+             note: `라벨 ${labs}개 / 문단 ${paras}개 (라벨 1 · 문단 3)` };
+  });
+
+  await check(G, "인라인 라벨이 제 상자 안에 그려진다(단 밖으로 나가 잘리지 않는다)", () => {
+    /* ⚠️ 이 검사는 **실제로 잘려서 안 보이던 버그**를 잡으려고 있다.
+       라벨은 inline-block(= 제 블록)이라 문단의 음수 text-indent 를 **상속해서 한 번 더**
+       적용한다. 그러면 글자가 자기 상자 왼쪽 밖으로 나가고, 그 자리는 단 밖이라
+       `.pq{overflow:hidden}` 에 잘려 **라벨이 통째로 사라진다.**
+       HTML·계산된 스타일·요소 자리는 전부 정상으로 나온다 — 그래서 마크업만 보는
+       검사로는 못 잡고, 여기서는 **글자가 실제로 놓인 자리**(Range)를 잰다. */
+    const doc = win.document;
+    const host = doc.createElement("div");
+    host.className = "pq";
+    host.style.cssText = "position:absolute;left:-9999px;top:0;width:300px";
+    host.innerHTML = `<div class="content">${win.blockHTML(win.normBlock({type:"passage",
+      data:{boxed:false, parts:[{label:"(A)", kind:"prose",
+        text:"He wondered whether the birds standing in a line were the more anxious of the two."}]}}),
+      {subject:"english"})}</div>`;
+    doc.body.appendChild(host);
+    try{
+      const para = host.querySelector(".psg-p-lab");
+      const span = host.querySelector(".psg-lab-in");
+      if(!para || !span) return {pass:false, note:"인라인 라벨을 못 찾음"};
+      const rng = doc.createRange(); rng.selectNodeContents(span);
+      const ink = rng.getBoundingClientRect();          // 글자가 실제로 놓인 자리
+      const box = para.getBoundingClientRect();         // 문단의 테두리 상자
+      /* 글자가 문단 상자 왼쪽 밖으로 나가면 안 된다(0.5px 은 반올림 여유). */
+      const inside = ink.left >= box.left - 0.5 && ink.width > 0;
+      /* 그리고 실물처럼 라벨이 이어지는 줄보다 **왼쪽**에 있어야 한다(행잡기). */
+      const hangs = ink.left < box.left + parseFloat(win.getComputedStyle(para).paddingLeft) - 0.5;
+      return { pass: inside && hangs,
+               note: `라벨 글자 ${(ink.left-box.left).toFixed(1)}px · 문단 안여백 `
+                     + `${parseFloat(win.getComputedStyle(para).paddingLeft).toFixed(1)}px` };
+    } finally { host.remove(); }
+  });
+
   await check(G, "지문 산문은 문단마다 요소가 되고, $$ 수식은 잘리지 않는다", () => {
     /* 실물은 문단마다 첫 줄을 들여쓴다(국어 3.56mm · 영어 3.72mm). 들여쓰려면 문단이
        각각 요소여야 한다. ⚠️ 그런데 `\n` 으로 그냥 쪼개면 여러 줄에 걸친 $$…$$ 가
