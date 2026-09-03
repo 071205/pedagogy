@@ -763,6 +763,47 @@ async function runIndexTests(){
     return kinds.includes("passage") && kinds.includes("dialogue");
   });
 
+  await check(G, "말한 내용이 비면 답란(밑줄)이 된다 — 영어 듣기 13·14·15번", () => {
+    /* 실물 `평가원 영어 양식.hwp` 를 읽어 확인: `Woman:` 뒤부터 **밑줄 속성이 걸린
+       묶음 빈칸**이 단 끝까지 이어진다(글자 모양 attr=0x4). 우리는 빈칸 개수를 베끼지
+       않고 남은 폭을 채운다 — 단 폭이 실물과 다르기 때문이다.
+       ⚠️ items 는 {who,text} 객체 배열이다 — 문자열로 가정하면 터진다. */
+    const html = win.blockHTML(win.normBlock({type:"dialogue", data:{items:[
+      {who:"Woman", text:""}, {who:"학생 1", text:"말이 있으면 그대로."},
+      {who:"Man", text:"   "}]}}), {subject:"english"});
+    /* 빈 줄 둘(공백뿐인 것 포함)만 답란이 되고, 말이 있는 줄은 그대로다. */
+    const ans = (html.match(/class="dlg-txt dlg-ans"/g)||[]).length;
+    const said = (html.match(/class="dlg-txt">/g)||[]).length;
+    /* 말한이는 비어도 지워지지 않는다(누가 답하는지가 문항의 일부다). */
+    const keepsWho = html.includes(">Woman<") && html.includes(">Man<");
+    return { pass: ans===2 && said===1 && keepsWho,
+             note: `답란 ${ans}줄 / 말 ${said}줄 (답란 2 · 말 1)` };
+  });
+
+  await check(G, "답란 밑줄이 실제로 그어지고 남은 폭을 채운다", () => {
+    /* ⚠️ 마크업만 보면 '클래스가 붙었다' 까지만 안다. 밑줄은 CSS 가 그리므로
+       **실제로 선이 있는지와 폭**을 재야 한다 — 빈 span 은 잘못 두면 폭·높이가 0 이다. */
+    const doc = win.document;
+    const host = doc.createElement("div");
+    host.className = "pq";
+    host.style.cssText = "position:absolute;left:-9999px;top:0;width:300px";
+    host.innerHTML = `<div class="content">${win.blockHTML(win.normBlock({type:"dialogue",
+      data:{items:[{who:"Woman", text:""}]}}), {subject:"english"})}</div>`;
+    doc.body.appendChild(host);
+    try{
+      const line = host.querySelector(".dlg-ans");
+      const row  = host.querySelector(".dlg-row");
+      if(!line || !row) return {pass:false, note:"답란을 못 찾음"};
+      const cs = win.getComputedStyle(line);
+      const w = line.getBoundingClientRect().width;
+      const drawn = cs.borderBottomStyle !== "none" && parseFloat(cs.borderBottomWidth) > 0;
+      /* 말한이 칸을 뺀 나머지를 채워야 한다 — 절반 넘게 차지하면 '채웠다' 로 본다. */
+      const fills = w > row.getBoundingClientRect().width * 0.5;
+      return { pass: drawn && fills,
+               note: `밑줄 ${cs.borderBottomWidth} · 폭 ${w.toFixed(0)}px` };
+    } finally { host.remove(); }
+  });
+
   await check(G, "대화문·표가 렌더된다", () => {
     const d = win.blockHTML(win.normBlock({type:"dialogue",
       data:{items:[{who:"학생 1", text:"말"}]}}), {});

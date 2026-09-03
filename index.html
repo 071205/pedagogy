@@ -751,6 +751,10 @@ body.col-resizing{cursor:col-resize;user-select:none}
 .preview .dlg-who{flex:0 0 auto;font-weight:700;white-space:nowrap}
 .preview .dlg-sep{flex:0 0 auto}
 .preview .dlg-txt{flex:1 1 auto;min-width:0}
+/* 듣기 답란 — 말한 내용이 비면 밑줄 한 줄이 남은 폭을 채운다(실물 13·14·15번).
+   align-self:baseline 이라 빈 상자의 아래 끝이 그 줄의 기준선에 붙는다 — 글자에 친
+   밑줄과 같은 자리다. 늘어나게(stretch) 두면 줄 높이만큼 아래로 처진다. */
+.preview .dlg-ans{align-self:baseline;height:1em;border-bottom:1px solid var(--text-primary)}
 /* 표 — 언매 문법 문항용 격자 */
 .preview .ktbl{border-collapse:collapse;width:100%;margin:10px 0;font-size:.92em}
 .preview .ktbl th,.preview .ktbl td{border:1px solid #333;padding:5px 7px;text-align:center}
@@ -889,6 +893,8 @@ body.col-resizing{cursor:col-resize;user-select:none}
 .pq .dlg-who{flex:0 0 auto;font-weight:700;white-space:nowrap}
 .pq .dlg-sep{flex:0 0 auto}
 .pq .dlg-txt{flex:1 1 auto;min-width:0}
+/* 화면(.preview)과 같은 규칙 — 한쪽만 고치면 미리보기와 인쇄가 갈라진다. */
+.pq .dlg-ans{align-self:baseline;height:1em;border-bottom:0.4pt solid #000}
 .pq .ktbl{border-collapse:collapse;width:100%;margin:2mm 0;font-size:.9em}
 .pq .ktbl th,.pq .ktbl td{border:0.4pt solid #000;padding:1mm 1.4mm;text-align:center}
 .pq .ktbl th{font-weight:700}
@@ -3828,7 +3834,7 @@ function renderEditor(){
         who.style.cssText="flex:0 0 92px;min-width:0"; who.placeholder="학생 1";
         who.value=it.who||"";
         who.oninput=e=>{ it.who=e.target.value; renderPreview(); saveSets(); };
-        const ta=el("textarea"); ta.placeholder="말한 내용"; ta.value=it.text||"";
+        const ta=el("textarea"); ta.placeholder="말한 내용 · 비우면 답란(밑줄)"; ta.value=it.text||"";
         ta.style.minHeight="46px"; autoSizeTA(ta);
         ta.addEventListener("input",e=>{ it.text=e.target.value; autoSizeTA(ta); renderPreview(); saveSets(); });
         const rm=el("button","iconbtn",""); rm.append(el("span","icon icon-trash",""));
@@ -3844,7 +3850,8 @@ function renderEditor(){
         renderEditor(); renderPreview(); saveSets();
       };
       body.append(add);
-      body.append(el("div","dm-note","둘째 줄부터는 말한이 칸이 아니라 '말' 아래로 들여써집니다 — 실제 시험지와 같습니다."));
+      body.append(el("div","dm-note","둘째 줄부터는 말한이 칸이 아니라 '말' 아래로 들여써집니다 — 실제 시험지와 같습니다. "
+        + "말한 내용을 비우면 밑줄만 그어져 영어 듣기의 답란이 됩니다."));
     }
 
     if(blk.type==="table"){
@@ -4401,10 +4408,19 @@ function tableHTML(data){
 
 function blockHTML(blk, ctx){
   if(blk.type==="dialogue"){
-    const rows=(blk.data.items||[]).map(it=>
-      `<div class="dlg-row"><span class="dlg-who">${sanitize(str(it.who,40))}</span>`+
-      `<span class="dlg-sep">:</span>`+
-      `<span class="dlg-txt">${processText(it.text)}</span></div>`).join("");
+    /* 말한 내용이 비면 **답란(밑줄 한 줄)** 이 된다 — 실물 영어 듣기 13·14·15번이
+       `Woman:` 뒤에 밑줄만 두는 형식이다(`평가원 영어 양식.hwp` 를 읽어 확인:
+       라벨 뒤부터 밑줄 속성이 걸린 묶음 빈칸이 단 끝까지 이어진다).
+       ⚠️ 실물의 **빈칸 개수를 베끼지 않는다** — 우리 단 폭이 실물과 달라, 세어 옮기면
+          짧거나 넘친다. 남은 폭을 채우게 두면 어느 폭에서나 맞는다.
+       ⚠️ items 는 문자열이 아니라 {who,text} 객체 배열이다(CLAUDE.md). */
+    const rows=(blk.data.items||[]).map(it=>{
+      const t=str(it.text,3000);
+      const body=t.trim() ? `<span class="dlg-txt">${processText(t)}</span>`
+                          : `<span class="dlg-txt dlg-ans"></span>`;
+      return `<div class="dlg-row"><span class="dlg-who">${sanitize(str(it.who,40))}</span>`+
+             `<span class="dlg-sep">:</span>${body}</div>`;
+    }).join("");
     return `<div class="dlg">${rows}</div>`;
   }
   if(blk.type==="table"){

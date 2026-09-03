@@ -1,5 +1,5 @@
 {
-  "name": "[기준] 영어 순서 문항",
+  "name": "[기준] 영어 순서·듣기 답란",
   "header": "리팩터링 기준 샘플 · 영어",
   "subject": "english",
   "lineColor": "navy",
@@ -57,6 +57,38 @@
               "(B) – (C) – (A)",
               "(C) – (A) – (B)",
               "(C) – (B) – (A)"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "title": "듣기 응답",
+      "desc": "대화를 듣고, 남자의 마지막 말에 대한 여자의 응답으로 가장 적절한 것을 고르시오.",
+      "answer": "①",
+      "span": "col",
+      "blocks": [
+        {
+          "type": "dialogue",
+          "data": {
+            "items": [
+              {
+                "who": "Woman",
+                "text": ""
+              }
+            ]
+          }
+        },
+        {
+          "type": "choices",
+          "data": {
+            "layout": "vertical",
+            "items": [
+              "Too bad. I hope you find the bike you lost.",
+              "Good job. You will get used to riding soon.",
+              "Awesome. Thank you for lending me your bike.",
+              "I am afraid the auction has already finished.",
+              "Excellent. Your donation will be appreciated."
             ]
           }
         }
