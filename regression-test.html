@@ -518,6 +518,37 @@ async function runIndexTests(){
              note: dflt===true ? undefined : "기본값이 무테로 되어 있음" };
   });
 
+  /* ── 영어 과목 조판 (2025 수능 영어 실물 기준) ──
+     국어는 상자 안·문단마다 들여쓰기·각주 줄당 하나, 영어는 무테·첫 줄 들여쓰기·
+     각주 우측 정렬 한 줄이다. 한 규칙으로 묶으면 한쪽이 늘 틀린다.
+     ⚠️ 이 검사들을 만들며 일부러 되돌려 빨간불이 나는 것을 확인했다. */
+  await check(G, "영어 지문은 무테·첫 줄 들여쓰기·각주 우측 정렬", () => {
+    const blk = win.normBlock({type:"passage",
+      data:{boxed:false, parts:[{text:"Attention is finite.", notes:"crude: 투박한\ntaint: 더럽히다"}]}});
+    const en = win.blockHTML(blk, {subject:"english"});
+    const ko = win.blockHTML(blk, {subject:"korean"});
+    return { pass: en.includes("psg-en") && !ko.includes("psg-en")
+                   // 영어: 각주 둘이 한 줄(psg-note-row)에 * 와 ** 로
+                   && en.includes("psg-note-row") && en.includes("* crude") && en.includes("** taint")
+                   // 국어: 줄당 하나, 나란히 놓는 줄이 없다
+                   && !ko.includes("psg-note-row")
+                   && (ko.match(/class="psg-note"/g)||[]).length === 2,
+             note: en.includes("psg-en") ? undefined : "과목이 렌더에 전달되지 않음" };
+  });
+
+  await check(G, "선지 배치는 5열·3열·2열·세로 네 가지다", () => {
+    const H2 = installHooks(win, ["CHOICE_LAYOUTS"]);
+    const keep = v => win.normBlock({type:"choices", data:{items:["a"], layout:v}}).data.layout;
+    const html = v => win.blockHTML(win.normBlock({type:"choices", data:{items:["a"], layout:v}}), {});
+    return { pass: String(H2.CHOICE_LAYOUTS) === "horizontal,cols3,cols2,vertical"
+                   && keep("cols2")==="cols2" && keep("cols3")==="cols3"
+                   // 모르는 값은 기본(5열)으로 떨어진다 — 가져온 .json 을 믿지 않는다
+                   && keep("cols7")==="horizontal"
+                   && html("cols2").includes("choices cols2")
+                   && html("cols3").includes("choices cols3"),
+             note: `CHOICE_LAYOUTS=${H2.CHOICE_LAYOUTS}` };
+  });
+
   await check(G, "안내문은 상자 밖에 있다", () => {
     const html = win.blockHTML(win.normBlock({type:"passage",
       data:{lead:"다음 글을 읽고", parts:[{text:"본문"}]}}), {range:"01~03"});

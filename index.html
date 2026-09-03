@@ -700,6 +700,14 @@ body.col-resizing{cursor:col-resize;user-select:none}
 .preview .psg-label{font-weight:700;margin-bottom:5px}
 .preview .psg-body{font-size:.94em;line-height:1.75;text-align:justify}
 .preview .psg-verse .psg-body{text-align:left}
+/* ── 영어 지문 ── 2025 수능 영어 실물에서 잰 값이다.
+   · 첫 줄 들여쓰기 3.72mm (본문 12.2pt = 4.30mm 기준 0.87em)
+     영어 지문은 실물에서 거의 언제나 한 문단이라 첫 줄만 들여쓰면 된다.
+     ⚠️ 국어는 문단마다 들여쓰기라 이 규칙을 그대로 쓰면 안 된다(첫 문단만 들어간다).
+   · 각주는 오른쪽 끝에 붙고 여러 개가 한 줄에 나란히 온다 */
+.preview .psg-en .psg-body{text-indent:.87em}
+.preview .psg-note-row{text-align:right}
+.preview .psg-note-row span+span{margin-left:1.6em}
 .preview .v-line{line-height:1.65}
 .preview .v-gap{height:.85em}
 .preview .psg-mid{text-align:center;margin:.5em 0}
@@ -743,7 +751,12 @@ body.col-resizing{cursor:col-resize;user-select:none}
 .choices{margin-top:8px}
 .choices.vertical{display:grid;grid-template-columns:1fr;row-gap:8px}
 .choices.horizontal{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));column-gap:12px;row-gap:8px}
-.choices.horizontal.choices--wrap{grid-template-columns:repeat(auto-fit,minmax(34mm,1fr))}
+/* 2열·3열 — 실물 수능 영어가 쓰는 배치다(2025 실물: 3열 8·17번 · 2열 5·19·31·36번).
+   선지가 길어 5열에 안 들어가고 세로 5줄은 자리를 너무 먹을 때 쓴다. */
+.choices.cols3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));column-gap:12px;row-gap:8px}
+.choices.cols2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:12px;row-gap:8px}
+/* 칸에 안 들어가면 인쇄 보정(fitPrintDoc)이 이 클래스를 붙여 칸 수를 줄인다. */
+.choices.choices--wrap{grid-template-columns:repeat(auto-fit,minmax(34mm,1fr))}
 .choices .choice{min-width:0}
 .choices .choice .text{overflow-x:hidden}
 .choice{display:flex;gap:6px;align-items:center;font-family:var(--body-serif)}
@@ -818,6 +831,10 @@ body.col-resizing{cursor:col-resize;user-select:none}
 .pq .psg-label{font-weight:700;margin-bottom:1.2mm}
 .pq .psg-body{font-size:.94em;line-height:1.8;text-align:justify;word-break:keep-all}
 .pq .psg-verse .psg-body{text-align:left}
+/* 화면(.preview)과 같은 규칙 — 한쪽만 고치면 미리보기와 인쇄가 갈라진다. */
+.pq .psg-en .psg-body{text-indent:.87em}
+.pq .psg-note-row{text-align:right}
+.pq .psg-note-row span+span{margin-left:1.6em}
 .pq .v-line{line-height:1.7}
 .pq .v-gap{height:.85em}
 .pq .psg-mid{text-align:center;margin:.5em 0}
@@ -1742,6 +1759,11 @@ function allowedBlockTypes(){
 /* 지문 종류 — 산문은 줄바꿈이 문단, 운문(시)은 줄바꿈이 행이다.
    같은 텍스트라도 조판이 완전히 달라서 한 값으로 못 묶는다. */
 const PASSAGE_KINDS=["prose","verse"];
+/* 선지 배치 — 실물 수능 영어는 네 가지를 다 쓴다(2025 수능 영어 실물 확인).
+     5열  6번 "① $100 ② $150 …"      · 3열  8·17번
+     2열  5·19·31·36번               · 세로  22·23·24·26·33·34·35번 (영어 선지 대부분)
+   예전에는 5열(horizontal)과 세로뿐이라, 2·3열 문항은 만들 수 없었다. */
+const CHOICE_LAYOUTS=["horizontal","cols3","cols2","vertical"];
 const IMG_SIZES=["full","large","medium","small"];
 const str=(v,max=20000)=>typeof v==="string"?v.slice(0,max):"";
 
@@ -1808,7 +1830,7 @@ function normBlock(b){
                        label:str(d.label,20)}};   // 비우면 라벨 없음, "보 기" 면 <보기> 상자
   if(type==="choices")
     return {type,data:{items:(Array.isArray(d.items)?d.items:[]).slice(0,5).map(t=>str(t)),
-                       layout:d.layout==="vertical"?"vertical":"horizontal"}};
+                       layout:CHOICE_LAYOUTS.includes(d.layout)?d.layout:"horizontal"}};
   // image — safeUrl 을 통과하지 못하는 주소는 아예 버린다.
   // 예전에는 이때 아무 말 없이 이미지가 사라져서, 남이 준 문제집을 가져오면
   // 그림만 통째로 없어진 채 이유를 알 수 없었다. 몇 개가 빠졌는지 세어 두고
@@ -3392,7 +3414,11 @@ const BLK_LABELS={statement:"문제 본문",passage:"지문",bogi:"<보기> 상�
                   boxed:"박스형 해설",choices:"답 선지",image:"이미지"};
 function blankBlockData(type){
   if(type==="statement"||type==="boxed") return {text:""};
-  if(type==="passage") return {lead:"다음 글을 읽고 물음에 답하시오.", boxed:true,
+  /* ⚠️ 테두리 기본값은 **과목이 정한다.** 2025 수능 실물 확인 —
+       국어는 지문이 상자 안, 영어는 무테다. 한 값으로 두면 한쪽은 늘 고쳐야 한다.
+     (이미 만들어 둔 블록은 건드리지 않는다 — 여기는 '새로 만들 때' 의 기본값이다) */
+  if(type==="passage") return {lead:"다음 글을 읽고 물음에 답하시오.",
+                               boxed: normSubject(activeSet()&&activeSet().subject)!=="english",
     parts:[{label:"",kind:"prose",text:"",source:"",notes:""}]};
   if(type==="bogi") return {text:"", label:"보 기", rows:[], header:true};
   if(type==="dialogue") return {items:[{who:"학생 1",text:""},{who:"학생 2",text:""}]};
@@ -3527,14 +3553,19 @@ function renderEditor(){
     head.append(handle,type);
 
     if(blk.type==="choices"){
-      if(!blk.data.layout) blk.data.layout="horizontal";
+      if(!CHOICE_LAYOUTS.includes(blk.data.layout)) blk.data.layout="horizontal";
       const ctrl=el("div",null,""); ctrl.style.cssText="display:flex;gap:6px";
-      const btnV=el("button","btn","↕ 세로");
-      const btnH=el("button","btn","↔ 가로");
-      const sync=()=>{ btnV.classList.toggle("btn-primary", blk.data.layout==="vertical"); btnH.classList.toggle("btn-primary", blk.data.layout==="horizontal"); renderPreview(); saveSets(); };
-      btnV.onclick=()=>{ blk.data.layout="vertical"; sync(); };
-      btnH.onclick=()=>{ blk.data.layout="horizontal"; sync(); };
-      ctrl.append(btnV,btnH); head.append(ctrl); sync();
+      const btns=[["horizontal","↔ 5열"],["cols3","3열"],["cols2","2열"],["vertical","↕ 세로"]]
+        .map(([v,label])=>{
+          const b=el("button","btn",label); b.dataset.lay=v;
+          b.onclick=()=>{ blk.data.layout=v; sync(); };
+          return b;
+        });
+      const sync=()=>{
+        btns.forEach(b=>b.classList.toggle("btn-primary", blk.data.layout===b.dataset.lay));
+        renderPreview(); saveSets();
+      };
+      ctrl.append(...btns); head.append(ctrl); sync();
     }
 
     if(blk.type==="image"){
@@ -4339,12 +4370,24 @@ function blockHTML(blk, ctx){
       const label=pt.label?`<div class="psg-label">${sanitize(pt.label)}</div>`:"";
       const body=(pt.kind==="verse")?verseHTML(pt.text):proseHTML(pt.text);
       const src=pt.source?`<div class="psg-source">– ${sanitize(pt.source)} –</div>`:"";
-      const notes=str(pt.notes,1000).split(/\r?\n/).map(n=>n.trim()).filter(Boolean)
-        .map(n=>`<div class="psg-note">*${sanitize(n)}</div>`).join("");
+      /* 각주 — 국어는 줄당 하나(왼쪽), 영어는 **한 줄에 나란히 두고 오른쪽 끝에 붙인다.**
+         2025 수능 영어 실물에서 잰 것: 각주 줄의 오른쪽 끝이 본문 오른쪽 끝과 같다
+         (왼단 142.1~142.8mm vs 본문 142.8~143.3mm). 여러 개면 *, **, *** 로 늘어난다. */
+      const noteList=str(pt.notes,1000).split(/\r?\n/).map(n=>n.trim()).filter(Boolean);
+      const notes=(ctx&&ctx.subject)==="english"
+        ? (noteList.length
+            ? `<div class="psg-note psg-note-row">`
+              + noteList.map((n,i)=>`<span>${"*".repeat(i+1)} ${sanitize(n)}</span>`).join("")
+              + `</div>`
+            : "")
+        : noteList.map(n=>`<div class="psg-note">* ${sanitize(n)}</div>`).join("");
       return `<div class="psg-part${pt.kind==="verse"?" psg-verse":""}">`+
              `${label}<div class="psg-body">${body}</div>${src}${notes}</div>`;
     }).join("");
-    return `<div class="passage${d.boxed!==false?" psg-boxed":""}">${head}`+
+    /* 과목을 클래스로 넘긴다 — 조판 규칙이 과목마다 다르고(아래 CSS), 그 갈래를
+       미리보기와 인쇄 두 곳에 각각 적어 두면 갈라진다. */
+    const subj=(ctx&&ctx.subject)==="english" ? " psg-en" : "";
+    return `<div class="passage${d.boxed!==false?" psg-boxed":""}${subj}">${head}`+
            `<div class="psg-box">${parts}</div></div>`;
   }
   if(blk.type==="bogi"){
@@ -4367,7 +4410,7 @@ function blockHTML(blk, ctx){
     return `<div class="boxed">${items}</div>`;
   }
   if(blk.type==="choices"){
-    const layout = (blk.data.layout==="vertical") ? "vertical" : "horizontal";
+    const layout = CHOICE_LAYOUTS.includes(blk.data.layout) ? blk.data.layout : "horizontal";
     const items=(blk.data.items||[]).slice(0,5).map((t,i)=>`
       <div class="choice"><span class="label">${circled(i+1)}</span><span class="text">${processText(t)}</span></div>`).join("");
     return `<div class="choices ${layout}">${items}</div>`;
@@ -4393,7 +4436,8 @@ function renderPreview(){
   $("#pvNum").innerHTML=`${displayNum}${q.title||q.desc?`<span style="font-family:var(--body-serif);font-size:13px;font-weight:500;color:#555;margin-left:8px">${sanitize(q.title)}${q.desc?` <span style="color:#888;font-weight:400">· ${sanitize(q.desc)}</span>`:""}</span>`:""}`;
   const ansHtml=(q.answer||q.answerImg)?`<div style="margin-top:10px;font-size:12px;color:#444;border-top:1px solid #ddd;padding-top:6px">${q.answer?`<span>정답: ${sanitize(q.answer)}</span>`:""}${safeUrl(q.answerImg)?`<img src="${safeUrl(q.answerImg)}" style="max-height:40px;display:block;margin-top:4px">`:"" }</div>`:"";
   const pvRange=nums.find(n=>n.q===q)?.range||"";
-  const html=`${q.blocks.map(b=>blockHTML(b,{range:pvRange})).join("")}${ansHtml}`;
+  const subject=normSubject(activeSet()&&activeSet().subject);
+  const html=`${q.blocks.map(b=>blockHTML(b,{range:pvRange,subject})).join("")}${ansHtml}`;
   $("#pvContent").innerHTML = html;
   try{
     renderMathInElement($("#pvContent"),{
@@ -4619,6 +4663,9 @@ function buildPrintDoc(hideAnswers){
   // 번호는 사용자가 정한 numLabel 이 섞이므로 이스케이프한다(아래 innerHTML 조립에 들어간다)
   const numOf=q=>sanitize(String(nums.find(n=>n.q===q)?.num ?? "??"));
   const rangeOf=q=>nums.find(n=>n.q===q)?.range||"";
+  /* 조판 규칙이 과목마다 다르다(영어 지문은 무테·첫 줄 들여쓰기·각주 우측 정렬).
+     ⚠️ 미리보기(renderPreview)에도 같은 값을 넘긴다 — 한쪽만 넘기면 화면과 인쇄가 갈라진다. */
+  const printSubject=normSubject(s.subject);
 
   /* ── 지면 배치 ──
      문항마다 차지하는 크기를 고를 수 있다(spanOf).
@@ -4670,7 +4717,7 @@ function buildPrintDoc(hideAnswers){
         const num=numOf(q);
         const metaHtml=(q.title||q.desc)?`<div style="display:flex;flex-direction:column;gap:0.3mm;justify-content:center"><span style="font-family:'KoPub Batang','Times New Roman',serif;font-size:9pt;font-weight:500;color:#555">${sanitize(q.title)}${q.desc?` <span style="color:#888;font-weight:400">· ${sanitize(q.desc)}</span>`:""}</span></div>`:"";
         const ansHtml=(q.answer||q.answerImg)&&!hideAnswers?`<div class="answer-block">정답: ${q.answer?`<span class="ans-text">${sanitize(q.answer)}</span>`:""}${safeUrl(q.answerImg)?`<img class="answer-img" src="${safeUrl(q.answerImg)}">`:" "}</div>`:"";
-        box.innerHTML=`<div class="pq-header"><div class="num">${num}</div>${metaHtml}</div><div class="content">${q.blocks.map(b=>blockHTML(b,{range:rangeOf(q)})).join("")}${ansHtml}</div>`;
+        box.innerHTML=`<div class="pq-header"><div class="num">${num}</div>${metaHtml}</div><div class="content">${q.blocks.map(b=>blockHTML(b,{range:rangeOf(q),subject:printSubject})).join("")}${ansHtml}</div>`;
         holder.append(box);
       });
       cols.append(holder);
@@ -5072,7 +5119,8 @@ function fitPrintDoc(){
      레이아웃 계산이 몇 번으로 줄어든다. 새 보정을 추가할 때도 이 순서를 지킬 것. */
 
   // ── (1) 가로 선지: 먼저 전부 읽고, 넘치는 것만 모아 한 번에 줄바꿈 전환 ──
-  const chs=[...wrap.querySelectorAll(".pq .choices.horizontal")];
+  /* 여러 칸으로 나눈 선지는 전부 넘침 보정 대상이다 — 5열만 보면 2·3열이 넘쳐도 그냥 나간다. */
+  const chs=[...wrap.querySelectorAll(".pq .choices.horizontal, .pq .choices.cols3, .pq .choices.cols2")];
   const chOver=chs.map(ch=>{
     const s0=slotOf(ch); if(!s0) return false;
     return ch.getBoundingClientRect().right > s0.getBoundingClientRect().right+1;
