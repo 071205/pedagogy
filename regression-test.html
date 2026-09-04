@@ -677,6 +677,59 @@ async function runIndexTests(){
              note: pt.text==="옛 본문" ? undefined : "구형 데이터가 유실됨" };
   });
 
+  await check(G, "지문 없는 묶음은 안내 줄을 그리고, 지문이 있으면 그리지 않는다", () => {
+    /* 실물 영어에는 지문을 공유하지 않고 **안내 한 줄만 공유하는** 묶음이 있다
+       (16~17 듣기 · 31~34 빈칸 · 36~37 순서 · 38~39 삽입).
+       국어에는 없다 — 실물의 모든 안내 뒤에 지문이 온다. 그래서 과목을 가르지 않았다.
+       ⚠️ 지문이 있으면 지문 블록이 이미 psg-head 로 그린다. 여기서 또 그리면 두 번 나온다. */
+    const noPsg = win.normProblem({groupSpan:2, groupLead:"다음을 듣고, 물음에 답하시오.",
+      blocks:[{type:"choices", data:{items:["a"]}}]}, false);
+    const withPsg = win.normProblem({groupSpan:2, groupLead:"이것은 무시되어야 한다",
+      blocks:[{type:"passage", data:{parts:[{text:"x"}]}}]}, false);
+    const a = win.groupHeadHTML(noPsg, "16~17");
+    const b = win.groupHeadHTML(withPsg, "36~37");
+    /* 범위가 없으면(묶음이 아니면) 아무것도 그리지 않는다. */
+    const none = win.groupHeadHTML(noPsg, "");
+    return { pass: a.includes("grp-head") && a.includes("[16~17]") && a.includes("다음을 듣고")
+                   && b==="" && none==="",
+             note: b==="" ? undefined : "지문이 있는데도 안내를 또 그림" };
+  });
+
+  await check(G, "안내 글이 없으면 지문 없는 묶음으로 세지 않는다(옛 데이터 보호)", () => {
+    /* ⚠️ groupSpan 은 원래 '지문을 함께 쓰는 문항 수' 였다. 지문 블록을 지우고 남은
+       옛 groupSpan 이 갑자기 [01~02] 를 그리면 예전 데이터의 뜻이 바뀐다.
+       그래서 지문이 없을 때는 **안내 글이 있어야** 묶음으로 센다.
+       실물도 범위만 있고 안내 글이 없는 줄은 쓰지 않는다. */
+    const H2 = installHooks(win, ["groupSpanOf"]);
+    const bare = win.normProblem({groupSpan:3, blocks:[{type:"choices", data:{items:["a"]}}]}, false);
+    const led  = win.normProblem({groupSpan:3, groupLead:"안내",
+      blocks:[{type:"choices", data:{items:["a"]}}]}, false);
+    const psg  = win.normProblem({groupSpan:3, blocks:[{type:"passage", data:{parts:[{text:"x"}]}}]}, false);
+    return { pass: H2.groupSpanOf(bare)===1 && H2.groupSpanOf(led)===3 && H2.groupSpanOf(psg)===3,
+             note: `안내 없음 ${H2.groupSpanOf(bare)} · 안내 있음 ${H2.groupSpanOf(led)} · 지문 ${H2.groupSpanOf(psg)}` };
+  });
+
+  await check(G, "묶음 안내가 정규화를 통과해 보존되고 태그는 이스케이프된다", () => {
+    const p = win.normProblem({groupSpan:2, groupLead:'<img src=x onerror=alert(1)> 안내',
+      blocks:[{type:"choices", data:{items:["a"]}}]}, false);
+    const html = win.groupHeadHTML(p, "01~02");
+    /* 묶음 안내만 적어 둔 문항도 '내용 있음' 이어야 한다 — 아니면 병합에서 빠져 사라진다. */
+    const counted = win.setHasContent({name:"새 문제집", problems:[
+      win.normProblem({groupLead:"안내만 있다", blocks:[]}, false)]});
+    return { pass: p.groupLead.includes("안내") && !html.includes("<img")
+                   && html.includes("&lt;img") && counted===true,
+             note: counted ? undefined : "묶음 안내만 있는 문제집이 '내용 없음' 으로 판정됨" };
+  });
+
+  await check(G, "묶음 설정은 문항 편집기에 하나만 있다(지문 블록 안이 아니라)", () => {
+    /* ⚠️ groupSpan 은 블록이 아니라 문항의 값이고, **지문 없는 묶음**도 있어서
+       지문 블록 편집기 안에만 두면 그때 손댈 수가 없었다(실제로 그랬다).
+       두 군데 두면 select 둘이 같은 값을 쓰면서 서로 갱신되지 않아 한쪽이 낡는다. */
+    const doc = win.document;
+    return { pass: !!doc.querySelector("#qGroupSpan") && !!doc.querySelector("#qGroupLead"),
+             note: doc.querySelector("#qGroupSpan") ? undefined : "문항 편집기에 묶음 칸이 없음" };
+  });
+
   await check(G, "묶음 수가 번호 범위로 계산된다", () => {
     const arr = [
       {id:"a", groupSpan:3, blocks:[{type:"passage", data:{parts:[{text:"x"}]}}]},

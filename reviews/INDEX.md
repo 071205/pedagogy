@@ -10,8 +10,9 @@
 **여섯 단계가 모두 끝났다**.
 
 **지금 하는 일은 영어 과목**이다 — [`docs/ENGLISH-SUBJECT-DESIGN.md`](../docs/ENGLISH-SUBJECT-DESIGN.md)
-에 남은 **세 개**의 근거·계약·고칠 곳·위험이 적혀 있다. 최근 인계는
-`HANDOFF-2026-038`(토대) · `-039`(문단 모델) · `-040`(순서 라벨) · `-041`(듣기 답란).
+에 남은 **두 개**의 근거·계약·고칠 곳·위험이 적혀 있다. 최근 인계는
+`HANDOFF-2026-038`(토대) · `-039`(문단 모델) · `-040`(순서 라벨) · `-041`(듣기 답란) ·
+`-042`(묶음 안내).
 
 ## 최근 해결
 
@@ -82,5 +83,6 @@
 | `HANDOFF-2026-039` | Claude | 지문 문단 모델 — 문단마다 첫 줄 들여쓰기 | `handoffs/2026-09-03-passage-paragraph-model.md` |
 | `HANDOFF-2026-040` | Claude | 영어 순서 문항의 (A)(B)(C) 라벨을 문단 첫머리로 | `handoffs/2026-09-03-english-order-inline-label.md` |
 | `HANDOFF-2026-041` | Claude | 영어 듣기 답란(밑줄 한 줄) | `handoffs/2026-09-04-english-listening-answer-line.md` |
+| `HANDOFF-2026-042` | Claude | 지문 없는 문항 묶음의 안내 줄 | `handoffs/2026-09-04-group-lead-without-passage.md` |
 | `HANDOFF-2026-038` | Claude | 영어 과목 조판의 토대 (실물 대조) | `handoffs/2026-09-03-english-subject-foundation.md` |
 | `HANDOFF-2026-039` | Claude | 지문 문단 모델 — 문단마다 첫 줄 들여쓰기 | `handoffs/2026-09-03-passage-paragraph-model.md` |

@@ -694,6 +694,8 @@ body.col-resizing{cursor:col-resize;user-select:none}
 .preview .passage{margin:10px 0 14px}
 /* 안내문은 상자 밖 위 (평가원 실물) */
 .preview .psg-head{font-weight:500;margin-bottom:6px}
+/* 지문 없는 묶음의 안내 줄 — 글자는 psg-head 와 같고 자리만 다르다(감싸는 상자가 없다) */
+.preview .grp-head{margin:10px 0 8px}
 /* 지문 본문은 테두리 안 — 독서·문학·소설 모두 상자다. 무테는 예외 설정. */
 .preview .psg-boxed .psg-box{border:1px solid #333;border-radius:3px;padding:12px 14px}
 .preview .psg-part+.psg-part{margin-top:14px}
@@ -845,6 +847,8 @@ body.col-resizing{cursor:col-resize;user-select:none}
 /* 지문 — 인쇄면. 본문보다 살짝 작게 조판하고 양끝맞춤한다(실제 시험지 관례). */
 .pq .passage{margin:2mm 0 4mm}
 .pq .psg-head{font-weight:500;margin-bottom:1.6mm}
+/* 화면(.preview)과 같은 규칙 — 한쪽만 고치면 미리보기와 인쇄가 갈라진다. */
+.pq .grp-head{margin:2mm 0 2.4mm}
 .pq .psg-boxed .psg-box{border:0.4pt solid #000;border-radius:0.8mm;padding:2.4mm 2.8mm}
 .pq .psg-part+.psg-part{margin-top:3.2mm}
 .pq .psg-label{font-weight:700;margin-bottom:1.2mm}
@@ -1303,6 +1307,18 @@ document.addEventListener('DOMContentLoaded',()=>{
           <label class="btn" style="cursor:pointer;white-space:nowrap;flex-shrink:0;align-self:flex-start">📎<input id="qAnswerImg" type="file" accept="image/*" style="display:none"></label>
           <button id="qAnswerImgClear" class="btn-ghost" style="display:none;flex-shrink:0;align-self:flex-start" title="이미지 제거">✕</button>
         </div>
+      </div>
+      <!-- 묶음 — 이 문항부터 몇 문항이 안내(와 지문)를 함께 쓰는가.
+           ⚠️ 지문 블록 편집기에 두지 않는다. groupSpan 은 블록이 아니라 문항의 값이고,
+              지문 없는 묶음(영어 16~17 등)도 있어서 지문 안에 두면 손댈 수가 없다. -->
+      <div>
+        <div class="field-label" style="margin-bottom:5px">묶음</div>
+        <div style="display:flex;gap:8px">
+          <select id="qGroupSpan" style="flex:0 0 150px"></select>
+          <input id="qGroupLead" type="text" class="field-input" style="flex:1"
+                 placeholder="지문이 없을 때 쓸 안내 — 예) 다음을 듣고, 물음에 답하시오.">
+        </div>
+        <div id="groupHint" style="font-size:11.5px;color:var(--text-tertiary);margin-top:5px"></div>
       </div>
       <!-- 지면 배치 — 이 문항이 인쇄물에서 차지하는 크기 -->
       <div>
@@ -1896,9 +1912,15 @@ function normProblem(p, keepId){
     title:str(p.title,300), desc:str(p.desc,300),
     answer:str(p.answer,5000), answerImg:safeUrl(p.answerImg),
     numLabel:str(p.numLabel,40), paired:p.paired===true,
-    /* 지문을 몇 문항이 함께 쓰는지(자기 자신 포함). 지문 블록이 있을 때만 뜻이 있다.
+    /* 몇 문항이 한 묶음인지(자기 자신 포함).
+       · 지문 블록이 있으면 '그 지문을 함께 쓰는 문항 수' 다.
+       · 지문 블록이 없으면 '안내만 공유하는 묶음' 이다 — 실물 영어 16~17·31~34·
+         36~37·38~39 처럼 범위 안내 한 줄만 있고 문항마다 따로 서는 형식.
        가져온 파일이 이상한 값을 줘도 1~10 으로 묶는다. */
     groupSpan:Math.max(1,Math.min(10,Math.round(Number(p.groupSpan))||1)),
+    /* 지문 없는 묶음의 안내 글([16~17] **다음을 듣고, 물음에 답하시오.**).
+       지문이 있으면 그 글은 지문 블록의 lead 에 있다 — 여기는 쓰지 않는다. */
+    groupLead:str(p.groupLead,200),
     span:['pair','col','page'].includes(p.span)?p.span:(p.paired===true?'pair':'col'),
     blocks:blocks.length?blocks:[{type:"statement",data:{text:""}}]
   };
@@ -2081,7 +2103,8 @@ function setHasContent(s){
   if(!s) return false;
   if(s.name && s.name!=="새 문제집") return true;
   return (s.problems||[]).some(q=>{
-    if(q.title || q.desc || q.answer || q.answerImg || q.numLabel) return true;
+    /* groupLead 는 '지문 없는 묶음' 의 안내 글이다 — 이것만 적어 둔 문항도 내용이 있다. */
+    if(q.title || q.desc || q.answer || q.answerImg || q.numLabel || q.groupLead) return true;
     return (q.blocks||[]).some(b=>{
       const d=b.data||{};
       /* 이미지 블록의 주소 필드는 이 파일에서 'dataUrl' 이다. 예전에는 여기서만
@@ -3051,8 +3074,14 @@ const activeQ=()=>activeProblems().find(q=>q.id===currentQId);
 /* 지문 블록을 가진 문항인가 (= 지문 세트의 첫 문항) */
 function hasPassage(q){ return (q&&q.blocks||[]).some(b=>b&&b.type==="passage"); }
 /* 그 지문을 함께 쓰는 문항 수(자기 포함). 지문이 없으면 언제나 1. */
+/* 묶음이 실제로 몇 문항인가.
+   묶음은 두 가지다 — **지문을 함께 쓰는 묶음**(국어 전부·영어 41~42·43~45)과
+   **안내만 함께 쓰는 묶음**(영어 16~17·31~34·36~37·38~39. 뒤 셋은 문항마다 제 지문을 갖는다).
+   ⚠️ 지문이 없을 때는 **안내 글이 있어야** 묶음으로 센다. 그러지 않으면 지문 블록을
+      지우고 남은 옛 groupSpan 이 갑자기 [01~02] 를 그린다 — 예전 데이터의 뜻을 바꾸는 셈이다.
+      실물도 범위만 있고 안내 글이 없는 줄은 쓰지 않는다. */
 function groupSpanOf(q){
-  if(!hasPassage(q)) return 1;
+  if(!hasPassage(q) && !str(q&&q.groupLead,200).trim()) return 1;
   return Math.max(1, Math.min(10, Math.round(Number(q&&q.groupSpan))||1));
 }
 
@@ -3515,6 +3544,34 @@ function renderEditor(){
   $("#qNumLabel").oninput=e=>{ q.numLabel=e.target.value.trim(); syncMetaSummary(); renderQList(); renderPreview(); saveSets(); };
   syncMetaSummary();
 
+  /* 묶음 — 문항의 값이라 메타 패널에 둔다(지문 블록 안이 아니라).
+     안내 칸은 **지문이 없을 때만** 쓴다. 지문이 있으면 그 안내는 지문 블록의
+     '안내' 칸에 있고, 여기에 또 두면 같은 글이 두 군데가 되어 갈라진다. */
+  const gsSel=$("#qGroupSpan");
+  if(!gsSel.options.length){
+    for(let n=1;n<=10;n++){
+      const o=el("option",null,n===1?"이 문항만":"이 문항부터 "+n+"문항");
+      o.value=String(n); gsSel.append(o);
+    }
+  }
+  const syncGroupUI=()=>{
+    const span=groupSpanOf(q);
+    const hasPsg=(q.blocks||[]).some(b=>b&&b.type==="passage");
+    const leadIn=$("#qGroupLead");
+    leadIn.style.display=(span>1 && !hasPsg)?"":"none";
+    $("#groupHint").textContent = span<=1
+      ? "여러 문항이 지문이나 안내를 함께 쓸 때 묶습니다."
+      : hasPsg
+        ? "지문 안내 앞에 번호 범위가 붙습니다 — 안내 글은 지문 블록의 '안내' 칸에 씁니다."
+        : "지문이 없는 묶음입니다 — 오른쪽에 안내 글을 적으면 '[번호 범위] 안내' 한 줄이 그려집니다.";
+  };
+  gsSel.value=String(groupSpanOf(q));
+  gsSel.onchange=e=>{ q.groupSpan=Math.max(1,Math.min(10,parseInt(e.target.value,10)||1));
+    syncGroupUI(); renderQList(); renderPreview(); saveSets(); };
+  $("#qGroupLead").value=q.groupLead||"";
+  $("#qGroupLead").oninput=e=>{ q.groupLead=e.target.value; renderPreview(); saveSets(); };
+  syncGroupUI();
+
   // 정답 이미지
   const imgClear=$("#qAnswerImgClear");
   imgClear.style.display=q.answerImg?"inline-block":"none";
@@ -3757,18 +3814,10 @@ function renderEditor(){
       }
       body.append(el("div","dm-note","(가)(나)(다) 조각은 상자 하나 안에 나란히 들어갑니다 — 실제 시험지와 같은 배치입니다."));
 
-      const gs=el("div","row"); gs.style.marginTop="10px";
-      gs.append(el("div","label","묶음"));
-      const sel=el("select");
-      for(let n=1;n<=10;n++){
-        const o=el("option",null,n===1?"이 문항만":"이 문항부터 "+n+"문항");
-        o.value=String(n); sel.append(o);
-      }
-      sel.value=String(groupSpanOf(q));
-      sel.onchange=e=>{ q.groupSpan=Math.max(1,Math.min(10,parseInt(e.target.value,10)||1));
-        renderQList(); renderPreview(); saveSets(); };
-      gs.append(sel); body.append(gs);
-      body.append(el("div","dm-note","묶은 문항 수만큼 안내문 앞에 [22~27] 처럼 번호 범위가 붙습니다."));
+      /* ⚠️ 묶음(groupSpan)은 여기에 두지 않는다 — 블록이 아니라 **문항**의 값이고,
+         지문 없는 묶음(영어 16~17 등)도 있어서 지문 안에만 두면 그때 손댈 수가 없다.
+         두 군데 두면 한쪽이 낡는다(select 둘이 같은 값을 쓰는데 서로 갱신되지 않는다). */
+      body.append(el("div","dm-note","여러 문항이 이 지문을 함께 쓴다면 위 '문항 정보 → 묶음' 에서 문항 수를 정하세요. 그만큼 안내문 앞에 [22~27] 처럼 번호 범위가 붙습니다."));
     }
 
     if(blk.type==="bogi"){
@@ -4406,6 +4455,22 @@ function tableHTML(data){
   return body ? `<table class="ktbl">${body}</table>` : "";
 }
 
+/* 지문 없는 묶음의 안내 줄.
+   실물 영어에는 지문을 공유하지 않고 **안내 한 줄만 공유하는** 묶음이 있다
+   (16~17 듣기 · 31~34 빈칸 · 36~37 순서 · 38~39 삽입 — 뒤 셋은 문항마다 제 지문을 갖는다).
+   국어에는 이런 묶음이 없다(실물의 모든 안내 뒤에 지문이 온다) — 그래서 과목을 가르지
+   않는다. '지문 없이 묶였다' 는 뜻은 어느 과목에서나 같다.
+   ⚠️ 지문이 있으면 그 블록이 psg-head 로 이미 그리므로 여기서는 그리지 않는다 —
+      안 막으면 안내가 두 번 나온다.
+   ⚠️ 겉모습은 psg-head 를 그대로 쓴다. 따로 만들면 같은 문서 안에서 두 안내 줄이
+      다르게 보이고, 나중에 한쪽만 고쳐 갈라진다. */
+function groupHeadHTML(q, range){
+  if(!range) return "";
+  if((q&&q.blocks||[]).some(b=>b&&b.type==="passage")) return "";
+  const lead=str(q&&q.groupLead,200);
+  return `<div class="grp-head psg-head"><b>[${sanitize(range)}]</b> ${sanitize(lead)}</div>`;
+}
+
 function blockHTML(blk, ctx){
   if(blk.type==="dialogue"){
     /* 말한 내용이 비면 **답란(밑줄 한 줄)** 이 된다 — 실물 영어 듣기 13·14·15번이
@@ -4516,7 +4581,7 @@ function renderPreview(){
   const ansHtml=(q.answer||q.answerImg)?`<div style="margin-top:10px;font-size:12px;color:#444;border-top:1px solid #ddd;padding-top:6px">${q.answer?`<span>정답: ${sanitize(q.answer)}</span>`:""}${safeUrl(q.answerImg)?`<img src="${safeUrl(q.answerImg)}" style="max-height:40px;display:block;margin-top:4px">`:"" }</div>`:"";
   const pvRange=nums.find(n=>n.q===q)?.range||"";
   const subject=normSubject(activeSet()&&activeSet().subject);
-  const html=`${q.blocks.map(b=>blockHTML(b,{range:pvRange,subject})).join("")}${ansHtml}`;
+  const html=`${groupHeadHTML(q,pvRange)}${q.blocks.map(b=>blockHTML(b,{range:pvRange,subject})).join("")}${ansHtml}`;
   $("#pvContent").innerHTML = html;
   try{
     renderMathInElement($("#pvContent"),{
@@ -4796,7 +4861,7 @@ function buildPrintDoc(hideAnswers){
         const num=numOf(q);
         const metaHtml=(q.title||q.desc)?`<div style="display:flex;flex-direction:column;gap:0.3mm;justify-content:center"><span style="font-family:'KoPub Batang','Times New Roman',serif;font-size:9pt;font-weight:500;color:#555">${sanitize(q.title)}${q.desc?` <span style="color:#888;font-weight:400">· ${sanitize(q.desc)}</span>`:""}</span></div>`:"";
         const ansHtml=(q.answer||q.answerImg)&&!hideAnswers?`<div class="answer-block">정답: ${q.answer?`<span class="ans-text">${sanitize(q.answer)}</span>`:""}${safeUrl(q.answerImg)?`<img class="answer-img" src="${safeUrl(q.answerImg)}">`:" "}</div>`:"";
-        box.innerHTML=`<div class="pq-header"><div class="num">${num}</div>${metaHtml}</div><div class="content">${q.blocks.map(b=>blockHTML(b,{range:rangeOf(q),subject:printSubject})).join("")}${ansHtml}</div>`;
+        box.innerHTML=`<div class="pq-header"><div class="num">${num}</div>${metaHtml}</div><div class="content">${groupHeadHTML(q,rangeOf(q))}${q.blocks.map(b=>blockHTML(b,{range:rangeOf(q),subject:printSubject})).join("")}${ansHtml}</div>`;
         holder.append(box);
       });
       cols.append(holder);
