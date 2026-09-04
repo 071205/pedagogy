@@ -1,0 +1,81 @@
+{
+  "name": "[기준] 영어 안내문 상자",
+  "header": "리팩터링 기준 샘플 · 영어 안내문",
+  "subject": "english",
+  "lineColor": "navy",
+  "problems": [
+    {
+      "title": "안내문",
+      "desc": "Luckwood Snow Festival에 관한 다음 안내문의 내용과 일치하는 것은?",
+      "answer": "③",
+      "span": "col",
+      "blocks": [
+        {
+          "type": "notice",
+          "data": {
+            "title": "Luckwood Snow Festival",
+            "items": [
+              {
+                "kind": "text",
+                "text": "We are happy to announce the 15th annual Luckwood Snow Festival. Come to the festival to enjoy winter activities."
+              },
+              {
+                "kind": "head",
+                "text": "When & Where"
+              },
+              {
+                "kind": "bullet",
+                "text": "January 24th—30th (7 days), from 9 a.m. to 8 p.m."
+              },
+              {
+                "kind": "bullet",
+                "text": "Luckwood Park"
+              },
+              {
+                "kind": "head",
+                "text": "Special Activities"
+              },
+              {
+                "kind": "bullet",
+                "text": "Snow Sculpture Contest: 11 teams will participate."
+              },
+              {
+                "kind": "bullet",
+                "text": "Fun in the Snow: Kids can enjoy snow tunnels and snow slides."
+              },
+              {
+                "kind": "head",
+                "text": "Transportation"
+              },
+              {
+                "kind": "bullet",
+                "text": "Parking is not available (Use public transportation and/or shuttle bus service)."
+              },
+              {
+                "kind": "bullet",
+                "text": "The shuttle bus runs between Luckwood Subway Station and Luckwood Park (One-way fare: $1, cash only)."
+              },
+              {
+                "kind": "note",
+                "text": "For more information, please visit www.lwsnow.org."
+              }
+            ]
+          }
+        },
+        {
+          "type": "choices",
+          "data": {
+            "layout": "vertical",
+            "items": [
+              "축제는 5일 동안 진행된다.",
+              "눈 조각 대회에는 11개 팀이 참가한다.",
+              "주차장이 무료로 제공된다.",
+              "셔틀버스는 카드로도 탈 수 있다.",
+              "자세한 내용은 전화로 문의한다."
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -87,6 +87,28 @@ const specs = [
         "이 묶음은 지문이 없어야 grp-head 경로를 지킵니다");
     },
   },
+  {
+    /* 안내문 상자 — 실물 영어 27·28번 형식. 다섯 갈래(제목·문단·소제목·∙항목·※줄)가
+       한 상자에 다 들어간 표본이다. 시각 회귀가 이걸로 안내문 조판을 지킨다.
+       ⚠️ 그림은 첫 쪽만 찍으므로 문항을 늘려 뒤쪽으로 밀지 말 것. */
+    path: "test-fixtures/refactor-baseline/06-english-notice.json",
+    subject: "english",
+    problems: 1,
+    types: ["notice", "choices"],
+    validate(set) {
+      const ntc = set.problems[0].blocks.find((b) => b.type === "notice")?.data;
+      assert.ok(ntc?.title, "안내문 상자에는 제목이 있어야 합니다");
+      const kinds = new Set((ntc.items || []).map((i) => i.kind));
+      for (const k of ["text", "head", "bullet", "note"]) {
+        assert.ok(kinds.has(k), `안내문 표본에 ${k} 줄이 빠졌습니다`);
+      }
+      /* ⚠️ ∙ 와 ※ 는 렌더가 붙인다 — 입력에 적으면 두 번 나온다
+         (02-korean-passage 의 `* *` · `– – … – –` 와 같은 실수). */
+      for (const it of ntc.items) {
+        assert.doesNotMatch(it.text || "", /^\s*[∙•※]/, "∙ 와 ※ 는 렌더가 붙입니다");
+      }
+    },
+  },
 ];
 
 for (const spec of specs) {
