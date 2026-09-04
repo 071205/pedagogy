@@ -677,6 +677,46 @@ async function runIndexTests(){
              note: pt.text==="옛 본문" ? undefined : "구형 데이터가 유실됨" };
   });
 
+  await check(G, "실물은 굵게가 아니라 글꼴 갈래로 가른다 — 안내 줄·말한이는 고딕", () => {
+    /* 두 실물의 글자 모양을 직접 읽어 확인했다. **bold 비트는 어디에도 쓰이지 않는다.**
+         국어 지문 본문  신명 중명조 11.5pt      국어 말한이   신명 태고딕 **10.5pt**(0.913em)
+         국어 묶음 안내  태고딕 11.5pt — 줄 전체  영어 묶음 안내 태고딕 12.2pt — 줄 전체
+         영어 말한이     Times New Roman 11.5pt = **본문과 완전히 같다**
+       우리는 태고딕을 배포하지 않으므로 Pretendard(--ui-sans)로 대신한다.
+       ⚠️ 예전엔 font-weight 700/500 으로 굵게만 했다 — 갈래가 안 바뀌어 실물과 달랐다. */
+    const doc = win.document;
+    const host = doc.createElement("div");
+    host.className = "pq";
+    host.style.cssText = "position:absolute;left:-9999px;top:0;width:360px";
+    const dlg = { type:"dialogue", data:{items:[{who:"학생 1", text:"내용"}]} };
+    host.innerHTML = `<div class="content">`
+      + win.blockHTML(win.normBlock(dlg), {subject:"korean"})
+      + win.blockHTML(win.normBlock(dlg), {subject:"english"})
+      + win.groupHeadHTML(win.normProblem({groupSpan:2, groupLead:"안내",
+          blocks:[{type:"choices", data:{items:["a"]}}]}, false), "01~02")
+      + `</div>`;
+    doc.body.appendChild(host);
+    try{
+      const [koWho, enWho] = [...host.querySelectorAll(".dlg-who")];
+      const head = host.querySelector(".grp-head");
+      const body = host.querySelector(".content");
+      const cs = e => win.getComputedStyle(e);
+      const sans = f => /Pretendard/i.test(f);
+      const px = e => parseFloat(cs(e).fontSize);
+      /* 국어: 고딕 + 본문보다 작다(0.913em). 영어: 본문과 같은 글꼴·같은 크기. */
+      const koOK = sans(cs(koWho).fontFamily) && px(koWho) < px(body) - 0.5;
+      const enOK = !sans(cs(enWho).fontFamily) && Math.abs(px(enWho) - px(body)) < 0.5
+                   && cs(enWho).fontWeight === cs(body).fontWeight;
+      /* 안내 줄: 줄 전체가 고딕이고, 범위만 굵게 하는 <b> 가 없다(실물은 한 글꼴이다). */
+      const headOK = sans(cs(head).fontFamily) && !head.innerHTML.includes("<b>");
+      return { pass: koOK && enOK && headOK,
+               note: !koOK ? "국어 말한이가 고딕·작은 글자가 아님"
+                   : !enOK ? "영어 말한이가 본문과 다름"
+                   : !headOK ? "안내 줄이 고딕이 아니거나 범위만 굵음"
+                   : `국어 ${px(koWho).toFixed(1)}px / 영어 ${px(enWho).toFixed(1)}px / 본문 ${px(body).toFixed(1)}px` };
+    } finally { host.remove(); }
+  });
+
   await check(G, "지문 없는 묶음은 안내 줄을 그리고, 지문이 있으면 그리지 않는다", () => {
     /* 실물 영어에는 지문을 공유하지 않고 **안내 한 줄만 공유하는** 묶음이 있다
        (16~17 듣기 · 31~34 빈칸 · 36~37 순서 · 38~39 삽입).

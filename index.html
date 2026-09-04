@@ -693,7 +693,14 @@ body.col-resizing{cursor:col-resize;user-select:none}
    싣는다. 안내문([01~03] 다음 글을 읽고…)만 굵게 앞에 붙는다. */
 .preview .passage{margin:10px 0 14px}
 /* 안내문은 상자 밖 위 (평가원 실물) */
-.preview .psg-head{font-weight:500;margin-bottom:6px}
+.preview .psg-head{margin-bottom:6px}
+/* 묶음 안내 줄 — 실물은 **줄 전체가 고딕**(국어 태고딕 11.5pt · 영어 태고딕 12.2pt)이고
+   bold 비트는 쓰지 않는다. 본문(명조)과 갈래로 구분하는 것이지 굵기로 하는 게 아니다.
+   ⚠️ 범위 [01~03] 만 굵게 하지 말 것 — 실물은 범위와 안내 글이 같은 글꼴이다.
+   ⚠️ 우리는 태고딕을 배포하지 않으므로 Pretendard 600 으로 대신한다(본문은 Light 300
+      이라 대비가 실물과 비슷하다). 크기는 실물의 base(11.5pt)와 같은 1em 그대로다 —
+      영어만 1.06em 이지만 6%라 과목을 가르지 않았다(docs/ENGLISH-SUBJECT-DESIGN.md §6). */
+.preview .psg-head{font-family:var(--ui-sans);font-weight:600}
 /* 지문 없는 묶음의 안내 줄 — 글자는 psg-head 와 같고 자리만 다르다(감싸는 상자가 없다) */
 .preview .grp-head{margin:10px 0 8px}
 /* 지문 본문은 테두리 안 — 독서·문학·소설 모두 상자다. 무테는 예외 설정. */
@@ -750,7 +757,12 @@ body.col-resizing{cursor:col-resize;user-select:none}
 /* 대화문 — 말한이 칸 + 내어쓰기. 둘째 줄부터는 '말' 아래로 붙는다(실물 그대로). */
 .preview .dlg{margin:8px 0}
 .preview .dlg-row{display:flex;gap:.25em;margin:.3em 0;font-size:.95em;line-height:1.7}
-.preview .dlg-who{flex:0 0 auto;font-weight:700;white-space:nowrap}
+.preview .dlg-who{flex:0 0 auto;white-space:nowrap}
+/* 대화문 말한이 — 국어 실물은 **태고딕 10.5pt**(본문 중명조 11.5pt) = 0.913em 이다.
+   굵게가 아니라 글꼴 갈래로 가른다. 영어 실물은 `Woman:` 이 본문과 완전히 같아
+   아무 구분도 두지 않는다(.dlg-en 이 되돌린다). */
+.preview .dlg-who{font-family:var(--ui-sans);font-weight:600;font-size:.913em}
+.preview .dlg-en .dlg-who{font-family:inherit;font-weight:inherit;font-size:inherit}
 .preview .dlg-sep{flex:0 0 auto}
 .preview .dlg-txt{flex:1 1 auto;min-width:0}
 /* 듣기 답란 — 말한 내용이 비면 밑줄 한 줄이 남은 폭을 채운다(실물 13·14·15번).
@@ -846,7 +858,14 @@ body.col-resizing{cursor:col-resize;user-select:none}
 .pq .boxed{border:1px solid #222;border-radius:2mm;padding:2mm 3.2mm;margin:3mm 0}
 /* 지문 — 인쇄면. 본문보다 살짝 작게 조판하고 양끝맞춤한다(실제 시험지 관례). */
 .pq .passage{margin:2mm 0 4mm}
-.pq .psg-head{font-weight:500;margin-bottom:1.6mm}
+.pq .psg-head{margin-bottom:1.6mm}
+/* 묶음 안내 줄 — 실물은 **줄 전체가 고딕**(국어 태고딕 11.5pt · 영어 태고딕 12.2pt)이고
+   bold 비트는 쓰지 않는다. 본문(명조)과 갈래로 구분하는 것이지 굵기로 하는 게 아니다.
+   ⚠️ 범위 [01~03] 만 굵게 하지 말 것 — 실물은 범위와 안내 글이 같은 글꼴이다.
+   ⚠️ 우리는 태고딕을 배포하지 않으므로 Pretendard 600 으로 대신한다(본문은 Light 300
+      이라 대비가 실물과 비슷하다). 크기는 실물의 base(11.5pt)와 같은 1em 그대로다 —
+      영어만 1.06em 이지만 6%라 과목을 가르지 않았다(docs/ENGLISH-SUBJECT-DESIGN.md §6). */
+.pq .psg-head{font-family:var(--ui-sans);font-weight:600}
 /* 화면(.preview)과 같은 규칙 — 한쪽만 고치면 미리보기와 인쇄가 갈라진다. */
 .pq .grp-head{margin:2mm 0 2.4mm}
 .pq .psg-boxed .psg-box{border:0.4pt solid #000;border-radius:0.8mm;padding:2.4mm 2.8mm}
@@ -894,7 +913,12 @@ body.col-resizing{cursor:col-resize;user-select:none}
 .pq .bogi-body{line-height:1.75}
 .pq .dlg{margin:1.6mm 0}
 .pq .dlg-row{display:flex;gap:.25em;margin:.25em 0;line-height:1.75}
-.pq .dlg-who{flex:0 0 auto;font-weight:700;white-space:nowrap}
+.pq .dlg-who{flex:0 0 auto;white-space:nowrap}
+/* 대화문 말한이 — 국어 실물은 **태고딕 10.5pt**(본문 중명조 11.5pt) = 0.913em 이다.
+   굵게가 아니라 글꼴 갈래로 가른다. 영어 실물은 `Woman:` 이 본문과 완전히 같아
+   아무 구분도 두지 않는다(.dlg-en 이 되돌린다). */
+.pq .dlg-who{font-family:var(--ui-sans);font-weight:600;font-size:.913em}
+.pq .dlg-en .dlg-who{font-family:inherit;font-weight:inherit;font-size:inherit}
 .pq .dlg-sep{flex:0 0 auto}
 .pq .dlg-txt{flex:1 1 auto;min-width:0}
 /* 화면(.preview)과 같은 규칙 — 한쪽만 고치면 미리보기와 인쇄가 갈라진다. */
@@ -4468,11 +4492,16 @@ function groupHeadHTML(q, range){
   if(!range) return "";
   if((q&&q.blocks||[]).some(b=>b&&b.type==="passage")) return "";
   const lead=str(q&&q.groupLead,200);
-  return `<div class="grp-head psg-head"><b>[${sanitize(range)}]</b> ${sanitize(lead)}</div>`;
+  return `<div class="grp-head psg-head">[${sanitize(range)}] ${sanitize(lead)}</div>`;
 }
 
 function blockHTML(blk, ctx){
+  const english=(ctx&&ctx.subject)==="english";
   if(blk.type==="dialogue"){
+    /* 말한이의 조판은 과목이 정한다 (두 실물의 글자 모양을 직접 읽어 확인).
+       국어  말한이만 **태고딕 10.5pt** (본문은 중명조 11.5pt) → 고딕 + 0.913em
+       영어  `Woman:` 이 **본문과 완전히 같다**(Times New Roman 11.5pt) → 구분이 없다
+       ⚠️ 둘 다 bold 비트를 쓰지 않는다 — 실물은 굵게가 아니라 **글꼴 갈래**로 가른다. */
     /* 말한 내용이 비면 **답란(밑줄 한 줄)** 이 된다 — 실물 영어 듣기 13·14·15번이
        `Woman:` 뒤에 밑줄만 두는 형식이다(`평가원 영어 양식.hwp` 를 읽어 확인:
        라벨 뒤부터 밑줄 속성이 걸린 묶음 빈칸이 단 끝까지 이어진다).
@@ -4486,7 +4515,7 @@ function blockHTML(blk, ctx){
       return `<div class="dlg-row"><span class="dlg-who">${sanitize(str(it.who,40))}</span>`+
              `<span class="dlg-sep">:</span>${body}</div>`;
     }).join("");
-    return `<div class="dlg">${rows}</div>`;
+    return `<div class="dlg${english?" dlg-en":""}">${rows}</div>`;
   }
   if(blk.type==="table"){
     return tableHTML(blk.data);
@@ -4496,9 +4525,8 @@ function blockHTML(blk, ctx){
     const range=(ctx&&ctx.range)||"";
     /* 안내문은 상자 '밖' 위에 온다(실물 확인). 상자 안에 넣지 않는다. */
     const head=(range||d.lead)
-      ? `<div class="psg-head">${range?`<b>[${sanitize(range)}]</b> `:""}${sanitize(str(d.lead,200))}</div>`
+      ? `<div class="psg-head">${range?`[${sanitize(range)}] `:""}${sanitize(str(d.lead,200))}</div>`
       : "";
-    const english=(ctx&&ctx.subject)==="english";
     const parts=(d.parts||[]).map(pt=>{
       /* ── 조각 라벨의 자리는 과목이 정한다 (둘 다 실물에서 확인) ──
          국어  `평가원 국어 양식.hwp` (가)(나)(다)는 **자기 혼자 있는 문단**이고
