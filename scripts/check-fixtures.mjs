@@ -25,8 +25,18 @@ const specs = [
     types: ["passage", "bogi", "dialogue", "table"],
     validate(set) {
       assert.equal(set.problems[0].groupSpan, 2, "공유 지문 문항 수가 기준값과 달라졌습니다");
-      assert.equal(set.problems[0].blocks.find((b) => b.type === "passage")?.data?.parts?.length, 2,
-        "복합 지문 조각 수가 기준값과 달라졌습니다");
+      const psg = set.problems[0].blocks.find((b) => b.type === "passage")?.data;
+      assert.equal(psg?.parts?.length, 2, "복합 지문 조각 수가 기준값과 달라졌습니다");
+      /* ⚠️ 앞뒤 `–`(출처) · `*`(각주) · `[N~M]`(범위)는 **렌더가 붙인다**(CLAUDE.md).
+         입력에도 적으면 `– - 기준 지문 - –` `* * 구성:` `[01~02] [1~2]` 처럼 두 번 나온다.
+         실제로 그렇게 적혀 있었고, 기준 시각본이 그 잘못된 모습을 박제하고 있었다. */
+      assert.doesNotMatch(psg.lead, /\[\s*\d+\s*[~～]/, "범위는 렌더가 붙입니다 — lead 에 적지 마세요");
+      for (const part of psg.parts) {
+        assert.doesNotMatch(part.source || "", /^\s*[-–—]/, "출처의 앞 대시는 렌더가 붙입니다");
+        assert.doesNotMatch(part.notes || "", /^\s*\*/, "각주의 * 는 렌더가 붙입니다");
+        /* 운문의 줄바꿈이 문자 그대로의 \n 이면 시가 한 줄로 붙는다(실제로 그랬다). */
+        assert.doesNotMatch(part.text || "", /\\n/, "줄바꿈은 진짜 개행이어야 합니다");
+      }
     },
   },
   {
