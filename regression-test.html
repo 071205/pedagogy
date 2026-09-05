@@ -618,6 +618,66 @@ async function runIndexTests(){
              note: `문단 ${paras}개 (셋이어야 한다)` };
   });
 
+  await check(G, "선지에 그림을 넣을 수 있다 — items 는 문자열, 그림은 짝 배열", () => {
+    /* 교과서의 그래프 이동 문항처럼 **선지 자체가 그림**인 형식.
+       ⚠️ `items` 를 객체 배열로 바꾸지 않았다 — 바꾸면 convertBlock(조건↔보기↔선지)과
+          내용을 훑는 곳들이 전부 터진다(CLAUDE.md). 그림은 **같은 자리끼리 짝**인 별도 배열이다.
+       ⚠️ 두 배열은 늘 같은 길이여야 한다 — 어긋나면 그림이 옆 선지로 옮겨간다. */
+    const PNG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+    const blk = win.normBlock({type:"choices", data:{layout:"cols3",
+      items:["가","나"], images:["", PNG, "javascript:alert(1)"]}});
+    const d = blk.data;
+    const html = win.blockHTML(blk, {});
+    return { pass: d.items.length===5 && d.images.length===5
+                   && d.items.every(t=>typeof t==="string")
+                   && d.images[1]===PNG
+                   // 믿을 수 없는 주소는 버린다(가져온 .json 을 믿지 않는다)
+                   && d.images[2]===""
+                   && html.includes("choices--img") && html.includes("choice--img")
+                   && (html.match(/<img /g)||[]).length===1,
+             note: `글 ${d.items.length} · 그림 ${d.images.length} · 살아남은 주소 ${d.images.filter(Boolean).length}` };
+  });
+
+  await check(G, "그림 선지의 라벨은 그림 '위' 줄에 온다", () => {
+    /* ⚠️ 이 검사는 **실제로 겪은 CSS 순서 버그**를 잡으려고 있다.
+       `.choice{display:flex}` 가 나중에 오면 같은 점수(클래스 하나)라 그 규칙이 이겨
+       라벨이 그림 **옆**에 붙는다. 마크업은 멀쩡해서 화면을 봐야만 보인다. */
+    const PNG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+    const doc = win.document;
+    const host = doc.createElement("div");
+    host.className = "pq";
+    host.style.cssText = "position:absolute;left:-9999px;top:0;width:300px";
+    host.innerHTML = `<div class="content">${win.blockHTML(win.normBlock({type:"choices",
+      data:{layout:"cols3", items:["","","","",""], images:[PNG,PNG,PNG,PNG,PNG]}}), {})}</div>`;
+    doc.body.appendChild(host);
+    try{
+      const ch = host.querySelector(".choice--img");
+      const lab = ch.querySelector("span.label"), img = ch.querySelector("img");
+      const lr = lab.getBoundingClientRect(), ir = img.getBoundingClientRect();
+      /* 라벨의 아래가 그림의 위보다 위에 있어야 '위 줄' 이다. 옆에 붙으면 세로로 겹친다. */
+      const above = lr.bottom <= ir.top + 0.5;
+      /* 그리고 그림이 칸 폭을 채워야 한다 — 다섯을 견주려면 크기가 같아야 한다. */
+      const fills = ir.width > ch.getBoundingClientRect().width * 0.9;
+      return { pass: above && fills,
+               note: !above ? "라벨이 그림 옆에 붙음(.choice 의 flex 가 이겼다)"
+                            : `그림 폭 ${ir.width.toFixed(0)}px / 칸 ${ch.getBoundingClientRect().width.toFixed(0)}px` };
+    } finally { host.remove(); }
+  });
+
+  await check(G, "선지 그림도 고아 파일 정리 대상이다", () => {
+    /* ⚠️ 정리 코드가 `image` 블록만 알고 있으면, 선지 그림은 지워도 Storage 원본이
+       영영 남는다(CLAUDE.md 가 경고한 자리). 주소를 세는 곳은 한 곳이어야 한다. */
+    const H2 = installHooks(win, ["STORAGE_HOSTS"]);
+    const url = "https://firebasestorage.googleapis.com/v0/b/x/o/users%2Fu%2Fimages%2Fa.png?alt=media";
+    const inChoices = win.blockImageUrls(win.normBlock({type:"choices",
+      data:{items:["","","","",""], images:["", url, "", "", ""]}}));
+    const inImage = win.blockImageUrls(win.normBlock({type:"image", data:{dataUrl:url}}));
+    /* 글만 있는 선지는 지울 것이 없다. */
+    const none = win.blockImageUrls(win.normBlock({type:"choices", data:{items:["가"]}}));
+    return { pass: inChoices.length===1 && inImage.length===1 && none.length===0,
+             note: `선지 ${inChoices.length} · 그림블록 ${inImage.length} · 글만 ${none.length}` };
+  });
+
   await check(G, "선지 배치는 5열·3열·2열·세로 네 가지다", () => {
     const H2 = installHooks(win, ["CHOICE_LAYOUTS"]);
     const keep = v => win.normBlock({type:"choices", data:{items:["a"], layout:v}}).data.layout;

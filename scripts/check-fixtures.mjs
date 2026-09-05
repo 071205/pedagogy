@@ -109,6 +109,24 @@ const specs = [
       }
     },
   },
+  {
+    /* 그림 선지 — 교과서의 그래프 이동 문항처럼 선지 자체가 그림인 형식.
+       시각 회귀가 이걸로 3+2 배치와 '라벨은 그림 위' 를 지킨다.
+       ⚠️ 그림은 첫 쪽만 찍으므로 문항을 늘려 뒤쪽으로 밀지 말 것. */
+    path: "test-fixtures/refactor-baseline/07-math-image-choices.json",
+    subject: "math",
+    problems: 1,
+    types: ["statement", "choices"],
+    validate(set) {
+      const ch = set.problems[0].blocks.find((b) => b.type === "choices")?.data;
+      assert.equal(ch?.layout, "cols3", "3+2 는 3열이 만든다 — 배치가 달라졌습니다");
+      assert.equal(ch.items.length, 5, "선지는 다섯입니다");
+      assert.equal(ch.images.length, 5, "그림 배열은 선지와 **같은 길이**여야 합니다");
+      assert.ok(ch.items.every((t) => typeof t === "string"),
+        "items 는 문자열 배열로 둡니다 — 객체로 바꾸면 convertBlock 이 터집니다");
+      for (const u of ch.images) assert.match(u, /^data:image\/png;base64,/);
+    },
+  },
 ];
 
 for (const spec of specs) {

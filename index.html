@@ -809,6 +809,24 @@ body.col-resizing{cursor:col-resize;user-select:none}
 .choices .choice .text{overflow-x:hidden}
 .choice{display:flex;gap:6px;align-items:center;font-family:var(--body-serif)}
 .choice span.label{white-space:nowrap;font-family:var(--num-serif);align-self:center}
+/* ── 그림 선지 ── 교과서의 그래프 이동 문항처럼 선지 자체가 그림인 형식.
+   ⚠️ **실물 평가원 수학에는 이 형식이 없다**(선지 안 개체 165개가 전부 수식이다) —
+      배치는 실물에서 잰 값이 아니라 **정한 값**이다. 근거가 생기면 다시 잴 것.
+   3+2 는 이미 있는 `cols3` 이 그대로 만든다(5개를 3열에 넣으면 3+2 다).
+   라벨은 그림 **위 줄**에 둔다 — 3열 칸이 좁아 옆에 두면 그래프가 그만큼 눌린다.
+   ⚠️ 이 묶음은 반드시 `.choice{display:flex}` **뒤**에 와야 한다. 앞에 두면 같은
+      점수(클래스 하나)라 나중 규칙이 이겨 라벨이 그림 옆에 붙는다(실제로 그랬다). */
+.choices--img{align-items:start}
+.choice--img{display:block}
+.choice--img span.label{display:block;align-self:auto;margin-bottom:1px}
+.choice--img .text{display:block;overflow-x:visible}
+/* 칸 폭을 꽉 채운다 — 그래프 다섯이 같은 크기여야 견주기 쉽다.
+   ⚠️ `.preview img`·`.pq img` 의 `margin:auto` 를 지워야 라벨과 왼쪽 끝이 맞는다. */
+.choice--img .text img{display:block;width:100%;height:auto;margin:0}
+/* ⚠️ 세로 배치에서는 칸이 단 폭 전체라 그림 하나가 단을 통째로 먹는다(실제로 그랬다 —
+   선지 다섯이 몇 쪽을 넘겼다). 3열 칸과 같은 몫으로 묶는다. **%로 묶어야** 미리보기와
+   인쇄가 같다 — mm 로 묶으면 화면(px)과 인쇄(mm)에서 그림 크기가 갈라진다. */
+.choices.vertical .choice--img .text img{max-width:34%}
 
 /* ── Print ── */
 /* 용지 크기를 못 박는다. size 를 빼 두면 시스템 기본 용지(미국은 Letter,
@@ -1117,6 +1135,10 @@ input:focus-visible,textarea:focus-visible{outline:none}
 
 /* 복제 아이콘 */
 .icon-copy{background:no-repeat center/15px 15px url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="%238B8B9A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>')}
+.icon-image{background:no-repeat center/16px 16px url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="%238B8B9A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.6"/><path d="M21 16l-5-5-5 5-2-2-6 6"/></svg>')}
+/* 붙인 그림의 미리보기 — 그래프 다섯을 다룰 때 어느 자리에 무엇이 붙었는지 보여야 한다. */
+.choice-thumb{width:34px;height:24px;object-fit:contain;border:1px solid var(--border);
+  border-radius:var(--radius-sm);background:#fff;display:block;flex-shrink:0;cursor:pointer}
 
 /* ── 모션 감소 설정 존중 ── */
 @media (prefers-reduced-motion: reduce){
@@ -1954,9 +1976,25 @@ function normBlock(b){
   if(type==="conditions"||type==="examples")
     return {type,data:{items:(Array.isArray(d.items)?d.items:[]).slice(0,20).map(t=>str(t)),
                        label:str(d.label,20)}};   // 비우면 라벨 없음, "보 기" 면 <보기> 상자
-  if(type==="choices")
-    return {type,data:{items:(Array.isArray(d.items)?d.items:[]).slice(0,5).map(t=>str(t)),
+  /* 선지 — 글과 **그림**을 함께 가질 수 있다(교과서의 그래프 이동 문항처럼 선지가
+     그림인 형식). `items` 는 **문자열 배열 그대로 둔다** — 원소를 객체로 바꾸면
+     `convertBlock`(조건↔보기↔선지)과 내용을 훑는 곳들이 전부 터진다(CLAUDE.md).
+     그래서 그림은 **같은 자리끼리 짝을 이루는 별도 배열**로 둔다.
+     ⚠️ 두 배열은 늘 같은 길이여야 한다 — 한쪽만 splice 하면 그림이 옆 선지로 옮겨간다.
+        길이를 여기서 못 박는 이유가 그것이다. */
+  if(type==="choices"){
+    const items=(Array.isArray(d.items)?d.items:[]).slice(0,5).map(t=>str(t));
+    const raw=(Array.isArray(d.images)?d.images:[]).slice(0,5);
+    const images=[];
+    for(let i=0;i<5;i++){
+      const u=safeUrl(raw[i]);
+      if(!u && raw[i]) normDropped.images++;   // 가져온 .json 의 못 믿을 주소
+      images.push(u||"");
+    }
+    while(items.length<images.length) items.push("");
+    return {type,data:{items, images,
                        layout:CHOICE_LAYOUTS.includes(d.layout)?d.layout:"horizontal"}};
+  }
   // image — safeUrl 을 통과하지 못하는 주소는 아예 버린다.
   // 예전에는 이때 아무 말 없이 이미지가 사라져서, 남이 준 문제집을 가져오면
   // 그림만 통째로 없어진 채 이유를 알 수 없었다. 몇 개가 빠졌는지 세어 두고
@@ -2194,6 +2232,7 @@ function setHasContent(s){
          지문(parts)·표(rows)를 빠뜨리면 '지문만 있는 국어 문제집' 이 내용 없음으로
          판정돼 위와 똑같은 방식으로 사라진다. */
       return (d.text&&d.text.trim()) || (d.items&&d.items.length)
+          || (Array.isArray(d.images)&&d.images.some(Boolean))   // 그림만 있는 선지
           || (d.title&&d.title.trim())                      // 안내문 상자의 제목
           || (Array.isArray(d.parts)&&d.parts.length)
           || (Array.isArray(d.rows)&&d.rows.length)
@@ -2727,9 +2766,18 @@ function releaseImage(url){
     .catch(e=>console.warn("이미지 정리 실패(무시):", e && e.code));
 }
 /* 블록 하나가 품고 있는 Storage 이미지를 모두 반납 */
+/* 이 블록이 품고 있는 Storage 그림 주소 전부.
+   ⚠️ 그림을 가진 블록이 늘어나면 **여기 한 곳만** 고친다 — 예전엔 정리 코드가
+      `image` 블록만 알고 있어서, 다른 곳의 그림은 지워도 Storage 원본이 영영 남았다. */
+function blockImageUrls(blk){
+  if(!blk||!blk.data) return [];
+  const out=[];
+  if(blk.type==="image") out.push(blk.data.dataUrl);
+  if(blk.type==="choices") (blk.data.images||[]).forEach(u=>out.push(u));
+  return out.filter(isStorageUrl);
+}
 function releaseBlockImages(blk){
-  if(!blk||!blk.data) return;
-  if(blk.type==="image" && isStorageUrl(blk.data.dataUrl)) releaseImage(blk.data.dataUrl);
+  blockImageUrls(blk).forEach(releaseImage);
 }
 /* 문항 하나가 품고 있는 것 전부 (블록 이미지 + 정답 이미지) */
 function releaseProblemImages(q){
@@ -3567,7 +3615,7 @@ function blankBlockData(type){
   if(type==="dialogue") return {items:[{who:"학생 1",text:""},{who:"학생 2",text:""}]};
   if(type==="table") return {rows:[["",""],["",""]], header:true};
   if(type==="conditions"||type==="examples") return {items:[""], label:""};
-  if(type==="choices") return {items:["","","","",""],layout:"horizontal"};
+  if(type==="choices") return {items:["","","","",""], images:["","","","",""], layout:"horizontal"};
   if(type==="image") return {dataUrl:"",size:"full"};
   return {};
 }
@@ -3716,10 +3764,13 @@ function renderEditor(){
       // 이미지 → 다른 종류로 바꾸면 Storage 원본이 갈 곳을 잃는다. 먼저 주소를
       // 확보해 두고, 데이터를 바꾼 뒤에 정리한다(바꾸기 전에 지우면 아직
       // 참조 중이라 판단해 안 지워진다).
-      const dropped = (blk.type==="image") ? blk.data && blk.data.dataUrl : null;
+      /* 선지도 그림을 가질 수 있으므로 종류를 가리지 않고 통째로 훑는다. */
+      const dropped = blockImageUrls(blk);
       blk.data=convertBlock(blk,to); blk.type=to;
       saveSets(); renderEditor(); renderPreview();
-      if(dropped) releaseImage(dropped);
+      /* 바뀐 뒤에도 여전히 쓰이는 주소는 빼고 지운다(선지→선지 같은 경우). */
+      const kept = new Set(blockImageUrls(blk));
+      dropped.filter(u=>!kept.has(u)).forEach(releaseImage);
     };
     head.append(handle,type);
 
@@ -4071,18 +4122,79 @@ function renderEditor(){
         blk.data.items=(blk.data.items||[]); while(blk.data.items.length<5) blk.data.items.push("");
       }else{ blk.data.items = blk.data.items || [""]; }
 
+      /* 선지의 그림은 `items` 와 **같은 자리끼리 짝**인 별도 배열이다.
+         ⚠️ 한쪽만 splice 하면 그림이 옆 선지로 옮겨간다 — 늘 함께 움직인다. */
+      const imgs=()=>{ if(blk.type!=="choices") return null;
+        if(!Array.isArray(blk.data.images)) blk.data.images=[];
+        while(blk.data.images.length<blk.data.items.length) blk.data.images.push("");
+        return blk.data.images; };
+      imgs();
+
       blk.data.items.forEach((t,i)=>{
         const row=el("div","row");
         const labelText = blk.type==="conditions" ? condLabel(i) : (blk.type==="examples" ? `${HSMALL[i%HSMALL.length]}.` : circled(i+1));
         row.append(el("div","label",labelText));
         const inp=el("input"); inp.type="text"; inp.value=t; inp.placeholder= blk.type==="conditions"?"조건":"내용";
-        const rm=el("button","iconbtn",""); rm.append(el("span","icon icon-trash","")); rm.onclick=()=>{ blk.data.items.splice(i,1); renderEditor(); renderPreview(); saveSets(); };
-        row.append(inp,rm); body.append(row);
+        const rm=el("button","iconbtn",""); rm.append(el("span","icon icon-trash",""));
+        rm.onclick=()=>{
+          const gone=(blk.type==="choices" && blk.data.images) ? blk.data.images[i] : null;
+          blk.data.items.splice(i,1);
+          if(blk.type==="choices" && Array.isArray(blk.data.images)) blk.data.images.splice(i,1);
+          renderEditor(); renderPreview(); saveSets();
+          if(isStorageUrl(gone)) releaseImage(gone);   // Storage 원본이 남지 않게
+        };
+        row.append(inp);
+        if(blk.type==="choices"){
+          const has=!!blk.data.images[i];
+          /* 그림 붙이기 — 그림 블록과 같은 경로를 쓴다(로그인이면 Storage, 아니면 base64).
+             ⚠️ 단추에 컬러 이모지를 쓰지 않는다 — 이 저장소가 예전에 전부 SVG 로 걷어냈고
+                회귀 검사가 그것을 본다. 붙인 뒤에는 아이콘 대신 **썸네일**을 보여 준다. */
+          const pick=el("label"); pick.style.cssText="cursor:pointer;display:flex;align-items:center";
+          pick.title=has?"그림 바꾸기":"그림 넣기";
+          if(has){
+            const th=el("img","choice-thumb"); th.src=safeUrl(blk.data.images[i])||""; th.alt="";
+            pick.append(th);
+          }else{
+            pick.className="iconbtn"; pick.append(el("span","icon icon-image",""));
+          }
+          const file=el("input"); file.type="file"; file.accept="image/*"; file.style.display="none";
+          pick.append(file);
+          file.onchange=async e=>{
+            const f=e.target.files?.[0]; if(!f) return;
+            e.target.value="";
+            if(uploadTooBig(f)) return;
+            const prev=blk.data.images[i];
+            try{
+              blk.data.images[i]=await fileToDataURL(f); renderPreview();   // 즉시 보여 준다
+              blk.data.images[i]=await storeImageFile(f);
+              /* 그림 선지를 5열에 두면 한 칸이 20mm 남짓이라 그래프를 알아볼 수 없다.
+                 사용자가 배치를 아직 안 건드렸을 때(기본 5열)만 3열(=3+2)로 옮긴다. */
+              if(blk.data.layout==="horizontal") blk.data.layout="cols3";
+              renderEditor(); renderPreview(); saveSets();
+              if(isStorageUrl(prev) && prev!==blk.data.images[i]) releaseImage(prev);
+            }catch(err){
+              console.warn(err);
+              blk.data.images[i]=prev||""; renderEditor(); renderPreview();
+              toast("그림을 넣지 못했어요: "+(err&&err.message||"알 수 없는 오류"),"error");
+            }
+          };
+          row.append(pick);
+          if(has){
+            const del=el("button","iconbtn","✕"); del.title="이 선지의 그림 빼기";
+            del.onclick=()=>{ const gone=blk.data.images[i]; blk.data.images[i]="";
+              renderEditor(); renderPreview(); saveSets();
+              if(isStorageUrl(gone)) releaseImage(gone); };
+            row.append(del);
+          }
+        }
+        row.append(rm); body.append(row);
         inp.oninput=e=>{ blk.data.items[i]=e.target.value; renderPreview(); saveSets(); };
       });
 
       const add=el("button","btn","+ 항목 추가"); add.onclick=()=>{ blk.data.items.push(""); renderEditor(); renderPreview(); saveSets(); };
       if(blk.type!=="choices") body.append(add);
+      if(blk.type==="choices")
+        body.append(el("div","dm-note","선지마다 그림을 넣을 수 있어요. 그림을 처음 넣으면 배치가 3열로 바뀝니다 — 5개를 3열에 두면 3+2 가 됩니다. 글과 그림을 함께 넣으면 그림 아래에 글이 붙습니다."));
     }
 
     if(blk.type==="image"){
@@ -4686,9 +4798,22 @@ function blockHTML(blk, ctx){
   }
   if(blk.type==="choices"){
     const layout = CHOICE_LAYOUTS.includes(blk.data.layout) ? blk.data.layout : "horizontal";
-    const items=(blk.data.items||[]).slice(0,5).map((t,i)=>`
-      <div class="choice"><span class="label">${circled(i+1)}</span><span class="text">${processText(t)}</span></div>`).join("");
-    return `<div class="choices ${layout}">${items}</div>`;
+    const imgs=blk.data.images||[];
+    /* 그림 선지 — 라벨을 **그림 위 줄**에 둔다. 3열 칸은 좁아서(2단 시험지에서 한 칸이
+       35mm 남짓) 라벨을 옆에 두면 그래프가 그만큼 더 눌린다. 글 선지는 종전 그대로다. */
+    const items=(blk.data.items||[]).slice(0,5).map((t,i)=>{
+      const src=safeUrl(imgs[i]);
+      const txt=processText(t);
+      if(!src) return `
+      <div class="choice"><span class="label">${circled(i+1)}</span><span class="text">${txt}</span></div>`;
+      return `
+      <div class="choice choice--img"><span class="label">${circled(i+1)}</span>`
+           + `<span class="text"><img src="${src}" alt="">${txt}</span></div>`;
+    }).join("");
+    /* 그림이 하나라도 있으면 칸을 위로 맞춘다(그림 높이가 제각각이라 가운데 정렬하면
+       라벨 줄이 서로 어긋난다). */
+    const anyImg=imgs.some(u=>safeUrl(u));
+    return `<div class="choices ${layout}${anyImg?" choices--img":""}">${items}</div>`;
   }
   if(blk.type==="image" && blk.data.dataUrl){
     const W={full:"100%",large:"72%",medium:"52%",small:"36%"};
