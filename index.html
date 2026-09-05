@@ -3640,6 +3640,43 @@ function convertBlock(blk,to){
   else if(from==="image"&&to==="image") return blk.data;
   return nd;
 }
+/* 선지 한 자리에 그림을 붙인다 — **파일 선택과 붙여넣기가 같은 길을 쓴다.**
+   ⚠️ 베껴 두면 갈라진다(이 저장소의 반복된 실패 ③). 크기 검사·즉시 미리보기·
+      Storage 업로드·배치 전환·옛 그림 정리가 전부 여기 한 곳에 있다. */
+async function putChoiceImage(blk, i, f){
+  if(!f || !blk || blk.type!=="choices") return false;
+  if(uploadTooBig(f)) return false;
+  if(!Array.isArray(blk.data.images)) blk.data.images=[];
+  while(blk.data.images.length<blk.data.items.length) blk.data.images.push("");
+  const prev=blk.data.images[i];
+  try{
+    blk.data.images[i]=await fileToDataURL(f); renderPreview();   // 올라가기 전에 먼저 보여 준다
+    blk.data.images[i]=await storeImageFile(f);                   // 로그인이면 Storage, 아니면 base64
+    /* 5열에 그림 다섯이면 한 칸이 20mm 남짓이라 그래프를 알아볼 수 없다.
+       사용자가 배치를 아직 안 건드렸을 때(기본 5열)만 3열(=3+2)로 옮긴다. */
+    if(blk.data.layout==="horizontal") blk.data.layout="cols3";
+    renderEditor(); renderPreview(); saveSets();
+    if(isStorageUrl(prev) && prev!==blk.data.images[i]) releaseImage(prev);
+    return true;
+  }catch(err){
+    console.warn(err);
+    blk.data.images[i]=prev||""; renderEditor(); renderPreview();
+    toast("그림을 넣지 못했어요: "+(err&&err.message||"알 수 없는 오류"),"error");
+    return false;
+  }
+}
+/* 붙여넣기에서 그림 파일을 꺼낸다. 글을 붙여넣은 것이면 null 이라 기본 동작이 그대로 간다. */
+function pastedImageFile(ev){
+  const items=ev.clipboardData && ev.clipboardData.items;
+  if(!items) return null;
+  for(const it of items){
+    if(it.kind==="file" && /^image\//.test(it.type||"")){
+      const f=it.getAsFile();
+      if(f) return f;
+    }
+  }
+  return null;
+}
 function addBlockAt(idx,type){
   const q=activeQ(); if(!q) return;
   q.blocks.splice(idx,0,{type,data:blankBlockData(type)});
@@ -4159,24 +4196,10 @@ function renderEditor(){
           }
           const file=el("input"); file.type="file"; file.accept="image/*"; file.style.display="none";
           pick.append(file);
-          file.onchange=async e=>{
+          file.onchange=e=>{
             const f=e.target.files?.[0]; if(!f) return;
             e.target.value="";
-            if(uploadTooBig(f)) return;
-            const prev=blk.data.images[i];
-            try{
-              blk.data.images[i]=await fileToDataURL(f); renderPreview();   // 즉시 보여 준다
-              blk.data.images[i]=await storeImageFile(f);
-              /* 그림 선지를 5열에 두면 한 칸이 20mm 남짓이라 그래프를 알아볼 수 없다.
-                 사용자가 배치를 아직 안 건드렸을 때(기본 5열)만 3열(=3+2)로 옮긴다. */
-              if(blk.data.layout==="horizontal") blk.data.layout="cols3";
-              renderEditor(); renderPreview(); saveSets();
-              if(isStorageUrl(prev) && prev!==blk.data.images[i]) releaseImage(prev);
-            }catch(err){
-              console.warn(err);
-              blk.data.images[i]=prev||""; renderEditor(); renderPreview();
-              toast("그림을 넣지 못했어요: "+(err&&err.message||"알 수 없는 오류"),"error");
-            }
+            putChoiceImage(blk,i,f);
           };
           row.append(pick);
           if(has){
@@ -4189,12 +4212,25 @@ function renderEditor(){
         }
         row.append(rm); body.append(row);
         inp.oninput=e=>{ blk.data.items[i]=e.target.value; renderPreview(); saveSets(); };
+        if(blk.type==="choices"){
+          /* 교과서에서 캡처한 그림을 바로 붙여넣는다 — 파일로 저장했다 고르는 세 단계가
+             두 단계로 준다(문항마다 다섯 장이면 차이가 크다).
+             ⚠️ 글을 붙여넣은 것이면 아무것도 하지 않는다 — 그때는 기본 동작이 가야 한다.
+                그래서 그림일 때만 preventDefault 한다. */
+          inp.title="글을 쓰거나, 캡처한 그림을 여기에 붙여넣으세요 (Cmd/Ctrl+V)";
+          inp.addEventListener("paste", e=>{
+            const f=pastedImageFile(e);
+            if(!f) return;
+            e.preventDefault();
+            putChoiceImage(blk,i,f);
+          });
+        }
       });
 
       const add=el("button","btn","+ 항목 추가"); add.onclick=()=>{ blk.data.items.push(""); renderEditor(); renderPreview(); saveSets(); };
       if(blk.type!=="choices") body.append(add);
       if(blk.type==="choices")
-        body.append(el("div","dm-note","선지마다 그림을 넣을 수 있어요. 그림을 처음 넣으면 배치가 3열로 바뀝니다 — 5개를 3열에 두면 3+2 가 됩니다. 글과 그림을 함께 넣으면 그림 아래에 글이 붙습니다."));
+        body.append(el("div","dm-note","선지마다 그림을 넣을 수 있어요 — 글 칸에 캡처를 그대로 붙여넣어도(Cmd/Ctrl+V) 들어갑니다. 그림을 처음 넣으면 배치가 3열로 바뀝니다(5개를 3열 = 3+2). 글과 그림을 함께 넣으면 그림 아래에 글이 붙습니다."));
     }
 
     if(blk.type==="image"){

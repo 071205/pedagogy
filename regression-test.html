@@ -664,6 +664,36 @@ async function runIndexTests(){
     } finally { host.remove(); }
   });
 
+  await check(G, "캡처를 붙여넣으면 그림, 글을 붙여넣으면 그대로 글", () => {
+    /* 교과서에서 캡처한 그림을 글 칸에 바로 붙여넣을 수 있다(파일로 저장했다 고르는
+       세 단계가 두 단계로 준다 — 문항마다 다섯 장이면 차이가 크다).
+       ⚠️ **글을 붙여넣은 것이면 아무것도 하지 않아야 한다.** 여기서 잘못 가로채면
+          선지에 글을 붙여넣는 평범한 동작이 통째로 막힌다.
+       ⚠️ 진짜 `DataTransfer` 로 시험한다 — 모양을 흉내 낸 가짜로 시험하면 검사만
+          통과하고 실제 클립보드에서는 안 먹는다. */
+    const dtImg = new win.DataTransfer();
+    dtImg.items.add(new win.File([new Uint8Array([137,80,78,71])], "cap.png", {type:"image/png"}));
+    const dtTxt = new win.DataTransfer();
+    dtTxt.setData("text/plain", "붙인 글");
+    const got  = win.pastedImageFile({clipboardData: dtImg});
+    const none = win.pastedImageFile({clipboardData: dtTxt});
+    const bare = win.pastedImageFile({});                    // clipboardData 자체가 없을 때
+    return { pass: !!got && /^image\//.test(got.type) && none===null && bare===null,
+             note: got ? `그림 ${got.type} · 글 ${none} · 빈 것 ${bare}` : "그림을 못 꺼냄" };
+  });
+
+  await check(G, "그림 붙이는 길은 한 곳이다 — 파일 선택과 붙여넣기가 같은 함수를 쓴다", () => {
+    /* ⚠️ 베낀 것은 갈라진다(이 저장소의 반복된 실패 ③). 크기 검사·즉시 미리보기·
+       Storage 업로드·배치 전환·옛 그림 정리가 두 벌이 되면 한쪽만 고쳐진다. */
+    const src = String(win.putChoiceImage);
+    return { pass: typeof win.putChoiceImage === "function"
+                   && src.includes("uploadTooBig")      // 크기 상한
+                   && src.includes("storeImageFile")    // Storage or base64
+                   && src.includes("releaseImage")      // 갈아 끼운 옛 그림 정리
+                   && src.includes("cols3"),            // 5열 → 3열 전환
+             note: typeof win.putChoiceImage === "function" ? undefined : "putChoiceImage 가 없음" };
+  });
+
   await check(G, "선지 그림도 고아 파일 정리 대상이다", () => {
     /* ⚠️ 정리 코드가 `image` 블록만 알고 있으면, 선지 그림은 지워도 Storage 원본이
        영영 남는다(CLAUDE.md 가 경고한 자리). 주소를 세는 곳은 한 곳이어야 한다. */
