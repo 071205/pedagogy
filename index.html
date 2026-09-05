@@ -787,7 +787,16 @@ body.col-resizing{cursor:col-resize;user-select:none}
 /* 표 — 언매 문법 문항용 격자 */
 .preview .ktbl{border-collapse:collapse;width:100%;margin:10px 0;font-size:.92em}
 .preview .ktbl th,.preview .ktbl td{border:1px solid #333;padding:5px 7px;text-align:center}
-.preview .ktbl th{font-weight:700;background:#f4f4f6}
+/* 화면(.preview)과 같은 규칙 — 제목만 굵고 머리글은 굵지 않다. */
+.preview .ktbl .ktbl-title{font-weight:700;background:transparent}
+/* ⚠️ 머리글을 굵게 하지 않는다 — **두 실물 모두 bold=False** 다
+   (영어 10번 `Kit`·`Price` 11.5pt · 국어 조음 표 `양순음` 10.5pt · 인물 표 `인물 A` 10.5pt).
+   실물은 굵기가 아니라 자리로 구분한다. 화면의 옅은 바탕은 편집을 돕는 것이라 남긴다
+   (인쇄에는 없다 — 인쇄가 실물과 같아야 한다).
+   ⚠️ 국어는 머리글이 본문보다 **작다**(10.5/11.5 = 0.913em). 영어는 본문과 같은 크기다.
+      과목을 갈라야 하는데 `tableHTML()` 이 ctx 를 안 받고, 실물은 **행 머리글**(조음 표의
+      `파열음`)도 작아서 우리 표에 없는 개념이 필요하다. 재어만 두고 적용하지 않았다. */
+.preview .ktbl th{background:#f4f4f6}
 .preview .cond-item{margin:4px 0;display:flex;gap:0.4em;align-items:baseline}
 .preview .ex-item{margin:4px 0;display:flex;gap:0.4em;align-items:baseline}
 .cond-label,.ex-label{flex-shrink:0;white-space:nowrap}
@@ -973,7 +982,11 @@ body.col-resizing{cursor:col-resize;user-select:none}
 .pq .dlg-ans{align-self:baseline;height:1em;border-bottom:0.4pt solid #000}
 .pq .ktbl{border-collapse:collapse;width:100%;margin:2mm 0;font-size:.9em}
 .pq .ktbl th,.pq .ktbl td{border:0.4pt solid #000;padding:1mm 1.4mm;text-align:center}
-.pq .ktbl th{font-weight:700}
+/* 표 제목 줄 — 실물 영어 10번의 `Plant Seed Kits` 는 **굵다**(bold=True · 11.5pt).
+   머리글은 안 굵은데 제목만 굵다 — 요소마다 재어 보고 갈라야 한다. */
+.pq .ktbl .ktbl-title{font-weight:700}
+/* 화면(.preview)과 같은 규칙 — 실물 머리글은 굵지 않다. */
+.pq .ktbl th{font-weight:400}
 .pq .cond-item{display:flex;gap:0.5em;align-items:baseline;margin:1.5mm 0}
 .pq .ex-item{display:flex;gap:0.5em;align-items:baseline;margin:1.5mm 0}
 .pq .cond-label,.pq .ex-label{flex-shrink:0;white-space:nowrap}
@@ -1877,7 +1890,7 @@ const SUBJECTS=[
   {v:"korean",  name:"국어",
    blocks:["statement","passage","bogi","dialogue","table","examples","boxed","choices","image"]},
   {v:"english", name:"영어",
-   blocks:["statement","passage","bogi","dialogue","notice","boxed","choices","image"]},
+   blocks:["statement","passage","bogi","dialogue","notice","table","boxed","choices","image"]},
   {v:"inquiry", name:"탐구 (사회·과학)",
    blocks:["statement","conditions","examples","boxed","table","choices","image"]},
   {v:"all",     name:"제한 없음",  blocks:null},
@@ -1972,10 +1985,14 @@ function normBlock(b){
     })}};
   /* 표 — 언어와 매체의 조음 위치·방법 표처럼 격자가 필요한 문항용.
      행마다 칸 수가 달라도 렌더가 알아서 맞춘다(모자란 칸은 빈칸). */
+  /* 표 — `title` 은 표 **안** 맨 위에 칸을 합쳐 놓는 제목 줄이다(실물 영어 10번의
+     `Plant Seed Kits`). 안내문 상자와 같은 이름을 쓴다 — `blockExcerpt`·`setHasContent`
+     가 이미 `d.title` 을 보므로 훑는 곳을 또 늘리지 않는다. */
   if(type==="table"){
     const rows=(Array.isArray(d.rows)?d.rows:[]).slice(0,30).map(r=>
       (Array.isArray(r)?r:[]).slice(0,10).map(cell=>str(cell,300)));
-    return {type,data:{rows:rows.length?rows:[["",""],["",""]], header:d.header!==false}};
+    return {type,data:{rows:rows.length?rows:[["",""],["",""]], header:d.header!==false,
+                       title:str(d.title,120)}};
   }
   if(type==="conditions"||type==="examples")
     return {type,data:{items:(Array.isArray(d.items)?d.items:[]).slice(0,20).map(t=>str(t)),
@@ -3642,7 +3659,7 @@ function blankBlockData(type){
   if(type==="notice") return {title:"", items:[{kind:"text",text:""},
                                                {kind:"head",text:""},{kind:"bullet",text:""}]};
   if(type==="dialogue") return {items:[{who:"학생 1",text:""},{who:"학생 2",text:""}]};
-  if(type==="table") return {rows:[["",""],["",""]], header:true};
+  if(type==="table") return {rows:[["",""],["",""]], header:true, title:""};
   if(type==="conditions"||type==="examples") return {items:[""], label:""};
   if(type==="choices") return {items:["","","","",""], images:["","","","",""], layout:"horizontal"};
   if(type==="image") return {dataUrl:"",size:"full"};
@@ -4138,6 +4155,12 @@ function renderEditor(){
     }
 
     if(blk.type==="table"){
+      /* 표 제목 — 표 **안** 맨 위에 칸을 합쳐 놓는다(실물 영어 10번의 `Plant Seed Kits`). */
+      const tt=el("input"); tt.type="text"; tt.className="field-input";
+      tt.placeholder="표 제목 (선택) — 예: Plant Seed Kits";
+      tt.value=blk.data.title||"";
+      tt.oninput=e=>{ blk.data.title=e.target.value; renderPreview(); saveSets(); };
+      const ttw=el("div","row"); ttw.append(el("div","label","제목"), tt); body.append(ttw);
       if(!Array.isArray(blk.data.rows)||!blk.data.rows.length) blk.data.rows=[["",""],["",""]];
       const wide=Math.max(2,...blk.data.rows.map(r=>r.length));
       const grid=el("div","ktbl-ed");
@@ -4749,7 +4772,15 @@ function tableHTML(data){
     for(let j=0;j<wide;j++) cells.push(`<${tag}>${processText(r[j]||"")}</${tag}>`);
     return `<tr>${cells.join("")}</tr>`;
   }).join("");
-  return body ? `<table class="ktbl">${body}</table>` : "";
+  if(!body) return "";
+  /* 제목 줄 — 실물 영어 10번은 표 **안** 맨 위에 칸을 합쳐 표 이름을 둔다
+     (7행 6열 중 0행이 `(0,1) 열병합 5` 로 'Plant Seed Kits').
+     ⚠️ 실물은 ①~⑤ 가 들어가는 **첫 칸을 비워 두고 나머지 5칸만** 합친다. 우리는 전부
+        합친다 — 첫 칸이 늘 선지 열이라는 보장이 없기 때문이다(국어 표에는 그 열이 없다).
+        제목이 반 칸쯤 왼쪽으로 오는 차이뿐이고, 지어낸 규칙을 두는 것보다 낫다. */
+  const title=str(data&&data.title,120);
+  const cap = title ? `<tr><th class="ktbl-title" colspan="${wide}">${sanitize(title)}</th></tr>` : "";
+  return `<table class="ktbl">${cap}${body}</table>`;
 }
 
 /* 지문 없는 묶음의 안내 줄.

@@ -89,12 +89,13 @@ const specs = [
   },
   {
     /* 안내문 상자 — 실물 영어 27·28번 형식. 다섯 갈래(제목·문단·소제목·∙항목·※줄)가
-       한 상자에 다 들어간 표본이다. 시각 회귀가 이걸로 안내문 조판을 지킨다.
+       한 상자에 다 들어간 표본이다. 두 번째 문항은 **실물 10번 꼴의 표**(칸 합친 제목 줄 +
+       ①~⑤ 가 든 첫 열)다. 시각 회귀가 이걸로 안내문·표 조판을 지킨다.
        ⚠️ 그림은 첫 쪽만 찍으므로 문항을 늘려 뒤쪽으로 밀지 말 것. */
     path: "test-fixtures/refactor-baseline/06-english-notice.json",
     subject: "english",
-    problems: 1,
-    types: ["notice", "choices"],
+    problems: 2,
+    types: ["notice", "choices", "statement", "table"],
     validate(set) {
       const ntc = set.problems[0].blocks.find((b) => b.type === "notice")?.data;
       assert.ok(ntc?.title, "안내문 상자에는 제목이 있어야 합니다");
@@ -107,6 +108,12 @@ const specs = [
       for (const it of ntc.items) {
         assert.doesNotMatch(it.text || "", /^\s*[∙•※]/, "∙ 와 ※ 는 렌더가 붙입니다");
       }
+      /* 표 — 실물 10번은 칸을 합친 제목 줄과 ①~⑤ 가 든 첫 열을 갖는다. */
+      const tbl = set.problems[1].blocks.find((b) => b.type === "table")?.data;
+      assert.ok(tbl?.title, "표 제목(칸 합친 맨 윗줄)이 있어야 합니다");
+      assert.equal(tbl.rows[0][0], "", "머리글 줄의 첫 칸은 선지 열이라 비어 있습니다");
+      assert.deepEqual(tbl.rows.slice(1).map((r) => r[0]), ["①","②","③","④","⑤"],
+        "표 문항의 첫 열에는 ①~⑤ 가 들어갑니다");
     },
   },
   {

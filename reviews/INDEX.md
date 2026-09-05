@@ -90,5 +90,6 @@
 | `HANDOFF-2026-043` | Claude | 강조는 굵기가 아니라 글꼴 갈래 (말한이·묶음 안내) | `handoffs/2026-09-04-emphasis-by-typeface-not-weight.md` |
 | `HANDOFF-2026-044` | Claude | 안내문 상자 (영어 27·28번) | `handoffs/2026-09-04-english-notice-box.md` |
 | `HANDOFF-2026-045` | Claude | 선지에 그림 넣기 (교과서 그래프 문항) | `handoffs/2026-09-06-image-choices.md` |
+| `HANDOFF-2026-046` | Claude | 영어 표 문항 (10번) + 표 머리글 굵기 | `handoffs/2026-09-06-english-table-question.md` |
 | `HANDOFF-2026-038` | Claude | 영어 과목 조판의 토대 (실물 대조) | `handoffs/2026-09-03-english-subject-foundation.md` |
 | `HANDOFF-2026-039` | Claude | 지문 문단 모델 — 문단마다 첫 줄 들여쓰기 | `handoffs/2026-09-03-passage-paragraph-model.md` |

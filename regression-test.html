@@ -1089,6 +1089,46 @@ async function runIndexTests(){
     } finally { host.remove(); }
   });
 
+  await check(G, "영어에도 표 블록이 있다 — 실물 10번이 표 문항이다", () => {
+    /* ⚠️ `HANDOFF-2026-038` 이 '영어 블록 메뉴에 table 이 없다' 고 적어 두었는데
+       설계 문서의 ①~⑥ 목록으로 옮겨지지 않아 **조용히 빠졌다.**
+       실물 10번은 `Plant Seed Kits` 표를 보고 고르는 문항이다(7행 6열). */
+    const H2 = installHooks(win, ["SUBJECTS"]);
+    const eng = H2.SUBJECTS.find(x=>x.v==="english");
+    const kor = H2.SUBJECTS.find(x=>x.v==="korean");
+    return { pass: eng.blocks.includes("table") && kor.blocks.includes("table"),
+             note: eng.blocks.includes("table") ? undefined : "영어 메뉴에 표가 없다" };
+  });
+
+  await check(G, "표 제목은 칸을 합쳐 맨 위에 오고, 제목만 굵다(머리글은 아니다)", () => {
+    /* 실물 영어 10번을 읽어 확인했다 — 0행이 `(0,1) 열병합 5` 로 'Plant Seed Kits' 이고
+       **제목은 bold=True, 머리글 `Kit`·`Price` 는 bold=False** 다.
+       국어 표도 머리글이 굵지 않다(조음 표 `양순음` 10.5pt · 인물 표 `인물 A` 10.5pt).
+       ⚠️ 요소마다 재어 보고 갈라야 한다 — '실물은 굵게를 안 쓴다' 를 제목까지 밀면 틀린다. */
+    const doc = win.document;
+    const host = doc.createElement("div");
+    host.className = "pq";
+    host.style.cssText = "position:absolute;left:-9999px;top:0;width:360px";
+    host.innerHTML = `<div class="content">${win.blockHTML(win.normBlock({type:"table", data:{
+      header:true, title:"Plant Seed Kits",
+      rows:[["","Kit","Price"],["①","A","$40"],["②","B","$45"]]}}), {})}</div>`;
+    doc.body.appendChild(host);
+    try{
+      const cap = host.querySelector(".ktbl-title");
+      const th  = [...host.querySelectorAll(".ktbl th")].filter(e=>e!==cap)[0];
+      if(!cap || !th) return {pass:false, note:"제목 줄이나 머리글을 못 찾음"};
+      const w = e => win.getComputedStyle(e).fontWeight;
+      const spans = Number(cap.getAttribute("colspan"))===3;   // 칸을 전부 합친다
+      const capBold = Number(w(cap)) >= 600;
+      const thPlain = Number(w(th)) < 600;
+      return { pass: spans && capBold && thPlain,
+               note: !spans ? `제목이 ${cap.getAttribute("colspan")}칸만 합침(3칸이어야)`
+                   : !capBold ? "제목이 굵지 않다"
+                   : !thPlain ? "머리글이 굵다 — 실물은 굵지 않다"
+                   : `제목 ${w(cap)} · 머리글 ${w(th)}` };
+    } finally { host.remove(); }
+  });
+
   await check(G, "대화문·표가 렌더된다", () => {
     const d = win.blockHTML(win.normBlock({type:"dialogue",
       data:{items:[{who:"학생 1", text:"말"}]}}), {});
