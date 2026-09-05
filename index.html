@@ -2735,11 +2735,31 @@ async function flushToCloud(uidAtSave){
         로컬 사본이 다음 병합에서 되살린다)
      2) 그 문제집이 쓰던 Storage 이미지를 지운다 (예전엔 그대로 남아 고아 파일이 됐다)
      3) 로컬 tombstone 도 기록해 이 기기에서도 되살아나지 않게 한다 */
+/* 이 블록이 품고 있는 Storage 그림 주소 전부.
+   ⚠️ **그림을 가진 블록이 늘어나면 여기 한 곳만 고친다.**
+      예전엔 정리 코드가 `image` 블록만 알고 있어서, 다른 곳의 그림은 지워도 Storage
+      원본이 영영 남았다. 그래서 이 함수를 만들었는데, **처음에는 아래
+      `storagePathsOf()` 를 여기에 연결하지 않아 두 수집기가 서로 다른 것을 알았다**
+      (`REV-2026-019`). 새 종류를 더할 때 두 곳을 다 보지 말고 **여기만** 볼 수 있도록,
+      문제집 단위 수집기는 반드시 이 함수를 거쳐 간다. */
+function blockImageUrls(blk){
+  if(!blk||!blk.data) return [];
+  const out=[];
+  if(blk.type==="image") out.push(blk.data.dataUrl);
+  if(blk.type==="choices") (blk.data.images||[]).forEach(u=>out.push(u));
+  return out.filter(isStorageUrl);
+}
+/* 문제집 하나가 쓰는 Storage 주소 전부 (정답 그림 + 블록이 품은 그림).
+   ⚠️ **블록 쪽은 반드시 `blockImageUrls()` 로 모은다.** 예전에는 여기서 `b.data.dataUrl`
+      하나만 직접 봤고, 그래서 선지 그림이 빠졌다. 그 결과
+        · `releaseImage()` 가 **다른 문제집이 아직 쓰는 파일을 지웠고**(그쪽 그림이 깨진다)
+        · `deleteSetEverywhere()` 가 선지 그림을 고아로 남겼다.
+      두 수집기가 서로 다른 것을 알면 이런 일이 조용히 난다(`REV-2026-019`). */
 function storagePathsOf(s){
   const urls=[];
   (s.problems||[]).forEach(q=>{
     if(isStorageUrl(q.answerImg)) urls.push(q.answerImg);
-    (q.blocks||[]).forEach(b=>{ if(b&&b.data&&isStorageUrl(b.data.dataUrl)) urls.push(b.data.dataUrl); });
+    (q.blocks||[]).forEach(b=>{ blockImageUrls(b).forEach(u=>urls.push(u)); });
   });
   return urls;
 }
@@ -2764,17 +2784,6 @@ function releaseImage(url){
     .then(()=>fbStorage.refFromURL(url).delete())
     .then(()=>console.info("사용하지 않는 이미지를 정리했습니다"))
     .catch(e=>console.warn("이미지 정리 실패(무시):", e && e.code));
-}
-/* 블록 하나가 품고 있는 Storage 이미지를 모두 반납 */
-/* 이 블록이 품고 있는 Storage 그림 주소 전부.
-   ⚠️ 그림을 가진 블록이 늘어나면 **여기 한 곳만** 고친다 — 예전엔 정리 코드가
-      `image` 블록만 알고 있어서, 다른 곳의 그림은 지워도 Storage 원본이 영영 남았다. */
-function blockImageUrls(blk){
-  if(!blk||!blk.data) return [];
-  const out=[];
-  if(blk.type==="image") out.push(blk.data.dataUrl);
-  if(blk.type==="choices") (blk.data.images||[]).forEach(u=>out.push(u));
-  return out.filter(isStorageUrl);
 }
 function releaseBlockImages(blk){
   blockImageUrls(blk).forEach(releaseImage);

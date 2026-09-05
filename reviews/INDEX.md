@@ -1,6 +1,6 @@
 # 리뷰 현황
 
-마지막 정리: 2026-09-03
+마지막 정리: 2026-09-06
 
 ## 열린 이슈
 
@@ -37,6 +37,7 @@
 | `REV-2026-009` | `P2` | HWPX 시험지에 '단답형' 구획 태그가 없다 | `issues/2026-08-31-mock-hwpx-missing-short-answer-tag.md` |
 | `REV-2026-010` | `P3` | HWPX 시험지에 '※ 확인 사항' 상자가 없다 | `issues/2026-08-31-mock-hwpx-missing-confirm-box.md` |
 | `REV-2026-018` | `P2` | 시각 회귀 검사가 CI 에서 한 번도 통과한 적이 없다 | `issues/2026-09-03-visual-regression-never-passed-in-ci.md` |
+| `REV-2026-019` | `P1` | 선지 그림이 문제집 단위 참조 검사에서 빠져 공유 파일이 삭제됨 | `issues/2026-09-06-index-choice-image-reference-tracking.md` |
 
 ## 최근 인계
 

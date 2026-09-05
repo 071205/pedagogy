@@ -694,6 +694,35 @@ async function runIndexTests(){
              note: typeof win.putChoiceImage === "function" ? undefined : "putChoiceImage 가 없음" };
   });
 
+  await check(G, "두 그림 수집기가 같은 것을 안다 — 블록 단위 ⊆ 문제집 단위 (REV-2026-019)", () => {
+    /* ⚠️ 이 검사는 **실제로 난 P1 결함**을 잡으려고 있다(`REV-2026-019`).
+       그림을 가진 블록이 늘 때 `blockImageUrls()` 만 고치고 `storagePathsOf()` 를 두면
+       두 수집기가 서로 다른 것을 알게 된다. 그러면
+         · `releaseImage()` 가 **다른 문제집이 아직 쓰는 파일을 지우고**(그쪽 그림이 깨진다)
+         · `deleteSetEverywhere()` 가 그 그림을 Storage 고아로 남긴다.
+       블록 단위 검사만 있으면 회귀가 전부 초록불인 채로 지나간다(실제로 그랬다). */
+    const url = n => `https://firebasestorage.googleapis.com/v0/b/demo/o/users%%2Fu%%2Fimages%%2F${n}.png?alt=media`;
+    /* 그림을 품을 수 있는 블록을 모두 늘어놓는다 — 새 종류가 생기면 여기에 더한다. */
+    const blocks = [
+      {type:"image",   data:{dataUrl:url("a")}},
+      {type:"choices", data:{items:["","","","",""], images:[url("b"),"","",url("c"),""]}},
+    ];
+    const set = {problems:[{answerImg:url("d"), blocks}]};
+    const fromSet   = win.storagePathsOf(set);
+    const fromBlocks = blocks.flatMap(b=>win.blockImageUrls(b));
+    /* 블록이 아는 주소는 **하나도 빠짐없이** 문제집 수집기에도 있어야 한다. */
+    const covered = fromBlocks.length>0 && fromBlocks.every(u=>fromSet.includes(u));
+    const answerToo = fromSet.includes(url("d"));   // 정답 그림도 여전히 모은다
+    /* 그리고 구조로도 못 박는다 — 문제집 수집기가 블록 수집기를 **거쳐** 가야 한다.
+       직접 `b.data.dataUrl` 을 다시 읽기 시작하면 같은 일이 되풀이된다. */
+    const routed = /blockImageUrls\s*\(/.test(String(win.storagePathsOf));
+    return { pass: covered && answerToo && routed,
+             note: !covered ? `블록 ${fromBlocks.length}개 중 문제집이 아는 것 ${fromBlocks.filter(u=>fromSet.includes(u)).length}개`
+                 : !answerToo ? "정답 그림이 빠짐"
+                 : !routed ? "storagePathsOf 가 blockImageUrls 를 안 거친다"
+                 : `블록 ${fromBlocks.length}개 · 문제집 ${fromSet.length}개` };
+  });
+
   await check(G, "선지 그림도 고아 파일 정리 대상이다", () => {
     /* ⚠️ 정리 코드가 `image` 블록만 알고 있으면, 선지 그림은 지워도 Storage 원본이
        영영 남는다(CLAUDE.md 가 경고한 자리). 주소를 세는 곳은 한 곳이어야 한다. */
