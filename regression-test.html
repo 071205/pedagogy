@@ -713,14 +713,38 @@ async function runIndexTests(){
     /* 블록이 아는 주소는 **하나도 빠짐없이** 문제집 수집기에도 있어야 한다. */
     const covered = fromBlocks.length>0 && fromBlocks.every(u=>fromSet.includes(u));
     const answerToo = fromSet.includes(url("d"));   // 정답 그림도 여전히 모은다
-    /* 그리고 구조로도 못 박는다 — 문제집 수집기가 블록 수집기를 **거쳐** 가야 한다.
-       직접 `b.data.dataUrl` 을 다시 읽기 시작하면 같은 일이 되풀이된다. */
-    const routed = /blockImageUrls\s*\(/.test(String(win.storagePathsOf));
+    /* 그리고 구조로도 못 박는다 — 그림이 어디 있는지 아는 곳은 `blockImageSlots()` 하나여야
+       한다. 수집·이관·판정 중 하나라도 `b.data.dataUrl` 을 다시 직접 읽기 시작하면
+       같은 일이 되풀이된다(실제로 두 번 났다). */
+    const routed = /blockImageUrls\s*\(/.test(String(win.storagePathsOf))
+                && /blockImageSlots\s*\(/.test(String(win.blockImageUrls))
+                && /blockImageSlots\s*\(/.test(String(win.blockDataUrls))
+                && /blockImageSlots\s*\(/.test(String(win.migrateBase64ToStorage));
     return { pass: covered && answerToo && routed,
              note: !covered ? `블록 ${fromBlocks.length}개 중 문제집이 아는 것 ${fromBlocks.filter(u=>fromSet.includes(u)).length}개`
                  : !answerToo ? "정답 그림이 빠짐"
-                 : !routed ? "storagePathsOf 가 blockImageUrls 를 안 거친다"
+                 : !routed ? "수집·이관 중 blockImageSlots 를 안 거치는 곳이 있다"
                  : `블록 ${fromBlocks.length}개 · 문제집 ${fromSet.length}개` };
+  });
+
+  await check(G, "base64 그림은 종류를 가리지 않고 Storage 로 이관된다", () => {
+    /* ⚠️ 이것도 **실제로 난 결함**이다. 이관이 `b.data.dataUrl` 하나만 봐서 선지 그림이
+       base64 로 Firestore 문서에 남았다. 그림이 몇 장 쌓이면 **1MB 한도를 넘겨 저장이
+       통째로 실패한다**(Storage 를 쓰는 이유가 바로 그것이다 — CLAUDE.md).
+       ⚠️ 판정('이관이 필요한가')이 좁으면 **이관 자체가 안 돌아간다.** 그래서 둘 다 본다. */
+    const b64 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+    const ch = {type:"choices", data:{items:["","","","",""], images:["",b64,"","",""]}};
+    const im = {type:"image",   data:{dataUrl:b64}};
+    const found = win.blockDataUrls(ch).length;
+    const slots = win.blockImageSlots(ch);
+    /* 이관은 읽기만 하지 않고 **그 자리에 되써야** 한다 — get 만 있으면 옮겨도 반영이 안 된다. */
+    const before = ch.data.images[1];
+    slots[1].set("옮긴주소");
+    const writable = ch.data.images[1]==="옮긴주소";
+    ch.data.images[1]=before;
+    return { pass: found===1 && win.blockDataUrls(im).length===1
+                   && slots.length===5 && writable,
+             note: `선지 base64 ${found}개 · 자리 ${slots.length}개 · 되쓰기 ${writable}` };
   });
 
   await check(G, "선지 그림도 고아 파일 정리 대상이다", () => {
