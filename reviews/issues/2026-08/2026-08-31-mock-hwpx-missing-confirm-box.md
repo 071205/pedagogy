@@ -36,9 +36,9 @@ HWPX 변환기는 이 상자를 만들지 않는다. 내보낸 시험지는 실�
 
 ## 근거
 
-- 편집기: [`mock-exam-editor.html`](../../mock-exam-editor.html) 의 `noteFor()` 와
+- 편집기: [`mock-exam-editor.html`](../../../mock-exam-editor.html) 의 `noteFor()` 와
   `renderPreview()` 의 `<div class="notebox">`.
-- 변환기: [`mock_to_hwpx.py`](../../experiments/hwp-export/mock_to_hwpx.py) 의 `build()` 에
+- 변환기: [`mock_to_hwpx.py`](../../../experiments/hwp-export/mock_to_hwpx.py) 의 `build()` 에
   대응 코드가 없다.
 
 ## 제안 (선택)

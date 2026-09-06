@@ -38,9 +38,9 @@ HWPX 변환기는 틀에 이미 박혀 있는 `5지선다형` 만 쓰고 **`단�
 
 ## 근거
 
-- 편집기: [`mock-exam-editor.html`](../../mock-exam-editor.html) 의 `isGroupFirst()`,
+- 편집기: [`mock-exam-editor.html`](../../../mock-exam-editor.html) 의 `isGroupFirst()`,
   `tagOf(col)`, `tagName(p)`, 그리고 `renderPreview()` 안의 `<div class="tag ...">`.
-- 변환기: [`mock_to_hwpx.py`](../../experiments/hwp-export/mock_to_hwpx.py) 의 `build()` 는
+- 변환기: [`mock_to_hwpx.py`](../../../experiments/hwp-export/mock_to_hwpx.py) 의 `build()` 는
   `tmpl.set_masthead_title()` / `set_masthead_elective()` 만 부르고 구획 태그를 만들지 않는다.
   `emit_problem()` 에도 유형이 바뀌는 자리를 다루는 코드가 없다.
 - 표본이 6문항(전부 공통·5지선다)뿐이라 그동안 드러나지 않았다.

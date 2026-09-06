@@ -5,7 +5,7 @@
 - 작성자: `Claude`
 - 상태: `ready-for-review`
 - 영향 영역: `index`, `server`, `tests`
-- 설계: [`docs/MOCK-STYLE-DESIGN.md`](../../docs/MOCK-STYLE-DESIGN.md)
+- 설계: [`docs/MOCK-STYLE-DESIGN.md`](../../../docs/MOCK-STYLE-DESIGN.md)
 
 ## 1단계 — 수식 앞 공백을 자동으로 넣는다
 

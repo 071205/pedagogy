@@ -105,7 +105,7 @@ below). Each is a single-page app with all CSS/JS inlined and dependencies pulle
   요청하면 AI(Worker)가 제한된 문서 JSON을 만들고, 브라우저에서 검증·미리보기한 뒤
   `serve.py`의 `POST /document-hwpx`로 한글 파일을 받는다. 모의고사와 **다른 흐름**이다 —
   자세한 것은 아래 '범용 문서(HWPX)' 절.
-- [`regression-test.html`](regression-test.html) — browser-based regression suite covering
+- [`tests/regression-test.html`](tests/regression-test.html) — browser-based regression suite covering
   both apps (see "Testing" below). Not part of the shipped product; only reachable through
   `serve.py`.
 
@@ -155,7 +155,7 @@ python3 serve.py --open
 
 ## Testing
 
-[`regression-test.html`](regression-test.html) loads `index.html` and `mock-exam-editor.html`
+[`tests/regression-test.html`](tests/regression-test.html) loads `index.html` and `mock-exam-editor.html`
 each in their own `<iframe>` and re-runs, in one pass, the checks that were previously done
 by hand in the terminal/browser-console during review (security/XSS, trust-boundary
 normalization, account-scoped storage keys, choices-preservation logic, responsive
@@ -168,8 +168,9 @@ python3 serve.py --port 8799
 then open `http://127.0.0.1:8799/regression-test.html`. **Opening the file directly (`file://`)
 does not work** — Chrome treats `file://` documents as cross-origin from each other, so the
 test page can't reach into the iframes; it shows a banner explaining this instead of failing
-silently. (If you ever rename this file, update its entry in `STATIC` in `serve.py` too — that
-whitelist is exact-match, so a stale entry just 404s.)
+silently. (URL 은 `/regression-test.html` 그대로이고 파일만 `tests/` 밑에 있다 — `STATIC` 이
+둘을 이어 준다. **파일을 옮기거나 이름을 바꾸면 `serve.py` 의 `STATIC` 도 같이 고칠 것** —
+그 목록은 정확히 일치해야 하고, 낡은 항목은 그냥 404 가 된다.)
 
 The AI Worker quota state machine has a dependency-free Node test. The commercial deployment
 uses only the Wrangler entry point—there is deliberately no dashboard paste-in copy that can
@@ -794,7 +795,7 @@ Pages–hosted `index.html` can also call into (via `--allow-origin`).
   넣지 않을 거면 `index.html` 의 `@font-face` 와 `serve.py` 의 STATIC 항목을 지울 것.
 
 ### 글꼴 라이선스 (코드 밖 · 미해결)
-- `FONT-LICENSE.md` 의 견적 문의를 아직 보내지 않았다. 상용화 전 필수.
+- `docs/FONT-LICENSE.md` 의 견적 문의를 아직 보내지 않았다. 상용화 전 필수.
   참고: serve.py 의 `/font/` 는 이제 Host 검사로 외부에서 못 받아간다 —
   "글꼴 파일이 사용자에게 전송되지 않는다"는 견적 전제가 이제 실제로 참이다.
 

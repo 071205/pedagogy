@@ -52,10 +52,10 @@ STATIC = {
     # index.html/mock-exam-editor.html 을 iframe 으로 띄워 함수 단위로 재확인하는
     # 회귀 테스트. iframe 내부를 읽으려면 이 파일도 같은 출처로 떠야 하므로
     # file:// 로는 안 되고 반드시 이 화이트리스트를 거쳐야 한다.
-    "/regression-test.html": ("regression-test.html", "text/html; charset=utf-8"),
+    "/regression-test.html": ("tests/regression-test.html", "text/html; charset=utf-8"),
     # 별도 포트에서 실행하는 통합 검사. 실제 앱의 저장·새로고침·인쇄 DOM을 보되,
     # 다른 포트 origin을 써 사용 중인 편집기 localStorage와 분리한다.
-    "/integration-test.html": ("integration-test.html", "text/html; charset=utf-8"),
+    "/integration-test.html": ("tests/integration-test.html", "text/html; charset=utf-8"),
     # 이용약관 · 개인정보처리방침. 본문 푸터에서 링크하므로 로컬에서도 열려야 한다.
     "/legal.html": ("legal.html", "text/html; charset=utf-8"),
     # App Check site key 같은 공개 런타임 설정. 비밀키는 절대 이 파일에 넣지 않는다.
@@ -454,7 +454,7 @@ class Handler(BaseHTTPRequestHandler):
         # 미리보기가 정본과 같은 서체로 보이게 한다. (파일은 이 PC 밖으로 나가지 않는다)
         if path.startswith("/font/"):
             # LAN 모드에서는 글꼴 파일을 내보내지 않는다.
-            # 이 글꼴들은 상용 라이선스 대상이고, FONT-LICENSE.md 의 견적 전제가
+            # 이 글꼴들은 상용 라이선스 대상이고, docs/FONT-LICENSE.md 의 견적 전제가
             # "글꼴 파일 자체는 사용자에게 전송되지 않는다" 이다. 같은 와이파이의
             # 아무 기기나 원본을 받아갈 수 있게 되면 그 전제가 깨진다.
             # 미리보기 서체만 폴백되고 정본(PNG/PDF) 출력은 그대로 나온다.

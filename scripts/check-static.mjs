@@ -12,7 +12,7 @@ const [index, worker, rules, storageRules, config, workflow, integration, server
   text("storage.rules"),
   text("service-config.js"),
   text(".github/workflows/verify.yml"),
-  text("integration-test.html"),
+  text("tests/integration-test.html"),
   text("serve.py"),
   text("package.json"),
   text("scripts/visual-regression.mjs"),
