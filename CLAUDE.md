@@ -744,8 +744,13 @@ Pages–hosted `index.html` can also call into (via `--allow-origin`).
 ⚠️ 이 절은 **문제집 편집기(`index.html`) 이야기**다. HWPX 쪽 현황은 맨 위
 '지금 어디까지 왔나' 와 `reviews/INDEX.md` 를 볼 것.
 
-`ANALYSIS.md` 는 2026-08-20 기준 문서라 **지금 코드와 다르다**(특히 저장 구조).
 2026-08-24 감사에서 지적된 항목은 아래 '처리 완료'를 빼고 모두 반영했다.
+
+⚠️ `ANALYSIS.md`(2026-08-20 코드 분석)는 **지웠다**(2026-09-06). 줄 수가 2.8배 어긋났고
+(`index.html` 2073줄이라고 적혀 있는데 실제 5902줄), 무엇보다 **버려진 저장 구조**
+(`users/{uid}` 문서 하나에 `sets` 배열)를 설명하고 있었다 — 1MB 한도와 다중 탭 덮어쓰기
+때문에 일부러 서브컬렉션으로 옮긴 그 구조다. 낡은 문서는 없는 것보다 나쁘다.
+필요하면 `git log -- ANALYSIS.md` 로 꺼내 볼 수 있다.
 
 ### 코드 밖 — 반드시 해야 할 것 (남은 최우선 항목)
 
@@ -818,7 +823,8 @@ Pages–hosted `index.html` can also call into (via `--allow-origin`).
   `worker/wrangler.toml`의 Durable Object 바인딩과 migration을 지우거나 KV 방식으로
   되돌리면 병렬 호출이 상한을 넘길 수 있으니, 변경 뒤에는 `node worker/quota.test.mjs`를
   반드시 실행할 것. 상용 배포 전에는 `docs/COMMERCIAL-LAUNCH.md`와
-  `npm run check:launch`도 확인한다.
+  `npm run check:launch`도 확인한다. 운영 시작 뒤 매일·매주 볼 것은
+  [`docs/OPERATIONS-RUNBOOK.md`](docs/OPERATIONS-RUNBOOK.md) 에 있다.
 - **본체 인쇄 경로와 미리보기의 축소 로직**이 여전히 별개다
   (`fitPrintDoc()` vs `fitMathIn()`) — 선지 줄바꿈 보정은 인쇄에만 있다.
 

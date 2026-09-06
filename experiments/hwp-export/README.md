@@ -42,15 +42,15 @@ b[16:18] = 직계 PARA_LINE_SEG   줄 수
 
 '직계' 가 핵심이다. 표 안 문단의 레코드는 세지 않는다. 이 개수를 갱신하지 않고
 문단을 고치면 한글이 문단을 잘못 읽는다. 실물 749문단 전부에서 이 규칙이 성립하는 것을
-확인했고, `selfcheck.py` 가 이걸 불변식으로 검사한다.
+확인했다(그 불변식을 검사하던 `selfcheck.py` 는 지웠다 — 아래 '지운 것' 참고).
 
 ## 방향 전환 — HWP(바이너리) 대신 HWPX 를 쓴다
 
-`make_probe.py` 가 만든 `.hwp` 는 **한글에서 깨졌다**(사용자 확인). 바이너리 HWP 는
+바이너리 HWP 로 만든 시험 파일은 **한글에서 깨졌다**(사용자 확인). 바이너리 HWP 는
 레코드마다 크기·개수 필드가 있어 하나만 어긋나도 문서 전체가 못 열린다. 위 불변식
 검사를 통과해도 그건 '내가 아는 규칙' 만 지킨 것이지, 규격 전체를 지켰다는 뜻이 아니다.
 
-그래서 **HWPX(ZIP + XML)** 로 옮겼다(`make_probe_hwpx.py`).
+그래서 **HWPX(ZIP + XML)** 로 옮겼다.
 
 - 크기·개수 카운터가 없어 조용히 깨질 여지가 적다.
 - HWPX 검사와 패키지 조립은 PEDAGOGY 내부 `pedagogy_hwpx.py`가 맡는다. 외부 자칼은
@@ -101,10 +101,6 @@ b[16:18] = 직계 PARA_LINE_SEG   줄 수
 기본값은 한컴에 반드시 들어 있는 `함초롬바탕` 으로 두었다
 (`mock-exam-editor.html` 도 같은 이유로 함초롬을 폴백으로 쓴다).
 신명 글꼴을 구매한 사용자는 `EXAM_FONT` 한 줄만 바꾸면 된다.
-
-```bash
-python3 make_probe_hwpx.py    # out/probe.hwpx
-```
 
 ## 수학 시험지 (2026-08-30 추가)
 
@@ -463,7 +459,7 @@ python3 test_layout.py     # 편집기 규칙과 일치하는지
 - **그림 배치** — 넣는 것은 되지만 항상 문단 흐름에 붙는다. 실물처럼 글 옆에 두거나
   단 폭에 맞춰 감싸는 배치는 아직 없다.
 
-- 한 문단 안에 굵게/밑줄이 섞인 경우의 글자모양 구간 경계 (`hwpdoc.py` 쪽)
+- 한 문단 안에 굵게/밑줄이 섞인 경우의 글자모양 구간 경계
 
 실물 시험지는 양끝맞춤을 위해 한 문단에 글자모양 구간을 8개까지 나눠 자간을 손으로
 조정해 두었다. 우리는 문단 전체를 한 구간으로 두고 한글의 양끝맞춤에 맡긴다.
@@ -474,9 +470,11 @@ python3 test_layout.py     # 편집기 규칙과 일치하는지
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
-python3 selfcheck.py    # 구조 자체 검사 (원본 HWP 가 있어야 함)
-python3 make_probe.py   # 한글로 열어 볼 실험 파일 생성
+python3 make_math_probe.py   # 수학 시험지 재현 (원본 .hwp 가 있어야 한다)
+python3 make_e2e_probe.py    # LaTeX → HWPX 끝에서 끝까지
 ```
+
+검사는 저장소 루트에서 돈다 — `npm run test:hwpx`.
 
 실물 시험지 `.hwp` 는 저작물이라 저장소에 넣지 않는다(`.gitignore`). 없으면 검사를
 건너뛴다. 생성물(`out/`)도 원본의 틀·그림을 그대로 품으므로 함께 무시한다.
@@ -500,3 +498,18 @@ python3 serve.py
 그다음 `http://127.0.0.1:8787/document-editor.html`을 연다. AI 초안은 배포된 Worker의
 로그인·일일 사용량을 그대로 따르고, HWPX 내보내기는 위처럼 `lxml`을 설치한 로컬 서버에서만
 가능하다.
+
+## 지운 것 (2026-09-06)
+
+바이너리 HWP 를 파헤치던 **초기 실험 도구 다섯**을 지웠다.
+`analyze_exam.py` · `hwpdoc.py` · `selfcheck.py` · `make_probe.py` · `make_probe_hwpx.py`.
+
+⚠️ **이미 실행조차 되지 않았다.** 전부 `jakal_hwpx` 를 import 하는데 그 의존성은
+`HANDOFF-2026-017` 에서 걷어냈고 `requirements.txt` 에 없다(`lxml` 하나뿐이다).
+그런데 이 README 는 그것들을 실행하라고 안내하고 있었다 — 따라 하면
+`ModuleNotFoundError` 만 만난다. 없는 것보다 나쁜 안내였다.
+
+위의 '방향 전환' 절은 **왜 바이너리 HWP 를 버리고 HWPX 로 갔는지** 를 남겨 두려고
+그대로 두었다. 그 판단은 아직 유효하다. 도구만 지웠다.
+
+되살리려면: `git show <이 커밋>^:experiments/hwp-export/<파일>`
