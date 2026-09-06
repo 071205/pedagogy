@@ -5616,7 +5616,7 @@ async function doPrint(hideAnswers){
      ⚠️ 그렇다고 무한정 기다리면 안 된다 — 못 받는 그림 한 장이 인쇄를 막는다. */
   const waited=await awaitPrintImages($("#printDoc"));
   mark("그림");
-  if(waited<0) toast(`그림 ${-waited}장을 제때 받지 못했어요 · 인쇄본에서 빠지거나 배치가 어긋날 수 있어요`,"error");
+  if(waited<0) toast(`그림 ${-waited}장을 불러오지 못했어요 · 인쇄본에서 빠지거나 배치가 어긋날 수 있어요`,"error");
 
   /* document.fonts.ready 가 true 여도 실제 픽셀 그리기가 끝났다는 보장은 없다.
      느린 기기에서 폰트가 적용되기 전 폭을 재면 축소 배율이 엉뚱하게 계산돼
@@ -5645,23 +5645,46 @@ async function doPrint(hideAnswers){
 }
 
 /* 인쇄본의 <img> 가 다 도착할 때까지 기다린다(상한 있음).
-   반환: 기다린 장수. 상한에 걸려 못 받은 것이 있으면 **음수**로 그 개수를 준다. */
+   반환: 기다린 장수. 실패했거나 상한 안에 못 받은 것이 있으면 **음수**로 그 개수를 준다.
+   ⚠️ `complete` 는 성공과 실패 양쪽에서 true 다. 이미 error 이벤트까지 끝난 그림을
+      pending 으로 다시 넣으면 이벤트가 돌아오지 않아 매번 8초를 기다리게 된다. */
 const PRINT_IMG_WAIT_MS=8000;
 function awaitPrintImages(root){
   if(!root) return Promise.resolve(0);
-  const pending=[...root.querySelectorAll("img")].filter(im=>!(im.complete && im.naturalWidth>0));
-  if(!pending.length) return Promise.resolve(0);
-  const all=new Promise(res=>{
-    let left=pending.length;
-    const tick=()=>{ if(--left<=0) res(pending.length); };
+  const imgs=[...root.querySelectorAll("img")];
+  let failed=imgs.filter(im=>im.complete && im.naturalWidth<=0).length;
+  const pending=imgs.filter(im=>!im.complete);
+  if(!pending.length) return Promise.resolve(failed?-failed:0);
+  return new Promise(resolve=>{
+    let left=pending.length, finished=false, timer=null;
+    const removers=[];
+    const finish=value=>{
+      if(finished) return;
+      finished=true;
+      if(timer!==null) clearTimeout(timer);
+      removers.forEach(remove=>remove());
+      resolve(value);
+    };
+    const tick=im=>{
+      if(finished) return;
+      if(im.naturalWidth<=0) failed++;
+      if(--left<=0) finish(failed?-failed:pending.length);
+    };
     // load·error 둘 다 받아야 한다 — 깨진 그림 하나에 인쇄가 멈추면 안 된다
-    pending.forEach(im=>{ im.addEventListener("load",tick,{once:true}); im.addEventListener("error",tick,{once:true}); });
+    pending.forEach(im=>{
+      const onLoad=()=>tick(im), onError=()=>tick(im);
+      im.addEventListener("load",onLoad,{once:true});
+      im.addEventListener("error",onError,{once:true});
+      removers.push(()=>{
+        im.removeEventListener("load",onLoad);
+        im.removeEventListener("error",onError);
+      });
+    });
+    timer=setTimeout(()=>{
+      const missing=imgs.filter(im=>!im.complete || im.naturalWidth<=0).length;
+      finish(missing?-missing:pending.length);
+    }, PRINT_IMG_WAIT_MS);
   });
-  const cap=new Promise(res=>setTimeout(()=>{
-    const left=pending.filter(im=>!(im.complete && im.naturalWidth>0)).length;
-    res(left?-left:pending.length);
-  }, PRINT_IMG_WAIT_MS));
-  return Promise.race([all, cap]);
 }
 
 /* ── 인쇄 레이아웃 보정 ──

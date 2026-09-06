@@ -1326,10 +1326,29 @@ async function runIndexTests(){
   await check(G, "awaitPrintImages() 는 깨진 그림에서 멈추지 않는다", () =>
     withPrintImgs(["data:image/png;base64,QUJD"], async holder => {
       const raced = await Promise.race([
-        win.awaitPrintImages(holder).then(()=> "done"),
+        win.awaitPrintImages(holder),
         new Promise(r => setTimeout(()=> r("hung"), 3000)),
       ]);
-      return { pass: raced === "done", note: raced };
+      /* 끝나기만 해서는 부족하다. 음수여야 doPrint()가 빠진 그림을 사용자에게 알린다. */
+      return { pass: typeof raced==="number" && raced<0, note:String(raced) };
+    }));
+
+  await check(G, "awaitPrintImages() 는 이미 실패한 그림도 즉시 판정한다", () =>
+    withPrintImgs(["data:image/png;base64,QUJD"], async holder => {
+      const im=holder.querySelector("img");
+      /* error 이벤트가 **끝난 뒤** 함수를 부르는 순서가 핵심이다. 이 상태를 pending 으로
+         다시 넣으면 이미 지나간 이벤트는 돌아오지 않아 8초 상한까지 매번 기다린다. */
+      await new Promise(r=>setTimeout(r,100));
+      if(!im.complete || im.naturalWidth>0)
+        return {pass:false, note:`재현 상태 아님 · complete=${im.complete} · width=${im.naturalWidth}`};
+      const t=performance.now();
+      const result=await Promise.race([
+        win.awaitPrintImages(holder),
+        new Promise(r=>setTimeout(()=>r("hung"),1200)),
+      ]);
+      const elapsed=Math.round(performance.now()-t);
+      return {pass:typeof result==="number" && result<0 && elapsed<1000,
+              note:`결과 ${result} · ${elapsed}ms`};
     }));
 
   await check(G, "doPrint() 은 그림을 기다린 뒤에 fitPrintDoc() 을 부른다", async () => {

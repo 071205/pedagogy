@@ -14,7 +14,7 @@
 (모의고사 시험지 한 부가 필요하다). 최근 인계는
 `HANDOFF-2026-038`(토대) · `-039`(문단 모델) · `-040`(순서 라벨) · `-041`(듣기 답란) ·
 `-042`(묶음 안내) · `-043`(조판 갈래) · `-044`(안내문 상자) · `-045`(그림 선지) ·
-`-047`(인쇄 속도 · 그림 도착 전 측정).
+`-047`(인쇄 속도 · 그림 도착 전 측정) · `-048`(깨진 그림 인쇄 대기 제거).
 
 ## 최근 해결
 
@@ -40,6 +40,7 @@
 | `REV-2026-018` | `P2` | 시각 회귀 검사가 CI 에서 한 번도 통과한 적이 없다 | `issues/2026-09/2026-09-03-visual-regression-never-passed-in-ci.md` |
 | `REV-2026-019` | `P1` | 선지 그림이 문제집 단위 참조 검사에서 빠져 공유 파일이 삭제됨 | `issues/2026-09/2026-09-06-index-choice-image-reference-tracking.md` |
 | `REV-2026-020` | `P1` | 선지 그림이 base64 이관에서 빠져 Firestore 문서가 한도를 넘음 | `issues/2026-09/2026-09-06-index-choice-image-base64-migration.md` |
+| `REV-2026-021` | `P2` | 이미 실패한 그림 때문에 인쇄가 매번 8초 지연됨 | `issues/2026-09/2026-09-06-index-print-broken-image-wait.md` |
 
 ## 최근 인계
 
@@ -92,6 +93,7 @@
 | `HANDOFF-2026-044` | Claude | 안내문 상자 (영어 27·28번) | `handoffs/2026-09/2026-09-04-english-notice-box.md` |
 | `HANDOFF-2026-045` | Claude | 선지에 그림 넣기 (교과서 그래프 문항) | `handoffs/2026-09/2026-09-06-image-choices.md` |
 | `HANDOFF-2026-047` | Claude | 인쇄 속도 실측 · 그림 도착 전 측정 결함 | `handoffs/2026-09/2026-09-06-print-speed.md` |
+| `HANDOFF-2026-048` | Codex | 이미 실패한 그림의 인쇄 대기 제거 | `handoffs/2026-09/2026-09-06-print-broken-image-wait.md` |
 | `HANDOFF-2026-046` | Claude | 영어 표 문항 (10번) + 표 머리글 굵기 | `handoffs/2026-09/2026-09-06-english-table-question.md` |
 | `HANDOFF-2026-038` | Claude | 영어 과목 조판의 토대 (실물 대조) | `handoffs/2026-09/2026-09-03-english-subject-foundation.md` |
 | `HANDOFF-2026-039` | Claude | 지문 문단 모델 — 문단마다 첫 줄 들여쓰기 | `handoffs/2026-09/2026-09-03-passage-paragraph-model.md` |
