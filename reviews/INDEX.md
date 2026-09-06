@@ -13,7 +13,8 @@
 의 목록에서 **② 어휘 세로 2단 네모만 남았고, 그것은 실물 근거가 없어 못 한다**
 (모의고사 시험지 한 부가 필요하다). 최근 인계는
 `HANDOFF-2026-038`(토대) · `-039`(문단 모델) · `-040`(순서 라벨) · `-041`(듣기 답란) ·
-`-042`(묶음 안내) · `-043`(조판 갈래) · `-044`(안내문 상자).
+`-042`(묶음 안내) · `-043`(조판 갈래) · `-044`(안내문 상자) · `-045`(그림 선지) ·
+`-047`(인쇄 속도 · 그림 도착 전 측정).
 
 ## 최근 해결
 
@@ -90,6 +91,7 @@
 | `HANDOFF-2026-043` | Claude | 강조는 굵기가 아니라 글꼴 갈래 (말한이·묶음 안내) | `handoffs/2026-09/2026-09-04-emphasis-by-typeface-not-weight.md` |
 | `HANDOFF-2026-044` | Claude | 안내문 상자 (영어 27·28번) | `handoffs/2026-09/2026-09-04-english-notice-box.md` |
 | `HANDOFF-2026-045` | Claude | 선지에 그림 넣기 (교과서 그래프 문항) | `handoffs/2026-09/2026-09-06-image-choices.md` |
+| `HANDOFF-2026-047` | Claude | 인쇄 속도 실측 · 그림 도착 전 측정 결함 | `handoffs/2026-09/2026-09-06-print-speed.md` |
 | `HANDOFF-2026-046` | Claude | 영어 표 문항 (10번) + 표 머리글 굵기 | `handoffs/2026-09/2026-09-06-english-table-question.md` |
 | `HANDOFF-2026-038` | Claude | 영어 과목 조판의 토대 (실물 대조) | `handoffs/2026-09/2026-09-03-english-subject-foundation.md` |
 | `HANDOFF-2026-039` | Claude | 지문 문단 모델 — 문단마다 첫 줄 들여쓰기 | `handoffs/2026-09/2026-09-03-passage-paragraph-model.md` |

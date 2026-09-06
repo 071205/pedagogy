@@ -1297,6 +1297,50 @@ async function runIndexTests(){
     return !!ft && ft.textContent.includes("PEDAGOGY") && ft.textContent.includes(year);
   });
 
+  /* ── 인쇄본의 그림을 기다린 뒤에 재는가 ──
+     인쇄본의 <img> 는 대부분 여기서 **처음** 받아 온다(미리보기는 지금 문항
+     하나만 그린다). 아직 안 온 그림은 높이가 0 이라, 그 상태로 fitPrintDoc()
+     을 부르면 세로 넘침 보정이 통째로 헛돈다 — 실측으로 그림 60장이 전부
+     높이 0 인 채로 측정됐다. awaitPrintImages() 가 그 사이를 메운다.
+     ⚠️ 검사는 반드시 **문서에 붙인 뒤** 해야 한다. 떼어 놓은 요소의 <img> 는
+     크롬이 아예 불러오지 않아(연결될 때까지 미룬다) 검사가 늘 통과해 버린다. */
+  const PX1 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+  const withPrintImgs = async (srcs, fn) => {
+    const holder = win.document.createElement("div");
+    holder.style.cssText = "position:fixed;left:-9999px;top:0";
+    srcs.forEach(src => { const im = win.document.createElement("img"); im.src = src; holder.append(im); });
+    win.document.body.append(holder);
+    try{ return await fn(holder); } finally{ holder.remove(); }
+  };
+
+  await check(G, "awaitPrintImages() 는 아직 안 온 그림을 기다린다", () =>
+    withPrintImgs([PX1, PX1], async holder => {
+      const before = [...holder.querySelectorAll("img")].filter(im => im.complete && im.naturalWidth>0).length;
+      if(before === 2) return {pass:false, note:"그림이 이미 다 와 있어 검사가 무의미하다"};
+      const waited = await win.awaitPrintImages(holder);
+      const after = [...holder.querySelectorAll("img")].filter(im => im.complete && im.naturalWidth>0).length;
+      return { pass: waited === 2-before && after === 2,
+               note: `기다림 ${waited} · 도착 ${after}/2` };
+    }));
+
+  await check(G, "awaitPrintImages() 는 깨진 그림에서 멈추지 않는다", () =>
+    withPrintImgs(["data:image/png;base64,QUJD"], async holder => {
+      const raced = await Promise.race([
+        win.awaitPrintImages(holder).then(()=> "done"),
+        new Promise(r => setTimeout(()=> r("hung"), 3000)),
+      ]);
+      return { pass: raced === "done", note: raced };
+    }));
+
+  await check(G, "doPrint() 은 그림을 기다린 뒤에 fitPrintDoc() 을 부른다", async () => {
+    const src = await (await fetch("index.html")).text();
+    const body = src.slice(src.indexOf("async function doPrint"));
+    // ⚠️ 주석에도 두 이름이 나오므로 **실제 호출문**으로 찾는다
+    const wait = body.indexOf("await awaitPrintImages("), fit = body.indexOf("overflowed=fitPrintDoc()");
+    return { pass: wait > 0 && fit > 0 && wait < fit,
+             note: `awaitPrintImages@${wait} · fitPrintDoc@${fit}` };
+  });
+
   // ── 반응형(3단계) — 데스크톱 폭 ──
   mainFrame.style.width = "1440px"; mainFrame.style.height = "900px";
   await check(G, "1440px 데스크톱: 탭바 숨김", () =>

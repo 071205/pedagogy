@@ -5551,10 +5551,14 @@ async function ensureKatexFonts(){
   // 본문 한글 폰트(KoPub 바탕)는 한글 글자를 지정해야 깨어남.
   // 이게 빠지면 인쇄 시 시스템 고딕으로 fallback되어 본문이 두껍게 나옴.
   const ko="가나다라마바사아자차카타파하각간갇갈값의해를할때년월일";
+  /* ⚠️ 인쇄 본문은 300(Light) 이다(.pq .content{font-weight:300}) — 400 만 깨우면
+     정작 인쇄에 쓰이는 자족을 안 깨운 것이다. 화면 미리보기도 300 이라 평소에는
+     이미 깨어 있지만, 여기 목록이 '인쇄가 쓰는 것' 과 어긋나 있으면 안 된다. */
   const koSpecs=[
+    ["300 12px 'KoPub Batang'",ko],
     ["400 12px 'KoPub Batang'",ko],
     ["700 12px 'KoPub Batang'",ko],
-    ["400 12px 'KoPub Batang'","ABC123"]
+    ["300 12px 'KoPub Batang'","ABC123"]
   ];
   try{
     await Promise.all([
@@ -5562,6 +5566,17 @@ async function ensureKatexFonts(){
       ...koSpecs.map(([s,txt])=>document.fonts.load(s,txt).catch(()=>{}))
     ]);
   }catch{}   /* 글꼴 선로드는 최선노력 — 실패해도 폴백 서체로 인쇄된다 */
+}
+
+/* 글꼴 18벌을 CDN 에서 받는 일은 **처음 한 번만** 오래 걸린다(실측 1,171ms).
+   그걸 인쇄 버튼을 누른 뒤에 하면 그 1.2초가 통째로 사용자의 대기 시간이 된다.
+   화면이 한가할 때 미리 받아 두면 인쇄는 이미 깨어 있는 글꼴을 쓴다(실측 25ms).
+   ⚠️ 부팅 경로를 막지 않도록 반드시 idle/지연으로 부를 것. */
+let katexFontsWarm=null;
+function warmPrintFonts(){
+  if(katexFontsWarm) return katexFontsWarm;
+  katexFontsWarm=ensureKatexFonts().catch(()=>{});
+  return katexFontsWarm;
 }
 
 async function doPrint(hideAnswers){
@@ -5574,12 +5589,34 @@ async function doPrint(hideAnswers){
       return;
     }
   }
+  const t0=performance.now(), lap={};
+  const mark=(k)=>{ lap[k]=Math.round(performance.now()-t0); };
+
+  /* 인쇄는 문항 수·그림 수에 비례해 오래 걸린다(브라우저의 인쇄 미리보기가
+     쪽마다 다시 그린다). 그 동안 화면이 멈춘 것처럼 보이면 사용자는 버튼을 또
+     누른다 — 무슨 일이 일어나는 중인지 먼저 말한다. */
+  const qCount=(activeSet()?.problems||[]).length;
+  if(qCount>=20) toast(`인쇄본을 만드는 중이에요 · ${qCount}문항`);
+
   buildPrintDoc(hideAnswers);
+  mark("조판");
   // KaTeX 수식 폰트를 모두 깨운 뒤 렌더/측정해야 인쇄에서 누락 없음
-  await ensureKatexFonts();
+  // (부팅 직후 미리 받아 둔다 — warmPrintFonts. 여기서는 보통 곧바로 끝난다)
+  await warmPrintFonts();
+  mark("글꼴");
   await new Promise(r=>requestAnimationFrame(r));
   if(document.fonts&&document.fonts.ready){ try{ await document.fonts.ready; }catch{} }  /* 위와 동일: 대기 실패해도 인쇄는 진행 */
   await new Promise(r=>requestAnimationFrame(r));
+
+  /* 그림이 다 도착하기 전에 재면 안 된다. 미리보기는 지금 문항 하나만 그리므로
+     인쇄본의 나머지 그림은 여기서 **처음** 받아 온다. 아직 안 온 <img> 는 높이가
+     0 이라, 그 상태로 fitPrintDoc() 을 부르면 세로 넘침 보정이 통째로 헛돈다.
+     실측: 그림 60장짜리 문제집을 한 장당 1.5초 걸리는 회선에서 인쇄하면 측정
+     시점(351ms)에 **60장 모두 높이 0** 이었다. 넘쳐도 아무 보정이 걸리지 않는다.
+     ⚠️ 그렇다고 무한정 기다리면 안 된다 — 못 받는 그림 한 장이 인쇄를 막는다. */
+  const waited=await awaitPrintImages($("#printDoc"));
+  mark("그림");
+  if(waited<0) toast(`그림 ${-waited}장을 제때 받지 못했어요 · 인쇄본에서 빠지거나 배치가 어긋날 수 있어요`,"error");
 
   /* document.fonts.ready 가 true 여도 실제 픽셀 그리기가 끝났다는 보장은 없다.
      느린 기기에서 폰트가 적용되기 전 폭을 재면 축소 배율이 엉뚱하게 계산돼
@@ -5597,9 +5634,34 @@ async function doPrint(hideAnswers){
   let overflowed=[];
   try{ overflowed=fitPrintDoc(); }
   finally{ pd.classList.remove("measuring"); }           // 무슨 일이 있어도 되돌린다
+  mark("보정");
   await new Promise(r=>requestAnimationFrame(r));
   warnIfClipped(overflowed);
+  /* 인쇄가 느리다는 말을 들었을 때 **어디가** 느린지 갈라 보려고 남긴다.
+     이 줄까지가 우리 코드의 시간이고, 그 뒤 대기는 전부 브라우저의 인쇄
+     미리보기가 쓰는 시간이다(쪽 수에 비례한다). 둘을 섞으면 엉뚱한 곳을 고친다. */
+  console.info(`인쇄 준비 ${lap["보정"]}ms · ${$("#printDoc").querySelectorAll(".page").length}쪽`, lap);
   window.print();
+}
+
+/* 인쇄본의 <img> 가 다 도착할 때까지 기다린다(상한 있음).
+   반환: 기다린 장수. 상한에 걸려 못 받은 것이 있으면 **음수**로 그 개수를 준다. */
+const PRINT_IMG_WAIT_MS=8000;
+function awaitPrintImages(root){
+  if(!root) return Promise.resolve(0);
+  const pending=[...root.querySelectorAll("img")].filter(im=>!(im.complete && im.naturalWidth>0));
+  if(!pending.length) return Promise.resolve(0);
+  const all=new Promise(res=>{
+    let left=pending.length;
+    const tick=()=>{ if(--left<=0) res(pending.length); };
+    // load·error 둘 다 받아야 한다 — 깨진 그림 하나에 인쇄가 멈추면 안 된다
+    pending.forEach(im=>{ im.addEventListener("load",tick,{once:true}); im.addEventListener("error",tick,{once:true}); });
+  });
+  const cap=new Promise(res=>setTimeout(()=>{
+    const left=pending.filter(im=>!(im.complete && im.naturalWidth>0)).length;
+    res(left?-left:pending.length);
+  }, PRINT_IMG_WAIT_MS));
+  return Promise.race([all, cap]);
 }
 
 /* ── 인쇄 레이아웃 보정 ──
@@ -5894,6 +5956,12 @@ function startApp(){
 }
 if(document.readyState==="loading") document.addEventListener("DOMContentLoaded", startApp);
 else startApp();          // 이미 파싱이 끝난 경우(캐시 등)
+
+/* 인쇄용 글꼴은 화면이 한가해진 뒤에 미리 받아 둔다(위 warmPrintFonts 주석 참고).
+   requestIdleCallback 이 없는 브라우저(사파리)에서는 늦은 타이머로 대신한다. */
+(typeof requestIdleCallback==="function"
+  ? requestIdleCallback(()=>warmPrintFonts(), {timeout:6000})
+  : setTimeout(()=>warmPrintFonts(), 2500));
 
 cssVarSet('--col-gap-mm',7); cssVarSet('--print-fs-pt',9.2); cssVarSet('--print-lh',1.92);
 try{ const r=localStorage.getItem('PM_PRINT_TUNE_V1'); if(r){ const t=JSON.parse(r); cssVarSet('--col-gap-mm',t.gap||7); cssVarSet('--print-fs-pt',t.fs||9.2); cssVarSet('--print-lh',t.lh||1.92); } }catch(e){ console.error('인쇄 설정 복원 실패', e); }
