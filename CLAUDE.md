@@ -65,10 +65,21 @@ python3 experiments/hwp-export/document_to_hwpx.py \
 
 **열린 이슈 없음.**
 
-▶ **검토 대기 중 — 범용성 설계안**([`docs/CROSS-PLATFORM-DESIGN.md`](docs/CROSS-PLATFORM-DESIGN.md),
-`HANDOFF-2026-050`). 윈도우·모바일·패드·인앱 브라우저에서 무엇이 깨지는지 코드에서 확인해
-적었다. **코덱스 회신 전에는 §2~§6 의 코드를 고치지 않는다** — 재현 수단(1단계: 세 엔진 +
-모바일 뷰포트 연기 검사)이 먼저다.
+▶ **범용성 작업 — 설계 확정, 1단계 착수 가능**
+([`docs/CROSS-PLATFORM-DESIGN.md`](docs/CROSS-PLATFORM-DESIGN.md) · `-050` → 검토 `-051`(Codex)
+→ 반영 `-052`). 다음은 **1단계: 세 엔진(chromium/webkit/**firefox**) × 모바일 뷰포트 연기 검사**다.
+⚠️ **Playwright 의 WebKit 은 실제 iOS 사파리도 카카오 WebView 도 아니다.** 그 검사는 공통
+DOM·CSS·JS 회귀를 잡는 1차선일 뿐이고, 인증·다운로드·키보드·safe-area 의 **완료 판정에는
+실제 기기가 필요하다.** 자동 검사가 초록불이라고 '모바일 대응 완료' 라고 쓰지 말 것.
+⚠️ 그 설계에서 **내가 `[통설]` 로 적은 넷이 검토에서 틀린 것으로 드러났다**(§2 localhost
+혼합 콘텐츠 · §5 `viewport-fit=cover` 는 **반대** · §3 ITP 조건 · §4 `:hover` 개수).
+재현하지 않은 것은 반드시 `[통설]` 로 표시할 것 — 그 표시가 실제로 값을 했다.
+
+⚠️ **저장소 접근은 던질 수 있다**(사파리 '모든 쿠키 차단' 등). `localStorage` 를 맨몸으로
+부르면 예외 하나로 그 뒤 줄이 전부 안 돈다 — `document-editor.html` 이 그래서 **단추가 하나도
+안 듣는 죽은 화면**이 됐다(`REV-2026-022`). **화면을 살리는 코드를 먼저 실행하고 편의 기능을
+나중에 얹는다.** `npm run test:cross` 가 저장소를 던지게 해 두 앱을 확인한다
+(⚠️ `localStorage.clear()` 로는 재현되지 않는다 — 비어 있는 것과 던지는 것은 다르다).
 
 ⚠️ **`main` 에 아직 안 올라간 작업이 있을 수 있다.** 새 세션이면 먼저 확인할 것:
 ```bash
