@@ -28,6 +28,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
+import mock_to_hwpx as mock  # noqa: E402
 import template as tmpl  # noqa: E402
 
 HERE = Path(__file__).parent
@@ -152,6 +153,22 @@ for role, spec in ROLES.items():
     if "stops" in want:
         got = tab_stops(real["tab"])
         check(f"{role}.stops", got == want["stops"], f"틀 {got} · 표 {want['stops']}")
+
+# ── 별행 수식 앞 탭의 폭 ───────────────────────────────────────────────────
+# 변환기가 내보내는 `EQ_TAB_WIDTH` 는 '왼쪽 여백에서 탭 정지점까지' 여야 한다.
+# 지어낸 값이면 한글이 다시 계산하기 전까지 수식 자리가 어긋나 보인다.
+print("\n별행 수식 앞 탭")
+if "eq" in found:
+    _eq = para_values(found["eq"]["para"])
+    _stops = tab_stops(_eq["tab"])
+    if _stops:
+        want_w = round((_stops[0] - _eq["left"]) / MM)
+        check("EQ_TAB_WIDTH 가 정지점 − 왼쪽 여백과 같다",
+              abs(mock.EQ_TAB_WIDTH - want_w) <= 2,
+              f"변환기 {mock.EQ_TAB_WIDTH} · 틀 {want_w} "
+              f"(정지점 {_stops[0]}mm − 여백 {_eq['left']}mm)")
+    else:
+        check("eq 스타일에 탭 정지점이 있다", False, "정지점이 없다")
 
 # ── 표 개체(구획 태그 · ※ 확인 사항)의 크기 ───────────────────────────────
 # 이 둘은 문단이 아니라 표다. 우리가 만들지 않고 틀에서 떠다 심으므로

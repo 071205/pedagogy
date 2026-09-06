@@ -349,8 +349,12 @@ body.embedded .brand-tag{margin-left:0}
 .stmt{padding-left:calc(var(--ind)*1mm);text-indent:calc(var(--ind)*-1mm)}
 /* 이어지는 줄 — 문항 첫 글자선에 정렬 */
 .cont{padding-left:calc(var(--ind)*1mm)}
-/* 별행 수식 — 단 안에서 가운데, 위아래 여백 */
-.dispeq{text-align:center;margin:2.8mm 0}
+/* 별행 수식 — 실물은 **가운데가 아니라 왼쪽 14.11mm** 에서 시작한다.
+   근거: 25 양식의 `21 문제다음 별행` 문단은 왼쪽 여백 4.06mm 에 LEFT 탭 정지점이
+   14.11mm 하나뿐이고, 수식으로 시작하는 그 문단 19개가 **전부** 탭 하나를 앞에 둔다
+   (직접 세었다). 가운데 정렬은 근거 없이 처음부터 있던 값이었다.
+   ⚠️ 상자 안 별행 수식(`.condeq`)은 다르다 — 거기는 탭이 없어 상자 왼쪽에 붙는다. */
+.dispeq{padding-left:14.11mm;margin:2.8mm 0}
 /* 인라인 수식 — 앞은 띄우고 뒤는 조사가 붙도록 */
 .stmt .katex,.cont .katex,.it .katex{margin-left:.16em;margin-right:0}
 .dispeq .katex{margin:0}
@@ -1602,8 +1606,11 @@ const TYPST_FRAME = `#import "@preview/mitex:0.2.7": mi, mitex
 // 이어지는 줄 — 문항 첫 글자선 정렬
 #let contline(body) = block(width: 100%, above: 0.65em, below: 0pt)[
   #pad(left: 3.99mm)[#body]]
-// 별행 수식 — 단 안에서 가운데, 위아래 2.8mm
-#let dispeq(body) = block(width: 100%, above: 2.8mm, below: 2.8mm)[#align(center)[#body]]
+// 별행 수식 — 실물은 왼쪽 14.11mm 에서 시작한다(가운데가 아니다). 근거는 CSS 쪽 주석.
+// ⚠️ #pad 만으로는 안 된다 — Typst 의 블록 수식은 그 안에서 다시 스스로 가운데로 간다.
+//    condeq 와 같은 show 규칙이 있어야 왼쪽에 붙는다.
+#let dispeq(body) = block(width: 100%, above: 2.8mm, below: 2.8mm)[
+  #pad(left: 14.11mm)[#{ show math.equation: set align(left); body }]]
 // 조건 상자 안 별행 수식 — 실물은 상자 **왼쪽 끝**에서 시작한다(가운데가 아니다).
 //   근거: 평가원 양식 22번 조건 (가)의 별행 수식이 상자 안 왼쪽 8.0mm 에서 시작한다.
 // ⚠️ #align(left) 로는 안 된다. Typst 의 별행 수식은 스스로 가운데로 가므로

@@ -149,8 +149,19 @@ export const METRICS = [
   {
     key: "별행 수식 위아래 여백",
     value: [2.8],
-    css: /\.dispeq\{text-align:center;margin:([\d.]+)mm 0\}/,
+    css: /\.dispeq\{padding-left:[\d.]+mm;margin:([\d.]+)mm 0\}/,
     typst: /#let dispeq\(body\) = block\(width: 100%, above: ([\d.]+)mm/,
+  },
+  {
+    /* ⚠️ 실물은 별행 수식을 **가운데 두지 않는다.** `21 문제다음 별행` 문단의 유일한
+       탭 정지점(LEFT 14.11mm)에서 시작한다 — 수식으로 시작하는 그 문단 19개가 전부
+       탭 하나를 앞에 두고 있다. 한글 쪽은 그 탭을 그대로 내보내므로(`EQ_TAB_WIDTH`)
+       여기서 재는 것은 화면과 Typst 뿐이다. */
+    key: "별행 수식 시작 위치",
+    value: [14.11],
+    css: /\.dispeq\{padding-left:([\d.]+)mm/,
+    typst: /#let dispeq\(body\)[\s\S]*?#pad\(left: ([\d.]+)mm\)/,
+    fromStops: { role: "eq", left: 0 },
   },
   {
     key: "구획 태그 폭 — 5지선다형", realFrom: "tag.choice.w",

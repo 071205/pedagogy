@@ -636,6 +636,22 @@ def _sty(para: str) -> str | None:
 #    시작 위치가 어긋난다** — 번호만 삐뚤어 보이는 증상이 이것이다(실물 대조로 확인).
 NUM_TAB_WIDTHS = {1: (636,), 2: (132, 671)}
 
+# 발문 아래 별행 수식도 **탭 하나로 밀어 넣는다.** 실물 `21 문제다음 별행` 문단의
+# 왼쪽 여백은 4.06mm 인데, 탭 정지점이 14.11mm 하나(LEFT)라 수식이 거기서 시작한다.
+#   2850 HWPUNIT = 10.05mm = 14.11 − 4.06
+# ⚠️ 실물에서 **수식으로 시작하는 `21 문제다음 별행` 문단 19개가 전부** 이 탭을 갖는다
+#    (직접 세었다). 반면 뒤에 이어지는 산문 줄에는 탭이 없다 — 같은 스타일이지만
+#    쓰임이 다르다. 그리고 **조건 상자 안(`condeq`)에는 탭이 없다**(실물 22번 (가)).
+#    그래서 `emit_display_eq()` 는 역할이 `eq` 로 풀렸을 때만 이 탭을 넣는다.
+# ⚠️ `width` 는 한글이 다시 계산하는 값이지만, 우리가 아무 값이나 적으면 여는 순간까지
+#    자리가 어긋나 보인다. `test_style_roles.py` 가 틀의 정지점과 대조한다.
+EQ_TAB_WIDTH = 2850
+
+
+def eq_tab_xml() -> str:
+    """별행 수식 앞 탭 한 조각. 탭은 `<hp:t>` **안의 요소**다(글자가 아니다)."""
+    return f'<hp:t xmlns:hp="{HP}"><hp:tab width="{EQ_TAB_WIDTH}" leader="0" type="1"/></hp:t>'
+
 
 def num_prefix_xml(num: object) -> str:
     """`12.` + 탭 — 문항 번호 앞머리 한 조각."""
@@ -729,11 +745,19 @@ def emit_display_eq(doc: HwpxDocument, tex: str, rep: Report, *, where: str,
                              para_pr_id=STYLE.get(eqp), style_id=_sty(eqp),
                              char_pr_id=char)
         return
+    # 발문 아래(`eq`)만 탭으로 14.11mm 에 맞춘다 — 상자 안(`condeq`)은 탭이 없는 것이
+    # 실물이다. `with_run=False` 로 빈 run 을 만들지 않고 탭 run 부터 붙인다
+    # (실물도 탭·수식이 **한 run** 안에 있다).
+    tabbed = eqp == "para_eq"
     doc.append_paragraph("", section_index=cur_sec(),
                          para_pr_id=STYLE.get(eqp), style_id=_sty(eqp),
-                         char_pr_id=char)
+                         char_pr_id=char, with_run=not tabbed)
+    idx = doc.paragraph_count(cur_sec()) - 1
+    if tabbed:
+        doc.append_run_xml(eq_tab_xml(), section_index=cur_sec(),
+                           paragraph_index=idx, char_pr_id=char)
     doc.append_equation(script, section_index=cur_sec(),
-                        paragraph_index=doc.paragraph_count(cur_sec()) - 1,
+                        paragraph_index=idx,
                         char_pr_id=STYLE.get("char_stem"),
                         base_unit=eq_base())
     rep.equations += 1

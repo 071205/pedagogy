@@ -14,7 +14,8 @@
 (모의고사 시험지 한 부가 필요하다). 최근 인계는
 `HANDOFF-2026-038`(토대) · `-039`(문단 모델) · `-040`(순서 라벨) · `-041`(듣기 답란) ·
 `-042`(묶음 안내) · `-043`(조판 갈래) · `-044`(안내문 상자) · `-045`(그림 선지) ·
-`-047`(인쇄 속도 · 그림 도착 전 측정) · `-048`(깨진 그림 인쇄 대기 제거).
+`-047`(인쇄 속도 · 그림 도착 전 측정) · `-048`(깨진 그림 인쇄 대기 제거) ·
+`-049`(발문 별행 수식 탭·왼쪽 정렬).
 
 ## 최근 해결
 
@@ -94,6 +95,7 @@
 | `HANDOFF-2026-045` | Claude | 선지에 그림 넣기 (교과서 그래프 문항) | `handoffs/2026-09/2026-09-06-image-choices.md` |
 | `HANDOFF-2026-047` | Claude | 인쇄 속도 실측 · 그림 도착 전 측정 결함 | `handoffs/2026-09/2026-09-06-print-speed.md` |
 | `HANDOFF-2026-048` | Codex | 이미 실패한 그림의 인쇄 대기 제거 | `handoffs/2026-09/2026-09-06-print-broken-image-wait.md` |
+| `HANDOFF-2026-049` | Claude | 발문 별행 수식의 탭(14.11mm)과 왼쪽 정렬 | `handoffs/2026-09/2026-09-07-stem-display-eq-tab.md` |
 | `HANDOFF-2026-046` | Claude | 영어 표 문항 (10번) + 표 머리글 굵기 | `handoffs/2026-09/2026-09-06-english-table-question.md` |
 | `HANDOFF-2026-038` | Claude | 영어 과목 조판의 토대 (실물 대조) | `handoffs/2026-09/2026-09-03-english-subject-foundation.md` |
 | `HANDOFF-2026-039` | Claude | 지문 문단 모델 — 문단마다 첫 줄 들여쓰기 | `handoffs/2026-09/2026-09-03-passage-paragraph-model.md` |
