@@ -65,9 +65,21 @@ python3 experiments/hwp-export/document_to_hwpx.py \
 
 **열린 이슈 없음.**
 
-▶ **범용성 작업 — 설계 확정, 1단계 착수 가능**
+▶ **범용성 작업 — 1단계 완료.** 다음은 2단계(인앱 브라우저 · `pagehide`)다.
 ([`docs/CROSS-PLATFORM-DESIGN.md`](docs/CROSS-PLATFORM-DESIGN.md) · `-050` → 검토 `-051`(Codex)
-→ 반영 `-052`). 다음은 **1단계: 세 엔진(chromium/webkit/**firefox**) × 모바일 뷰포트 연기 검사**다.
+→ 반영 `-052` → 1단계 `-053`).
+
+**`npm run test:cross`** 가 chromium·webkit·firefox × 데스크톱·태블릿·휴대폰으로
+가져오기 → 편집 → 인쇄본 조립을 돌린다(`check:fast` 에는 크로미움만 = `test:cross:fast`).
+⚠️ **자기검사가 검사 안에 들어 있다** — 화면에 고장을 심고 대응 항목이 빨간불이 되는지
+스스로 본다(7개). 항목을 더하면 `BREAKS` 에도 함께 더할 것.
+⚠️ **CI 는 브라우저 설치를 `check:fast` 앞에 둔다.** 뒤에 두면 건너뛰기만 하고 아무것도
+검사하지 않는다.
+⚠️ **선택적 CDN 라이브러리는 있는지 확인하고 쓴다** — `renderEditor()` 가 `new Sortable()`
+을 맨몸으로 불러 CDN 차단 망에서 **편집기가 통째로 안 그려졌다**(`REV-2026-023`).
+`makeSortable()` 을 거칠 것. 편의 기능 하나가 본체를 멈추면 안 된다.
+**잰 것(아직 안 고침)**: 핵심 단추가 **34px** 로 44px 터치 목표 미만 — 세 엔진 모두
+같으므로 우리 CSS다. 3단계에서 화면을 보고 고친다.
 ⚠️ **Playwright 의 WebKit 은 실제 iOS 사파리도 카카오 WebView 도 아니다.** 그 검사는 공통
 DOM·CSS·JS 회귀를 잡는 1차선일 뿐이고, 인증·다운로드·키보드·safe-area 의 **완료 판정에는
 실제 기기가 필요하다.** 자동 검사가 초록불이라고 '모바일 대응 완료' 라고 쓰지 말 것.

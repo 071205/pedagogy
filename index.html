@@ -1629,6 +1629,20 @@ function warnOnce(key,msg){
 }
 function clearWarn(key){ warnedOnce.delete(key); }
 
+/* ⚠️ **SortableJS 는 CDN 에서 온다. 없을 수 있다.**(학교·기업 망의 CDN 차단, 느린 회선)
+   예전에는 `renderEditor()` 가 `new Sortable(...)` 를 맨몸으로 불러, 라이브러리가 없으면
+   **`ReferenceError` 로 편집기가 통째로 안 그려졌다.** 순서 바꾸기는 편의 기능이고
+   편집기는 본체다 — 없으면 순서 바꾸기만 포기한다. `npm run test:cross` 가 CDN 을 막고 본다. */
+function makeSortable(el, opts, why){
+  if(!el) return null;
+  if(typeof Sortable==="undefined"){
+    warnOnce("sortable","순서 바꾸기 기능을 불러오지 못했어요 · 나머지 편집은 그대로 됩니다");
+    return null;
+  }
+  try{ return new Sortable(el, opts); }
+  catch(e){ console.error("순서 바꾸기 초기화 실패("+why+")", e); return null; }
+}
+
 /* 비침습 토스트 알림 (alert 대체용). type: ''|'success'|'error' */
 function toast(msg, type=""){
   let host=document.getElementById("toastHost");
@@ -3472,14 +3486,14 @@ function setOrderMode(on){
   orderMode=on; renderQList();
   if(on){
     if(sortableQ) sortableQ.destroy();
-    sortableQ=new Sortable($("#qList"),{
+    sortableQ=makeSortable($("#qList"),{
       handle:".drag-handle", animation:150,
       onEnd:e=>{
         const arr=activeProblems();
         arr.splice(e.newIndex,0,arr.splice(e.oldIndex,1)[0]);
         saveSets(); renderQList(); renderPreview();
       }
-    });
+    }, "문항 목록");
   }else if(sortableQ){ sortableQ.destroy(); sortableQ=null; }
 }
 $("#orderBtn").onclick=()=>setOrderMode(!orderMode);
@@ -4325,7 +4339,7 @@ function renderEditor(){
   area.querySelectorAll("textarea").forEach(autoSizeTA);
 
   if(sortableBlocks) sortableBlocks.destroy();
-  sortableBlocks=new Sortable($("#blocksArea"),{
+  sortableBlocks=makeSortable($("#blocksArea"),{
     handle:".blk-handle", animation:150,
     draggable:".block",              // 삽입 지점은 끌리지 않게
     onEnd:()=>{
@@ -4337,7 +4351,7 @@ function renderEditor(){
       if(order.length===q.blocks.length) q.blocks=order;
       saveSets(); renderEditor(); renderPreview();
     }
-  });
+  }, "블록");
 
   $("#addBlockBtn").onclick=()=>{
     const type=$("#blockType").value;

@@ -24,10 +24,15 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
-      - name: Fast code, fixture, and configuration checks
-        run: npm run check:fast
-      - name: Install fixed Chromium for visual regression
+      # ⚠️ **설치가 `check:fast` 보다 먼저 와야 한다.** `check:fast` 안의
+      #    `test:cross:fast` 가 실제 브라우저를 띄운다 — 뒤에 두면 건너뛰기만 하고
+      #    아무것도 검사하지 않는다(그리고 `XPLAT_REQUIRE=1` 이라 실패한다).
+      - name: Install fixed Chromium
         run: npx playwright install --with-deps chromium
+      - name: Fast code, fixture, and configuration checks
+        env:
+          XPLAT_REQUIRE: "1"        # 건너뜀은 통과가 아니다
+        run: npm run check:fast
       # ⚠️ 기준 시각본은 **만든 OS 별로** 있다(`visual-baseline/<platform>/`).
       #    지금 저장소에는 맥(`darwin/`) 것만 있어서, 이 리눅스 러너에서는 비교를
       #    ⏭ 로 건너뛴다. 글리프 래스터화가 OS 마다 달라 맥 기준본과 견주면 글자마다
@@ -53,6 +58,30 @@ jobs:
         run: python3 -c 'from pathlib import Path; compile(Path("serve.py").read_text(encoding="utf-8"), "serve.py", "exec")'
       - name: Whitespace errors
         run: git diff --check HEAD~1 HEAD
+
+  # ── 환경 연기 검사 (세 엔진 × 세 뷰포트) ────────────────────────────────
+  # 본 검사(verify)는 시간을 아끼려고 **크로미움 하나만** 돈다(`test:cross:fast`).
+  # 세 엔진 전체는 여기서 돈다 — webkit·firefox 바이너리가 200MB 가까워 제품 검사
+  # 작업에 얹으면 매 실행이 그만큼 느려진다.
+  #
+  # ⚠️ **여기가 초록불이어도 '모바일 대응 완료' 가 아니다.** Playwright 의 WebKit 은
+  #    실제 iOS 사파리도 카카오 WebView 도 아니고 firefox 는 데스크톱 엔진이다.
+  #    이것은 공통 DOM·CSS·JS 회귀를 잡는 1차선이다
+  #    (`docs/CROSS-PLATFORM-DESIGN.md` §7).
+  cross-platform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - name: Install all three engines
+        run: npx playwright install --with-deps chromium webkit firefox
+      - name: Cross-platform smoke matrix
+        env:
+          XPLAT_REQUIRE: "1"
+        run: npm run test:cross
 
   # ── 한글(HWPX) 내보내기 — 베타 ──────────────────────────────────────────
   # 본 검사(verify)와 **분리된 작업**이다. 변환기 XML 의존성(lxml)은 제품 의존성이
