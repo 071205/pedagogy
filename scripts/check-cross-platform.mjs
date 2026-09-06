@@ -122,15 +122,34 @@ async function probes(page, vp, seen) {
   const off = btns.filter(b => !b.missing && !b.inView);
   add("핵심 단추가 화면 안", off.length === 0, off.map(b => `${b.id}(${b.w}×${b.h})`).join(", "));
 
-  const saved = await page.evaluate(async () => {
-    const q = activeQ(); const mark = "연기" + Date.now();
-    q.title = mark; saveSets();
-    document.dispatchEvent(new Event("visibilitychange"));
-    window.dispatchEvent(new Event("pagehide"));
-    await new Promise(r => setTimeout(r, 300));
-    try { return (localStorage.getItem(setsKey()) || "").includes(mark); } catch { return "저장소없음"; }
-  });
-  add("창이 숨겨질 때 저장", saved === true, String(saved));
+  /* ⚠️ 두 이벤트를 **따로** 본다. 함께 쏘면 하나가 죽어도 다른 하나가 가려 준다 —
+     `pagehide` 를 새로 넣은 이유(iOS 사파리가 `beforeunload` 를 건너뛴다)가 통째로
+     검사되지 않는다. 디바운스 저장이 먼저 끼어들지 않게 **타이머를 끄고** 잰다. */
+  for (const [ev, on] of [["visibilitychange", "document"], ["pagehide", "window"]]) {
+    const r = await page.evaluate(async ([ev, on]) => {
+      const q = activeQ(); const mark = "연기" + ev + Date.now();
+      /* ⚠️ **디바운스(150ms)가 대신 저장해 이 검사를 헛돌게 만든다.** 처음에 250ms 를
+         기다렸더니 `pagehide` 청취를 **소스에서 지워도 통과**했다 — 그 사이 디바운스
+         타이머가 먼저 써 버렸기 때문이다. 그래서 이렇게 잰다:
+           ① 편집하고 `saveSets()` — 타이머가 걸린다(아직 안 썼다)
+           ② 저장소를 비운다
+           ③ 이벤트를 쏜다 — 핸들러의 `flushLocal()` 은 **동기**다
+           ④ **기다리지 않고 바로** 읽는다 — 타이머는 아직 안 돌았다
+         `localDirty` 가 살아 있어야 `flushLocal()` 이 실제로 쓰므로 ①과 ③ 사이에
+         다른 저장이 끼면 안 된다. */
+      q.title = mark; saveSets();
+      try { localStorage.setItem(setsKey(), "{}"); } catch { return "저장소없음"; }
+      const desc = Object.getOwnPropertyDescriptor(Document.prototype, "visibilityState");
+      if (ev === "visibilitychange") Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "hidden" });
+      try { (on === "document" ? document : window).dispatchEvent(new Event(ev)); }
+      finally {
+        if (ev === "visibilitychange") { delete document.visibilityState;
+          if (desc) Object.defineProperty(Document.prototype, "visibilityState", desc); }
+      }
+      try { return (localStorage.getItem(setsKey()) || "").includes(mark); } catch { return "저장소없음"; }
+    }, [ev, on]);
+    add(`${ev} 로 편집분이 로컬에 남는다`, r === true, String(r));
+  }
 
   add("스크립트 오류 없음", seen.pageErrors.length === 0, seen.pageErrors.slice(0, 2).join(" | "));
 
@@ -212,8 +231,12 @@ const BREAKS = [
       t.style.cssText += ";position:fixed;top:0;left:0;right:0;height:400px;z-index:9999"; }) },
   { key: "핵심 단추가 화면 안", 이름: "핵심 단추를 화면 밖으로 밀면",
     run: p => p.evaluate(() => { document.getElementById("printBtn").style.cssText += ";position:fixed;left:-500px"; }) },
-  { key: "창이 숨겨질 때 저장", 이름: "숨김 저장을 끊으면",
-    run: p => p.evaluate(() => { window.flushLocal = () => true; window.writeLocalNow = () => true; window.saveSets = () => {}; }) },
+  /* ⚠️ 저장 경로를 끊으면 **두 항목이 모두** 빨간불이어야 한다. 하나만 빨개지면 나머지
+     하나는 다른 이유로 통과하고 있다는 뜻이다(예: 디바운스가 대신 저장). */
+  { key: "visibilitychange 로 편집분이 로컬에 남는다", 이름: "숨김 저장을 끊으면 (visibilitychange)",
+    run: p => p.evaluate(() => { window.flushLocal = () => true; window.writeLocalNow = () => true; }) },
+  { key: "pagehide 로 편집분이 로컬에 남는다", 이름: "숨김 저장을 끊으면 (pagehide)",
+    run: p => p.evaluate(() => { window.flushLocal = () => true; window.writeLocalNow = () => true; }) },
   { key: "스크립트 오류 없음", 이름: "스크립트 오류를 내면",
     run: p => p.evaluate(() => { setTimeout(() => { throw new Error("자기검사용 고의 오류"); }, 0); }) },
 ];

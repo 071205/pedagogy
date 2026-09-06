@@ -3241,6 +3241,12 @@ window.addEventListener('beforeunload',(e)=>{
   e.preventDefault();
   e.returnValue='';
 });
+/* ⚠️ **iOS 사파리는 `beforeunload` 를 자주 건너뛴다**(탭 폐기·앱 전환·bfcache).
+   `pagehide` 를 **동기 로컬 저장의 보조 경로로만** 더한다.
+   ⚠️ 여기서 비동기 클라우드 저장이 끝난다고 가정하지 않는다 — `pagehide` 도
+   `visibilitychange` 도 모바일에서 완전한 종료 보장이 아니다. 데이터 안전의 주 수단은
+   편집 중 잦은 저장(150ms 디바운스) · 저장 상태 표시 · 로그인 · JSON 내보내기다. */
+window.addEventListener('pagehide',()=>{ flushLocal(); });
 /* 탭을 숨기거나 앱을 전환할 때는 경고 없이 곧바로 올린다(모바일에서 중요) */
 document.addEventListener('visibilitychange',()=>{
   if(document.visibilityState==='hidden') flushLocal();
@@ -5828,6 +5834,63 @@ $("#copyPrompt").onclick=()=>{
 function cssVarSet(n,v){ document.documentElement.style.setProperty(n,v); }
 /* 로그인 실패 사유를 사람 말로. 'Firebase: Error (auth/internal-error)' 를
    그대로 보여주면 무엇을 해야 할지 알 수가 없다. */
+/* ── 앱 안의 브라우저(인앱 WebView) ────────────────────────────────────────
+ *
+ * 지인에게 링크를 주면 한국에서는 대부분 **카카오톡으로** 간다. 카톡에서 링크를 누르면
+ * 카톡의 WebView 가 열리는데, **구글이 WebView 에서의 OAuth 를 구글 쪽에서 막는다.**
+ * 팝업이든 리디렉션이든 똑같이 막히므로 우리 폴백으로는 넘을 수 없다.
+ *
+ * ⚠️ **capability 로 알아낼 방법이 없다.** 그래서 UA 문자열을 보는데, UA 는 낡고 새 앱은
+ *    못 잡고 오탐도 난다. 그래서 이렇게 쓴다:
+ *      · 감지되면 **미리** 안내를 띄우되 **로그인 버튼은 그대로 둔다**
+ *      · **최종 판정은 실제 인증 오류 코드**로 한다(`authErrorMessage`)
+ *    감지 실패로 멀쩡한 브라우저에서 로그인이 사라지는 쪽이 훨씬 나쁘다.
+ *
+ * ⚠️ `document-editor.html` 도 **같은 갈래**를 써야 한다. 한쪽만 고치면 그 화면에서만
+ *    사용자가 이유를 모른 채 막힌다(이 저장소가 반복해서 겪은 실패 방식 2번).
+ */
+const IN_APP_BROWSERS=[
+  [/KAKAOTALK/i,"카카오톡"], [/NAVER\(inapp/i,"네이버 앱"], [/DaumApps/i,"다음 앱"],
+  [/Instagram/i,"인스타그램"], [/\bFBAN\b|\bFBAV\b/i,"페이스북"],
+  [/\bLine\//i,"라인"], [/\bBAND\b/i,"밴드"],
+];
+function inAppBrowserName(ua){
+  const s=typeof ua==="string" ? ua : (navigator.userAgent||"");
+  for(const [re,name] of IN_APP_BROWSERS) if(re.test(s)) return name;
+  return "";
+}
+/* 인앱에서 밖으로 나가는 길. 안드로이드는 크롬을 직접 열 수 있고, iOS 는 방법이 없어
+   주소를 복사해 주는 것이 최선이다. ⚠️ 주소 복사도 실패할 수 있으므로(권한·문맥)
+   실패하면 주소를 그대로 보여 준다. */
+function openOutsideHint(){
+  const url=location.href;
+  if(/Android/i.test(navigator.userAgent||"")){
+    const noScheme=url.replace(/^https?:\/\//,"");
+    location.href=`intent://${noScheme}#Intent;scheme=https;package=com.android.chrome;end`;
+    return "크롬을 여는 중이에요";
+  }
+  try{
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(url);
+      return "주소를 복사했어요 · 사파리에 붙여넣어 열어 주세요";
+    }
+  }catch(e){ console.warn("주소 복사 실패", e); }
+  return `사파리에서 열어 주세요: ${url}`;
+}
+
+/* 인앱 브라우저 안내 줄 — 로그인 버튼 **옆에** 둔다(버튼을 없애지 않는다). */
+function showInAppNotice(name){
+  const box=$("#authLoggedOut"); if(!box || $("#inAppNotice")) return;
+  const wrap=el("div"); wrap.id="inAppNotice";
+  wrap.style.cssText="font-size:12px;color:var(--text-secondary);margin-top:6px;line-height:1.5";
+  const btn=el("button","btn-ghost"); btn.textContent="밖에서 열기";
+  btn.style.cssText="font-size:12px;height:26px;padding:0 8px;margin-left:6px";
+  btn.onclick=()=>toast(openOutsideHint());
+  wrap.append(document.createTextNode(`${name} 안에서는 구글 로그인이 막힐 수 있어요`));
+  wrap.append(btn);
+  box.append(wrap);
+}
+
 function authErrorMessage(e){
   const c=(e&&e.code)||"";
   if(c==="auth/cancelled-popup-request") return "";              // 연속 클릭 — 조용히 무시
@@ -5835,6 +5898,13 @@ function authErrorMessage(e){
   if(c==="auth/popup-blocked")           return "브라우저가 로그인 창을 막았어요 · 팝업을 허용해 주세요";
   if(c==="auth/unauthorized-domain")     return `이 주소(${location.hostname})는 Firebase 승인된 도메인이 아니에요`;
   if(c==="auth/network-request-failed")  return "네트워크에 연결하지 못했어요 · 잠시 후 다시 시도해 주세요";
+  /* ⚠️ **최종 판정은 여기서 한다.** UA 감지는 미리 알려 주는 힌트일 뿐이라, 감지에
+     실패한 앱에서도 이 갈래가 사용자를 건져 준다. */
+  const app=inAppBrowserName();
+  if(c==="auth/operation-not-supported-in-this-environment")
+    return (app?`${app} 안에서는`:"이 브라우저에서는")+" 구글 로그인을 쓸 수 없어요 · 사파리나 크롬에서 열어 주세요";
+  if(app && (c==="auth/internal-error"||c==="auth/popup-blocked"||c==="auth/network-request-failed"))
+    return `${app} 안에서는 구글 로그인이 막혀요 · 사파리나 크롬에서 열어 주세요`;
   if(c==="auth/internal-error")          return "로그인 처리 중 오류가 났어요 · 새로고침 후 다시 시도해 주세요";
   return "로그인에 실패했어요: "+((e&&e.message)||c||"알 수 없는 오류");
 }
@@ -5887,7 +5957,12 @@ $("#loginBtn").onclick=async ()=>{
        auth/internal-error 나 auth/popup-blocked 로 떨어진다. 이때는 팝업 대신
        '이 창에서 이동' 방식으로 한 번 더 시도한다. 돌아오면 onAuthStateChanged
        가 알아서 로그인 상태를 잡는다. */
-    if(c==="auth/internal-error"||c==="auth/popup-blocked"){
+    /* ⚠️ **앱 안의 브라우저에서는 리디렉션을 타지 않는다.** 구글이 WebView 자체를
+       막으므로 리디렉션도 똑같이 실패하는데, 그 사이 화면만 떠났다가 돌아와
+       "눌렀는데 아무 일도 안 일어난다" 로 보인다. 바로 안내로 간다. */
+    const inApp=inAppBrowserName();
+    if(inApp) showInAppNotice(inApp);
+    if(!inApp && (c==="auth/internal-error"||c==="auth/popup-blocked")){
       try{
         authRedirecting=true;
         toast("로그인 창을 열 수 없어 이 창에서 진행할게요");
@@ -5951,6 +6026,9 @@ const onAuth=async (user)=>{
     $("#authLoggedOut").style.display="block";
     $("#authLoggedIn").style.display="none";
     updatePlanBadge(null);
+    /* ⚠️ 안내만 붙이고 **로그인 버튼은 그대로 둔다** — 감지는 힌트일 뿐이다. */
+    const app=inAppBrowserName();
+    if(app) showInAppNotice(app);
   }
 
   const uid=user?user.uid:null;

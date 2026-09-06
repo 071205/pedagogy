@@ -104,4 +104,32 @@ if (await exists("experiments/hwp-export/samples/choice-layout-truth.json")) {
     + "UPDATE_HWPX_TRUTH=1 node scripts/check-hwpx-parity.mjs 를 실행하세요");
 }
 
+// ── 인앱 브라우저 목록이 두 화면에서 같은가 ────────────────────────────────
+// 빌드 단계가 없어 `index.html` 과 `document-editor.html` 이 각자 사본을 안고 있다.
+// ⚠️ **사본은 갈라진다.** 한쪽에만 새 앱을 더하면 그 화면에서만 사용자가 이유를 모른 채
+//    막힌다 — 이 저장소가 반복해서 겪은 실패 방식 2번(한 곳만 고쳤다)이다.
+{
+  const docEditor = await text("document-editor.html");
+  const listOf = (src, where) => {
+    const m = src.match(/const IN_APP_BROWSERS\s*=\s*\[([\s\S]*?)\];/);
+    assert.ok(m, `${where} 에 IN_APP_BROWSERS 목록이 없습니다`);
+    // 정규식 자체가 아니라 **잡아내는 앱 이름**을 견준다(공백·순서 차이에 흔들리지 않게)
+    return [...m[1].matchAll(/"([^"]+)"/g)].map((x) => x[1]).sort();
+  };
+  const a = listOf(index, "index.html");
+  const b = listOf(docEditor, "document-editor.html");
+  assert.ok(a.length >= 3, "인앱 브라우저 목록이 너무 짧습니다 — 아무것도 잡지 못합니다");
+  assert.deepEqual(a, b,
+    "인앱 브라우저 목록이 두 화면에서 다릅니다 — 한쪽에만 더하면 그 화면에서만 막힙니다: "
+    + `index=${a.join(",")} / document=${b.join(",")}`);
+  // ⚠️ 감지는 **힌트일 뿐**이고 로그인 버튼을 없애면 안 된다(오탐 시 멀쩡한 브라우저에서
+  //    로그인이 사라진다). 두 화면 모두 최종 판정을 오류 코드로 하는지 본다.
+  for (const [src, where] of [[index, "index.html"], [docEditor, "document-editor.html"]]) {
+    assert.match(src, /auth\/operation-not-supported-in-this-environment/,
+      `${where} 는 지원되지 않는 환경의 인증 오류 코드를 갈래로 다뤄야 합니다`);
+  }
+  assert.doesNotMatch(index, /loginBtn"\)\.(disabled\s*=\s*true|remove\(\))/,
+    "인앱 감지로 로그인 버튼을 없애면 안 됩니다 — 감지는 힌트일 뿐입니다");
+}
+
 console.log("Commercial static checks passed");

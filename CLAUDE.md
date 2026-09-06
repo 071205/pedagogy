@@ -65,7 +65,7 @@ python3 experiments/hwp-export/document_to_hwpx.py \
 
 **열린 이슈 없음.**
 
-▶ **범용성 작업 — 1단계 완료.** 다음은 2단계(인앱 브라우저 · `pagehide`)다.
+▶ **범용성 작업 — 2단계까지 완료.** 다음은 3단계(터치: 34px 터치 목표 · Sortable 터치 옵션)다.
 ([`docs/CROSS-PLATFORM-DESIGN.md`](docs/CROSS-PLATFORM-DESIGN.md) · `-050` → 검토 `-051`(Codex)
 → 반영 `-052` → 1단계 `-053`).
 
@@ -80,6 +80,19 @@ python3 experiments/hwp-export/document_to_hwpx.py \
 `makeSortable()` 을 거칠 것. 편의 기능 하나가 본체를 멈추면 안 된다.
 **잰 것(아직 안 고침)**: 핵심 단추가 **34px** 로 44px 터치 목표 미만 — 세 엔진 모두
 같으므로 우리 CSS다. 3단계에서 화면을 보고 고친다.
+
+⚠️ **인앱 브라우저(카톡 등)에서는 구글 로그인이 막힌다** — 구글이 WebView 를 막는 것이라
+팝업도 리디렉션도 안 된다. `inAppBrowserName()` 이 감지해 안내를 띄우지만 **감지는 힌트일
+뿐이고 로그인 버튼은 절대 없애지 않는다**(오탐 시 멀쩡한 브라우저에서 로그인이 사라진다).
+최종 판정은 `authErrorMessage()` 의 오류 코드다. **목록은 `index.html` 과
+`document-editor.html` 두 곳에 있고 `check:static` 이 대조한다** — 한쪽만 고치지 말 것.
+
+⚠️ **저장 이벤트 검사를 만들 때 디바운스(150ms)에 속지 말 것.** `pagehide` 검사를 만들고
+통과를 봤는데 **소스에서 청취를 지워도 계속 통과**했다 — 250ms 기다리는 사이 디바운스
+타이머가 먼저 썼기 때문이다. 이벤트를 쏘고 **기다리지 않고 바로** 읽어야 그 이벤트를 잰다.
+그리고 **두 이벤트를 함께 쏘면 안 된다**(하나가 죽어도 다른 하나가 가린다).
+⚠️ `visibilitychange` 는 **합성 이벤트만으로는 아무 일도 안 한다** — 핸들러가
+`document.visibilityState==='hidden'` 을 보므로 그 값을 잠깐 덮어써야 한다.
 ⚠️ **Playwright 의 WebKit 은 실제 iOS 사파리도 카카오 WebView 도 아니다.** 그 검사는 공통
 DOM·CSS·JS 회귀를 잡는 1차선일 뿐이고, 인증·다운로드·키보드·safe-area 의 **완료 판정에는
 실제 기기가 필요하다.** 자동 검사가 초록불이라고 '모바일 대응 완료' 라고 쓰지 말 것.

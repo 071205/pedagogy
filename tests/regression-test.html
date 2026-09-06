@@ -1297,6 +1297,46 @@ async function runIndexTests(){
     return !!ft && ft.textContent.includes("PEDAGOGY") && ft.textContent.includes(year);
   });
 
+  /* ── 앱 안의 브라우저(인앱 WebView) 감지 ──
+     ⚠️ 감지는 **힌트일 뿐**이다. 최종 판정은 실제 인증 오류 코드로 한다.
+     그래서 검사도 둘 다 본다 — 이름을 맞게 집는가, 그리고 **오탐하지 않는가**. */
+  const UA_SAMPLES = [
+    ["Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 KAKAOTALK 10.4.5", "카카오톡"],
+    ["Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36 NAVER(inapp; search; 1200; 12.5.2)", "네이버 앱"],
+    ["Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Instagram 302.0.0.23.113", "인스타그램"],
+    ["Mozilla/5.0 (iPhone) AppleWebKit/605.1.15 [FBAN/FBIOS;FBAV/440.0.0.32.108]", "페이스북"],
+    ["Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Line/13.5.0", "라인"],
+  ];
+  const UA_CLEAN = [
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Version/17.0 Safari/605.1.15",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Version/17.0 Mobile/15E148 Safari/604.1",
+    "Mozilla/5.0 (Linux; Android 14; SM-S918N) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36 SamsungBrowser/23.0",
+  ];
+
+  await check(G, "inAppBrowserName() 이 알려진 인앱을 집어낸다", () => {
+    const miss = UA_SAMPLES.filter(([ua, want]) => win.inAppBrowserName(ua) !== want);
+    return { pass: miss.length === 0, note: miss.map(([, w]) => w).join(", ") };
+  });
+
+  await check(G, "inAppBrowserName() 이 평범한 브라우저를 오탐하지 않는다", () => {
+    /* ⚠️ 오탐이 미탐보다 나쁘다 — 멀쩡한 사파리·크롬·삼성인터넷 사용자에게
+       "여기선 로그인이 안 돼요" 라고 말하게 된다. */
+    const wrong = UA_CLEAN.filter(ua => win.inAppBrowserName(ua) !== "");
+    return { pass: wrong.length === 0, note: wrong.map(u => win.inAppBrowserName(u)).join(", ") };
+  });
+
+  await check(G, "지원되지 않는 환경의 인증 오류가 '밖에서 열라' 로 안내된다", () => {
+    const msg = win.authErrorMessage({ code: "auth/operation-not-supported-in-this-environment" });
+    return { pass: /사파리|크롬/.test(msg), note: msg };
+  });
+
+  await check(G, "인앱 감지로 로그인 버튼을 없애지 않는다", () => {
+    /* 감지가 틀렸을 때도 사용자가 스스로 시도할 길은 남아 있어야 한다. */
+    const btn = win.document.getElementById("loginBtn");
+    return { pass: !!btn && !btn.disabled, note: btn ? `disabled=${btn.disabled}` : "버튼 없음" };
+  });
+
   /* ── 인쇄본의 그림을 기다린 뒤에 재는가 ──
      인쇄본의 <img> 는 대부분 여기서 **처음** 받아 온다(미리보기는 지금 문항
      하나만 그린다). 아직 안 온 그림은 높이가 0 이라, 그 상태로 fitPrintDoc()
