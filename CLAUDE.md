@@ -65,6 +65,11 @@ python3 experiments/hwp-export/document_to_hwpx.py \
 
 **열린 이슈 없음.**
 
+▶ **검토 대기 중 — 범용성 설계안**([`docs/CROSS-PLATFORM-DESIGN.md`](docs/CROSS-PLATFORM-DESIGN.md),
+`HANDOFF-2026-050`). 윈도우·모바일·패드·인앱 브라우저에서 무엇이 깨지는지 코드에서 확인해
+적었다. **코덱스 회신 전에는 §2~§6 의 코드를 고치지 않는다** — 재현 수단(1단계: 세 엔진 +
+모바일 뷰포트 연기 검사)이 먼저다.
+
 ⚠️ **`main` 에 아직 안 올라간 작업이 있을 수 있다.** 새 세션이면 먼저 확인할 것:
 ```bash
 git status -sb && git log --oneline main..HEAD

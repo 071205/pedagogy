@@ -96,6 +96,7 @@
 | `HANDOFF-2026-047` | Claude | 인쇄 속도 실측 · 그림 도착 전 측정 결함 | `handoffs/2026-09/2026-09-06-print-speed.md` |
 | `HANDOFF-2026-048` | Codex | 이미 실패한 그림의 인쇄 대기 제거 | `handoffs/2026-09/2026-09-06-print-broken-image-wait.md` |
 | `HANDOFF-2026-049` | Claude | 발문 별행 수식의 탭(14.11mm)과 왼쪽 정렬 | `handoffs/2026-09/2026-09-07-stem-display-eq-tab.md` |
+| `HANDOFF-2026-050` | Claude | **범용성(플랫폼·기기) 설계안 — 검토 요청** | `handoffs/2026-09/2026-09-07-cross-platform-design.md` |
 | `HANDOFF-2026-046` | Claude | 영어 표 문항 (10번) + 표 머리글 굵기 | `handoffs/2026-09/2026-09-06-english-table-question.md` |
 | `HANDOFF-2026-038` | Claude | 영어 과목 조판의 토대 (실물 대조) | `handoffs/2026-09/2026-09-03-english-subject-foundation.md` |
 | `HANDOFF-2026-039` | Claude | 지문 문단 모델 — 문단마다 첫 줄 들여쓰기 | `handoffs/2026-09/2026-09-03-passage-paragraph-model.md` |
