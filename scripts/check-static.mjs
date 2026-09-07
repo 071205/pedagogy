@@ -104,32 +104,74 @@ if (await exists("experiments/hwp-export/samples/choice-layout-truth.json")) {
     + "UPDATE_HWPX_TRUTH=1 node scripts/check-hwpx-parity.mjs 를 실행하세요");
 }
 
-// ── 인앱 브라우저 목록이 두 화면에서 같은가 ────────────────────────────────
+// ── 인앱 로그인 안내가 두 화면에서 **같게 동작하는가** ────────────────────
 // 빌드 단계가 없어 `index.html` 과 `document-editor.html` 이 각자 사본을 안고 있다.
-// ⚠️ **사본은 갈라진다.** 한쪽에만 새 앱을 더하면 그 화면에서만 사용자가 이유를 모른 채
-//    막힌다 — 이 저장소가 반복해서 겪은 실패 방식 2번(한 곳만 고쳤다)이다.
+// ⚠️ **사본은 갈라진다.** 처음에는 앱 이름 목록만 견줬는데 — 그것으로는
+//    **갈래 순서가 어긋난 것을 못 잡았다.** 같은 카톡 + `auth/popup-blocked` 인데
+//    본체는 "팝업을 허용해 주세요"(인앱에는 허용할 설정이 없다), 문서 편집기는
+//    "사파리나 크롬에서 열어 주세요" 라고 했다(`REV-2026-026`).
+//    그래서 이제 **두 구현을 실제로 실행해** UA × 오류코드 표를 통째로 견준다.
 {
   const docEditor = await text("document-editor.html");
-  const listOf = (src, where) => {
-    const m = src.match(/const IN_APP_BROWSERS\s*=\s*\[([\s\S]*?)\];/);
-    assert.ok(m, `${where} 에 IN_APP_BROWSERS 목록이 없습니다`);
-    // 정규식 자체가 아니라 **잡아내는 앱 이름**을 견준다(공백·순서 차이에 흔들리지 않게)
-    return [...m[1].matchAll(/"([^"]+)"/g)].map((x) => x[1]).sort();
+
+  // 두 파일에서 함수 원문을 그대로 떼어 낸다(사본이 아니라 **그 파일의 코드**를 잰다)
+  const grab = (src, name, where) => {
+    const re = new RegExp(`(?:const ${name}\\s*=\\s*\\[[\\s\\S]*?\\];|function ${name}\\([\\s\\S]*?\\n\\})`);
+    const m = src.match(re);
+    assert.ok(m, `${where} 에 ${name} 이 없습니다`);
+    return m[0];
   };
-  const a = listOf(index, "index.html");
-  const b = listOf(docEditor, "document-editor.html");
-  assert.ok(a.length >= 3, "인앱 브라우저 목록이 너무 짧습니다 — 아무것도 잡지 못합니다");
-  assert.deepEqual(a, b,
-    "인앱 브라우저 목록이 두 화면에서 다릅니다 — 한쪽에만 더하면 그 화면에서만 막힙니다: "
-    + `index=${a.join(",")} / document=${b.join(",")}`);
-  // ⚠️ 감지는 **힌트일 뿐**이고 로그인 버튼을 없애면 안 된다(오탐 시 멀쩡한 브라우저에서
-  //    로그인이 사라진다). 두 화면 모두 최종 판정을 오류 코드로 하는지 본다.
-  for (const [src, where] of [[index, "index.html"], [docEditor, "document-editor.html"]]) {
-    assert.match(src, /auth\/operation-not-supported-in-this-environment/,
-      `${where} 는 지원되지 않는 환경의 인증 오류 코드를 갈래로 다뤄야 합니다`);
+  const build = (src, where) => {
+    const body = [grab(src, "IN_APP_BROWSERS", where), grab(src, "inAppBrowserName", where),
+                  grab(src, "authErrorMessage", where)].join("\n");
+    // navigator·location 만 갈아 끼우고 실제 코드를 그대로 돌린다
+    return new Function("navigator", "location", `${body}; return {inAppBrowserName, authErrorMessage};`);
+  };
+  const A = build(index, "index.html");
+  const B = build(docEditor, "document-editor.html");
+
+  const UAS = [
+    ["카톡",   "Mozilla/5.0 (iPhone) AppleWebKit/605.1.15 KAKAOTALK 10.4.5"],
+    ["네이버", "Mozilla/5.0 (Linux; Android 14) Chrome/120 NAVER(inapp; search; 1200; 12.5.2)"],
+    ["인스타", "Mozilla/5.0 (iPhone) AppleWebKit/605.1.15 Instagram 302.0.0.23.113"],
+    ["사파리", "Mozilla/5.0 (Macintosh) AppleWebKit/605.1.15 Version/17.0 Safari/605.1.15"],
+    ["크롬",   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36"],
+  ];
+  const CODES = ["auth/popup-blocked", "auth/internal-error", "auth/network-request-failed",
+                 "auth/operation-not-supported-in-this-environment", "auth/popup-closed-by-user",
+                 "auth/cancelled-popup-request", "auth/unauthorized-domain", "auth/weird-unknown"];
+
+  const diffs = [];
+  for (const [label, ua] of UAS) {
+    const loc = { hostname: "example.test", href: "https://example.test/" };
+    const a = A({ userAgent: ua }, loc), b = B({ userAgent: ua }, loc);
+    if (a.inAppBrowserName(ua) !== b.inAppBrowserName(ua))
+      diffs.push(`${label}: 감지 ${a.inAppBrowserName(ua)} ≠ ${b.inAppBrowserName(ua)}`);
+    for (const code of CODES) {
+      const x = a.authErrorMessage({ code }), y = b.authErrorMessage({ code });
+      if (x !== y) diffs.push(`${label} + ${code}\n      index=${x}\n      document=${y}`);
+    }
   }
+  assert.equal(diffs.length, 0,
+    "인앱 로그인 안내가 두 화면에서 다릅니다 — 같은 상황에 다른 말을 하게 됩니다:\n    " + diffs.join("\n    "));
+
+  // 검사가 헛돌지 않는지: 표가 실제로 인앱을 구분하는지 확인한다
+  const probe = A({ userAgent: "Mozilla/5.0 KAKAOTALK" }, { hostname: "x", href: "https://x/" });
+  assert.match(probe.authErrorMessage({ code: "auth/popup-blocked" }), /사파리|크롬/,
+    "인앱에서 팝업 차단은 '밖에서 열라' 로 안내해야 합니다 — 인앱에는 허용할 팝업 설정이 없습니다");
+
+  // ⚠️ 감지는 **힌트일 뿐**이고 로그인 버튼을 없애면 안 된다(오탐 시 멀쩡한 브라우저에서
+  //    로그인이 사라진다).
   assert.doesNotMatch(index, /loginBtn"\)\.(disabled\s*=\s*true|remove\(\))/,
     "인앱 감지로 로그인 버튼을 없애면 안 됩니다 — 감지는 힌트일 뿐입니다");
+
+  // ⚠️ 두 화면 모두 **나갈 길**이 있어야 한다. 안내만 하고 동작이 없으면 소용이 없다.
+  for (const [src, where] of [[index, "index.html"], [docEditor, "document-editor.html"]]) {
+    assert.match(src, /async function openOutsideHint\(/,
+      `${where} 에 '밖에서 열기' 동작이 없습니다 — 안내만 하고 나갈 길이 없습니다`);
+    assert.match(src, /await navigator\.clipboard\.writeText/,
+      `${where} 는 클립보드 Promise 를 기다려야 합니다 — 거부돼도 성공했다고 말하게 됩니다`);
+  }
 }
 
 console.log("Commercial static checks passed");

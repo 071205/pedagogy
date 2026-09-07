@@ -1331,6 +1331,43 @@ async function runIndexTests(){
     return { pass: /사파리|크롬/.test(msg), note: msg };
   });
 
+  await check(G, "인앱 안에서 팝업 차단은 '밖에서 열라' 로 안내한다", () => {
+    /* ⚠️ 인앱 브라우저에는 **허용할 팝업 설정이 없다** — "팝업을 허용해 주세요" 는
+       따라 할 수 없는 안내다. 갈래 순서가 뒤집히면 이 검사가 잡는다(`REV-2026-026`). */
+    const real = win.navigator.userAgent;
+    let msg;
+    try {
+      Object.defineProperty(win.navigator, "userAgent",
+        { configurable: true, get: () => "Mozilla/5.0 (iPhone) AppleWebKit/605.1.15 KAKAOTALK 10.4.5" });
+      msg = win.authErrorMessage({ code: "auth/popup-blocked" });
+    } finally {
+      Object.defineProperty(win.navigator, "userAgent", { configurable: true, get: () => real });
+    }
+    return { pass: /사파리|크롬/.test(msg) && !/팝업을 허용/.test(msg), note: msg };
+  });
+
+  await check(G, "주소 복사가 거부되면 성공했다고 말하지 않는다", async () => {
+    /* ⚠️ `navigator.clipboard.writeText()` 는 Promise 다. 기다리지 않으면 **거부돼도
+       "복사했어요"** 를 돌려준다 — 밖으로 나가야 하는 사람이 주소를 못 얻는다
+       (`REV-2026-024`, Codex). 거부되면 **주소를 그대로 보여 줘야** 한다. */
+    const orig = Object.getOwnPropertyDescriptor(win.navigator, "clipboard");
+    const ua = win.navigator.userAgent;
+    try {
+      // 안드로이드면 intent:// 로 화면이 떠나므로 iOS 처럼 보이게 둔다
+      Object.defineProperty(win.navigator, "userAgent",
+        { configurable: true, get: () => "Mozilla/5.0 (iPhone) AppleWebKit/605.1.15 Version/17.0 Safari/604.1" });
+      Object.defineProperty(win.navigator, "clipboard", { configurable: true,
+        get: () => ({ writeText: () => Promise.reject(new DOMException("denied", "NotAllowedError")) }) });
+      const msg = await win.openOutsideHint();
+      return { pass: !/복사했어요/.test(msg) && /https?:\/\//.test(msg),
+               note: msg };
+    } finally {
+      if (orig) Object.defineProperty(win.navigator, "clipboard", orig);
+      else delete win.navigator.clipboard;
+      Object.defineProperty(win.navigator, "userAgent", { configurable: true, get: () => ua });
+    }
+  });
+
   await check(G, "인앱 감지로 로그인 버튼을 없애지 않는다", () => {
     /* 감지가 틀렸을 때도 사용자가 스스로 시도할 길은 남아 있어야 한다. */
     const btn = win.document.getElementById("loginBtn");

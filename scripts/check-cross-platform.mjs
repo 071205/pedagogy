@@ -111,16 +111,25 @@ async function probes(page, vp, seen) {
     add(label, hit === 0, hit === null ? "요소를 못 찾음" : `${hit}px 겹침`);
   }
 
+  /* ⚠️ **처음 만든 판정에는 구멍이 둘 있었다**(`REV-2026-025`, Codex).
+       ① `!b.missing` 으로 **없는 단추를 검사에서 빼** 버렸다 — 단추가 DOM 에서 사라지면
+          초록불이었다. 시끄러운 것을 피하려다 눈을 가린 꼴이다.
+       ② 가로(`left`/`right`)만 보고 **세로를 안 봤다** — `top:-500px` 로 밀어도 통과했다.
+     '없는 것' 과 '못 누르는 것' 은 둘 다 실패다. */
   const btns = await page.evaluate(([ids, min]) => ids.map(id => {
     const e = document.getElementById(id);
-    if (!e) return { id, missing: true };
+    if (!e) return { id, missing: true, inView: false };
     const r = e.getBoundingClientRect();
     return { id, w: Math.round(r.width), h: Math.round(r.height),
-             inView: r.width > 0 && r.left >= -1 && r.right <= window.innerWidth + 1,
+             top: Math.round(r.top), bottom: Math.round(r.bottom),
+             inView: r.width > 0 && r.height > 0
+                  && r.left >= -1 && r.right <= window.innerWidth + 1
+                  && r.top >= -1 && r.bottom <= window.innerHeight + 1,
              small: r.height > 0 && r.height < min };
   }), [KEY_BUTTONS, TOUCH_MIN]);
-  const off = btns.filter(b => !b.missing && !b.inView);
-  add("핵심 단추가 화면 안", off.length === 0, off.map(b => `${b.id}(${b.w}×${b.h})`).join(", "));
+  const off = btns.filter(b => !b.inView);
+  add("핵심 단추가 화면 안", off.length === 0,
+      off.map(b => b.missing ? `${b.id}(없음)` : `${b.id}(${b.w}×${b.h} @${b.top}~${b.bottom})`).join(", "));
 
   /* ⚠️ 두 이벤트를 **따로** 본다. 함께 쏘면 하나가 죽어도 다른 하나가 가려 준다 —
      `pagehide` 를 새로 넣은 이유(iOS 사파리가 `beforeunload` 를 건너뛴다)가 통째로
@@ -229,8 +238,13 @@ const BREAKS = [
   { key: "상단 막대가 본문을 덮지 않는다", 이름: "상단 막대를 본문 위로 덮으면",
     run: p => p.evaluate(() => { const t = document.querySelector(".topbar");
       t.style.cssText += ";position:fixed;top:0;left:0;right:0;height:400px;z-index:9999"; }) },
-  { key: "핵심 단추가 화면 안", 이름: "핵심 단추를 화면 밖으로 밀면",
+  { key: "핵심 단추가 화면 안", 이름: "핵심 단추를 화면 밖(가로)으로 밀면",
     run: p => p.evaluate(() => { document.getElementById("printBtn").style.cssText += ";position:fixed;left:-500px"; }) },
+  /* ⚠️ 아래 둘은 `REV-2026-025` 가 지적한 맹점이다 — 예전 판정은 둘 다 초록불이었다. */
+  { key: "핵심 단추가 화면 안", 이름: "핵심 단추를 화면 밖(세로)으로 밀면",
+    run: p => p.evaluate(() => { document.getElementById("saveBtn").style.cssText += ";position:fixed;top:-500px"; }) },
+  { key: "핵심 단추가 화면 안", 이름: "핵심 단추를 아예 지우면",
+    run: p => p.evaluate(() => { document.getElementById("printBtn").remove(); }) },
   /* ⚠️ 저장 경로를 끊으면 **두 항목이 모두** 빨간불이어야 한다. 하나만 빨개지면 나머지
      하나는 다른 이유로 통과하고 있다는 뜻이다(예: 디바운스가 대신 저장). */
   { key: "visibilitychange 로 편집분이 로컬에 남는다", 이름: "숨김 저장을 끊으면 (visibilitychange)",
