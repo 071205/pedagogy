@@ -776,9 +776,24 @@ own save/load — does not share PEDAGOGY's Firebase storage).
 JSON 을 진짜 브라우저(Playwright)와 파이썬에 넣어 결과를 대조한다(CI 의 `hwpx` 작업에
 `HWPX_REQUIRE=1` 로 걸려 있다). 한쪽만 고치지 말 것.
 
-⚠️ **모의고사(`/hwpx`)는 아직 서버가 필요하다.** 시험지는 실물 틀 파일을 읽어야 하는데
-그 틀이 저장소에 없다(내용을 벗긴 틀로도 결과가 같다는 것은 확인했다 —
-`HANDOFF-2026-029`). AI 문서만 저작물이 아닌 빈 골격을 써서 브라우저만으로 된다.
+⚠️ **시험지 틀은 이제 저장소에 있다** — `experiments/hwp-export/templates/exam-math.hwpx`
+(30KB, `make_exam_template.py` 가 실물에서 만든다). 그래서 `/hwpx` 는 **아무 컴퓨터에서나**
+된다(변환기가 아직 파이썬이라 **서버는 여전히 필요**하다 — 그건 별개 문제다).
+
+⚠️ **틀을 다시 만들 때 `clear_body()` 를 쓰면 안 된다.** 변환기가 본문에서 떠 가는
+이어지는 쪽 머리말·구획 태그 표가 사라지고, 발문 문단이 없어져 **문항 번호가
+13.5pt → 11.5pt** 로 작아진다(실측: `charPrIDRef 23` → `12`). `strip_to_frame()` 이
+**run 단위로** 갈라 틀 개체가 든 run 만 남긴다 — 표제부 표와 1번 발문이, 이어지는 쪽
+머리말과 5번 발문이 **같은 문단**에 있어서 문단 단위로는 못 가른다.
+⚠️ **구조 표시(`1.`·`①`)를 채움글자로 덮지 말 것** — `classify()` 가 그 글자로 문단
+갈래를 읽는다. 낱말만 '가' 로 바꾸고 숫자·마침표·①~⑤ 는 남긴다.
+⚠️ 만든 사람 이름은 본문이 아니라 **개체마다 `<hp:shapeComment>`** 에 박혀 있다(532곳).
+미리보기 글(`PrvText.txt`)에는 **문제 전문**이, 썸네일에는 첫 쪽이 들어 있다.
+`strip_identity()` 가 그 셋과 작성자 메타를 지운다. `make_exam_template.py` 가 만든 뒤
+**다시 훑어 확인한다**(만드는 코드와 확인하는 코드를 갈라 둔다).
+⚠️ 검증: 벗긴 틀로 만든 시험지가 실물 틀로 만든 것과 **section0·section1·header·
+masterpage 전부 바이트까지 같다.** 오히려 **실물 틀로 뽑으면 결과물의 `Preview/` 에
+원본 2025 수능 문제 전문과 썸네일이 실려 나간다** — 결과물로 봐도 벗긴 틀이 낫다.
 
 - **계약이 제품이다.** `document_schema.py` 가 받는 블록만 조판된다. 지금 11종:
   `heading` `paragraph` `equation` `quote` `bullets` `numbered` `table` `image` `box`

@@ -36,7 +36,16 @@ from tex_to_hwp import UnsupportedTex, convert  # noqa: E402
 # 조판 규격을 가져올 곳. 한글이 직접 저장한 .hwpx 가 있으면 그것을 **틀로 통째로** 쓴다
 # (테두리·머리말·탭 정의까지 따라온다). 없으면 .hwp 에서 값만 읽어 빈 문서에 심는다.
 ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_TEMPLATE = ROOT / "평가원 수학 양식.hwpx"
+# ⚠️ **저장소에 들어 있는 벗긴 틀을 먼저 쓴다.** 실물 파일은 남의 문제·도형과 만든 사람
+#    이름(532곳)이 들어 있어 올릴 수 없었고, 그래서 시험지 내보내기는 **그 파일이 있는
+#    컴퓨터에서만** 됐다. `make_exam_template.py` 가 내용을 벗겨 만든 틀은 **같은 시험지를
+#    바이트까지 똑같이** 낸다(section0·section1·header·masterpage 전부 동일 — 실측).
+# ⚠️ 실물로 뽑으면 결과물의 `Preview/` 에 **원본 2025 수능 문제 전문과 썸네일이 실려
+#    나간다.** 벗긴 틀은 그렇지 않다 — 결과물로 봐도 이쪽이 낫다.
+# 실물이 있으면 그것으로 되돌릴 수 있게 남겨 두되, **기본은 저장소의 틀**이다.
+BUNDLED_TEMPLATE = Path(__file__).resolve().parent / "templates" / "exam-math.hwpx"
+LOCAL_TEMPLATE = ROOT / "평가원 수학 양식.hwpx"
+DEFAULT_TEMPLATE = BUNDLED_TEMPLATE if BUNDLED_TEMPLATE.exists() else LOCAL_TEMPLATE
 DEFAULT_REF = ROOT / "2025학년도 수능 수학 문제.hwp"
 
 

@@ -590,6 +590,134 @@ def strip_bindata(doc: HwpxDocument) -> int:
     return gone
 
 
+# ⚠️ **구조 표시는 지우면 안 된다.** `classify()` 가 문단 갈래를 글로 읽는다 —
+#    `1.` 로 시작하면 발문, `①` 이 있으면 선지다. 낱말만 지우고 이 표시는 남긴다.
+#    (처음에 전부 '가' 로 바꿨더니 발문을 못 찾아 **문항 번호가 11.5pt** 로 나왔다.)
+_KEEP_CHARS = set("0123456789.①②③④⑤ \t")
+
+
+def _blank_text(text: str) -> str:
+    """남의 글을 지우되 **길이와 구조 표시는 그대로 둔다**(판정이 글자 수를 센다)."""
+    return "".join(c if c in _KEEP_CHARS else "가" for c in text)
+
+
+# 틀 개체가 든 run 은 건드리지 않는다 — 표제부·이어지는 쪽 머리말·구획 태그의 글자가
+# 그 안에 있고, 그 글자가 있어야 변환기가 역할을 찾는다.
+_FRAME_IN_RUN = {"tbl", "ctrl", "rect", "line", "ellipse", "arc", "polygon",
+                 "curve", "container", "textart", "ole", "chart", "connectLine"}
+
+
+def strip_to_frame(doc: HwpxDocument) -> dict:
+    """배포용 틀을 만든다 — **구조는 그대로 두고 남의 문제 글만 채움글자로 바꾼다.**
+
+    ⚠️ **문단을 지우면 안 된다.** 변환기는 틀에서 역할을 '쓰임' 으로 찾는다:
+         · `num`(문항 번호 13.5pt) — **발문 문단의 첫 run** 이 본문과 다른 것으로 찾는다
+         · `figure` — `<hp:pic` 이 있는 문단의 문단 모양
+         · `note` — "확인 사항" 이 든 문단
+       문단을 지운 틀로는 못 찾아 **문항 번호가 11.5pt 로 작아진다**(실측:
+       `charPrIDRef 23`(13.5pt) → `12`(11.5pt)). 머리말·표 개체도 본문에 있어야
+       `capture_page_headers`·`capture_marks` 가 떠 간다.
+    ⚠️ 판정이 **글자 수**를 세므로 글을 통째로 비우면 그것도 깨진다 — 같은 길이의
+       **채움 글자**로 바꾼다. 길이는 같고 내용은 없다.
+    ⚠️ **문단 단위로 가르면 안 된다.** 표제부 표와 1번 발문이, 이어지는 쪽 머리말과 5번
+       발문이 **같은 문단**에 있다. 문단째 남기면 남의 문제가 딸려 온다(실측 7건).
+       그래서 **run 단위**로 가른다 — 틀 개체가 든 run 만 그대로 둔다.
+    """
+    changed = kept = 0
+    for path in [p for p in doc.list_part_paths()
+                 if p.startswith("Contents/section") and p.endswith(".xml")]:
+        sec = doc.get_part(path)
+        for para in [k for k in sec.root.children if k.local_name == "p"]:
+            for run in [r for r in para.children if r.local_name == "run"]:
+                if any(n.local_name in _FRAME_IN_RUN for n in run.iter()):
+                    kept += 1
+                    continue
+                for node in run.iter():
+                    if node.local_name == "t" and (node.text or ""):
+                        node.text = _blank_text(node.text)
+                        changed += 1
+        sec.mark_modified()
+    return {"바꾼 글 조각": changed, "그대로 둔 run": kept}
+
+
+PNG_1PX = bytes.fromhex(
+    "89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4"
+    "890000000a49444154789c6360000002000100fdff03fd0000000049454e44ae426082")
+
+
+def shrink_images(doc: HwpxDocument) -> int:
+    """틀에 딸려 온 실물 그림을 **1×1 로 바꾼다**(지우지 않는다).
+
+    ⚠️ `strip_bindata()` 처럼 지우면 `<hp:pic` 참조가 끊기고, 무엇보다 변환기가
+       `figure` 역할을 **그림이 있는 문단으로 찾으므로**(`read_roles_by_usage`) 그림이
+       사라지면 그림 문단 모양을 못 찾는다. 파일은 남기되 보이는 것만 없앤다.
+    """
+    n = 0
+    for path in doc.list_part_paths():
+        if path.startswith("BinData/"):
+            doc.get_part(path).raw = PNG_1PX
+            n += 1
+    return n
+
+
+def strip_identity(doc: HwpxDocument) -> list[str]:
+    """틀에서 **누가 만들었고 무엇이 들어 있었는지**를 지운다.
+
+    `clear_body()` 와 `strip_bindata()` 는 본문과 그림을 지우지만, 다음 셋은 남는다 —
+    실측으로 확인했다(2026-09-07):
+
+      · `Preview/PrvText.txt`  — 문서 미리보기 **글**. 2025 수능 문제 전문이 들어 있었다.
+      · `Preview/PrvImage.png` — 첫 쪽 **썸네일**(38KB). 문제가 그대로 보인다.
+      · `Contents/content.hpf` — `lastsaveby`·`creator`·작성 날짜 등 **사람 정보**.
+
+    ⚠️ 지우지 않으면 "내용을 벗겼다" 는 말이 사실이 아니게 된다. 본문만 비우고 배포하면
+       미리보기 글에 문제가 통째로 남는다.
+    ⚠️ 미리보기 파트를 **삭제**하지 않고 **비운다** — `META-INF/container.xml` 이
+       `Preview/PrvText.txt` 를 rootfile 로 가리키고 있어, 지우면 참조가 끊긴다.
+
+    돌려주는 것: 무엇을 지웠는지 적은 목록(사람이 확인할 수 있게).
+    """
+    done: list[str] = []
+
+    if "Preview/PrvText.txt" in doc.list_part_paths():
+        doc.get_part("Preview/PrvText.txt").raw = b""
+        done.append("Preview/PrvText.txt 비움")
+    if "Preview/PrvImage.png" in doc.list_part_paths():
+        # 1×1 흰 픽셀 — 파일은 남기되 보이는 것은 없앤다
+        doc.get_part("Preview/PrvImage.png").raw = bytes.fromhex(
+            "89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4"
+            "890000000a49444154789c6360000002000100fdff03fd0000000049454e44ae426082")
+        done.append("Preview/PrvImage.png 비움")
+
+    # ⚠️ **개체마다 만든 사람 이름이 박혀 있다** — `<hp:shapeComment>` 다. 실측: 남긴 틀
+    #    개체(선·표)에만 16곳이 남아 있었다. 본문을 지운다고 함께 사라지지 않는다.
+    for path in [p for p in doc.list_part_paths()
+                 if p.startswith("Contents/section") and p.endswith(".xml")]:
+        sec = doc.get_part(path)
+        n = 0
+        for node in list(sec.root.iter()):
+            if node.local_name == "shapeComment" and (node.text or "").strip():
+                node.text = ""
+                n += 1
+        if n:
+            sec.mark_modified()
+            done.append(f"{path} shapeComment {n}곳 지움")
+
+    hpf = doc.get_part("Contents/content.hpf")
+    BLANK = {"creator": "", "lastsaveby": "", "date": "", "keyword": "", "subject": ""}
+    for node in list(hpf.root.iter()):
+        if node.local_name == "meta" and node.get_attr("name") in BLANK:
+            name = node.get_attr("name")
+            if (node.text or "").strip():
+                done.append(f"content.hpf {name} 지움")
+            node.text = BLANK[name]
+        if node.local_name == "title" and (node.text or "").strip():
+            node.text = ""
+            done.append("content.hpf title 지움")
+    hpf.mark_modified()
+    return done
+
+
 def open_template(path: Path | str) -> tuple[HwpxDocument, dict]:
     """틀을 열어 본문을 비우고, (문서, 역할→id) 를 준다."""
     path = Path(path)
