@@ -174,4 +174,39 @@ if (await exists("experiments/hwp-export/samples/choice-layout-truth.json")) {
   }
 }
 
+// ── 모바일 뷰포트 높이 단위 ────────────────────────────────────────────────
+// ⚠️ `100vh` 는 모바일에서 실제 보이는 높이보다 크다(주소창). `dvh` 가 답이지만
+//    **`vh` 줄을 폴백으로 앞에 남겨야** 구형 브라우저에서 높이가 사라지지 않는다.
+//    순서가 뒤집히면 최신 브라우저가 `vh` 를 쓰게 되어 고친 의미가 없다.
+{
+  // ⚠️ **주석을 먼저 걷어낸다.** 처음엔 그러지 않아 "100vh 는 …" 이라고 쓴 내 설명
+  //    주석 자체가 걸려 빨간불이 났다. 검사가 코드가 아니라 글을 읽고 있었다.
+  const cssOnly = index.replace(/\/\*[\s\S]*?\*\//g, "");
+  const vhLines = [...cssOnly.matchAll(/^[^\n]*\d+vh[^\n]*$/gm)].map((m) => m[0]);
+  for (const line of vhLines) {
+    assert.ok(/dvh/.test(line),
+      `\`vh\` 를 쓰는 곳에는 \`dvh\` 폴백이 함께 있어야 합니다(모바일 주소창): ${line.trim().slice(0, 90)}`);
+    assert.ok(line.indexOf("vh") < line.lastIndexOf("dvh"),
+      `\`vh\` 가 \`dvh\` 보다 **앞**에 와야 폴백이 됩니다: ${line.trim().slice(0, 90)}`);
+  }
+  assert.ok(vhLines.length >= 4, "vh 를 쓰는 줄을 찾지 못했습니다 — 이 검사가 헛돌고 있습니다");
+}
+
+// ── 아이폰 노치와 `viewport-fit` ────────────────────────────────────────────
+// ⚠️ **직관과 반대다.** WebKit 의 기본값 `viewport-fit=auto` 는 콘텐츠를 **이미 안전
+//    영역 안에** 넣어 준다. `viewport-fit=cover` 를 넣어야 화면 끝까지 펼쳐지고,
+//    **그때 비로소** `env(safe-area-inset-*)` 보정이 필요해진다.
+//    즉 `cover` 를 그냥 추가하면 **없던 가림을 새로 만든다**(`HANDOFF-2026-051`, Codex).
+// 그래서 규칙은 "쓰지 마라" 가 아니라 **"쓸 거면 보정도 같이 하라"** 다.
+{
+  const docEditor2 = await text("document-editor.html");
+  const mock = await text("mock-exam-editor.html");
+  for (const [src, where] of [[index, "index.html"], [docEditor2, "document-editor.html"], [mock, "mock-exam-editor.html"]]) {
+    if (!/viewport-fit\s*=\s*cover/.test(src)) continue;
+    assert.match(src, /env\(\s*safe-area-inset-/,
+      `${where} 가 viewport-fit=cover 를 쓰면서 env(safe-area-inset-*) 보정이 없습니다 — `
+      + "노치·홈 인디케이터에 UI 가 가립니다. cover 를 뺄지 보정을 넣을지 정하세요");
+  }
+}
+
 console.log("Commercial static checks passed");

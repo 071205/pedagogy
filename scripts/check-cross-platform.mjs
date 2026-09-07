@@ -163,24 +163,42 @@ async function probes(page, vp, seen) {
   add("스크립트 오류 없음", seen.pageErrors.length === 0, seen.pageErrors.slice(0, 2).join(" | "));
 
   /* ── 터치 목표 ──
-     ⚠️ 1단계에서는 **핵심 단추 셋만** 재고 경고로 뒀다. 3단계에서 고쳤으므로 이제
-        **보이는 조작 요소를 전부** 재고 **판정한다.** 셋만 재면 나머지가 작아져도 모른다.
-     ⚠️ `44` 는 애플 권고다. 화면에 꽉 찬 화면(모달 등) 안의 요소도 같은 기준으로 본다. */
+     ⚠️ **선택자를 CSS 에서 베껴 오면 안 된다.** 처음에 그렇게 했더니 CSS 와 검사가
+        `button`·`select`·`input` 만 보고 **버튼처럼 쓰는 `<a class="btn">`(52×21) 과
+        `<label class="btn">` 을 함께 놓쳤다**(`REV-2026-027`, Codex).
+        우리 목록을 우리 목록으로 검사한 꼴이다.
+     → 그래서 여기서는 **태그가 아니라 동작으로** 고른다: 의미상 조작 요소이거나
+        **계산된 `cursor: pointer`** 인 것. `cursor` 는 CSS 규칙 목록과 무관한 신호라
+        양쪽이 같은 것을 함께 빠뜨릴 수 없다.
+     ⚠️ 잎사귀만 센다 — 조작 요소를 품은 컨테이너까지 세면 의미 없는 실패가 난다. */
   if (vp.touch) {
     const small = await page.evaluate((min) => {
+      /* ⚠️ `[tabindex]` 를 통째로 넣으면 **구글 로그인 SDK 의 1×1 숨김 iframe**
+         (`#I0_…`, `tabindex="-1"`)까지 잡힌다 — webkit 에서만 나타나 한참 헤맸다.
+         `-1` 은 '키보드로 갈 수 없음' 이라 사용자가 누르는 목표가 아니다. iframe 도 뺀다. */
+      const SEMANTIC = "a[href],button,select,input:not([type=file]),textarea,summary,label,"
+                     + '[role=button],[tabindex]:not([tabindex="-1"])';
       const out = [];
-      document.querySelectorAll("#appMain button, #appMain select, #appMain input:not([type=file]),"
-        + ".topbar button, .topbar select, .topbar input:not([type=file]), .pane-tab, .iconbtn").forEach(e => {
+      document.querySelectorAll("*").forEach(e => {
+        if (e.closest("#printDoc")) return;                    // 시험지 조판은 건드리지 않는다
+        const cs = getComputedStyle(e);
+        const hot = el => { const c = getComputedStyle(el); return el.matches(SEMANTIC) || c.cursor === "pointer"; };
+        if (e.tagName === "IFRAME") return;
+        if (!hot(e)) return;
+        /* ⚠️ 조상이 이미 조작 요소면 이것은 **그 목표의 일부**다(단추 안의 아이콘·svg·path).
+           `cursor: pointer` 는 상속되므로 이 걸러내기가 없으면 svg 내부까지 전부 잡힌다. */
+        for (let p = e.parentElement; p && p !== document.body; p = p.parentElement) if (hot(p)) return;
+        if (e.querySelector(SEMANTIC)) return;                 // 조작 요소를 품은 컨테이너 제외
+        if (cs.display === "none" || cs.visibility === "hidden" || Number(cs.opacity) === 0) return;
         const r = e.getBoundingClientRect();
-        if (r.width < 1 || r.height < 1) return;              // 안 보이는 것은 세지 않는다
-        if (getComputedStyle(e).display === "none") return;
+        if (r.width < 1 || r.height < 1) return;
         if (r.height >= min && r.width >= min) return;
-        const id = e.id || (typeof e.className === "string" ? e.className.split(" ")[0] : "") || e.tagName.toLowerCase();
+        const id = e.id || (typeof e.className === "string" && e.className ? "." + e.className.split(" ")[0] : e.tagName.toLowerCase());
         out.push(`${id} ${Math.round(r.width)}×${Math.round(r.height)}`);
       });
       return [...new Set(out)];
     }, TOUCH_MIN);
-    add(`터치 목표 ${TOUCH_MIN}px 이상`, small.length === 0, small.slice(0, 6).join(", ") + (small.length > 6 ? ` 외 ${small.length - 6}개` : ""));
+    add(`터치 목표 ${TOUCH_MIN}px 이상`, small.length === 0, small.slice(0, 8).join(", ") + (small.length > 8 ? ` 외 ${small.length - 8}개` : ""));
     /* hover 가 없는 기기에서 hover 로만 보이는 조작은 **없는 것과 같다.** */
     const hidden = await page.evaluate(() => {
       const b = document.querySelector(".blk-insert-btn");
@@ -332,12 +350,17 @@ async function runInAppNotice(engineName, engine) {
           안: q.width > 0 && q.height > 0 && q.left >= -1 && q.right <= window.innerWidth + 1
              && q.top >= -1 && q.bottom <= window.innerHeight + 1,
           자리: `${Math.round(q.left)},${Math.round(q.top)}~${Math.round(q.right)},${Math.round(q.bottom)}`,
+          크기: { w: Math.round(q.width), h: Math.round(q.height) },
           넘침: document.documentElement.scrollWidth - window.innerWidth,
         };
       });
       if (r.없음) { bad(`${where} — ${r.없음}가 없다`); }
       else {
         say(r.안, `${where} — '밖에서 열기' 를 누를 수 있다`, `${r.자리} (창 375×812)`);
+        /* ⚠️ 위치만 보고 **크기를 안 봤다**(`REV-2026-027`). 인앱에서 유일한 탈출 경로라
+           작으면 안 된다 — 본체와 같은 44px 기준을 여기서도 적용한다. */
+        say(r.크기.w >= TOUCH_MIN && r.크기.h >= TOUCH_MIN,
+            `${where} — '밖에서 열기' 가 ${TOUCH_MIN}px 이상`, `${r.크기.w}×${r.크기.h}`);
         say(r.넘침 <= 2, `${where} — 안내를 띄워도 가로로 넘치지 않는다`, `${r.넘침}px 초과`);
       }
     } catch (e) {

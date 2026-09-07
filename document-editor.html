@@ -143,6 +143,17 @@ footer{max-width:1420px;margin:0 auto;padding:22px 24px 32px;
   border-top:1px solid var(--border);text-align:center;
   font-size:12px;color:var(--text-tertiary)}
 
+/* ── 손가락으로 쓰는 기기 ──────────────────────────────────────────────────
+   ⚠️ **본체와 같은 기준(44px)을 쓴다.** 같은 기능이 화면마다 다른 크기면 안 된다
+      (`REV-2026-027`). 특히 `#openOutsideBtn` 은 인앱에서 **유일한 탈출 경로**라
+      작으면 안 된다.
+   ⚠️ 태그가 아니라 **역할**로 고른다 — `.button` 은 `<a>` 에도 붙는다.
+   화면 **폭**이 아니라 `pointer: coarse` 로 가른다(좁은 데스크톱 창은 그대로 둔다). */
+@media (pointer: coarse){
+  button,.button,select,input:not([type=file]),[role="button"],.brand{min-height:44px}
+  .theme-btn{width:44px;height:44px}
+}
+
 @media(max-width:900px){
   .grid{grid-template-columns:1fr}
   .page{padding:20px 16px 32px}

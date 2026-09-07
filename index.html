@@ -238,13 +238,20 @@ label.btn input{display:none}
 /* 모의고사 모드 — 별도 문서(iframe)로 격리한다.
    PEDAGOGY 와 전역 변수·CSS 가 섞이지 않게 하기 위한 것이며,
    저장소도 서로 독립이다(문제집은 Firestore, 모의고사는 .json 파일). */
-#mockView{height:calc(100vh - 60px);background:var(--bg)}
+/* ── 화면 높이 단위 ────────────────────────────────────────────────────────
+   ⚠️ **`100vh` 는 모바일에서 실제 보이는 높이보다 크다.** iOS 사파리·안드로이드 크롬은
+      주소창이 접히기 전 높이를 `vh` 로 주므로, `100vh` 로 잡은 칸은 화면 밖으로 넘친다.
+      `dvh`(동적 뷰포트)가 지금 보이는 높이다.
+   ⚠️ **`vh` 줄을 지우지 말 것.** 바로 위에 남겨 둔 것은 `dvh` 를 모르는 구형 브라우저의
+      폴백이다 — CSS 는 못 읽는 선언을 버리므로 이 순서가 그대로 폴백이 된다.
+      순서를 뒤집으면 최신 브라우저가 `vh` 를 쓰게 된다. */
+#mockView{height:calc(100vh - 60px);height:calc(100dvh - 60px);background:var(--bg)}
 #mockView iframe{width:100%;height:100%;border:0;display:block}
 #mockModeBtn.on{background:var(--accent,#3182F6);border-color:transparent;color:#fff}
 #mockFallback{padding:48px;color:var(--text-secondary);font-size:14px;line-height:1.8;max-width:760px}
 #mockFallback code{background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:2px 7px;
   font:12px/1.6 ui-monospace,Menlo,monospace;color:var(--text-primary)}
-#editorView{height:calc(100vh - 60px)}
+#editorView{height:calc(100vh - 60px);height:calc(100dvh - 60px)}
 .editor{display:flex;height:100%;overflow:hidden}
 /* 모의고사 편집기와 같은 배치로 통일한다: 미리보기(넓게) | 편집 | 문항 목록.
    DOM 순서는 그대로 두고 flex order 로만 바꾼다. */
@@ -256,7 +263,7 @@ label.btn input{display:none}
 /* display:flex + .lib-grid 의 flex:1 로 푸터를 뷰포트 하단에 붙인다(내용이 짧을 때도) —
    #libraryView 는 JS 에서도 "flex" 로 켜야 한다(showLibrary()/showLibraryLoading() 등,
    inline style 가 이 규칙보다 우선하므로 여기만 고치면 무시된다). */
-#libraryView{padding:32px;min-height:calc(100vh - 60px);display:flex;flex-direction:column}
+#libraryView{padding:32px;min-height:calc(100vh - 60px);min-height:calc(100dvh - 60px);display:flex;flex-direction:column}
 .lib-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:28px}
 .lib-header h2{margin:0;font-size:24px;font-weight:700;color:var(--text-primary)}
 .lib-actions{display:flex;gap:8px}
@@ -1054,7 +1061,7 @@ body.hide-answers .answer-block{display:none!important}
      생기고 겹쳤다. 좁은 화면에서는 한 번에 한 칸만 보여주고
      위쪽 탭(.pane-tabs)으로 전환한다. */
   .pane-tabs{display:flex}
-  .editor{flex-direction:column;height:auto;min-height:calc(100vh - 56px);overflow:visible}
+  .editor{flex-direction:column;height:auto;min-height:calc(100vh - 56px);min-height:calc(100dvh - 56px);overflow:visible}
   .pane-split{display:none}
   .previewWrap,.center,.sidebar{
     width:100%;max-width:none;min-width:0;flex:1 1 auto;
@@ -1090,11 +1097,20 @@ body.hide-answers .answer-block{display:none!important}
    ⚠️ `#printDoc` 은 건드리지 않는다 — 시험지 조판 값은 실물에서 잰 것이다.
       (지금은 인쇄본에 단추가 없지만, 생기더라도 여기 규칙이 닿지 않게 못 박아 둔다.) */
 @media (pointer: coarse){
+  /* ⚠️ **태그로 고르면 빠진다.** 처음에 `button`·`select`·`input` 만 골랐다가
+     버튼처럼 쓰는 `<a class="btn">`(52×21) 과 `<label class="btn">` 을 놓쳤다
+     (`REV-2026-027`). 사용자는 태그를 모른다 — **역할로** 고른다.
+     그리고 검사는 이 목록을 베끼지 않고 **계산된 `cursor:pointer`** 로 따로 찾는다. */
   #appMain button, #appMain select, #appMain input:not([type=file]),
+  #appMain a.btn, #appMain label.btn, #appMain [role="button"],
   .topbar button, .topbar select, .topbar input:not([type=file]),
-  .modal button, .modal select, .modal input:not([type=file]){
+  .topbar a.btn, .topbar label.btn, .topbar [role="button"], .brand,
+  .modal button, .modal select, .modal input:not([type=file]),
+  .modal a.btn, .modal label.btn, .modal [role="button"]{
     min-height:44px;
   }
+  /* 로고는 라이브러리로 돌아가는 조작이다 — 글자 크기는 두고 누를 높이만 준다 */
+  .brand{display:inline-flex;align-items:center}
   .histbtn,.theme-btn,.sc-sw{width:44px;height:44px}
   .iconbtn{min-width:44px;min-height:44px}
   .pane-tab{height:44px}
@@ -1533,7 +1549,7 @@ document.addEventListener('DOMContentLoaded',()=>{
 
 <!-- AI Prompt modal -->
 <div id="promptModal" role="dialog" aria-modal="true" aria-labelledby="promptModalTitle" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:2000;align-items:center;justify-content:center;padding:20px">
-  <div style="background:var(--surface-1);border:1px solid var(--border);border-radius:24px;padding:28px 28px 24px;width:100%;max-width:600px;max-height:88vh;display:flex;flex-direction:column;gap:16px;box-shadow:0 24px 64px rgba(0,0,0,.6)">
+  <div style="background:var(--surface-1);border:1px solid var(--border);border-radius:24px;padding:28px 28px 24px;width:100%;max-width:600px;max-height:88vh;max-height:88dvh;display:flex;flex-direction:column;gap:16px;box-shadow:0 24px 64px rgba(0,0,0,.6)">
     <div style="display:flex;justify-content:space-between;align-items:center">
       <div>
         <div id="promptModalTitle" style="font-size:18px;font-weight:800;color:var(--text-primary);letter-spacing:-.02em">AI 변환 프롬프트</div>
@@ -1551,7 +1567,7 @@ document.addEventListener('DOMContentLoaded',()=>{
 
 <!-- 데이터 관리 모달 (백업 복구 · 삭제) -->
 <div id="dataModal" role="dialog" aria-modal="true" aria-labelledby="dataModalTitle" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:2000;align-items:center;justify-content:center;padding:20px">
-  <div style="background:var(--surface-1);border:1px solid var(--border);border-radius:24px;padding:26px 26px 22px;width:100%;max-width:520px;max-height:88vh;overflow-y:auto;display:flex;flex-direction:column;gap:16px;box-shadow:0 24px 64px rgba(0,0,0,.6)">
+  <div style="background:var(--surface-1);border:1px solid var(--border);border-radius:24px;padding:26px 26px 22px;width:100%;max-width:520px;max-height:88vh;max-height:88dvh;overflow-y:auto;display:flex;flex-direction:column;gap:16px;box-shadow:0 24px 64px rgba(0,0,0,.6)">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
       <div>
         <div id="dataModalTitle" style="font-size:18px;font-weight:800;color:var(--text-primary);letter-spacing:-.02em">데이터 관리</div>
