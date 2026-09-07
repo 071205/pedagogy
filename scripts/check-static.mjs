@@ -178,18 +178,32 @@ if (await exists("experiments/hwp-export/samples/choice-layout-truth.json")) {
 // ⚠️ `100vh` 는 모바일에서 실제 보이는 높이보다 크다(주소창). `dvh` 가 답이지만
 //    **`vh` 줄을 폴백으로 앞에 남겨야** 구형 브라우저에서 높이가 사라지지 않는다.
 //    순서가 뒤집히면 최신 브라우저가 `vh` 를 쓰게 되어 고친 의미가 없다.
+// ⚠️ **파일 전체에서 `/* *\/` 를 지우면 안 된다.** 처음에 그렇게 했다가 JS 안의
+//    주석·문자열까지 엮여 본문이 통째로 사라졌고, `88vh` 를 쓰는 모달 줄을 못 찾아
+//    "검사가 헛돌고 있다" 는 자기 경고가 떴다. **CSS 만 골라** 본다.
 {
-  // ⚠️ **주석을 먼저 걷어낸다.** 처음엔 그러지 않아 "100vh 는 …" 이라고 쓴 내 설명
-  //    주석 자체가 걸려 빨간불이 났다. 검사가 코드가 아니라 글을 읽고 있었다.
-  const cssOnly = index.replace(/\/\*[\s\S]*?\*\//g, "");
-  const vhLines = [...cssOnly.matchAll(/^[^\n]*\d+vh[^\n]*$/gm)].map((m) => m[0]);
-  for (const line of vhLines) {
-    assert.ok(/dvh/.test(line),
-      `\`vh\` 를 쓰는 곳에는 \`dvh\` 폴백이 함께 있어야 합니다(모바일 주소창): ${line.trim().slice(0, 90)}`);
-    assert.ok(line.indexOf("vh") < line.lastIndexOf("dvh"),
-      `\`vh\` 가 \`dvh\` 보다 **앞**에 와야 폴백이 됩니다: ${line.trim().slice(0, 90)}`);
+  const styleBlocks = [...index.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/gi)].map((m) => m[1]);
+  assert.ok(styleBlocks.length, "<style> 블록을 찾지 못했습니다");
+  const inlineStyles = [...index.matchAll(/\sstyle="([^"]*)"/g)].map((m) => m[1]);
+  const decls = [
+    ...styleBlocks.join("\n").replace(/\/\*[\s\S]*?\*\//g, "").split(/[\n;]/),
+    ...inlineStyles.join(";").split(";"),
+  ].map((d) => d.trim()).filter(Boolean);
+
+  const vhDecls = decls.filter((d) => /\b\d[\d.]*vh\b/.test(d));
+  assert.ok(vhDecls.length >= 3,
+    `vh 선언을 ${vhDecls.length}개만 찾았습니다 — 이 검사가 헛돌고 있습니다`);
+  for (const d of vhDecls) {
+    const prop = d.split(":")[0].trim();
+    /* ⚠️ `/\bdvh\b/` 는 `100dvh` 를 **못 잡는다** — `0` 과 `d` 사이에 낱말 경계가 없다.
+       이걸로 한참 헤맸다(짝이 있는데 없다고 나왔다). */
+    const twin = decls.find((x) => x.startsWith(prop + ":") && /\ddvh\b/.test(x));
+    assert.ok(twin, `\`${d.slice(0, 70)}\` 에 \`dvh\` 짝이 없습니다(모바일 주소창)`);
+    // 같은 선언 안에 둘 다 있으면 순서까지 본다(`min-height:100vh;min-height:100dvh`)
+    const line = decls.find((x) => x === d);
+    assert.ok(decls.indexOf(d) < decls.indexOf(twin) || d === twin,
+      `\`vh\` 선언이 \`dvh\` 보다 **앞**에 와야 폴백이 됩니다: ${d.slice(0, 70)}`);
   }
-  assert.ok(vhLines.length >= 4, "vh 를 쓰는 줄을 찾지 못했습니다 — 이 검사가 헛돌고 있습니다");
 }
 
 // ── 아이폰 노치와 `viewport-fit` ────────────────────────────────────────────

@@ -75,3 +75,16 @@ Chromium을 `hasTouch:true`, 375×812로 열어 현재 배포 코드의 실제 �
 - 검증: 고치기 전 검사가 `brandBtn 129×33, .btn 52×21` 을 잡는 것을 먼저 확인했다(보고서의
   값과 같다). 고친 뒤 세 엔진 · 두 터치 뷰포트 전부 통과.
   회귀 128/128 · `check:fast` · `test:visual` 7세트 통과.
+
+## 독립 해결 확인 — 2026-09-07 Codex
+
+Chromium `hasTouch:true`, 375×812에서 다시 측정했다.
+
+- 본체 `AI 문서 β`: `52×44px`
+- 문서 편집기 `#openOutsideBtn`: `89×44px`
+- 문서 편집기 `#loginBtn`: `64×44px`
+- 문서 편집기 `#themeBtn`: `44×44px`
+
+`npm run check:fast`에서도 터치 목표와 두 화면의 인앱 탈출 버튼 크기 검사가 통과했다.
+검사가 CSS 목록을 그대로 복사하지 않고 의미상 조작 요소와 계산된 `cursor:pointer`를 사용한
+것도 확인했다. 따라서 이 이슈는 해결된 것으로 확인한다.

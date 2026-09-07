@@ -323,6 +323,81 @@ async function selfCheck(engine) {
   }
 }
 
+/* ── 인쇄용 글꼴을 **인쇄할 사람에게만** 보내는가 ────────────────────────────
+ *
+ * KoPub 바탕 세 벌만 **7.6MB** 다(weight 당 2.5MB · WOFF2 도 서브셋도 아니다).
+ * ⚠️ 예전에는 부팅 뒤 무조건 미리 받아, **인쇄할 생각이 없는 모바일 방문자에게** 그
+ *    7.6MB 를 떠안겼다. 지금은 인쇄 단추에 손이 닿을 때 받는다.
+ * 실측(375px · chromium): 방문만 하면 **0MB**, 인쇄 단추를 누르면 7.83MB 가 곧바로
+ * 시작되고 사용자가 대화상자에서 고르는 1.5초 뒤 남은 대기는 **0ms** 다.
+ * ⚠️ 이 검사가 없으면 "부팅 때 미리 받자" 로 조용히 되돌아간다.
+ */
+async function runFontIntent(engineName, engine) {
+  const b = await engine.launch();
+  const ctx = await b.newContext({ viewport: { width: 375, height: 812 }, hasTouch: true });
+  let reqs = 0;
+  ctx.on("response", (r) => { if (/font-kopub|KoPubBatang|KaTeX_/i.test(r.url())) reqs++; });
+  const page = await ctx.newPage();
+  const where = `${engineName} · 글꼴`;
+  try {
+    await page.goto(`${base}/index.html?xplat=${Date.now()}`, { waitUntil: "domcontentloaded", timeout: 30000 });
+    await page.waitForFunction(() => typeof window.warmPrintFonts === "function", null, { timeout: 20000 });
+    await page.waitForTimeout(4000);          // 예전 방식이었다면 이 사이에 다 받았을 시간
+    const 방문만 = reqs;
+    /* 인쇄 의도 — 손이 닿는 순간 */
+    await page.dispatchEvent("#printBtn", "pointerdown");
+    await page.waitForTimeout(2500);
+    const 인쇄의도뒤 = reqs;
+    say(방문만 <= 3, `${where} — 방문만 하면 인쇄용 글꼴을 받지 않는다`, `${방문만}건이나 받았다`);
+    say(인쇄의도뒤 > 방문만 + 5, `${where} — 인쇄 단추에 손이 닿으면 받기 시작한다`,
+        `${방문만} → ${인쇄의도뒤} (거의 안 늘었다)`);
+  } catch (e) {
+    bad(`${where} — 확인하지 못했다`, String(e).split("\n")[0].slice(0, 140));
+  } finally { await b.close(); }
+}
+
+/* ── 상단 바 + 본문이 한 화면에 들어가는가 ──────────────────────────────────
+ *
+ * ⚠️ 예전에는 본문 높이를 `calc(100dvh - 60px)` 로 잡아 **상단 바 높이를 상수로 박아**
+ *    뒀다. 좁은 화면에서 상단 바는 줄바꿈해 커지고(375px 에서 215px), 그만큼 본문이
+ *    아래로 넘쳤다(`REV-2026-028`). 지금은 세로 flex 라 빼는 값이 없다.
+ *    **상수가 다시 들어오는 것을 이 검사가 막는다.**
+ * ⚠️ 모의고사는 iframe 이라 특히 나쁘다 — 바깥을 스크롤하면 iframe 위쪽이 고정 상단
+ *    바 밑으로 들어간다.
+ */
+const FIT_VIEWPORTS = [[375, 812], [768, 1024], [1024, 768]];
+
+async function runViewportFit(engineName, engine) {
+  const b = await engine.launch();
+  for (const [w, h] of FIT_VIEWPORTS) {
+    const ctx = await b.newContext({ viewport: { width: w, height: h }, hasTouch: true });
+    const page = await ctx.newPage();
+    const where = `${engineName} · ${w}×${h}`;
+    try {
+      await page.goto(`${base}/index.html?xplat=${Date.now()}`, { waitUntil: "domcontentloaded", timeout: 30000 });
+      await page.waitForFunction(() => typeof window.normSet === "function", null, { timeout: 20000 });
+      for (const [btn, view, label] of [[null, "#libraryView", "라이브러리"], ["#mockModeBtn", "#mockView", "모의고사"]]) {
+        if (btn) { await page.click(btn); await page.waitForTimeout(900); }
+        const r = await page.evaluate((sel) => {
+          const bar = document.querySelector(".topbar"), v = document.querySelector(sel);
+          if (!bar || !v) return null;
+          const br = bar.getBoundingClientRect(), vr = v.getBoundingClientRect();
+          return { bar: Math.round(br.height), view: Math.round(vr.height),
+                   bottom: Math.round(vr.bottom), vh: window.innerHeight,
+                   세로넘침: Math.round(document.documentElement.scrollHeight - window.innerHeight) };
+        }, view);
+        if (!r) { warn(`${where} — ${label} 요소를 못 찾음`); continue; }
+        /* 허용오차 2px — 소수점 반올림 */
+        say(r.bar + r.view <= r.vh + 2, `${where} — 상단 바 + ${label} 이 한 화면에 든다`,
+            `상단 바 ${r.bar} + ${label} ${r.view} = ${r.bar + r.view} > 창 ${r.vh}`);
+      }
+    } catch (e) {
+      bad(`${where} — 확인하지 못했다`, String(e).split("\n")[0].slice(0, 140));
+    } finally { await ctx.close(); }
+  }
+  await b.close();
+}
+
 /* ── 인앱 안내가 **누를 수 있는 자리**에 있는가 ────────────────────────────
  *
  * ⚠️ 안내 문구가 맞아도 **단추가 화면 밖이면 없느니만 못하다.** 처음에 문서 편집기의
@@ -489,6 +564,8 @@ try {
     console.log(`\n── ${name} ──`);
     await runMatrix(name, engine);
     await runStorageBlocked(name, engine);
+    await runViewportFit(name, engine);
+    await runFontIntent(name, engine);
     await runInAppNotice(name, engine);
     await runCdnBlocked(name, engine);
     await runDownload(name, engine);
