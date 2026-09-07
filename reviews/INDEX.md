@@ -50,6 +50,7 @@
 | `REV-2026-027` | `P2` | 터치 목표 검사가 버튼형 링크·문서 편집기 조작을 제외함 | `issues/2026-09/2026-09-07-tests-touch-target-coverage-gaps.md` |
 | `REV-2026-028` | `P2` | 늘어난 상단 바를 60px 로 빼 모의고사 화면이 넘침 | `issues/2026-09/2026-09-07-index-dvh-fixed-header-subtraction.md` |
 | `REV-2026-029` | `P2` | 글꼴 의도 검사가 부팅 중 글꼴 두 벌을 허용함 | `issues/2026-09/2026-09-07-tests-font-intent-allows-preload.md` |
+| `REV-2026-030` | `P1` | 배포용 시험지 틀에 원본 수식·발문이 남아 있었다 | `issues/2026-09/2026-09-08-mock-bundled-template-retains-exam-content.md` |
 
 ## 최근 인계
 

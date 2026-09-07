@@ -608,7 +608,7 @@ _FRAME_IN_RUN = {"tbl", "ctrl", "rect", "line", "ellipse", "arc", "polygon",
 
 
 def strip_to_frame(doc: HwpxDocument) -> dict:
-    """배포용 틀을 만든다 — **구조는 그대로 두고 남의 문제 글만 채움글자로 바꾼다.**
+    """배포용 틀을 만든다 — **구조는 그대로 두고 남의 내용만 없앤다.**
 
     ⚠️ **문단을 지우면 안 된다.** 변환기는 틀에서 역할을 '쓰임' 으로 찾는다:
          · `num`(문항 번호 13.5pt) — **발문 문단의 첫 run** 이 본문과 다른 것으로 찾는다
@@ -619,25 +619,49 @@ def strip_to_frame(doc: HwpxDocument) -> dict:
        `capture_page_headers`·`capture_marks` 가 떠 간다.
     ⚠️ 판정이 **글자 수**를 세므로 글을 통째로 비우면 그것도 깨진다 — 같은 길이의
        **채움 글자**로 바꾼다. 길이는 같고 내용은 없다.
-    ⚠️ **문단 단위로 가르면 안 된다.** 표제부 표와 1번 발문이, 이어지는 쪽 머리말과 5번
-       발문이 **같은 문단**에 있다. 문단째 남기면 남의 문제가 딸려 온다(실측 7건).
-       그래서 **run 단위**로 가른다 — 틀 개체가 든 run 만 그대로 둔다.
+
+    ⚠️ **개체가 든 run 을 통째로 건너뛰면 안 된다**(`REV-2026-030`). 그림·표와 **같은
+       run 에 들어 있던 발문 조각**이 그 길로 살아남았다(실측: `의 일 때,` 등 한글
+       텍스트 노드 171개). 개체 **안쪽** 글자만 남기고 바깥 `<hp:t>` 는 비운다.
+    ⚠️ **수식(`<hp:script>`)도 지워야 한다**(`REV-2026-030`). 처음엔 `<hp:t>` 만 봐서
+       **원본 수식 522개가 그대로 남았다**(1번 문항의 `sqrt {3} of {5} …` 까지).
+       글자가 아니라고 내용이 아닌 것이 아니다.
     """
-    changed = kept = 0
+    counts = {"changed": 0, "eqs": 0, "kept": 0}
+
+    def walk(node, in_frame: bool) -> None:
+        """개체 **안쪽**은 틀이라 글을 남기고, 바깥 글은 채움글자로 바꾼다.
+
+        ⚠️ **`id()` 로 '개체 안쪽 노드' 집합을 만들면 안 된다.** 이 노드 API 는
+           `.iter()` 를 부를 때마다 **새 래퍼 객체**를 만들어 `id()` 가 매번 달라진다
+           (실측: 같은 run 을 두 번 훑으면 id 목록이 다르다). 그렇게 짰더니 모든 `<hp:t>`
+           가 '개체 안쪽' 으로 판정돼 **발문 조각이 그대로 살아남았다**(`REV-2026-030`).
+           대신 **내려가면서 깃발을 들고 간다** — 구조로 가르면 정체성이 필요 없다.
+        """
+        for child in node.children:
+            frame = in_frame or child.local_name in _FRAME_IN_RUN
+            if child.local_name == "t" and (child.text or ""):
+                if frame:
+                    counts["kept"] += 1
+                else:
+                    child.text = _blank_text(child.text)
+                    counts["changed"] += 1
+            elif child.local_name == "script" and (child.text or "").strip():
+                # 수식은 안쪽이든 바깥이든 남기지 않는다 — 글자가 아니라고 내용이
+                # 아닌 것이 아니다. 자리만 남기려고 가장 단순한 유효 수식으로 바꾼다.
+                child.text = "1"
+                counts["eqs"] += 1
+            else:
+                walk(child, frame)
+
     for path in [p for p in doc.list_part_paths()
                  if p.startswith("Contents/section") and p.endswith(".xml")]:
         sec = doc.get_part(path)
         for para in [k for k in sec.root.children if k.local_name == "p"]:
-            for run in [r for r in para.children if r.local_name == "run"]:
-                if any(n.local_name in _FRAME_IN_RUN for n in run.iter()):
-                    kept += 1
-                    continue
-                for node in run.iter():
-                    if node.local_name == "t" and (node.text or ""):
-                        node.text = _blank_text(node.text)
-                        changed += 1
+            walk(para, False)
         sec.mark_modified()
-    return {"바꾼 글 조각": changed, "그대로 둔 run": kept}
+    changed, eqs, kept = counts["changed"], counts["eqs"], counts["kept"]
+    return {"바꾼 글 조각": changed, "지운 수식": eqs, "틀 안쪽 글": kept}
 
 
 PNG_1PX = bytes.fromhex(

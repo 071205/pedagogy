@@ -29,6 +29,10 @@ const TESTS = [
   "test_sections.py",     // 공통·선택이 서로 다른 구역으로 갈리는지
   "test_page_layout.py",  // 번호 뒤 탭 · 쪽나눔 · 이어지는 쪽 머리말
   "test_style_roles.py",  // 역할 표(scripts/exam-style-roles.mjs)가 실물 틀과 같은지
+  // ⚠️ **만드는 것을 검사한다고 배포되는 것이 검사되지는 않는다.** 아래 검사들은
+  //    "이 틀로 시험지가 제대로 나오는가" 를 보고 전부 초록불이었는데, 정작 저장소에
+  //    들어가는 **틀 파일 자체**에 원본 수식 522개가 남아 있었다(`REV-2026-030`).
+  "test_template_content.py",
   "test_endpoint.py",     // /hwpx 를 실제로 띄워 그림·보안 관문 확인
 ];
 
