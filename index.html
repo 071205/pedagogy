@@ -1077,6 +1077,39 @@ body.hide-answers .answer-block{display:none!important}
   .lib-header h2{font-size:20px}
 }
 
+/* ── 손가락으로 쓰는 기기 ──────────────────────────────────────────────────
+   ⚠️ **마우스 화면은 한 픽셀도 건드리지 않는다.** `pointer: coarse` 는 손가락·펜처럼
+      정확도가 낮은 입력에서만 참이다(터치 노트북도 마우스를 쓰면 `fine` 이다).
+      화면 폭으로 가르지 않는 이유 — 좁게 띄운 데스크톱 창까지 커지기 때문이다.
+
+   실측(375px · chromium/webkit/firefox 모두 같은 값):
+     인쇄·저장·내보내기 34px · 아이콘 단추 26px 폭 · 블록 추가 단추 22px ·
+     블록 종류 선택 28px · 되돌리기/다시실행 34px
+   애플 권고는 44px, WCAG 2.2 AA 하한은 24px 다. `npm run test:cross` 가 잰다.
+
+   ⚠️ `#printDoc` 은 건드리지 않는다 — 시험지 조판 값은 실물에서 잰 것이다.
+      (지금은 인쇄본에 단추가 없지만, 생기더라도 여기 규칙이 닿지 않게 못 박아 둔다.) */
+@media (pointer: coarse){
+  #appMain button, #appMain select, #appMain input:not([type=file]),
+  .topbar button, .topbar select, .topbar input:not([type=file]),
+  .modal button, .modal select, .modal input:not([type=file]){
+    min-height:44px;
+  }
+  .histbtn,.theme-btn,.sc-sw{width:44px;height:44px}
+  .iconbtn{min-width:44px;min-height:44px}
+  .pane-tab{height:44px}
+  /* ⚠️ **hover 가 없는 기기에는 hover 로만 나타나는 것이 '존재하지 않는다'.**
+     블록 사이 '+' 는 평소 `opacity:0` 이라 손가락으로는 있는 줄도 모른다.
+     항상 보이게 하고, 줄 전체를 눌러도 열리도록 높이를 키운다. */
+  .blk-insert{height:44px}
+  .blk-insert-btn{opacity:1;width:44px;height:44px;min-height:44px}
+  .blk-insert-line{background:var(--border)}
+}
+/* 마우스가 아예 없는 기기에서도 같은 이유로 '+' 를 보여 준다(펜 태블릿 등) */
+@media (hover: none){
+  .blk-insert-btn{opacity:1}
+}
+
 @media print{
   body{background:#fff}
   .topbar,#libraryView,#editorView,#mockView,#exportModal,#promptModal,#toastHost{display:none!important}

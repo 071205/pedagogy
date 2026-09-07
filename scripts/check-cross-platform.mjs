@@ -162,8 +162,32 @@ async function probes(page, vp, seen) {
 
   add("스크립트 오류 없음", seen.pageErrors.length === 0, seen.pageErrors.slice(0, 2).join(" | "));
 
-  /* 터치 목표는 **경고**다 — 지금 화면을 다 뜯어고치는 것이 1단계의 목적이 아니다. */
-  if (vp.touch) out.__touchWarn = btns.filter(b => b.small).map(b => `${b.id} ${b.h}px`);
+  /* ── 터치 목표 ──
+     ⚠️ 1단계에서는 **핵심 단추 셋만** 재고 경고로 뒀다. 3단계에서 고쳤으므로 이제
+        **보이는 조작 요소를 전부** 재고 **판정한다.** 셋만 재면 나머지가 작아져도 모른다.
+     ⚠️ `44` 는 애플 권고다. 화면에 꽉 찬 화면(모달 등) 안의 요소도 같은 기준으로 본다. */
+  if (vp.touch) {
+    const small = await page.evaluate((min) => {
+      const out = [];
+      document.querySelectorAll("#appMain button, #appMain select, #appMain input:not([type=file]),"
+        + ".topbar button, .topbar select, .topbar input:not([type=file]), .pane-tab, .iconbtn").forEach(e => {
+        const r = e.getBoundingClientRect();
+        if (r.width < 1 || r.height < 1) return;              // 안 보이는 것은 세지 않는다
+        if (getComputedStyle(e).display === "none") return;
+        if (r.height >= min && r.width >= min) return;
+        const id = e.id || (typeof e.className === "string" ? e.className.split(" ")[0] : "") || e.tagName.toLowerCase();
+        out.push(`${id} ${Math.round(r.width)}×${Math.round(r.height)}`);
+      });
+      return [...new Set(out)];
+    }, TOUCH_MIN);
+    add(`터치 목표 ${TOUCH_MIN}px 이상`, small.length === 0, small.slice(0, 6).join(", ") + (small.length > 6 ? ` 외 ${small.length - 6}개` : ""));
+    /* hover 가 없는 기기에서 hover 로만 보이는 조작은 **없는 것과 같다.** */
+    const hidden = await page.evaluate(() => {
+      const b = document.querySelector(".blk-insert-btn");
+      return b ? Number(getComputedStyle(b).opacity) : null;
+    });
+    add("hover 없이도 블록 추가 단추가 보인다", hidden === null || hidden > 0.5, String(hidden));
+  }
   return out;
 }
 
@@ -209,8 +233,6 @@ async function runMatrix(engineName, engine) {
         if (k === "__touchWarn") continue;
         say(v.pass, `${where} — ${k}`, v.pass ? undefined : v.note);
       }
-      if (r.__touchWarn?.length) warn(`${where} — 터치 목표 ${TOUCH_MIN}px 미만`, r.__touchWarn.join(", "));
-      else if (vp.touch) ok(`${where} — 터치 목표 ${TOUCH_MIN}px 이상`);
       if (seen.consoleErrors.length) warn(`${where} — 콘솔 오류 ${seen.consoleErrors.length}건`, seen.consoleErrors.slice(0, 2).join(" | "));
     } catch (e) {
       bad(`${where} — 흐름이 끝까지 돌지 않았다`, String(e).split("\n")[0].slice(0, 140));
@@ -245,6 +267,12 @@ const BREAKS = [
     run: p => p.evaluate(() => { document.getElementById("saveBtn").style.cssText += ";position:fixed;top:-500px"; }) },
   { key: "핵심 단추가 화면 안", 이름: "핵심 단추를 아예 지우면",
     run: p => p.evaluate(() => { document.getElementById("printBtn").remove(); }) },
+  /* ⚠️ 자기검사는 데스크톱 뷰포트에서 도는데 터치 항목은 터치 뷰포트에서만 잰다 —
+     그래서 이 둘은 `selfCheck` 가 터치 뷰포트를 따로 쓴다(아래 `touchVp`). */
+  { key: `터치 목표 ${TOUCH_MIN}px 이상`, 이름: "단추를 다시 작게 만들면", touch: true,
+    run: p => p.addStyleTag({ content: "#printBtn{min-height:20px!important;height:20px!important}" }) },
+  { key: "hover 없이도 블록 추가 단추가 보인다", 이름: "블록 추가 단추를 다시 숨기면", touch: true,
+    run: p => p.addStyleTag({ content: ".blk-insert-btn{opacity:0!important}" }) },
   /* ⚠️ 저장 경로를 끊으면 **두 항목이 모두** 빨간불이어야 한다. 하나만 빨개지면 나머지
      하나는 다른 이유로 통과하고 있다는 뜻이다(예: 디바운스가 대신 저장). */
   { key: "visibilitychange 로 편집분이 로컬에 남는다", 이름: "숨김 저장을 끊으면 (visibilitychange)",
@@ -257,8 +285,9 @@ const BREAKS = [
 
 async function selfCheck(engine) {
   console.log("\n── 자기검사 (검사가 실제로 잡는가) ──");
-  const vp = VIEWPORTS[0];
+  const touchVp = VIEWPORTS.find(v => v.touch);
   for (const b of BREAKS) {
+    const vp = b.touch ? touchVp : VIEWPORTS[0];
     const ctx = await newPage(engine, vp);
     const page = await ctx.newPage();
     const seen = watch(page);
@@ -274,6 +303,48 @@ async function selfCheck(engine) {
       bad(`${b.이름} 빨간불이 된다`, "자기검사가 터짐: " + String(e).split("\n")[0].slice(0, 100));
     } finally { const br = ctx.__browser; await ctx.close(); await br.close(); }
   }
+}
+
+/* ── 인앱 안내가 **누를 수 있는 자리**에 있는가 ────────────────────────────
+ *
+ * ⚠️ 안내 문구가 맞아도 **단추가 화면 밖이면 없느니만 못하다.** 처음에 문서 편집기의
+ *    안내를 상단 바(`.bar-right`) 안에 넣었더니 375px 에서 `left=388px` — 화면 오른쪽
+ *    **바깥**이었다(`REV-2026-026` 재검토, Codex). 밖으로 나가라는 안내가 정작 못 누르는
+ *    자리에 있었다.
+ * ⚠️ 그래서 **네 방향을 모두** 본다(가로만 보면 위·아래로 밀린 것을 놓친다).
+ */
+async function runInAppNotice(engineName, engine) {
+  const b = await engine.launch();
+  const ctx = await b.newContext({ viewport: { width: 375, height: 812 }, hasTouch: true });
+  for (const [file, label] of [["index.html", "본체"], ["document-editor.html", "문서 편집기"]]) {
+    const page = await ctx.newPage();
+    const where = `${engineName} · ${label} · 인앱 안내`;
+    try {
+      await page.goto(`${base}/${file}?xplat=${Date.now()}`, { waitUntil: "domcontentloaded", timeout: 30000 });
+      await page.waitForFunction(() => typeof window.showInAppNotice === "function", null, { timeout: 20000 });
+      const r = await page.evaluate(() => {
+        showInAppNotice("카카오톡");
+        const n = document.getElementById("inAppNotice");
+        const btn = document.getElementById("openOutsideBtn") || (n && n.querySelector("button"));
+        if (!n || !btn) return { 없음: !n ? "안내" : "단추" };
+        const q = btn.getBoundingClientRect();
+        return {
+          안: q.width > 0 && q.height > 0 && q.left >= -1 && q.right <= window.innerWidth + 1
+             && q.top >= -1 && q.bottom <= window.innerHeight + 1,
+          자리: `${Math.round(q.left)},${Math.round(q.top)}~${Math.round(q.right)},${Math.round(q.bottom)}`,
+          넘침: document.documentElement.scrollWidth - window.innerWidth,
+        };
+      });
+      if (r.없음) { bad(`${where} — ${r.없음}가 없다`); }
+      else {
+        say(r.안, `${where} — '밖에서 열기' 를 누를 수 있다`, `${r.자리} (창 375×812)`);
+        say(r.넘침 <= 2, `${where} — 안내를 띄워도 가로로 넘치지 않는다`, `${r.넘침}px 초과`);
+      }
+    } catch (e) {
+      bad(`${where} — 확인하지 못했다`, String(e).split("\n")[0].slice(0, 140));
+    } finally { await page.close(); }
+  }
+  await b.close();
 }
 
 /* ── CDN 이 막힌 망 (학교·기업) ──────────────────────────────────────────────
@@ -395,6 +466,7 @@ try {
     console.log(`\n── ${name} ──`);
     await runMatrix(name, engine);
     await runStorageBlocked(name, engine);
+    await runInAppNotice(name, engine);
     await runCdnBlocked(name, engine);
     await runDownload(name, engine);
   }

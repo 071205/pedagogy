@@ -73,11 +73,14 @@ body{margin:0;background:var(--bg);color:var(--text-primary);
   -webkit-font-smoothing:antialiased}
 
 /* ── 상단 바 — index.html 의 .topbar 와 같은 모양 ── */
-.bar{display:flex;justify-content:space-between;align-items:center;
-  padding:0 24px;height:60px;background:var(--bg);
+/* ⚠️ 좁은 화면에서 `.bar` 가 **한 줄에 갇혀 가로로 넘쳤다**(375px 에서 31px).
+   줄바꿈을 허용하고 높이를 최소값으로 바꾼다 — `height` 를 고정하면 접힌 줄이 잘린다.
+   `npm run test:cross` 가 이 화면의 가로 넘침도 본다. */
+.bar{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;
+  padding:0 24px;min-height:60px;background:var(--bg);
   backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
   border-bottom:1px solid var(--border);position:sticky;top:0;z-index:20}
-.bar-left,.bar-right{display:flex;align-items:center;gap:8px}
+.bar-left,.bar-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 0}
 .brand{font-family:'Adobe Caslon Pro Bold',serif;font-size:22px;letter-spacing:.5px;
   font-weight:700;color:var(--text-primary);text-decoration:none;user-select:none}
 .beta{font-size:11px;font-weight:700;color:var(--blue-on-white-text);
@@ -242,19 +245,26 @@ async function openOutsideHint(){
 }
 
 /* 인앱 안내 줄 — 로그인 버튼 **옆에** 둔다(버튼을 없애지 않는다). */
+/* ⚠️ **상단 바 안에 넣으면 안 된다.** 처음에 `loginBtn` 의 부모(`.bar-right`)에 붙였더니
+   375px 화면에서 `left=388px` — **화면 오른쪽 바깥**에 통째로 놓였다(`REV-2026-026` 재검토).
+   `.bar` 는 줄바꿈 없는 한 줄이라 넣는 만큼 옆으로 밀려난다.
+   밖으로 나가라는 안내가 정작 **누를 수 없는 자리**에 있으면 없느니만 못하다.
+   그래서 상단 바 **아래에 전체 폭 띠**로 둔다. */
 function showInAppNotice(name){
-  const box=$("loginBtn")&&$("loginBtn").parentElement;
-  if(!box||document.getElementById("inAppNotice")) return;
+  const bar=document.querySelector("header.bar");
+  if(!bar||document.getElementById("inAppNotice")) return;
   const wrap=document.createElement("div");
   wrap.id="inAppNotice";
-  wrap.style.cssText="font-size:12px;color:var(--text-secondary,#888);margin-top:6px;line-height:1.5";
-  wrap.textContent=`${name} 안에서는 구글 로그인이 막힐 수 있어요`;
+  wrap.style.cssText="display:flex;align-items:center;gap:10px;flex-wrap:wrap;"
+    +"padding:10px 16px;font-size:13px;line-height:1.5;"
+    +"background:var(--surface-2,#f3f3f5);border-bottom:1px solid var(--border,#ddd)";
+  const txt=document.createElement("span");
+  txt.textContent=`${name} 안에서는 구글 로그인이 막힐 수 있어요`;
   const btn=document.createElement("button");
   btn.id="openOutsideBtn"; btn.textContent="밖에서 열기";
-  btn.style.cssText="font-size:12px;margin-left:6px";
   btn.onclick=async()=>setStatus("docStatus", await openOutsideHint(), "");
-  wrap.appendChild(btn);
-  box.appendChild(wrap);
+  wrap.append(txt, btn);
+  bar.insertAdjacentElement("afterend", wrap);
 }
 
 const DRAFT_KEY="PEDAGOGY_DOCUMENT_BETA";
