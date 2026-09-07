@@ -335,22 +335,45 @@ async function selfCheck(engine) {
 async function runFontIntent(engineName, engine) {
   const b = await engine.launch();
   const ctx = await b.newContext({ viewport: { width: 375, height: 812 }, hasTouch: true });
-  let reqs = 0;
-  ctx.on("response", (r) => { if (/font-kopub|KoPubBatang|KaTeX_/i.test(r.url())) reqs++; });
+  /* ⚠️ **URL 로 뭉뚱그려 세면 안 된다.** 처음엔 `font-kopub|KoPubBatang|KaTeX_` 가 든
+     응답을 한 숫자로 세고 "3건 이하면 통과" 로 뒀는데, 정상값 1건은 **CSS** 이고
+     실제 글꼴은 0건이다. 즉 **2.5MB 짜리 WOFF 두 벌(≈5MB)이 부팅 중 내려와도** 통과했다
+     (`REV-2026-029`, Codex). 5단계가 없앤 낭비의 대부분이 되돌아와도 몰랐다.
+     → 브라우저가 알려 주는 **`resourceType()==="font"`** 로 실제 글꼴만 세고,
+        인쇄 의도 전에는 **0건**을 요구한다. 전송량도 함께 남긴다. */
+  /* ⚠️ 화면 글꼴(Pretendard)은 **부팅 때 받는 것이 맞다** — 서브셋 10개 0.25MB 다.
+     여기서 묻는 것은 "**인쇄용** 글꼴(KoPub 바탕 · KaTeX)을 미리 받았는가" 다.
+     `resourceType==="font"` 로 CSS 를 걸러내고, 그 위에 인쇄용만 고른다. */
+  const PRINT_FONT = /KoPubBatang|KaTeX_/i;
+  const fonts = [], uiFonts = [];
+  ctx.on("response", (r) => {
+    if (r.request().resourceType() !== "font") return;
+    const rec = { url: r.url(), bytes: Number(r.headers()["content-length"] || 0) };
+    (PRINT_FONT.test(rec.url) ? fonts : uiFonts).push(rec);
+  });
   const page = await ctx.newPage();
   const where = `${engineName} · 글꼴`;
+  const mb = (list) => +(list.reduce((n, f) => n + f.bytes, 0) / 1048576).toFixed(2);
   try {
     await page.goto(`${base}/index.html?xplat=${Date.now()}`, { waitUntil: "domcontentloaded", timeout: 30000 });
     await page.waitForFunction(() => typeof window.warmPrintFonts === "function", null, { timeout: 20000 });
     await page.waitForTimeout(4000);          // 예전 방식이었다면 이 사이에 다 받았을 시간
-    const 방문만 = reqs;
-    /* 인쇄 의도 — 손이 닿는 순간 */
-    await page.dispatchEvent("#printBtn", "pointerdown");
-    await page.waitForTimeout(2500);
-    const 인쇄의도뒤 = reqs;
-    say(방문만 <= 3, `${where} — 방문만 하면 인쇄용 글꼴을 받지 않는다`, `${방문만}건이나 받았다`);
-    say(인쇄의도뒤 > 방문만 + 5, `${where} — 인쇄 단추에 손이 닿으면 받기 시작한다`,
-        `${방문만} → ${인쇄의도뒤} (거의 안 늘었다)`);
+    const 방문만 = fonts.slice();
+    say(방문만.length === 0, `${where} — 방문만 하면 인쇄용 글꼴 파일을 하나도 받지 않는다`,
+        `${방문만.length}개 · ${mb(방문만)}MB (${방문만.slice(0, 3).map(f => f.url.split("/").pop()).join(", ")})`);
+
+    await page.dispatchEvent("#printBtn", "pointerdown");     // 인쇄 의도
+    await page.waitForTimeout(3000);
+    const 뒤 = fonts.slice(방문만.length);
+    /* ⚠️ 건수만 보면 어떤 벌이 빠졌는지 모른다. 인쇄 본문이 쓰는 **세 굵기**를 이름으로 본다
+       (`.pq .content` 는 300, 소제목·표 제목은 700, 문항 메타는 400). */
+    const 굵기 = ["Light", "Medium", "Bold"].filter(w => 뒤.some(f => new RegExp("KoPubBatang-" + w, "i").test(f.url)));
+    say(굵기.length === 3, `${where} — 인쇄 의도 뒤 KoPub 세 굵기를 받는다`,
+        `받은 것: ${굵기.join(", ") || "없음"} (전체 ${뒤.length}개 · ${mb(뒤)}MB)`);
+    say(뒤.some(f => /KaTeX_/i.test(f.url)), `${where} — 인쇄 의도 뒤 KaTeX 글꼴도 받는다`,
+        `${뒤.length}개`);
+    console.log(`     · 인쇄용 글꼴 — 방문만 ${mb(방문만)}MB / 인쇄 의도 뒤 ${mb(뒤)}MB`
+              + ` · 화면 글꼴(Pretendard) ${mb(uiFonts)}MB`);
   } catch (e) {
     bad(`${where} — 확인하지 못했다`, String(e).split("\n")[0].slice(0, 140));
   } finally { await b.close(); }
@@ -391,6 +414,53 @@ async function runViewportFit(engineName, engine) {
         say(r.bar + r.view <= r.vh + 2, `${where} — 상단 바 + ${label} 이 한 화면에 든다`,
             `상단 바 ${r.bar} + ${label} ${r.view} = ${r.bar + r.view} > 창 ${r.vh}`);
       }
+    } catch (e) {
+      bad(`${where} — 확인하지 못했다`, String(e).split("\n")[0].slice(0, 140));
+    } finally { await ctx.close(); }
+  }
+  await b.close();
+}
+
+/* ── 서버가 필요한 기능을 **누르기 전에** 알리는가 ──────────────────────────
+ *
+ * ⚠️ 예전에는 눌러 본 뒤에야 "서버를 켜세요" 를 봤고, 그 안내는 **사파리 사용자가 따라
+ *    할 수 없는 것**이었다. 실측(2026-09-07 · 세 엔진 · https 페이지 → http loopback):
+ *      chromium/firefox : **된다**(200)
+ *      webkit           : **막힌다** — 게다가 살아 있는 서버와 죽은 포트가
+ *                         **똑같이 `TypeError: Load failed` · 0ms** 라 페이지 안에서는
+ *                         구별할 수 없다. 그래서 안내는 **두 가능성을 함께** 말한다.
+ * ⚠️ **단추를 비활성화하지 않는다** — 서버를 방금 켰을 수도 있고 우리 감지가 틀렸을
+ *    수도 있다. 기대치만 미리 알린다(인앱 로그인과 같은 원칙).
+ */
+async function runServerNotice(engineName, engine) {
+  const b = await engine.launch();
+  for (const 서버있음 of [true, false]) {
+    const ctx = await b.newContext({ viewport: { width: 1280, height: 900 } });
+    /* 서버가 '없는' 경우는 로컬 API 를 막아 흉내 낸다 — serve.py 를 끄면 페이지도 못 받는다. */
+    if (!서버있음) await ctx.route("**/health**", (r) => r.abort());
+    const page = await ctx.newPage();
+    const where = `${engineName} · 서버 ${서버있음 ? "있음" : "없음"}`;
+    try {
+      await page.goto(`${base}/mock-exam-editor.html?xplat=${Date.now()}`, { waitUntil: "domcontentloaded", timeout: 30000 });
+      await page.waitForFunction(() => typeof window.markServerFeatures === "function", null, { timeout: 20000 });
+      await page.waitForTimeout(4000);
+      const r = await page.evaluate(() => ({
+        안내: !document.getElementById("serverNote")?.hidden,
+        이유: (document.getElementById("serverNoteWhy")?.textContent || "").trim(),
+        표시: [...document.querySelectorAll(".needs-server")].map((e) => e.id).sort(),
+        살아있나: ["liveBtn", "hwpxBtn"].every((id) => { const e = document.getElementById(id); return e && !e.disabled; }),
+      }));
+      if (서버있음) {
+        say(!r.안내, `${where} — 안내를 띄우지 않는다`, `띄웠다: ${r.이유.slice(0, 40)}`);
+        say(r.표시.length === 0, `${where} — 단추에 '서버' 표시가 없다`, r.표시.join(", "));
+      } else {
+        say(r.안내, `${where} — 누르기 전에 미리 알린다`);
+        say(r.표시.join(",") === "hwpxBtn,liveBtn", `${where} — 서버가 필요한 단추를 표시한다`, r.표시.join(", ") || "없음");
+        /* ⚠️ 두 가능성을 **함께** 말해야 한다 — 하나만 말하면 절반이 따라 할 수 없다. */
+        say(/serve\.py/.test(r.이유) && /사파리|브라우저/.test(r.이유),
+            `${where} — 서버 켜기와 브라우저 제약을 함께 알린다`, r.이유.slice(0, 60));
+      }
+      say(r.살아있나, `${where} — 단추를 막지는 않는다`, "비활성화되어 있다");
     } catch (e) {
       bad(`${where} — 확인하지 못했다`, String(e).split("\n")[0].slice(0, 140));
     } finally { await ctx.close(); }
@@ -566,6 +636,7 @@ try {
     await runStorageBlocked(name, engine);
     await runViewportFit(name, engine);
     await runFontIntent(name, engine);
+    await runServerNotice(name, engine);
     await runInAppNotice(name, engine);
     await runCdnBlocked(name, engine);
     await runDownload(name, engine);

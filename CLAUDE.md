@@ -65,7 +65,16 @@ python3 experiments/hwp-export/document_to_hwpx.py \
 
 **열린 이슈 없음.**
 
-▶ **범용성 작업 — 5단계까지 완료.** 남은 것은 6단계(서버가 필요한 기능을 미리 알리기)뿐이다.
+▶ **범용성 작업 — 여섯 단계 모두 완료**([`docs/CROSS-PLATFORM-DESIGN.md`](docs/CROSS-PLATFORM-DESIGN.md)).
+남은 것은 **코드로 답할 수 없는 제품 결정**이다 — 모의고사 편집기를 지인·상용 사용자에게
+열 것인가(윈도우 사용자는 `python3 serve.py` 를 따라 할 수 없다), 시험지 HWPX 와 AI 문서의
+**위상 차이**를 UI 에서 더 분명히 할 것인가(`HANDOFF-2026-059` 끝부분).
+
+⚠️ **배포본(https)에서 `http://127.0.0.1` 부르기 — 실측(세 엔진)**: 크로미움·파이어폭스는
+**된다**, **WebKit 만 막는다.** 표준상 loopback 은 신뢰 URL 이라 혼합 콘텐츠가 원인이
+아니다. ⚠️ 게다가 WebKit 은 **살아 있는 서버와 죽은 포트가 똑같이 `Load failed`·0ms** 라
+페이지 안에서 '막힘' 과 '서버 없음' 을 **가를 수 없다** — 그래서 안내는 두 가능성을
+**함께** 말하고 UA 는 순서만 정한다. `test:cross` 가 그 문구까지 본다.
 ([`docs/CROSS-PLATFORM-DESIGN.md`](docs/CROSS-PLATFORM-DESIGN.md) · `-050` → 검토 `-051`(Codex)
 → 반영 `-052` → 1단계 `-053`).
 

@@ -501,6 +501,17 @@ body.embedded .brand-tag{margin-left:0}
   .brand{font-size:19px}
   .tb-l .inp{min-width:100px}
 }
+
+/* ── 서버가 필요한 기능 안내 ────────────────────────────────────────────────
+   ⚠️ 단추를 **비활성화하지 않는다.** 서버를 방금 켰을 수도 있고, 우리 감지가 틀렸을
+      수도 있다 — 눌러 볼 길은 남겨 두고 기대치만 미리 알린다(인앱 로그인과 같은 원칙). */
+#serverNote{
+  padding:9px 16px;font-size:12.5px;line-height:1.6;
+  background:var(--surface-2,#f3f3f5);border-bottom:1px solid var(--line,#ddd);
+  color:var(--muted,#666);
+}
+.btn.needs-server{opacity:.62}
+.btn.needs-server::after{content:"·서버";font-size:10px;opacity:.7;margin-left:4px}
 </style>
 </head>
 <body>
@@ -533,6 +544,14 @@ body.embedded .brand-tag{margin-left:0}
     <button class="btn" id="hwpxBtn" title="한글에서 열어 PDF로 뽑을 수 있는 .hwpx 를 받습니다 (로컬 서버 필요)">한글 내보내기 <span style="opacity:.6;font-size:11px">베타</span></button>
   </div>
 </header>
+
+<!-- ⚠️ 서버가 있어야 되는 기능은 **누르기 전에** 알린다. 채우는 것은 markServerFeatures(). -->
+<div id="serverNote" hidden>
+  <b>실시간 정본 미리보기</b>와 <b>한글 내보내기</b>는 내 컴퓨터의 로컬 서버가 있어야 하는
+  <b>개발용 기능</b>입니다 — 지금은 서버를 찾지 못했습니다.
+  <span id="serverNoteWhy"></span>
+  편집·근사 미리보기·Typst 내보내기·저장은 그대로 됩니다.
+</div>
 
 <main class="panes" data-pane="edit">
   <!-- 좁은 화면(<1024px) 전용 탭 — 데스크톱에서는 CSS 로 숨겨진다. -->
@@ -1886,16 +1905,36 @@ const LIVE={on:false,busy:false,pending:false,timer:null,cache:new Map(),ppi:110
    내 컴퓨터의 렌더 서버 주소를 직접 부른다. 크롬은 https 페이지에서
    로컬 주소를 부를 때 서버의 허가 헤더를 요구하는데 serve.py 가 붙여 준다. */
 const LIVE_PORTS=[8787,8788,8080];
+/* 마지막 실패의 갈래. **UA 로 판정하지 않는다** — 실제로 못 불렀다는 사실만 본다.
+   'blocked' = 브라우저가 요청 자체를 막았다(WebKit 이 https 페이지에서 loopback 을
+   부를 때 그렇다 — 2026-09-07 세 엔진 실측). 'none' = 서버가 없거나 안 떠 있다. */
+let LAST_PROBE_FAIL="";
 async function probe(base){
   try{
     const c=new AbortController();const t=setTimeout(()=>c.abort(),1500);
     const r=await fetch(base+'/health',{headers:{'X-Exam-Client':'1'},signal:c.signal});
     clearTimeout(t);
-    if(!r.ok)return false;
+    if(!r.ok){ LAST_PROBE_FAIL="none"; return false; }
     const d=await r.json();
     if(d.ok) LIVE.webfonts=Array.isArray(d.webfonts)?d.webfonts:[];
+    LAST_PROBE_FAIL="";
     return !!d.ok;
-  }catch(e){return false;}
+  }catch(e){
+    /* ⚠️ **WebKit 은 두 경우를 구별할 수 없게 만든다.** 실측(2026-09-07):
+         https 페이지에서 …
+           살아 있는 서버(8787)  → `TypeError: Load failed` · 0ms
+           죽은 포트(8799)       → `TypeError: Load failed` · 0ms
+         **문구도 시간도 같다.** 콘솔에만 'Not allowed to request resource' 가 남는데
+         스크립트는 그걸 읽을 수 없다. (크로미움은 다르다: 살아 있으면 200, 없으면
+         'Failed to fetch'.)
+       → 그래서 **'막힌 것' 이라고 단정하지 않는다.** 문구가 분명한 경우(혼합 콘텐츠·
+         사설망 권한)만 `blocked` 로 보고, 나머지는 `unknown` 이다. 안내는 두 가능성을
+         **모두** 말한다 — 하나만 말하면 절반의 사용자에게 따라 할 수 없는 지시가 된다. */
+    const m=String((e&&e.message)||e);
+    LAST_PROBE_FAIL = /Mixed Content|insecure|private network|Local Network|Not allowed/i.test(m)
+      ? "blocked" : "unknown";
+    return false;
+  }
 }
 
 /* ── 시험 글꼴을 로컬 서버에서 웹폰트로 받아오기 ──
@@ -2349,9 +2388,51 @@ async function boot(){
   if(location.protocol.startsWith('http')&&await pingServer()){
     injectServerWebfonts();     // 실시간을 켜지 않아도 서체는 정본과 맞춰 둔다
     setLive(true);
+    markServerFeatures(true);
   }
-  else if(location.protocol.startsWith('http'))
+  else if(location.protocol.startsWith('http')){
     console.info('로컬 렌더 서버 없음 — 근사 미리보기로 동작합니다.');
+    markServerFeatures(false);
+  }
+}
+
+/* ── 서버가 있어야 되는 기능을 **누르기 전에** 알린다 ────────────────────────
+ *
+ * ⚠️ 예전에는 눌러 본 뒤에야 "서버를 켜세요" 를 봤다. 그리고 그 안내는 **사파리
+ *    사용자가 따라 할 수 없는 것**이다 — 실측(2026-09-07, 세 엔진):
+ *      chromium  https 페이지 → http://127.0.0.1 : **된다**(GET 200 · POST 도달)
+ *      firefox                                   : **된다**
+ *      webkit                                    : **막힌다**("Not allowed to request resource")
+ *    표준상 loopback 은 신뢰 URL 이라 혼합 콘텐츠가 원인이 아니고, **WebKit 구현**이
+ *    막는 것이다. 그러니 사파리 사용자에게 "서버를 켜세요" 는 틀린 안내다.
+ * ⚠️ UA 로 사파리를 판정하지 않는다 — **실제로 못 불렀다는 사실**로만 판정한다.
+ *    (인앱 브라우저 감지와 같은 원칙: UA 는 힌트, 판정은 결과로)
+ */
+function markServerFeatures(found){
+  const ids=['#liveBtn','#hwpxBtn'];
+  ids.forEach(sel=>{
+    const b=document.querySelector(sel); if(!b) return;
+    b.classList.toggle('needs-server', !found);
+    b.title = found ? b.dataset.okTitle || b.title
+                    : '로컬 서버가 있어야 하는 기능입니다 — 지금은 서버를 찾지 못했습니다';
+    if(!b.dataset.okTitle) b.dataset.okTitle=b.title;
+  });
+  const bar=document.getElementById('serverNote');
+  if(bar) bar.hidden = !!found;
+  const why=document.getElementById('serverNoteWhy');
+  if(why && !found){
+    const 막힘확실 = LAST_PROBE_FAIL==="blocked";
+    /* ⚠️ UA 는 **어느 쪽을 먼저 말할지** 만 정한다. 판정이 아니다 — 사파리 사용자에게
+       "서버를 켜세요" 만 말하면 따라 할 수 없고, 크롬 사용자에게 "브라우저가 막는다" 만
+       말하면 엉뚱한 곳을 고치게 된다. **두 가능성을 늘 함께** 말한다. */
+    const 사파리처럼 = /^((?!chrome|android|crios|fxios|edg).)*safari/i.test(navigator.userAgent||"");
+    const 서버켜기 = "터미널에서 python3 serve.py --open 을 실행하세요.";
+    const 브라우저 = "사파리 등 일부 브라우저는 서버를 켜도 내 컴퓨터 주소 호출을 막습니다 — "
+                   + "그때는 http://127.0.0.1:8787 에서 직접 열거나 크롬·파이어폭스를 쓰세요.";
+    why.textContent = (막힘확실 || 사파리처럼)
+      ? `${브라우저} 서버를 아직 안 켰다면 ${서버켜기} `
+      : `${서버켜기} ${브라우저} `;
+  }
 }
 if(window.katex)boot(); else window.addEventListener('load',boot);
 document.fonts&&document.fonts.ready.then(()=>{renderPreview();});

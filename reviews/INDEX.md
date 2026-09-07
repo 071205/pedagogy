@@ -49,6 +49,7 @@
 | `REV-2026-026` | `P2` | 두 편집기의 인앱 안내가 갈리고 탈출 단추가 화면 밖 | `issues/2026-09/2026-09-07-auth-in-app-guidance-diverges.md` |
 | `REV-2026-027` | `P2` | 터치 목표 검사가 버튼형 링크·문서 편집기 조작을 제외함 | `issues/2026-09/2026-09-07-tests-touch-target-coverage-gaps.md` |
 | `REV-2026-028` | `P2` | 늘어난 상단 바를 60px 로 빼 모의고사 화면이 넘침 | `issues/2026-09/2026-09-07-index-dvh-fixed-header-subtraction.md` |
+| `REV-2026-029` | `P2` | 글꼴 의도 검사가 부팅 중 글꼴 두 벌을 허용함 | `issues/2026-09/2026-09-07-tests-font-intent-allows-preload.md` |
 
 ## 최근 인계
 
@@ -112,6 +113,7 @@
 | `HANDOFF-2026-056` | Claude | 범용성 3단계 — 손가락(44px · hover 전용 조작) | `handoffs/2026-09/2026-09-07-cross-platform-step3.md` |
 | `HANDOFF-2026-057` | Claude | 범용성 4단계 — 화면(dvh · 문서 편집기 · safe-area) | `handoffs/2026-09/2026-09-07-cross-platform-step4.md` |
 | `HANDOFF-2026-058` | Claude | 범용성 5단계 — 글꼴을 인쇄 의도 시점에 | `handoffs/2026-09/2026-09-07-cross-platform-step5.md` |
+| `HANDOFF-2026-059` | Claude | 범용성 6단계 — 서버 필요 기능을 미리 알리기 | `handoffs/2026-09/2026-09-07-cross-platform-step6.md` |
 | `HANDOFF-2026-046` | Claude | 영어 표 문항 (10번) + 표 머리글 굵기 | `handoffs/2026-09/2026-09-06-english-table-question.md` |
 | `HANDOFF-2026-038` | Claude | 영어 과목 조판의 토대 (실물 대조) | `handoffs/2026-09/2026-09-03-english-subject-foundation.md` |
 | `HANDOFF-2026-039` | Claude | 지문 문단 모델 — 문단마다 첫 줄 들여쓰기 | `handoffs/2026-09/2026-09-03-passage-paragraph-model.md` |
