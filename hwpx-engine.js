@@ -105,6 +105,12 @@
     let offset = 0;
     for (const [name, data] of files) {
       const nameBytes = encoder.encode(name);
+      /* ⚠️ UTF-8 이름 플래그(bit 11)는 **필요할 때만** 세운다. 실물 한글이 저장한 .hwpx 도
+         파이썬 `zipfile` 도 이름이 ASCII 면 `flag_bits=0`(실측) — 우리만 늘 세우면
+         같은 문서인데 브라우저 산출물만 바이트가 갈라진다. 규격상 둘 다 맞지만,
+         **읽는 쪽이 한글**이므로 한글이 쓰는 모습을 따른다. */
+      const nonAscii = nameBytes.some((b) => b > 0x7f);
+      const flags = nonAscii ? 0x0800 : 0;
       const isStored = stored.has(name);
       const body = isStored ? data : await deflateRaw(data);
       const crc = crc32(data);
@@ -112,7 +118,7 @@
       const lv = new DataView(local.buffer);
       lv.setUint32(0, 0x04034b50, true);
       lv.setUint16(4, 20, true);                    // version needed
-      lv.setUint16(6, 0x0800, true);                // 이름은 UTF-8
+      lv.setUint16(6, flags, true);                 // bit11 = 이름이 UTF-8
       lv.setUint16(8, isStored ? 0 : 8, true);      // 0=저장 8=deflate
       lv.setUint16(10, 0, true); lv.setUint16(12, 0x0021, true);   // 1980-01-01 (파이썬과 같게)
       lv.setUint32(14, crc, true);
@@ -127,7 +133,7 @@
       const cv = new DataView(cd.buffer);
       cv.setUint32(0, 0x02014b50, true);
       cv.setUint16(4, 20, true); cv.setUint16(6, 20, true);
-      cv.setUint16(8, 0x0800, true);
+      cv.setUint16(8, flags, true);
       cv.setUint16(10, isStored ? 0 : 8, true);
       cv.setUint16(12, 0, true); cv.setUint16(14, 0x0021, true);
       cv.setUint32(16, crc, true);

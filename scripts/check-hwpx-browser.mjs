@@ -168,6 +168,7 @@ try {
       let bin = ""; for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
       return {
         b64: btoa(bin),
+        names: [...files.keys()],
         xml: {
           section0: dec.decode(files.get("Contents/section0.xml")),
           header: dec.decode(files.get("Contents/header.xml")),
@@ -196,6 +197,50 @@ print(json.dumps({
 
     /* 3) 신호를 뽑아 맞춘다 */
     compare(name, signals(made.xml), signals(pyXml));
+
+    /* 4) ZIP 껍데기를 **남의 읽개**로 읽어 본다.
+       ⚠️ 위 1) 은 우리 `unzip()` 으로 풀었다 — 우리가 쓰고 우리가 읽으면 우리끼리만
+       통하는 ZIP 이라도 통과한다. 정작 이 파일을 읽는 것은 한글이므로, 엄격한 남의
+       구현(파이썬 `zipfile`)이 받아 주는지를 따로 본다. 실물 한글이 저장한 .hwpx 를
+       재어 보면 `flag_bits=0` · data descriptor 없음 · `mimetype` 이 맨 앞 무압축이다. */
+    const brOut = join(tmpdir(), `pedagogy-br-${name}-${process.pid}.hwpx`);
+    await writeFile(brOut, Buffer.from(made.b64, "base64"));
+    const zipProbe = spawnSync(python, ["-c", `
+import json, sys, zipfile
+def shape(path):
+    z = zipfile.ZipFile(path)
+    bad = z.testzip()
+    if bad: raise SystemExit("깨진 파트: " + bad)
+    return {
+        "names": [i.filename for i in z.infolist()],
+        "flags": sorted({i.flag_bits for i in z.infolist()}),
+        "descriptors": sum(1 for i in z.infolist() if i.flag_bits & 0x08),
+        "first": [z.infolist()[0].filename, z.infolist()[0].compress_type],
+    }
+print(json.dumps({"browser": shape(sys.argv[1]), "python": shape(sys.argv[2])}))
+`, brOut, pyOut], { encoding: "utf8" });
+    if (zipProbe.status !== 0) {
+      failures++;
+      console.log(`  ❌ ${name} — 브라우저가 만든 ZIP 을 표준 읽개가 못 읽습니다`);
+      console.log("      " + String(zipProbe.stderr || "").trim().split("\n").slice(-1)[0]);
+    } else {
+      const { browser: bz, python: pz } = JSON.parse(zipProbe.stdout);
+      const problems = [];
+      if (JSON.stringify(bz.names) !== JSON.stringify(pz.names))
+        problems.push(`파트 목록·순서 — 브라우저 ${bz.names.length}개 · 파이썬 ${pz.names.length}개`);
+      /* ⚠️ 두 읽개가 **같은 파일에서 같은 것**을 봐야 한다. 파이썬 `zipfile` 은 EOCD 의
+         파일 개수를 안 보고 중앙 디렉터리를 끝까지 훑고, 우리 `unzip()` 은 그 개수를 쓴다 —
+         그래서 개수만 틀리게 써도 파이썬 쪽만 보면 멀쩡해 보인다(깨보기에서 실제로 통과했다). */
+      if (JSON.stringify(made.names) !== JSON.stringify(bz.names))
+        problems.push(`읽개마다 다르게 읽힙니다 — 우리 unzip ${made.names.length}개 · 파이썬 ${bz.names.length}개`);
+      if (JSON.stringify(bz.first) !== JSON.stringify(["mimetype", 0]))
+        problems.push(`첫 파트가 무압축 mimetype 이 아닙니다: ${JSON.stringify(bz.first)}`);
+      if (bz.descriptors) problems.push(`data descriptor ${bz.descriptors}개 (한글이 쓰는 .hwpx 는 0개)`);
+      if (JSON.stringify(bz.flags) !== JSON.stringify(pz.flags))
+        problems.push(`ZIP 플래그가 파이썬과 다릅니다 — 브라우저 ${JSON.stringify(bz.flags)} · 파이썬 ${JSON.stringify(pz.flags)}`);
+      if (problems.length) { failures += problems.length; problems.forEach((t) => console.log(`  ❌ ${name} · ${t}`)); }
+      else console.log(`  ✅ ${name} — ZIP 껍데기도 파이썬과 같습니다 (파트 ${bz.names.length}개)`);
+    }
 
     if (outDir) {
       await writeFile(join(outDir, `${name}-browser.hwpx`), Buffer.from(made.b64, "base64"));
