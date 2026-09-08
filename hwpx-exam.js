@@ -139,7 +139,15 @@
       this.doc = doc;
       this.roles = roles;
       this.sec = 0;                      // 지금 쓰는 구역(0 공통 · 1 선택)
-      this.report = { problems: 0, equations: 0, figures: 0, warnings: [] };
+      /* ⚠️ 파이썬 `Report` 와 **같은 칸**을 둔다. 한쪽에만 있는 칸은 대조에서 빠져
+         조용히 갈라진다 — `check-hwpx-exam.mjs` 가 이 객체를 통째로 견준다. */
+      this.report = { problems: 0, equations: 0, figures: 0, breaks: 0, pages: 0,
+                      padded: 0, choice_rows: 0, tags: 0, notes: 0, warnings: [] };
+      /* `captureMarks()` 가 본문을 비우기 전에 떠 둔 실물 표(구획 태그 · ※ 확인 사항).
+         ⚠️ 이름을 `marks` 로 둔다 — `MARKS` 로 두면 선지 라벨 ①②③④⑤ 를 가린다
+            (파이썬에서 실제로 그랬다). */
+      this.marks = (roles && roles._marks) || {};
+      this.objId = 0;                    // 표를 심을 때마다 새로 매기는 개체 id
       /* 역할 → 문단·글자·스타일 id. 파이썬 `STYLE` 과 같은 이름을 쓴다. */
       this.style = {};
       for (const [role, spec] of Object.entries(roles)) {
@@ -167,6 +175,81 @@
         charPrId: this.style[char], withRun,
       });
       return this.doc.paragraphCount(this.sec) - 1;
+    }
+
+    /* ── 구획 태그 · ※ 확인 사항 ─────────────────────────────────────────────
+     * ⚠️ 이 둘은 문단이 아니라 **표 개체**다. 크기·테두리를 지어내지 말 것 —
+     *    `captureMarks()` 가 본문을 비우기 **전에** 실물 표를 통째로 떠 두고
+     *    여기서 도로 심는다. `5지선다형` 은 틀의 표제부에 이미 있다(넣으면 두 번 나온다).
+     */
+
+    /** 떠 온 표를 다시 심을 때 개체 id 를 새로 매긴다.
+        ⚠️ 같은 id·zOrder 를 가진 개체가 둘이면 한글이 문서를 이상하게 읽는다.
+           공통·선택 두 구역에 심으므로 그때마다 새 번호를 준다. */
+    stampIds(tblXml) {
+      this.objId += 1;
+      const n = 90000000 + this.objId;
+      const head = /^<hp:tbl\b[^>]*>/.exec(tblXml);
+      if (!head) return tblXml;
+      let tag = head[0]
+        .replace(/\bid="\d+"/, `id="${n}"`)
+        .replace(/\bzOrder="\d+"/, `zOrder="${this.objId}"`);
+      return tag + tblXml.slice(head[0].length);
+    }
+
+    /** 문단의 **run 들 뒤**에 run 하나를 더한다.
+        ⚠️ 그냥 붙이면 `linesegarray` 뒤로 가서 순서가 어긋난다 —
+           run 이 아닌 첫 자식 **앞**에 넣는다. */
+    addRun(para, charPr, bodyXml) {
+      const doc = para.ownerDocument;
+      const run = doc.createElementNS(HP, "hp:run");
+      run.setAttribute("charPrIDRef", String(charPr == null ? "0" : charPr));
+      const tmp = new DOMParser().parseFromString(
+        `<w xmlns:hp="${HP}">${bodyXml}</w>`, "application/xml");
+      for (const node of [...tmp.documentElement.childNodes]) run.appendChild(doc.importNode(node, true));
+      let before = null;
+      for (const child of [...para.childNodes]) {
+        if (child.nodeType === 1 && child.localName !== "run") { before = child; break; }
+      }
+      para.insertBefore(run, before);
+      return run;
+    }
+
+    /** `단답형` 태그 표를 심는다. `into` 가 있으면 그 문단에 이어 붙인다. */
+    sectionTag(into) {
+      const spec = (this.marks.tag || {}).short;
+      if (!spec) return false;
+      const body = this.stampIds(spec.tbl) + "<hp:t/>";   // 실물도 표 뒤에 빈 글자 조각을 둔다
+      if (into == null) {
+        this.doc.appendParagraph("", { sectionIndex: this.sec, paraPrId: spec.para,
+                                       styleId: spec.style, charPrId: spec.char, withRun: false });
+        into = this.doc.paragraphCount(this.sec) - 1;
+      }
+      this.addRun(this.doc.paragraphs(this.sec)[into], spec.char, body);
+      this.report.tags += 1;
+      return true;
+    }
+
+    /** `※ 확인 사항` 상자를 그 쪽에 매단다(쪽 기준 절대배치라 흐름은 안 건드린다).
+        ⚠️ 어느 문단에 매다느냐가 '몇 쪽에 나오는가' 만 정하므로 **그 구역 마지막 쪽**의
+           문단에 매단다. */
+    attachNote(paraIdx, { lines, elective = "" }) {
+      const spec = (this.marks.note || {})[lines];
+      if (!spec) return false;
+      let body = this.stampIds(spec.tbl);
+      if (elective) {
+        /* 실물 글을 그대로 두고 **과목 이름만** 갈아 끼운다.
+           ⚠️ 글을 새로 쓰지 않는 이유: 첫 줄의 `※` 는 기호 글꼴로 찍힌 글자라
+              유니코드 `※` 를 넣으면 다른 모양이 나온다.
+           ⚠️ `「」` 까지 함께 찾으면 못 찾는다 — 실물은 괄호와 과목 이름이 **다른 run**
+              이라 그 사이에 태그가 끼어 있다. 실제로 그래서 틀의 이름 그대로 나갔다. */
+        body = body.replace(/선택과목\([^)<]*\)/g, `선택과목(${esc(elective)})`);
+      }
+      const paras = this.doc.paragraphs(this.sec);
+      if (paraIdx >= paras.length) return false;
+      this.addRun(paras[paraIdx], spec.char, body);
+      this.report.notes += 1;
+      return true;
     }
 
     /** 마지막으로 만든 문단을 '새 단에서 시작' 으로 표시한다.
@@ -308,6 +391,7 @@
         this.choiceRow(used.slice(0, 3), { where, layout: lay });
         this.choiceRow(used.slice(3), { where, layout: lay });
       } else for (const one of used) this.choiceRow([one], { where, layout: lay });
+      this.report.choice_rows += lay === "1" ? 1 : (lay === "2" ? 2 : used.length);
     }
 
     /* 문항 하나. 유닛은 **편집기가 만든 것**을 그대로 받는다. */
@@ -320,7 +404,8 @@
         this.para(`${num}. (발문 비어 있음)`, { para: "para_stem", char: "char_stem" });
         return;
       }
-      this.report.problems++;
+      /* ⚠️ `problems` 는 여기서 세지 않는다 — 파이썬도 `build()` 가 센다.
+         양쪽에서 세면 `build()` 를 붙이는 순간 두 배가 된다(집계 대조가 잡았다). */
       let first = true;
       units.forEach((u, i) => {
         const tail = (i === ptsAt && p.pts) ? `  [${p.pts}점]` : "";

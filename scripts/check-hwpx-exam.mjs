@@ -162,7 +162,8 @@ for para in paras:
         "tabs": _re.findall(r'<hp:tab width="(\\d+)"', xml),
         "scripts": _re.findall(r"<hp:script[^>]*>(.*?)</hp:script>", xml, _re.S),
     })
-print(json.dumps({"paras": out, "warnings": rep.warnings,
+import dataclasses
+print(json.dumps({"paras": out, "report": dataclasses.asdict(rep),
                   "units": units, "ptsAt": pts_at}, ensure_ascii=False))
 `;
 
@@ -182,6 +183,55 @@ for name, probs in cases.items():
                      ((0, 168.5, 10.75), (100, 100, 10.75), (0, 5, 10.75), (0, 168.5, 0))],
     }
 print(json.dumps(out, ensure_ascii=False))
+`;
+
+const PY_MARKS = `
+import json, sys, re, dataclasses
+sys.path.insert(0, "experiments/hwp-export")
+from pathlib import Path
+import mock_to_hwpx as m, template as tmpl
+doc, roles = tmpl.open_template(Path(${JSON.stringify(TEMPLATE)}))
+m.STYLE.clear(); m.CUR["sec"] = 0; m.OBJ_ID["n"] = 0
+m.TMPL_MARKS.clear(); m.TMPL_MARKS.update(roles.get("_marks") or {})
+for role, spec in roles.items():
+    if role.startswith("_"): continue
+    if "para" in spec: m.STYLE["para_" + role] = spec["para"]
+    if "char" in spec: m.STYLE["char_" + role] = spec["char"]
+    if "style" in spec: m.STYLE["style_" + role] = spec["style"]
+def _tags(x):
+    out = {}
+    for mm in re.finditer(r"<(?:\\w+:)?(\\w+)[\\s/>]", x):
+        out[mm.group(1)] = out.get(mm.group(1), 0) + 1
+    return out
+
+def _run_slot(doc):
+    paras = [k for k in doc.get_part("Contents/section0.xml").root.children if k.local_name == "p"]
+    p = paras[-1]
+    p.insert_xml(len(p.children), '<hp:linesegarray xmlns:hp="http://www.hancom.co.kr/hwpml/2011/paragraph"/>')
+    m._add_run(p, m._run_wrap("0", "<hp:t>표시</hp:t>"))
+    return ",".join(c.local_name for c in p.children)
+
+rep = m.Report()
+before = doc.paragraph_count(0)
+m.emit_section_tag(doc, rep)
+doc.append_paragraph("", section_index=0, para_pr_id=m.STYLE.get("para_stem"),
+                     style_id=m._sty("para_stem"), char_pr_id=m.STYLE.get("char_stem"))
+m.attach_note(doc, rep, doc.paragraph_count(0) - 1, lines=3, elective="기하")
+m.emit_section_tag(doc, rep)
+sec = doc.get_part("Contents/section0.xml")
+paras = [k for k in sec.root.children if k.local_name == "p"][before:]
+xml = "".join(p.to_xml() for p in paras)
+print(json.dumps({
+    "report": dataclasses.asdict(rep),
+    "tblIds": re.findall(r'<hp:tbl[^>]*\\bid="(\\d+)"', xml),
+    "zOrders": re.findall(r'<hp:tbl[^>]*\\bzOrder="(\\d+)"', xml),
+    "elective": re.findall(r"선택과목\\(([^)<]*)\\)", xml),
+    "childOrder": [",".join(c.local_name for c in p.children) for p in paras],
+    "tblCount": len(re.findall(r"<hp:tbl\\b", xml)),
+    "shape": [{"para": p.get_attr("paraPrIDRef"), "style": p.get_attr("styleIDRef"),
+               "tags": _tags(p.to_xml())} for p in paras],
+    "runSlot": _run_slot(doc),
+}, ensure_ascii=False))
 `;
 
 let pyRoles;
@@ -323,7 +373,7 @@ let jsEmit;
           scripts: [...xml.matchAll(/<hp:script[^>]*>([\s\S]*?)<\/hp:script>/g)].map((m) => m[1]),
         };
       });
-      return { paras: out, warnings: w.report.warnings };
+      return { paras: out, report: w.report };
     }, [templateB64, { ...PROBLEM, units: pyEmit.units, ptsAt: pyEmit.ptsAt }]);
   } finally { await browser2.close(); }
 }
@@ -342,8 +392,10 @@ for (let i = 0; i < Math.min(pp.length, jp.length); i++) {
   console.log(`  ❌ 문단 ${i}\n      파이썬 ${a.slice(0, 220)}\n      JS     ${b.slice(0, 220)}`);
   efails++;
 }
-if (canon(pyEmit.warnings) !== canon(jsEmit.warnings)) {
-  console.log(`  ❌ 경고 — 파이썬 ${canon(pyEmit.warnings)} · JS ${canon(jsEmit.warnings)}`);
+/* ⚠️ 경고만이 아니라 **집계 전체**를 견준다. 한쪽에만 있는 칸이나 안 세는 칸은
+   조용히 갈라진다(`choice_rows` 가 실제로 JS 에만 빠져 있었다). */
+if (canon(pyEmit.report) !== canon(jsEmit.report)) {
+  console.log(`  ❌ 집계 — 파이썬 ${canon(pyEmit.report)}\n           JS     ${canon(jsEmit.report)}`);
   efails++;
 }
 
@@ -418,3 +470,86 @@ if (splits < 8) { console.log(`  ❌ 표본이 단·쪽을 ${splits}번밖에 �
 
 if (lfails) { console.log(`\n문항 배치가 갈라졌습니다 — ${lfails}건`); process.exit(1); }
 console.log(`문항 배치 대조 통과 — 표본 ${Object.keys(LAYOUT_CASES).length}종이 파이썬과 같습니다`);
+
+/* ── 5단계: 구획 태그 · ※ 확인 사항 대조 ────────────────────────────────────
+   ⚠️ 이 둘은 문단이 아니라 **틀에서 떠 온 표 개체**다. 크기·테두리를 지어내면 안 되고,
+   심을 때마다 개체 id 를 새로 매겨야 한다(같은 id 가 둘이면 한글이 문서를 이상하게 읽는다).
+   그래서 **id 가 실제로 달라지는지**까지 본다. */
+let pyMarks;
+try {
+  pyMarks = JSON.parse(execFileSync("python3", ["-c", PY_MARKS], { cwd: ROOT, encoding: "utf8", maxBuffer: 32 << 20 }));
+} catch (e) {
+  console.log("표 개체 대조를 건너뜁니다 — 파이썬 쪽 실패: "
+    + String(e.stderr || e.message).split("\n").filter(Boolean).slice(-1)[0]?.slice(0, 160));
+  process.exit(REQUIRE ? 1 : 0);
+}
+
+let jsMarks;
+{
+  const browser4 = await chromium.launch();
+  try {
+    const page = await browser4.newPage();
+    await page.setContent("<!doctype html><meta charset=utf-8><title>표 개체 대조</title>");
+    await page.addScriptTag({ path: join(ROOT, "hwpx-engine.js") });
+    await page.addScriptTag({ path: join(ROOT, "hwpx-exam-template.js") });
+    await page.addScriptTag({ path: join(ROOT, "hwpx-exam.js") });
+    jsMarks = await page.evaluate(async (b64) => {
+      const bin = atob(b64); const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      const { doc, roles } = await window.PedagogyExamTemplate.openTemplate(bytes.buffer);
+      const w = new window.PedagogyExam.ExamWriter(doc, roles);
+      const before = doc.paragraphCount(0);
+      w.sectionTag(null);                                   // 새 문단에 태그를 심는다
+      w.para("", { para: "para_stem", char: "char_stem" }); // 상자를 매달 문단
+      w.attachNote(doc.paragraphCount(0) - 1, { lines: 3, elective: "기하" });
+      w.sectionTag(null);                                   // 두 번째 — id 가 달라야 한다
+      const ser = new XMLSerializer();
+      const paras = doc.paragraphs(0).slice(before);
+      const xml = paras.map((p) => ser.serializeToString(p)).join("");
+      return {
+        report: w.report,
+        tblIds: [...xml.matchAll(/<hp:tbl[^>]*\bid="(\d+)"/g)].map((m) => m[1]),
+        zOrders: [...xml.matchAll(/<hp:tbl[^>]*\bzOrder="(\d+)"/g)].map((m) => m[1]),
+        elective: [...xml.matchAll(/선택과목\(([^)<]*)\)/g)].map((m) => m[1]),
+        /* run 이 `linesegarray` **앞**에 들어갔는지 — 뒤로 가면 순서가 어긋난다. */
+        childOrder: paras.map((p) => [...p.children].map((c) => c.localName).join(",")),
+        tblCount: (xml.match(/<hp:tbl\b/g) || []).length,
+        /* ⚠️ 얕은 지문은 거짓말한다 — 표 뒤 빈 `<hp:t/>` 를 빼도 위 항목은 전부 같았다.
+           문단마다 태그 개수를 세어 그런 한 조각까지 보이게 한다. */
+        shape: paras.map((p) => {
+          const one = ser.serializeToString(p);
+          const tags = {};
+          for (const m of one.matchAll(/<(?:\w+:)?(\w+)[\s/>]/g)) tags[m[1]] = (tags[m[1]] || 0) + 1;
+          return { para: p.getAttribute("paraPrIDRef"), style: p.getAttribute("styleIDRef"), tags };
+        }),
+        /* run 자리 규칙을 **직접** 본다. 위 `childOrder` 로는 못 잡는다 — 새로 만든 문단에는
+           `linesegarray` 가 없어 붙이든 끼우든 결과가 같기 때문이다(깨보기가 통과했다). */
+        runSlot: (() => {
+          const p = doc.paragraphs(0)[doc.paragraphCount(0) - 1];
+          p.appendChild(p.ownerDocument.createElementNS(
+            "http://www.hancom.co.kr/hwpml/2011/paragraph", "hp:linesegarray"));
+          w.addRun(p, "0", "<hp:t>표시</hp:t>");
+          return [...p.children].map((c) => c.localName).join(",");
+        })(),
+      };
+    }, templateB64);
+  } finally { await browser4.close(); }
+}
+
+let mfails = 0;
+for (const key of ["report", "tblIds", "zOrders", "elective", "childOrder", "tblCount", "shape", "runSlot"]) {
+  if (canon(pyMarks[key]) === canon(jsMarks[key])) continue;
+  const A = canon(pyMarks[key]), B = canon(jsMarks[key]);
+  let at = 0; while (at < A.length && A[at] === B[at]) at++;   // 처음 갈라지는 자리부터 보여 준다
+  const from = Math.max(0, at - 60);
+  console.log(`  ❌ ${key} (${at}번째 글자부터)\n      파이썬 …${A.slice(from, at + 160)}\n      JS     …${B.slice(from, at + 160)}`);
+  mfails++;
+}
+/* ⚠️ 표가 실제로 심어져야 한다 — 하나도 안 심으면 빈 값끼리 '같다' 로 통과한다. */
+if (pyMarks.tblCount < 3) { console.log(`  ❌ 표가 ${pyMarks.tblCount}개뿐입니다 — 이 검사가 헛돌고 있습니다`); mfails++; }
+if (new Set(pyMarks.tblIds).size !== pyMarks.tblIds.length) {
+  console.log(`  ❌ 개체 id 가 겹칩니다: ${pyMarks.tblIds.join(",")}`); mfails++;
+}
+
+if (mfails) { console.log(`\n표 개체가 갈라졌습니다 — ${mfails}건`); process.exit(1); }
+console.log(`표 개체 대조 통과 — 표 ${pyMarks.tblCount}개·개체 id 가 파이썬과 같습니다`);
