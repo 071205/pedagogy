@@ -100,6 +100,8 @@ STATIC = {
 
 # https 사이트(깃허브 페이지 등)에서 이 로컬 서버를 부를 수 있게 허용할 출처.
 # 여기 적힌 곳만 허용한다. --allow-origin 으로 더 추가할 수 있다.
+# ⚠️ 배포본은 `https://071205.github.io/pedagogy/` 지만 여기에는 **경로를 붙이지 않는다** —
+#    HTTP `Origin` 헤더는 스킴+호스트+포트뿐이라 경로를 담지 않는다. 붙이면 다 막힌다.
 ALLOW_ORIGINS = {
     "https://071205.github.io",
 }

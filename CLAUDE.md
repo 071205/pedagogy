@@ -294,7 +294,11 @@ CDNs (KaTeX, SortableJS, Firebase compat SDK, Pretendard/KoPub webfonts).
   `serve.py`.
 
 Git remote: `origin` → https://github.com/071205/pedagogy (branch `main`, GitHub Pages로
-`https://071205.github.io` 에 배포됨 — `serve.py`의 `ALLOW_ORIGINS`가 이 주소를 허용한다).
+**`https://071205.github.io/pedagogy/`** 에 배포됨 — 프로젝트 페이지라 **저장소 이름이 경로에
+붙는다.** `https://071205.github.io` 만 열면 404 다(실측).
+⚠️ **그렇다고 `serve.py` 의 `ALLOW_ORIGINS` 에 경로를 붙이지 말 것.** HTTP `Origin` 헤더는
+스킴+호스트+포트뿐이고 **경로를 담지 않는다** — `/pedagogy/` 에서 보내는 Origin 이 정확히
+`https://071205.github.io` 다. 지금 값이 맞고, 경로를 붙이면 CORS 가 통째로 막힌다.
 
 ## 공동 변경·리뷰 기록
 
