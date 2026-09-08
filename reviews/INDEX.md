@@ -1,15 +1,20 @@
 # 리뷰 현황
 
-마지막 정리: 2026-09-08
+마지막 정리: 2026-09-09
 
 ## 열린 이슈
 
 | ID | 심각도 | 요약 | 파일 |
 | --- | --- | --- | --- |
 | `REV-2026-030` | `P1` | 틀의 줄바꿈·탭 뒤 원문 잔존 — bf107d4 재검토로 재개 | `issues/2026-09/2026-09-08-mock-bundled-template-retains-exam-content.md` |
+| `REV-2026-040` | `P1` | REV-032 의 검사가 제품이 아니라 검사 자신의 사본을 본다 | `issues/2026-09/2026-09-09-audit-check-tests-its-own-copy.md` |
+| `REV-2026-041` | `P1` | releaseImage 무동작화가 업로드 롤백까지 샌다 | `issues/2026-09/2026-09-09-release-image-noop-leaks-uploads.md` |
+| `REV-2026-042` | `P2` | 수정이 남긴 죽은 코드 셋(stillReferenced·maxProblems·keepId) | `issues/2026-09/2026-09-09-dead-options-after-audit-fixes.md` |
 
 독립 보안·안정성·효율성 분석과 수정 설계: [종합 보고서](audits/2026-09-08/REPORT.md).
 이번 9건은 `ae5740e`에서 재현 후 HANDOFF-2026-067로 수정·안전 회귀를 남겼다.
+⚠️ 그 수정을 Claude 가 검토해 3건을 열었다(`HANDOFF-2026-068`) — 여덟은 깨보기로
+빨간불을 확인했으나 **`032` 만 어떤 식으로 깨도 통과한다**(`REV-2026-040`).
 
 [`docs/MOCK-STYLE-DESIGN.md`](../docs/MOCK-STYLE-DESIGN.md) 의 실물 조판 계획은
 **여섯 단계가 모두 끝났다**.
