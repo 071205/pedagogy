@@ -1798,12 +1798,18 @@ async function runMockTests(){
     /* ⚠️ 편집기의 그림 `src` 는 서버 `work/` 안 **파일 이름**이고 브라우저에는 파일
        시스템이 없다. 안 가르면 그림이 빠진 시험지가 **조용히** 나간다. */
     if (!win.PedagogyExam) return { pass: true, note: "조판기 없음 — 건너뜀" };
-    const withSrc = { problems: [{ units: [{ k: "fig", w: 58, src: "fig14.png" }] }] };
-    const noSrc   = { problems: [{ units: [{ k: "fig", w: 58, src: "" }] }] };
-    const none    = { problems: [{ units: [{ k: "text", t: "글" }] }] };
+    const PNG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+    const withSrc  = { problems: [{ units: [{ k: "fig", w: 58, src: "fig14.png" }] }] };
+    const withData = { problems: [{ units: [{ k: "fig", w: 58, src: "fig14.png", data: PNG }] }] };
+    const noSrc    = { problems: [{ units: [{ k: "fig", w: 58, src: "" }] }] };
+    const none     = { problems: [{ units: [{ k: "text", t: "글" }] }] };
+    /* ⚠️ **문서에 담긴 그림은 서버가 필요 없다** — 이 칸이 없으면 데이터를 안 보게
+       바꿔도 검사가 통과한다(실제로 그랬다). */
     return { pass: win.PedagogyExam.needsServer(withSrc) === true
+                && win.PedagogyExam.needsServer(withData) === false
                 && win.PedagogyExam.needsServer(noSrc) === false
-                && win.PedagogyExam.needsServer(none) === false };
+                && win.PedagogyExam.needsServer(none) === false,
+             note: `이름만=${win.PedagogyExam.needsServer(withSrc)} 데이터포함=${win.PedagogyExam.needsServer(withData)}` };
   });
 
   await check(G, "그림이 있으면 toHwpx 가 **실제로** 서버로 넘긴다", async () => {

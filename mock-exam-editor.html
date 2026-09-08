@@ -847,7 +847,8 @@ function probUnits(p){
       if(items.some(x=>x.trim())) units.push({k:'choices',items,layout:d.layout||'auto'});
     }
     else if(b.type==='image'){
-      const w=+d.width||0; if(w) units.push({k:'fig',w,src:String(d.src||'')});
+      const w=+d.width||0;
+      if(w) units.push({k:'fig',w,src:String(d.src||''),data:String(d.data||'')});
     }
   });
   let ptsAt=-1;
@@ -1265,8 +1266,38 @@ function renderEditor(){
       src.placeholder='파일명 (예: fig-14.png) — 비우면 자리만 표시';
       src.oninput=e=>{ blk.data.src=e.target.value.trim().replace(/["\\]/g,''); edChanged(p,false); };
       body.append(src);
-      body.append(elx('div','hint','실시간 미리보기는 serve.py 옆 work/ 폴더에, '
-        +'내보낸 .typ 은 그 파일과 같은 폴더에 그림을 두세요.'));
+
+      /* 그림을 **데이터로** 들고 있으면 서버 없이도 한글 파일에 들어간다.
+         ⚠️ 파일명은 그대로 둔다 — Typst 실시간 미리보기는 여전히 `work/` 안 파일을
+            쓰고, 데이터 URL 로는 그릴 수 없다. 둘은 쓰임이 다르다. */
+      const pickRow=elx('div','row-in'); pickRow.style.alignItems='center';
+      const pick=elx('label','btn', blk.data.data?'그림 바꾸기':'그림 넣기');
+      pick.style.cursor='pointer';
+      const file=elx('input'); file.type='file'; file.accept='image/png,image/jpeg';
+      file.style.display='none';
+      file.onchange=async e=>{
+        const f=e.target.files&&e.target.files[0]; e.target.value='';
+        if(!f) return;
+        if(f.size>MAX_FIG_BYTES){ toast('그림이 너무 커요 · 2MB 이하로 줄여 주세요','error'); return; }
+        try{
+          blk.data.data=await fileToDataUrl(f);
+          if(!blk.data.src) blk.data.src=f.name.replace(/["\\]/g,'');
+          edChanged(p,true);
+        }catch(err){ console.warn(err); toast('그림을 읽지 못했어요','error'); }
+      };
+      pick.append(file); pickRow.append(pick);
+      if(blk.data.data){
+        const th=elx('img'); th.src=blk.data.data; th.alt='';
+        th.style.cssText='height:34px;width:auto;border-radius:4px;margin-left:8px';
+        const rm=elx('button','btn','빼기');
+        rm.onclick=()=>{ blk.data.data=''; edChanged(p,true); };
+        pickRow.append(th, rm);
+      }
+      body.append(pickRow);
+      body.append(elx('div','hint', blk.data.data
+        ? '그림을 이 문서에 담았어요 — 한글 내보내기에 서버가 필요 없어요.'
+        : '파일명만 적으면 한글 내보내기에 로컬 서버가 필요해요. '
+          +'실시간 미리보기는 serve.py 옆 work/ 폴더의 파일을 씁니다.'));
     }
 
     wrap.append(body); area.append(wrap);
@@ -2153,6 +2184,16 @@ function hwpxPayload(){
 
 /* 서버가 없을 때 하는 말은 한 곳에만 둔다 — 두 자리(못 찾음·통신 실패)에서 같은 말을
    해야 하는데, 따로 적어 두면 한쪽만 고쳐져 갈라진다. */
+/* 그림 한 장의 상한. ⚠️ 저장 JSON 에 그대로 실리므로 넉넉히 잡으면 파일이 커진다.
+   base64 는 4/3 로 부푸는 것을 감안해 정규화 쪽에서 길이로 한 번 더 본다. */
+const MAX_FIG_BYTES=2*1024*1024;
+const fileToDataUrl=(f)=>new Promise((res,rej)=>{
+  const r=new FileReader();
+  r.onload=()=>res(String(r.result||''));
+  r.onerror=()=>rej(new Error('파일 읽기 실패'));
+  r.readAsDataURL(f);
+});
+
 const NO_SERVER_MSG='로컬 서버가 필요해요 · 터미널에서 python3 serve.py 를 실행한 뒤 '
                    +'http://127.0.0.1:8787 로 열어 주세요';
 
@@ -2247,8 +2288,13 @@ function normBlockM(b,S){
     while(a.length<5) a.push('');
     return {type:'choices',data:{items:a,layout:['auto','1','2','v'].includes(d.layout)?d.layout:'auto'}};
   }
+  /* ⚠️ 데이터 URL 은 **화이트리스트로만** 받는다 — 가져온 .json 은 신뢰하지 않는다.
+     PNG·JPEG 만, 크기 상한도 여기서 다시 본다(UI 검사는 편의일 뿐이다). */
+  const raw=typeof d.data==='string'?d.data:'';
+  const okData=/^data:image\/(png|jpeg);base64,[A-Za-z0-9+/=]+$/.test(raw)
+               && raw.length<=MAX_FIG_BYTES*2 ? raw : '';
   return {type:'image',data:{width:Math.max(0,Math.min(110,+d.width||0)),
-                             src:S(d.src,'').replace(/["\\]/g,'')}};
+                             src:S(d.src,'').replace(/["\\]/g,''), data:okData}};
 }
 
 function sanitize(base,p){

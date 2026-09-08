@@ -15,6 +15,8 @@
 
 from __future__ import annotations
 
+import base64
+
 import json
 import re
 import sys
@@ -486,6 +488,42 @@ def find_image(src: str, roots: list[Path]) -> Path | None:
     return None
 
 
+def _figure_bytes(value) -> bytes | None:
+    """편집기가 문서에 담아 보낸 그림(데이터 URL) → 바이트.
+
+    ⚠️ **형식은 확장자가 아니라 바이트로 판정한다**(`image_size` 가 겸한다). 여기서는
+       데이터 URL 껍데기만 벗기고, 아니면 None 을 준다 — 파일 경로로 떨어진다.
+    """
+    if not isinstance(value, str) or not value.startswith("data:image/"):
+        return None
+    head, _, body = value.partition(",")
+    if "base64" not in head or not body:
+        return None
+    try:
+        return base64.b64decode(body, validate=True)
+    except Exception:      # noqa: BLE001 — 깨진 데이터는 없는 것으로 본다
+        return None
+
+
+def _place_image(doc: HwpxDocument, data: bytes, name: str, width_mm: float,
+                 para: str, rep: Report) -> bool:
+    """그림 한 장을 심는다. 크기를 못 읽으면 False."""
+    size = image_size(data)
+    if not size or not size[0]:
+        return False
+    w = round(width_mm * MM_TO_HWPUNIT)
+    h = round(w * size[1] / size[0])          # 비율 유지
+    doc.append_paragraph("", section_index=cur_sec(),
+                         para_pr_id=STYLE.get(para), style_id=_sty(para),
+                         char_pr_id=STYLE.get("char_cont"))
+    doc.append_picture(name, data, section_index=cur_sec(),
+                       paragraph_index=doc.paragraph_count(cur_sec()) - 1,
+                       width=w, height=h,
+                       char_pr_id=STYLE.get("char_cont"))
+    rep.figures += 1
+    return True
+
+
 def emit_figure(doc: HwpxDocument, unit: dict, rep: Report, *, where: str,
                 roots: list[Path]) -> None:
     """그림 한 장. 파일을 못 찾으면 자리표시를 남기고 **경고한다.**
@@ -503,6 +541,13 @@ def emit_figure(doc: HwpxDocument, unit: dict, rep: Report, *, where: str,
                              para_pr_id=STYLE.get(para),
                              style_id=_sty(para), char_pr_id=STYLE.get("char_cont"))
 
+    # ⚠️ **데이터를 먼저 본다.** 편집기가 그림을 문서에 담아 보내면 파일 시스템이
+    #    필요 없다 — 브라우저 조판기도 같은 규칙이라 두 경로가 같은 결과를 낸다.
+    inline = _figure_bytes(unit.get("data"))
+    if inline is not None:
+        _place_image(doc, inline, src or "figure.png", width_mm, para, rep)
+        return
+
     if not src:
         placeholder(f"그림 파일명이 지정되지 않았습니다 (너비 {width_mm:g}mm)")
         return
@@ -512,21 +557,8 @@ def emit_figure(doc: HwpxDocument, unit: dict, rep: Report, *, where: str,
         return
 
     data = path.read_bytes()
-    size = image_size(data)
-    if not size or not size[0]:
+    if not _place_image(doc, data, path.name, width_mm, para, rep):
         placeholder(f"그림 크기를 읽지 못했습니다(PNG·JPEG 만 지원): {src}")
-        return
-
-    w = round(width_mm * MM_TO_HWPUNIT)
-    h = round(w * size[1] / size[0])          # 비율 유지
-    doc.append_paragraph("", section_index=cur_sec(),
-                         para_pr_id=STYLE.get(para), style_id=_sty(para),
-                         char_pr_id=STYLE.get("char_cont"))
-    doc.append_picture(path.name, data, section_index=cur_sec(),
-                       paragraph_index=doc.paragraph_count(cur_sec()) - 1,
-                       width=w, height=h,
-                       char_pr_id=STYLE.get("char_cont"))
-    rep.figures += 1
 
 
 # ── 편집기의 probUnits() 를 옮긴 것 ────────────────────────────────────────
@@ -580,7 +612,11 @@ def prob_units(p: dict) -> tuple[list[dict], int]:
         elif t == "image":
             w = int(d.get("width") or 0)
             if w:
-                units.append({"k": "fig", "w": w, "src": str(d.get("src") or "")})
+                # ⚠️ `data`(문서에 담긴 그림)도 함께 싣는다 — 편집기 `probUnits()` 와
+                #    같은 모양이어야 한다. 빠뜨렸더니 두 조판기가 **함께** 그림을
+                #    자리표시로만 냈다(대조는 '같다' 고 통과했고 자기검사가 잡았다).
+                units.append({"k": "fig", "w": w, "src": str(d.get("src") or ""),
+                              "data": str(d.get("data") or "")})
 
     pts_at = -1
     for i, u in enumerate(units):

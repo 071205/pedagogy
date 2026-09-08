@@ -1,0 +1,32 @@
+import { chromium } from "playwright";
+import { spawn } from "node:child_process";
+const OUT = process.argv[2];
+const PNG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAABCAIAAAB6DsuTAAAAF0lEQVR4nGP8z8DAAAaMDCgsMBOnJAAOwgH/lp5PjAAAAABJRU5ErkJggg==";
+const srv = spawn("python3", ["serve.py", "--port", "8792"], { stdio: "ignore" });
+await new Promise(r => setTimeout(r, 1500));
+const b = await chromium.launch(); const page = await b.newPage();
+const errs = []; page.on("pageerror", e => errs.push(String(e.message)));
+await page.goto("http://127.0.0.1:8792/mock-exam-editor.html?t=" + Date.now(), { waitUntil: "networkidle" });
+await page.waitForFunction(() => window.PedagogyExam && typeof window.toHwpx === "function", { timeout: 20000 });
+const dl = page.waitForEvent("download", { timeout: 30000 });
+const info = await page.evaluate(async (PNG) => {
+  const realPayload = window.hwpxPayload, realFetch = window.fetch;
+  let hit = false;
+  // 편집기가 실제로 내는 payload 에 그림 데이터만 얹는다
+  window.hwpxPayload = () => {
+    const p = realPayload();
+    p.problems.forEach(q => (q.units || []).forEach(u => {
+      if (u.k === "fig") { u.src = "그림.png"; u.data = PNG; }
+    }));
+    return p;
+  };
+  window.fetch = (u, o) => { if (String(u).includes("/hwpx")) { hit = true; return Promise.reject(new Error("막음")); } return realFetch(u, o); };
+  const needs = window.PedagogyExam.needsServer(window.hwpxPayload());
+  await window.toHwpx();
+  window.hwpxPayload = realPayload; window.fetch = realFetch;
+  return { needs, hit };
+}, PNG);
+await (await dl).saveAs(OUT);
+console.log("서버가 필요한가:", info.needs, "· 서버를 탔나:", info.hit);
+console.log("errs:", errs.slice(0, 2));
+await b.close(); srv.kill();

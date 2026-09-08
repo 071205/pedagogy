@@ -274,6 +274,7 @@ for i in (0, 1):
             "tags": tags(x), "text": re.sub(r"<[^>]+>", "", text),
             "tabs": re.findall(r'<hp:tab width="(\\d+)"', x),
             "scripts": re.findall(r"<hp:script[^>]*>(.*?)</hp:script>", x, re.S),
+            "sizes": re.findall(r'\\b(?:width|height)="(\\d+)"', x),
         })
     sections[str(i)] = rows
 units = []
@@ -644,6 +645,12 @@ const EXAM = {
     { num: 6, sect: "공통", type: "choice", pts: 3, layoutResolved: "1", heightMm: 70,
       blocks: [stmt("그림과 같은 도형에서 넓이는?"), { type: "image", data: { width: 58, src: "" } },
                ch(["$1$", "$2$", "$3$", "$4$", "$5$"])] },
+    /* ⚠️ **문서에 담긴 그림**(데이터 URL) — 이게 없으면 두 조판기가 그림을 진짜로 심는지
+       아무것도 검사하지 않는다. 4×1 PNG 라 비율(가로:세로=4:1)까지 견줄 수 있다. */
+    { num: 7, sect: "공통", type: "choice", pts: 3, layoutResolved: "1", heightMm: 70,
+      blocks: [stmt("아래 그림을 보시오."),
+               { type: "image", data: { width: 58, src: "그림.png", data: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAABCAIAAAB2XpiaAAAADUlEQVR4nGP4z8AARwAd7wP95hFmHQAAAABJRU5ErkJggg==" } },
+               ch(["$1$", "$2$", "$3$", "$4$", "$5$"])] },
     /* ⚠️ 발문이 없어 시험지에서 빠져야 하는 문항 */
     { num: 25, sect: "선택", type: "choice", layoutResolved: "1",
       blocks: [ch(["$1$", "$2$", "$3$", "$4$", "$5$"])] },
@@ -692,6 +699,9 @@ let jsExam;
               .map((m) => m[1]).join("").replace(/<[^>]+>/g, ""),
             tabs: [...xml.matchAll(/<hp:tab width="(\d+)"/g)].map((m) => m[1]),
             scripts: [...xml.matchAll(/<hp:script[^>]*>([\s\S]*?)<\/hp:script>/g)].map((m) => m[1]),
+            /* ⚠️ **속성 값도 본다.** 태그 개수만 세면 그림 비율을 정사각형으로 바꿔도
+               통과한다(실제로 깨보기가 통과했다). */
+            sizes: [...xml.matchAll(/\b(?:width|height)="(\d+)"/g)].map((m) => m[1]),
           };
         });
       }
@@ -735,10 +745,12 @@ const r = pyExam.report;
 for (const [name, v] of [["문항", r.problems], ["쪽나눔", r.pages], ["단나눔", r.breaks],
                          ["구획 태그", r.tags], ["확인 사항", r.notes],
                          /* ⚠️ 그림 경고가 0 이면 그림 유닛이 아예 안 지나간 것이다. */
-                         ["그림 경고", r.warnings.filter((w) => w.includes("그림")).length]]) {
+                         ["그림 경고", r.warnings.filter((w) => w.includes("그림")).length],
+                         /* ⚠️ 그림이 실제로 심어져야 한다 — 자리표시만 나오면 0 이다. */
+                         ["심은 그림", r.figures]]) {
   if (!v) { console.log(`  ❌ ${name}이 0입니다 — 이 검사가 헛돌고 있습니다`); bfails++; }
 }
-if (r.problems !== 8) { console.log(`  ❌ 발문 없는 문항이 안 걸러졌습니다 — 문항 ${r.problems}개(8 이어야 한다)`); bfails++; }
+if (r.problems !== 9) { console.log(`  ❌ 발문 없는 문항이 안 걸러졌습니다 — 문항 ${r.problems}개(9 이어야 한다)`); bfails++; }
 
 if (bfails) { console.log(`\n시험지가 갈라졌습니다 — ${bfails}건`); process.exit(1); }
 console.log(`시험지 한 부 대조 통과 — 문항 ${r.problems}개·쪽나눔 ${r.pages}회가 파이썬과 같습니다`);

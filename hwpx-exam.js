@@ -24,6 +24,23 @@
      ⚠️ **상자 안(`condeq`)에는 탭이 없다** — 같은 별행 수식이라도 쓰임이 다르다. */
   const EQ_TAB_WIDTH = 2850;
 
+  const MM_TO_HWPUNIT = 7200 / 25.4;
+
+  /** 편집기가 문서에 담아 보낸 그림(데이터 URL) → 바이트.
+      ⚠️ **형식은 확장자가 아니라 바이트로 판정한다**(`imageSize` 가 겸한다).
+         여기서는 데이터 URL 껍데기만 벗기고, 아니면 null 을 준다. */
+  function figureBytes(value) {
+    if (typeof value !== "string" || !value.startsWith("data:image/")) return null;
+    const at = value.indexOf(",");
+    if (at < 0 || !/base64/.test(value.slice(0, at))) return null;
+    try {
+      const bin = atob(value.slice(at + 1));
+      const out = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+      return out.length ? out : null;
+    } catch { return null; }        // 깨진 데이터는 없는 것으로 본다
+  }
+
   /* 파이썬 `f"{x:g}"` 와 같은 표기 — `58` 은 `58`, `57.5` 는 `57.5`. */
   const fmtMm = (n) => String(Number(n));
 
@@ -409,10 +426,40 @@
       const widthMm = Number(unit.w || 0);
       const para = "para_figure" in this.style ? "para_figure"
                  : ("para_eq" in this.style ? "para_eq" : "para_cont");
-      const msg = src ? `그림 파일을 찾지 못했습니다: ${src}`
+
+      /* ⚠️ **데이터를 먼저 본다** — 편집기가 그림을 문서에 담아 보내면 파일 시스템이
+         필요 없다. 파이썬도 같은 순서라 두 경로가 같은 결과를 낸다. */
+      const bytes = figureBytes(unit.data);
+      if (bytes && this.placeImage(bytes, src || "figure.png", widthMm, para)) return;
+
+      /* ⚠️ 이름만 있는 그림은 **서버만** 읽을 수 있다(브라우저에 파일 시스템이 없다).
+         부르는 쪽이 `needsServer()` 로 미리 갈라 여기 오지 않는다 — 와 버렸다면 파이썬이
+         파일을 못 찾았을 때와 **같은** 자리표시를 남긴다. */
+      const msg = bytes ? `그림 크기를 읽지 못했습니다(PNG·JPEG 만 지원): ${src}`
+                : src ? `그림 파일을 찾지 못했습니다: ${src}`
                       : `그림 파일명이 지정되지 않았습니다 (너비 ${fmtMm(widthMm)}mm)`;
       this.warn(`${where}: ${msg}`);
       this.para(`[그림 없음 — ${msg}]`, { para, char: "char_cont" });
+    }
+
+    /** 그림 한 장을 심는다. 크기를 못 읽으면 false. */
+    placeImage(bytes, name, widthMm, para) {
+      /* ⚠️ 엔진의 `imageSize()` 는 **객체**(`{width,height}`)를 준다 — 파이썬의
+         `image_size()` 는 튜플이다. 파이썬처럼 `size[0]` 으로 읽었더니 늘 실패해
+         그림이 자리표시로만 나갔다(대조가 잡았다). */
+      const size = global.PedagogyHwpx.imageSize(bytes);
+      if (!size || !size.width) return false;
+      const w = Math.round(widthMm * MM_TO_HWPUNIT);
+      const h = Math.round(w * size.height / size.width);   // 비율 유지
+      /* ⚠️ 빈 run 을 남긴다 — 파이썬 `append_paragraph("")` 이 그렇게 만든다.
+         `withRun:false` 로 두면 문단 구조가 갈라진다(대조가 잡았다). */
+      this.para("", { para, char: "char_cont" });
+      this.doc.appendPicture(name, bytes, {
+        sectionIndex: this.sec, paragraphIndex: this.doc.paragraphCount(this.sec) - 1,
+        width: w, height: h, charPrId: this.style.char_cont,
+      });
+      this.report.figures += 1;
+      return true;
     }
 
     /* 문항 하나. 유닛은 **편집기가 만든 것**을 그대로 받는다. */
@@ -627,7 +674,9 @@
          겪은 사고 방식이다). 부르는 쪽이 서버 경로로 넘긴다. */
   function needsServer(payload) {
     return (payload.problems || []).some((p) =>
-      (p.units || []).some((u) => u.k === "fig" && String(u.src || "").trim()));
+      (p.units || []).some((u) => u.k === "fig"
+        && String(u.src || "").trim()
+        && !figureBytes(u.data)));      // 문서에 담긴 그림은 서버가 필요 없다
   }
 
   global.PedagogyExam = { ExamWriter, buildExam, needsServer, splitInline, spaceBeforeMath, numPrefixXml, eqTabXml,
