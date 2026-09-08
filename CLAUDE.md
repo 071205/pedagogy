@@ -806,9 +806,18 @@ own save/load — does not share PEDAGOGY's Firebase storage).
 JSON 을 진짜 브라우저(Playwright)와 파이썬에 넣어 결과를 대조한다(CI 의 `hwpx` 작업에
 `HWPX_REQUIRE=1` 로 걸려 있다). 한쪽만 고치지 말 것.
 
-⚠️ **시험지 틀은 이제 저장소에 있다** — `experiments/hwp-export/templates/exam-math.hwpx`
-(30KB, `make_exam_template.py` 가 실물에서 만든다). 그래서 `/hwpx` 는 **아무 컴퓨터에서나**
-된다(변환기가 아직 파이썬이라 **서버는 여전히 필요**하다 — 그건 별개 문제다).
+⚠️ **시험지도 브라우저가 직접 만든다 — 서버가 필요 없다.**
+`hwpx-exam-template.js`(틀 읽기·떠 두기) + `hwpx-exam.js`(문항 방출·배치·조립)가
+`mock_to_hwpx.py` 를 옮긴 것이고, `serve.py` 의 `/hwpx` 는 이제 **대비책**이다.
+틀(`templates/exam-math.hwpx`)은 저장소에 있고 `fetch` 로 받는다 — 그래서 `serve.py` 의
+`STATIC` 에 그 경로와 두 `.js` 가 있어야 하고, 빼면 로컬에서 404 로 죽는다.
+⚠️ **편집기의 `probUnits()` 를 그대로 쓴다** — 파이썬은 `prob_units` 사본을 안고 있지만
+브라우저는 그럴 이유가 없다. `hwpxPayload()` 가 `units`·`ptsAt` 을 함께 실어 보낸다.
+⚠️ **이름이 있는 그림은 서버로 넘긴다**(`PedagogyExam.needsServer()`). 편집기의 `src` 는
+서버 `work/` 안 **파일 이름**이고 브라우저에는 파일 시스템이 없다 — 안 가르면 그림이 빠진
+시험지가 **조용히** 나간다. 이름이 없는 그림만 브라우저가 파이썬과 같은 자리표시를 남긴다.
+⚠️ 사본은 갈라지므로 `npm run test:hwpx-exam` 이 같은 payload 를 양쪽에 넣어 **완성된
+section XML 을 통째로** 견준다(틀 읽기 22값 · 문단 13개 · 배치 7표본 · 표 개체 · 시험지 한 부).
 
 ⚠️ **틀을 다시 만들 때 `clear_body()` 를 쓰면 안 된다.** 변환기가 본문에서 떠 가는
 이어지는 쪽 머리말·구획 태그 표가 사라지고, 발문 문단이 없어져 **문항 번호가

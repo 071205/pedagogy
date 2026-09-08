@@ -1,0 +1,21 @@
+import { chromium } from "playwright";
+import { spawn } from "node:child_process";
+const OUT = process.argv[2];
+const srv = spawn("python3", ["serve.py", "--port", "8792"], { stdio: "ignore" });
+await new Promise(r => setTimeout(r, 1500));
+const b = await chromium.launch(); const page = await b.newPage();
+const errs = []; page.on("pageerror", e => errs.push(String(e.message)));
+await page.goto("http://127.0.0.1:8792/mock-exam-editor.html?t=" + Date.now(), { waitUntil: "networkidle" });
+await page.waitForFunction(() => window.PedagogyExam && typeof window.toHwpx === "function", { timeout: 20000 });
+// 기본 표본에는 14번에 그림(src 없음)이 있다 → 브라우저가 맡아야 한다
+console.log("서버가 필요한 payload 인가:", await page.evaluate(() => window.PedagogyExam.needsServer(window.hwpxPayload())));
+const dl = page.waitForEvent("download", { timeout: 30000 });
+const hit = await page.evaluate(async () => {
+  const real = window.fetch; let serverHit = false;
+  window.fetch = (u, o) => { if (String(u).includes("/hwpx")) { serverHit = true; return Promise.reject(new Error("막음")); } return real(u, o); };
+  await window.toHwpx(); window.fetch = real; return serverHit;
+});
+await (await dl).saveAs(OUT);
+console.log("서버 경로를 탔나:", hit ? "예" : "아니오 ✅ 브라우저가 만들었다");
+console.log("errs:", errs.slice(0, 2));
+await b.close(); srv.kill();

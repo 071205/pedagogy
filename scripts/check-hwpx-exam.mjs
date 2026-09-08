@@ -639,6 +639,11 @@ const EXAM = {
       blocks: [stmt("확률변수 $X$ 의 평균은?"), ch(["$1$", "$2$", "$3$", "$4$", "$5$"])] },
     { num: 24, sect: "선택", type: "short", pts: 4, heightMm: 90,
       blocks: [stmt("$E(X)$ 를 구하시오.")] },
+    /* ⚠️ 그림 — **이름이 없는** 경우만 브라우저가 맡는다(자리표시 + 경고).
+       이름이 있으면 그 파일은 서버만 읽을 수 있어 `needsServer()` 가 걸러 낸다. */
+    { num: 6, sect: "공통", type: "choice", pts: 3, layoutResolved: "1", heightMm: 70,
+      blocks: [stmt("그림과 같은 도형에서 넓이는?"), { type: "image", data: { width: 58, src: "" } },
+               ch(["$1$", "$2$", "$3$", "$4$", "$5$"])] },
     /* ⚠️ 발문이 없어 시험지에서 빠져야 하는 문항 */
     { num: 25, sect: "선택", type: "choice", layoutResolved: "1",
       blocks: [ch(["$1$", "$2$", "$3$", "$4$", "$5$"])] },
@@ -728,10 +733,12 @@ for (const i of ["0", "1"]) {
    빈 문서끼리 '같다' 로 통과한다. */
 const r = pyExam.report;
 for (const [name, v] of [["문항", r.problems], ["쪽나눔", r.pages], ["단나눔", r.breaks],
-                         ["구획 태그", r.tags], ["확인 사항", r.notes]]) {
+                         ["구획 태그", r.tags], ["확인 사항", r.notes],
+                         /* ⚠️ 그림 경고가 0 이면 그림 유닛이 아예 안 지나간 것이다. */
+                         ["그림 경고", r.warnings.filter((w) => w.includes("그림")).length]]) {
   if (!v) { console.log(`  ❌ ${name}이 0입니다 — 이 검사가 헛돌고 있습니다`); bfails++; }
 }
-if (r.problems !== 7) { console.log(`  ❌ 발문 없는 문항이 안 걸러졌습니다 — 문항 ${r.problems}개(7 이어야 한다)`); bfails++; }
+if (r.problems !== 8) { console.log(`  ❌ 발문 없는 문항이 안 걸러졌습니다 — 문항 ${r.problems}개(8 이어야 한다)`); bfails++; }
 
 if (bfails) { console.log(`\n시험지가 갈라졌습니다 — ${bfails}건`); process.exit(1); }
 console.log(`시험지 한 부 대조 통과 — 문항 ${r.problems}개·쪽나눔 ${r.pages}회가 파이썬과 같습니다`);

@@ -1777,6 +1777,68 @@ async function runMockTests(){
     return !!b && b.textContent.includes("한글") && b.textContent.includes("베타");
   });
 
+  await check(G, "한글 내보내기는 브라우저가 먼저 만든다(서버를 안 부른다)", async () => {
+    /* ⚠️ 이 이식의 목적이다 — 예전에는 `python3 serve.py` 를 켜야만 한글 파일이 나왔다.
+       서버 경로를 막아 두고 눌러 **아무 요청도 안 나가는지** 본다. */
+    if (!win.PedagogyExam || !win.CompressionStream) return { pass: true, note: "조판기 없음 — 건너뜀" };
+    const real = win.fetch; let hitServer = false, downloaded = false;
+    const realClick = win.HTMLAnchorElement.prototype.click;
+    win.HTMLAnchorElement.prototype.click = function () { if (this.download) downloaded = true; };
+    win.fetch = (u, o) => {
+      if (String(u).includes("/hwpx")) { hitServer = true; return Promise.reject(new Error("막음")); }
+      return real(u, o);
+    };
+    try { await win.toHwpx(); }
+    finally { win.fetch = real; win.HTMLAnchorElement.prototype.click = realClick; }
+    return { pass: downloaded && !hitServer,
+             note: `내려받음=${downloaded} 서버호출=${hitServer}` };
+  });
+
+  await check(G, "이름 있는 그림은 서버로 넘긴다(조용히 빠뜨리지 않는다)", () => {
+    /* ⚠️ 편집기의 그림 `src` 는 서버 `work/` 안 **파일 이름**이고 브라우저에는 파일
+       시스템이 없다. 안 가르면 그림이 빠진 시험지가 **조용히** 나간다. */
+    if (!win.PedagogyExam) return { pass: true, note: "조판기 없음 — 건너뜀" };
+    const withSrc = { problems: [{ units: [{ k: "fig", w: 58, src: "fig14.png" }] }] };
+    const noSrc   = { problems: [{ units: [{ k: "fig", w: 58, src: "" }] }] };
+    const none    = { problems: [{ units: [{ k: "text", t: "글" }] }] };
+    return { pass: win.PedagogyExam.needsServer(withSrc) === true
+                && win.PedagogyExam.needsServer(noSrc) === false
+                && win.PedagogyExam.needsServer(none) === false };
+  });
+
+  await check(G, "그림이 있으면 toHwpx 가 **실제로** 서버로 넘긴다", async () => {
+    /* ⚠️ 위 검사는 `needsServer()` 만 본다 — `toHwpx()` 가 그걸 **쓰는지**는 못 본다.
+       실제로 가드를 지워도 위 검사는 통과했다. 눌러서 서버를 부르는지 봐야 한다. */
+    if (!win.PedagogyExam || !win.CompressionStream) return { pass: true, note: "조판기 없음 — 건너뜀" };
+    const realPayload = win.hwpxPayload, realFetch = win.fetch;
+    const realClick = win.HTMLAnchorElement.prototype.click;
+    let hitServer = false;
+    win.hwpxPayload = () => ({ round: "검사", problems: [
+      { num: 1, sect: "공통", type: "choice", layoutResolved: "1", ptsAt: 0,
+        units: [{ k: "text", t: "글" }, { k: "fig", w: 58, src: "있는이름.png" }] }] });
+    win.fetch = (u, o) => {
+      if (String(u).includes("/hwpx")) { hitServer = true; return Promise.reject(new Error("막음")); }
+      return realFetch(u, o);
+    };
+    win.HTMLAnchorElement.prototype.click = function () {};
+    try { await win.toHwpx(); }
+    finally {
+      win.hwpxPayload = realPayload; win.fetch = realFetch;
+      win.HTMLAnchorElement.prototype.click = realClick;
+    }
+    return { pass: hitServer, note: hitServer ? undefined : "브라우저가 그림을 조용히 빠뜨렸습니다" };
+  });
+
+  await check(G, "내보내는 payload 가 유닛을 함께 싣는다", () => {
+    /* ⚠️ 브라우저 조판기는 **편집기의 `probUnits()` 를 그대로 쓴다**(사본을 안 만든다).
+       빠지면 발문이 통째로 빈 시험지가 나간다. */
+    const p = win.hwpxPayload();
+    const first = (p.problems || [])[0] || {};
+    return { pass: Array.isArray(first.units) && first.units.length > 0
+                && typeof first.ptsAt === "number",
+             note: `units=${first.units && first.units.length} ptsAt=${first.ptsAt}` };
+  });
+
   await check(G, "한글 내보내기가 X-Exam-Client 헤더를 보낸다", async () => {
     /* 이 헤더가 빠지면 serve.py 가 403 으로 막는다(다른 사이트의 단순 요청 차단).
        fetch 를 잠시 가로채 헤더만 확인하고 원래대로 돌려놓는다. */

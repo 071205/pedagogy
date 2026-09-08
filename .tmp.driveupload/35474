@@ -1,0 +1,10 @@
+import { chromium } from "playwright";
+import { spawn } from "node:child_process";
+import { writeFileSync } from "node:fs";
+const srv = spawn("python3", ["serve.py", "--port", "8792"], { stdio: "ignore" });
+await new Promise(r => setTimeout(r, 1500));
+const b = await chromium.launch(); const page = await b.newPage();
+await page.goto("http://127.0.0.1:8792/mock-exam-editor.html?t=" + Date.now(), { waitUntil: "networkidle" });
+await page.waitForFunction(() => typeof window.hwpxPayload === "function", { timeout: 20000 });
+writeFileSync(process.argv[2], JSON.stringify(await page.evaluate(() => window.hwpxPayload())));
+await b.close(); srv.kill();

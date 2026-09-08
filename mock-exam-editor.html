@@ -28,6 +28,14 @@
         integrity="sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4lfFg"
         crossorigin="anonymous"></script>
 
+<!-- 시험지 조판을 브라우저가 직접 한다 — `serve.py` 없이도 한글 파일이 나온다.
+     ⚠️ ESM 이 아니라 **평범한 고전 스크립트**다(`file://` 에서도 실행된다).
+     ⚠️ 없거나 못 받아도 조용히 서버 경로로 떨어진다 — 편의 기능 하나가 본체를 멈추면
+        안 된다(`REV-2026-023` 이 그 사고였다). -->
+<script defer src="hwpx-engine.js"></script>
+<script defer src="hwpx-exam-template.js"></script>
+<script defer src="hwpx-exam.js"></script>
+
 <style>
 @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css');
 
@@ -2132,8 +2140,15 @@ function hwpxPayload(){
   const heights=measureProblemHeights();
   // ⚠️ currentData() 의 problems 는 state.problems **그 자체**다. 여기에 필드를
   //    더하면 저장 JSON 과 임시저장까지 오염된다. 사본을 만들어 붙인다.
-  return {...d, problems:(d.problems||[]).map(p=>({
-    ...p, layoutResolved:layoutOf(p), heightMm:heights[p.id]}))};
+  /* ⚠️ **유닛도 함께 보낸다.** 파이썬 변환기는 `prob_units()` 사본을 안고 있지만,
+     브라우저 조판기는 **편집기의 `probUnits()` 를 그대로 쓴다** — 사본을 하나 더
+     만들지 않으려고 이식할 때 그렇게 정했다. 서버 경로는 모르는 필드를 무시하므로
+     양쪽에 같은 payload 를 보내도 된다. */
+  return {...d, problems:(d.problems||[]).map(p=>{
+    const u=probUnits(p);
+    return {...p, layoutResolved:layoutOf(p), heightMm:heights[p.id],
+            units:u.units, ptsAt:u.ptsAt};
+  })};
 }
 
 /* 서버가 없을 때 하는 말은 한 곳에만 둔다 — 두 자리(못 찾음·통신 실패)에서 같은 말을
@@ -2141,10 +2156,51 @@ function hwpxPayload(){
 const NO_SERVER_MSG='로컬 서버가 필요해요 · 터미널에서 python3 serve.py 를 실행한 뒤 '
                    +'http://127.0.0.1:8787 로 열어 주세요';
 
+/* 실물 시험지 틀. **한글이 저장한 파일에서 내용만 벗긴 것**이라 코드로 지어 만들면
+   한글이 못 연다(`docs/HWP-SPEC.md`). 저장소에 있으므로 아무 컴퓨터에서나 된다. */
+const EXAM_TEMPLATE_URL='experiments/hwp-export/templates/exam-math.hwpx';
+
+function saveHwpxBlob(blob){
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=$('#round').value.replace(/\s+/g,'_')+'.hwpx';
+  a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+
+/* 브라우저에서 직접 만든다 — 서버가 필요 없다.
+   ⚠️ 이것이 이 이식의 목적이다. 예전에는 `python3 serve.py` 를 켜야만 한글 파일이
+      나왔고, 윈도우 사용자에게 터미널을 열게 할 수는 없었다. */
+async function hwpxInBrowser(payload){
+  const res=await fetch(EXAM_TEMPLATE_URL);
+  if(!res.ok) throw new Error('시험지 틀을 받지 못했습니다 ('+res.status+')');
+  const {doc,roles}=await window.PedagogyExamTemplate.openTemplate(await res.arrayBuffer());
+  const {blob,report}=await window.PedagogyExam.buildExam(doc,roles,payload);
+  saveHwpxBlob(blob);
+  const n=report.warnings.length;
+  toast(n?`받았어요 · 확인할 점 ${n}건 · ${report.warnings[0]}`:'한글 파일을 받았어요',
+        n?'error':'success');
+}
+
 async function toHwpx(){
   const btn=$('#hwpxBtn'); if(!btn||btn.disabled) return;
   btn.disabled=true; const label=btn.textContent; btn.textContent='만드는 중…';
   try{
+    /* ⚠️ **브라우저를 먼저 시도한다.** 실패하면 조용히 넘어가지 않고 서버 경로로
+       떨어진다 — 그쪽이 여전히 동작하는 대비책이다(AI 문서 편집기와 같은 모양).
+       ⚠️ 라이브러리가 없거나(CDN 차단·낡은 브라우저) `CompressionStream` 이 없으면
+          아예 시도하지 않는다. 편의 기능 하나가 본체를 멈추면 안 된다. */
+    const payload=hwpxPayload();
+    if(window.PedagogyExam&&window.PedagogyExamTemplate&&window.CompressionStream
+       /* ⚠️ **이름이 있는 그림은 서버만 읽을 수 있다.** 편집기의 `src` 는 `work/` 안
+          파일 이름이고 브라우저에는 파일 시스템이 없다. 안 가르면 그림이 빠진 시험지가
+          **조용히** 나간다. */
+       && !window.PedagogyExam.needsServer(payload)){
+      try{ await hwpxInBrowser(payload); return; }
+      catch(e){
+        console.warn('브라우저 조판 실패, 서버로 넘어갑니다:',e);
+        toast('브라우저에서 못 만들어 로컬 서버를 찾는 중…','error');
+      }
+    }
     /* ⚠️ 서버를 **누를 때마다** 다시 찾는다. 페이지를 먼저 열고 나중에 serve.py 를
        켜는 경우가 흔한데, 부팅 때 한 번만 찾으면 그 뒤로 영영 못 쓴다.
        그리고 못 찾았으면 **보내지 않는다** — 예전에는 그대로 제 주소로 POST 해서
@@ -2154,7 +2210,7 @@ async function toHwpx(){
     if(!LIVE.found){ toast(NO_SERVER_MSG,'error'); return; }
     const r=await fetch((LIVE.base||'')+'/hwpx',{method:'POST',
       headers:{'Content-Type':'application/json','X-Exam-Client':'1'},
-      body:JSON.stringify(hwpxPayload())});
+      body:JSON.stringify(payload)});
     if(!r.ok){
       let msg='한글 내보내기에 실패했어요';
       try{ const d=await r.json(); if(d&&d.error) msg=d.error; }catch(e){}

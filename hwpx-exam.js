@@ -24,6 +24,9 @@
      ⚠️ **상자 안(`condeq`)에는 탭이 없다** — 같은 별행 수식이라도 쓰임이 다르다. */
   const EQ_TAB_WIDTH = 2850;
 
+  /* 파이썬 `f"{x:g}"` 와 같은 표기 — `58` 은 `58`, `57.5` 는 `57.5`. */
+  const fmtMm = (n) => String(Number(n));
+
   const esc = (s) => global.PedagogyHwpx.xmlEscape(String(s == null ? "" : s));
 
   /* ── 실물의 조판 관례 — 수식 **앞**에는 공백 한 칸, 뒤에는 조사를 바로 붙인다.
@@ -394,6 +397,24 @@
       this.report.choice_rows += lay === "1" ? 1 : (lay === "2" ? 2 : used.length);
     }
 
+    /** 그림 한 장.
+        ⚠️ **브라우저는 `src` 가 가리키는 파일을 읽을 수 없다.** 편집기의 `src` 는 서버
+           `work/` 폴더 안 **파일 이름**이고(데이터가 아니다), 파일 시스템은 브라우저에
+           없다. 그래서 이름이 있는 그림은 여기서 처리하지 않고 **서버 경로로 넘긴다**
+           (`hasUnresolvableFigure()` 가 부르기 전에 가른다).
+        ⚠️ 이름이 아예 없는 경우만 파이썬과 **같은 자리표시**를 남기고 경고한다 —
+           조용히 빈자리로 두면 그림이 빠진 시험지가 인쇄된다. */
+    figure(unit, where) {
+      const src = String(unit.src || "").trim();
+      const widthMm = Number(unit.w || 0);
+      const para = "para_figure" in this.style ? "para_figure"
+                 : ("para_eq" in this.style ? "para_eq" : "para_cont");
+      const msg = src ? `그림 파일을 찾지 못했습니다: ${src}`
+                      : `그림 파일명이 지정되지 않았습니다 (너비 ${fmtMm(widthMm)}mm)`;
+      this.warn(`${where}: ${msg}`);
+      this.para(`[그림 없음 — ${msg}]`, { para, char: "char_cont" });
+    }
+
     /* 문항 하나. 유닛은 **편집기가 만든 것**을 그대로 받는다. */
     problem(p, into) {
       const units = p.units || [];
@@ -441,7 +462,7 @@
         } else if (u.k === "choices") {
           this.choices(u, p.layoutResolved, where);
         }
-        /* `fig` 는 아직 옮기지 않았다 — 그림은 편집기가 base64 로 실어 보내야 한다. */
+        else if (u.k === "fig") this.figure(u, where);
       });
       /* 문항 사이를 한 줄 띄운다. 실물도 선지 스타일의 빈 문단으로 띄우고, 그 스타일의
          '문단 아래' 가 0 이라 이것 없이는 다음 문항이 바로 붙는다. */
@@ -600,7 +621,16 @@
     return { blob: await doc.toBlob(), report: rep };
   }
 
-  global.PedagogyExam = { ExamWriter, buildExam, splitInline, spaceBeforeMath, numPrefixXml, eqTabXml,
+  /** 브라우저 혼자서는 못 만드는 payload 인가.
+      ⚠️ 지금은 **이름이 있는 그림** 하나뿐이다 — 그 파일은 서버만 읽을 수 있다.
+         이걸 안 가르면 그림이 빠진 시험지가 **조용히** 나간다(이 저장소가 가장 자주
+         겪은 사고 방식이다). 부르는 쪽이 서버 경로로 넘긴다. */
+  function needsServer(payload) {
+    return (payload.problems || []).some((p) =>
+      (p.units || []).some((u) => u.k === "fig" && String(u.src || "").trim()));
+  }
+
+  global.PedagogyExam = { ExamWriter, buildExam, needsServer, splitInline, spaceBeforeMath, numPrefixXml, eqTabXml,
                           columnStarts, pageStarts, columnSlots, slotTopMm, padLines,
                           PER_COL, COL_H_FIRST_MM, COL_H_NEXT_MM };
 })(typeof window !== "undefined" ? window : globalThis);
