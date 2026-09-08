@@ -1297,6 +1297,111 @@ async function runIndexTests(){
     return !!ft && ft.textContent.includes("PEDAGOGY") && ft.textContent.includes(year);
   });
 
+  /* ── 문항 묶기 ──
+     ⚠️ 세 가지가 한 벌이다: 아래가 지켜지는가 · 목록과 인쇄가 **고정 기대값**과 같은가 ·
+        일괄 작업을 ⌘Z 한 번으로 되돌리는가. */
+  const pairFixture = (n) => Array.from({length:n},(_,i)=>({
+    title:`문항${i+1}`, desc:"", answer:"③", span:"col",
+    blocks:[{type:"statement", data:{text:`$f(${i+1})$`}}],
+  }));
+
+  await check(G, "묶기 해제가 아래 배치를 건드리지 않는다", () => {
+    /* 실측 재현: 5·6 을 묶어 둔 상태에서 1을 빼내면 예전에는 `cpcpcpcc` 가 돼
+       사용자가 정한 5·6 이 사라지고 4·5·6·7 이 새로 묶였다. */
+    const arr = win.normSet({name:"t", problems: pairFixture(8)}).problems;
+    const snap = () => arr.map(p => win.spanOf(p)[0]).join("");
+    win.setPair(arr[4], true);          // 5·6 — 사용자 의도
+    win.setPair(arr[0], true);          // 1·2
+    const before = snap();
+    win.makeIndependent(arr, 0);
+    return { pass: before === "pcccpccc" && snap() === "ccccpccc", note: `${before} → ${snap()}` };
+  });
+
+  await check(G, "묶음 경계를 아는 곳이 하나다 (page 를 가로지르지 않는다)", () => {
+    /* ⚠️ 목록과 인쇄를 **서로** 견주면 안 된다 — 둘이 같은 함수를 쓰므로 그 함수가
+       틀리면 함께 틀려 통과한다(실제로 그랬다). 고정 기대값과 견준다. */
+    const arr = win.normSet({name:"t", problems: pairFixture(4)}).problems;
+    arr[0].span = "pair"; arr[0].paired = true;
+    arr[1].span = "page";
+    const got = win.problemGroups(arr).map(g => g.idx);
+    const want = [[0],[1],[2],[3]];
+    return { pass: JSON.stringify(got) === JSON.stringify(want), note: JSON.stringify(got) };
+  });
+
+  await check(G, "일괄 묶기가 page 를 건너뛰고 거기서 끊는다", () => {
+    const arr = win.normSet({name:"t", problems: pairFixture(5)}).problems;
+    arr[2].span = "page";
+    win.pairEveryN(arr, 0, 2);
+    const got = win.problemGroups(arr).map(g => g.idx);
+    const want = [[0,1],[2],[3,4]];
+    return { pass: JSON.stringify(got) === JSON.stringify(want), note: JSON.stringify(got) };
+  });
+
+  await check(G, "일괄 묶기 시작점이 묶음 가운데면 그 묶음 처음부터 잡는다", () => {
+    /* 안 그러면 범위 앞의 묶음을 몰래 끊는다. */
+    const arr = win.normSet({name:"t", problems: pairFixture(6)}).problems;
+    win.setPair(arr[0], true);                 // (1,2) 묶음
+    const started = win.pairEveryN(arr, 1, 2); // 2번(묶음 가운데)에서 시작
+    return { pass: started === 0, note: `시작 ${started}` };
+  });
+
+  /* ── 알림 눈에 띄게 · 인쇄 진행 표시 ── */
+
+  await check(G, "토스트가 갈래마다 색 띠를 갖는다", () => {
+    /* ⚠️ 마크업만 보면 못 잡는다 — 띠는 CSS 가 그린다. 계산된 값을 잰다.
+       ⚠️ 두께만 보면 '내가 넣은 값을 내가 확인' 하는 꼴이라, **갈래마다 색이 다른지**
+          까지 본다(색만으로 가르지 않게 아이콘·문구도 함께 두었다). */
+    const doc = win.document;
+    doc.querySelectorAll("#toastHost .toast").forEach(t => t.remove());
+    win.toast("보통"); win.toast("성공", "success"); win.toast("실패", "error");
+    const got = [...doc.querySelectorAll("#toastHost .toast")].map(t => {
+      const cs = win.getComputedStyle(t);
+      return { w: parseFloat(cs.borderLeftWidth), c: cs.borderLeftColor };
+    });
+    doc.querySelectorAll("#toastHost .toast").forEach(t => t.remove());
+    const wide = got.every(x => x.w >= 3);
+    const distinct = new Set(got.map(x => x.c)).size === 3;
+    return { pass: got.length === 3 && wide && distinct,
+             note: got.map(x => `${x.w}px ${x.c}`).join(" · ") };
+  });
+
+  await check(G, "긴 오류 문구가 좁은 화면에서 잘리지 않는다", () => {
+    const doc = win.document;
+    doc.querySelectorAll("#toastHost .toast").forEach(t => t.remove());
+    win.toast("그림 12장을 불러오지 못했어요 · 인쇄본에서 빠지거나 배치가 어긋날 수 있어요 "
+            + "· 잠시 후 다시 시도해 주세요", "error");
+    const t = doc.querySelector("#toastHost .toast");
+    const clipped = t.scrollWidth > t.clientWidth + 1;
+    const note = `${t.scrollWidth} vs ${t.clientWidth}`;
+    t.remove();
+    return { pass: !clipped, note };
+  });
+
+  await check(G, "진행 토스트는 스스로 사라지지 않는다", async () => {
+    /* ⚠️ 일반 토스트의 2.4초 자동 종료를 물려받으면 인쇄 준비 도중 사라진다. */
+    const doc = win.document;
+    const p = win.toastProgress("준비 중");
+    const alive = () => !!doc.querySelector("#toastHost .toast .toast-prog");
+    await new Promise(r => setTimeout(r, 2700));
+    const still = alive();
+    p.done();
+    await new Promise(r => setTimeout(r, 400));
+    return { pass: still && !alive(), note: `2.7초 뒤 ${still} · done 뒤 ${alive()}` };
+  });
+
+  await check(G, "진행 막대가 비율 없이도 살아 있다(불확정)", () => {
+    /* 그림 단계 말고는 진짜 진행을 모른다 — 그때는 흐르게 두고 숫자를 말하지 않는다. */
+    const doc = win.document;
+    const p = win.toastProgress("조판");
+    p.set(null);
+    const bar = doc.querySelector("#toastHost .toast .toast-prog");
+    const indet = bar.classList.contains("indet") && !bar.hasAttribute("aria-valuenow");
+    p.set(0.5);
+    const exact = !bar.classList.contains("indet") && bar.getAttribute("aria-valuenow") === "50";
+    p.done();
+    return { pass: indet && exact, note: `불확정 ${indet} · 50% ${exact}` };
+  });
+
   /* ── 앱 안의 브라우저(인앱 WebView) 감지 ──
      ⚠️ 감지는 **힌트일 뿐**이다. 최종 판정은 실제 인증 오류 코드로 한다.
      그래서 검사도 둘 다 본다 — 이름을 맞게 집는가, 그리고 **오탐하지 않는가**. */
