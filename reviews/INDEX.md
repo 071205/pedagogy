@@ -28,9 +28,11 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 
 ## 검토 대기
 
-검토 완료: HANDOFF-2026-071은 [HANDOFF-2026-073](handoffs/2026-09/2026-09-08-library-hwpx-independent-review.md)에서 조건부 승인했다. 구조 분리 구현은 아직 시작하지 않았다.
+검토 완료: HANDOFF-2026-071은 [HANDOFF-2026-073](handoffs/2026-09/2026-09-08-library-hwpx-independent-review.md)에서 조건부 승인했다. 구조 1·2단계를 완료했고 3단계는 시작하지 않았다.
 
-검토 완료: HANDOFF-2026-074의 A단계 전환과 HANDOFF-2026-075의 구조 1단계는 [HANDOFF-2026-076](handoffs/2026-09/2026-09-08-library-and-normalize-review.md)에서 확인했다. VM 검사 결함 REV-2026-052 하나를 수정했고, 구조 2단계는 시작하지 않았다.
+검토 완료: HANDOFF-2026-074의 A단계 전환과 HANDOFF-2026-075의 구조 1단계는 [HANDOFF-2026-076](handoffs/2026-09/2026-09-08-library-and-normalize-review.md)에서 확인했다. VM 검사 결함 REV-2026-052 하나를 수정했다.
+
+검토 대기: [HANDOFF-2026-077](handoffs/2026-09/2026-09-09-structure-step2-render.md) — 구조 2단계 렌더 분리와 계약 검사 보강.
 
 ## 최근 해결
 
@@ -92,6 +94,7 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 
 | ID | 작성자 | 내용 | 파일 |
 | --- | --- | --- | --- |
+| `HANDOFF-2026-077` | Codex | 구조 2단계 — 안전한 HTML 렌더 분리 및 계약 고정 | `handoffs/2026-09/2026-09-09-structure-step2-render.md` |
 | `HANDOFF-2026-076` | Codex | Claude A단계·정규화 분리 독립 검토 및 VM URL 검사 보정 | `handoffs/2026-09/2026-09-08-library-and-normalize-review.md` |
 | `HANDOFF-2026-075` | Claude | **구조 1단계 — 정규화(신뢰 경계)를 별도 파일로** | `handoffs/2026-09/2026-09-08-structure-step1-normalize.md` |
 | `HANDOFF-2026-074` | Claude | **코덱스 8건 독립 검증 · A단계 전환 · 검사의 플래그 의존 제거** | `handoffs/2026-09/2026-09-08-library-review-verified-and-schema-a.md` |

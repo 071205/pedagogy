@@ -226,9 +226,9 @@ git status -sb && git log --oneline main..HEAD
 
 PEDAGOGY — a Korean math problem-set / mock-exam (모의고사) editor, plus a general
 Korean-document typesetter that writes 한글(HWPX) files. No build system, no package manager,
-no framework: the product is standalone `.html` files (plus a dev server and test harnesses,
-below). Each is a single-page app with all CSS/JS inlined and dependencies pulled from CDNs
-(KaTeX, SortableJS, Firebase compat SDK, Pretendard/KoPub webfonts).
+no framework: the product is standalone `.html` files plus plain classic-script modules (and a
+dev server and test harnesses, below). Each editor is a single-page app; dependencies come from
+CDNs (KaTeX, SortableJS, Firebase compat SDK, Pretendard/KoPub webfonts).
 
 - [`index.html`](index.html) — PEDAGOGY main app: problem-set library + block editor.
 - [`pedagogy-normalize.js`](pedagogy-normalize.js) — **신뢰 경계(정규화)를 떼어 낸 파일**
@@ -245,6 +245,13 @@ below). Each is a single-page app with all CSS/JS inlined and dependencies pulle
   이 파일을 가리킨다. 빼먹으면 각각 404 · 조용한 통과가 된다.
   ⚠️ **평범한 고전 스크립트다(ESM 아님).** `file://` 에서 그대로 돌아야 하고
   `test:review-contracts` 가 그것을 본다.
+- [`pedagogy-render.js`](pedagogy-render.js) — **안전한 HTML 렌더를 떼어 낸 파일**
+  (구조 2단계 · `docs/STRUCTURE-DESIGN.md`). 정규화 모듈 뒤에 불러오며,
+  `blockHTML()`의 `ctx.subject`·`ctx.range`와 `sanitize()` → `inlineMarks()` 순서를
+  미리보기·인쇄의 공통 계약으로 유지한다. 옮기기 전 최상위 `function` 17개는
+  `Object.assign(window, {...})` 다리로 기존 표면을 유지한다. `HSMALL`·`condLabel`·
+  `circled`는 예전에도 `window` 속성이 아니므로 올리지 않는다. `serve.py`의 `STATIC`과
+  `test:review-contracts`가 HTTP·`file://` 로딩과 표면을 함께 확인한다.
 - [`mock-exam-editor.html`](mock-exam-editor.html) — 모의고사(mock CSAT exam) editor, embedded
   into `index.html` via an `<iframe>` (see the mock-mode IIFE around line 583 of
   `index.html`). Intentionally isolated: separate global scope, separate storage (`.json`

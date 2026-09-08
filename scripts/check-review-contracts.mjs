@@ -193,6 +193,24 @@ try{
    ns:typeof window.PedagogyNormalize?.normSet==='function',
   }));assert.deepEqual(got,{up:[],down:[],ns:true});await p.close();
  });
+ /* 구조 2단계는 렌더 함수를 옮기되 기존 window 표면과 두 핵심 계약을 그대로 지킨다.
+    processText 는 먼저 sanitize 한 뒤 제한된 인라인 표지만 HTML 로 바꿔야 하고,
+    blockHTML 은 미리보기·인쇄가 넘기는 subject/range 문맥을 잃으면 안 된다. */
+ await test('render split keeps its surface, sanitization order, and context',async()=>{
+  const p=await app('index.html',{schema:0});const got=await p.evaluate(()=>{
+   const f=['setHasContent','blockExcerpt','autoDisplayStyle','addCasesRowGap','inlineMarks',
+    'processText','verseHTML','isEllipsisLine','rangeOpen','isRangeClose','splitRanges',
+    'rangeWrap','splitParagraphs','proseHTML','tableHTML','groupHeadHTML','blockHTML'];
+   const html=processText('**<img src=x onerror=alert(1)>**');
+   const passage=blockHTML(normBlock({type:'passage',data:{lead:'읽기',parts:[{text:'본문'}]}}),
+    {subject:'english',range:'16~17'});
+   return {ns:typeof window.PedagogyRender?.blockHTML,
+    missing:f.filter(n=>typeof window[n]!=='function'),
+    leaked:['HANGULS','HSMALL','condLabel','circled'].filter(n=>n in window),
+    escaped:html.includes('&lt;img')&&!html.includes('<img'),
+    context:passage.includes('psg-en')&&passage.includes('[16~17]')};
+  });assert.deepEqual(got,{ns:'function',missing:[],leaked:[],escaped:true,context:true});await p.close();
+ });
  await test('classic scripts share lexical bindings without window properties',async()=>{
   const p=await browser.newPage();await p.setContent('<!doctype html>');
   await p.addScriptTag({content:'const reviewLexical=42;'});

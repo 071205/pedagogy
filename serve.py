@@ -64,6 +64,8 @@ STATIC = {
     "/service-config.js": ("service-config.js", "application/javascript; charset=utf-8"),
     # 신뢰 경계(정규화). index.html 이 이 파일 없이는 아예 뜨지 않는다 — 빼면 404 로 죽는다.
     "/pedagogy-normalize.js": ("pedagogy-normalize.js", "application/javascript; charset=utf-8"),
+    # 정규화된 데이터를 미리보기·인쇄용 HTML로 바꾸는 공용 렌더 계층.
+    "/pedagogy-render.js": ("pedagogy-render.js", "application/javascript; charset=utf-8"),
     # 브라우저에서 도는 HWPX 조판기. 이것이 있으면 AI 문서는 **로컬 서버 없이** 내보낸다
     # (배포본에서도 된다). 파이썬 변환기는 모의고사와 CLI 용으로 남는다.
     "/hwpx-engine.js": ("hwpx-engine.js", "application/javascript; charset=utf-8"),

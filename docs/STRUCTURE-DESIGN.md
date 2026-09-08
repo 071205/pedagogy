@@ -1,6 +1,6 @@
 # 구조 — `index.html` 을 어디까지, 어떻게 쪼갤 것인가
 
-작성: Claude · 2026-09-09 · **1단계 완료(HANDOFF-2026-075) · 2·3단계 미착수**
+작성: Claude · 2026-09-09 · **1단계 완료(HANDOFF-2026-075) · 2단계 완료(HANDOFF-2026-077) · 3단계 미착수**
 
 여러 외부 검토가 "`index.html` 이 너무 크다" 고 지적했다. 맞는 말이지만 **원인 진단이
 대체로 틀렸다** — 그래서 처방도 틀렸다. 재서 확인한 것만 적는다.
@@ -130,13 +130,21 @@ mock-exam-editor    전역 let/var  9개   함수  79개
 
 </details>
 
-### 2단계 — `pedagogy-render.js` (~15KB)
+### 2단계 — `pedagogy-render.js` ✅ **완료** (`HANDOFF-2026-077`)
 
 `blockHTML` `processText` `proseHTML` `verseHTML` `splitParagraphs` `splitRanges`
 `inlineMarks` `autoDisplayStyle` `tableHTML` `blockExcerpt` `setHasContent`
 
 ⚠️ `blockHTML(blk, ctx)` 의 `ctx.subject`·`ctx.range` 계약을 그대로 유지한다 — 미리보기와
 인쇄 **두 곳이 모두** 넘겨야 한다는 규칙이 여기 걸려 있다.
+
+실제 결과: `index.html` **6,847 → 6,447줄**, 모듈 **447줄·25,412바이트**. 위 목록의
+보조 함수와 `addCasesRowGap`·`groupHeadHTML`도 같은 응집 단위로 옮겼다. 편집기도 쓰는
+`HSMALL`·`condLabel`·`circled`는 모듈이 내보내되 `window`에는 올리지 않는다.
+
+구현 전에 새 계약을 넣어 `PedagogyRender`가 없을 때 실패하는 것을 확인했다. 구현 뒤에는
+기존 최상위 함수 17개의 `window` 표면, `sanitize` → 인라인 표시 순서, `subject/range`
+문맥, HTTP·`file://` 로딩을 한 검사에서 고정했다. `check:fast`와 회귀 154/154가 통과했다.
 
 ### 3단계 — `pedagogy-print.js` (~20KB)
 
@@ -146,7 +154,7 @@ mock-exam-editor    전역 let/var  9개   함수  79개
 ⚠️ `fitPrintDoc` 의 **읽기·쓰기 분리 순서**를 깨지 말 것(레이아웃 스래싱 — 1616ms → 265ms).
 ⚠️ `problemGroups()` 는 묶음 경계를 아는 **유일한 곳**이다. 사본을 만들지 말 것.
 
-여기까지면 `index.html` 이 **7,012 → 약 5,200줄**이 된다.
+3단계의 줄 수는 계획 당시 추정치보다 실제 이동 결과를 기준으로 다시 잰다.
 
 ## 6. 하지 않을 것 (이유 포함)
 
