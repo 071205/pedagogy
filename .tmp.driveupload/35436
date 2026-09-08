@@ -1,9 +1,0 @@
-import { chromium } from "playwright";
-const b=await chromium.launch(); const p=await b.newPage();
-const errs=[]; p.on("console",m=>{ if(m.type()==="error") errs.push(m.text().slice(0,120)); });
-await p.goto("file:///private/tmp/claude-501/-Users-huryul-pedagogy-main/ccfd62d4-088f-41d0-9315-6c0ed0cade36/scratchpad/filetest/page.html");
-await p.waitForTimeout(600);
-console.log("고전 스크립트(src) :", await p.textContent("#out"));
-console.log("ESM(type=module)  :", await p.evaluate(()=>window.__MOD__?"실행됨":"막힘"));
-console.log("콘솔 오류:", errs);
-await b.close();
