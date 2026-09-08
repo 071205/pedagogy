@@ -4,7 +4,9 @@
 
 ## 열린 이슈
 
-없다.
+| ID | 심각도 | 요약 | 파일 |
+| --- | --- | --- | --- |
+| `REV-2026-030` | `P1` | 틀의 줄바꿈·탭 뒤 원문 잔존 — bf107d4 재검토로 재개 | `issues/2026-09/2026-09-08-mock-bundled-template-retains-exam-content.md` |
 
 [`docs/MOCK-STYLE-DESIGN.md`](../docs/MOCK-STYLE-DESIGN.md) 의 실물 조판 계획은
 **여섯 단계가 모두 끝났다**.
@@ -50,7 +52,6 @@
 | `REV-2026-027` | `P2` | 터치 목표 검사가 버튼형 링크·문서 편집기 조작을 제외함 | `issues/2026-09/2026-09-07-tests-touch-target-coverage-gaps.md` |
 | `REV-2026-028` | `P2` | 늘어난 상단 바를 60px 로 빼 모의고사 화면이 넘침 | `issues/2026-09/2026-09-07-index-dvh-fixed-header-subtraction.md` |
 | `REV-2026-029` | `P2` | 글꼴 의도 검사가 부팅 중 글꼴 두 벌을 허용함 | `issues/2026-09/2026-09-07-tests-font-intent-allows-preload.md` |
-| `REV-2026-030` | `P1` | 배포용 시험지 틀에 원본 수식·발문이 남아 있었다 | `issues/2026-09/2026-09-08-mock-bundled-template-retains-exam-content.md` |
 
 ## 최근 인계
 
@@ -116,6 +117,7 @@
 | `HANDOFF-2026-058` | Claude | 범용성 5단계 — 글꼴을 인쇄 의도 시점에 | `handoffs/2026-09/2026-09-07-cross-platform-step5.md` |
 | `HANDOFF-2026-059` | Claude | 범용성 6단계 — 서버 필요 기능을 미리 알리기 | `handoffs/2026-09/2026-09-07-cross-platform-step6.md` |
 | `HANDOFF-2026-060` | Claude | **시험지 틀을 저장소에 (결정 1)** | `handoffs/2026-09/2026-09-07-exam-template-bundled.md` |
+| `HANDOFF-2026-061` | Claude | 사용자 수정 요청 셋의 설계 — 검토 요청 | `handoffs/2026-09/2026-09-08-ux-fixes-design.md` |
 | `HANDOFF-2026-046` | Claude | 영어 표 문항 (10번) + 표 머리글 굵기 | `handoffs/2026-09/2026-09-06-english-table-question.md` |
 | `HANDOFF-2026-038` | Claude | 영어 과목 조판의 토대 (실물 대조) | `handoffs/2026-09/2026-09-03-english-subject-foundation.md` |
 | `HANDOFF-2026-039` | Claude | 지문 문단 모델 — 문단마다 첫 줄 들여쓰기 | `handoffs/2026-09/2026-09-03-passage-paragraph-model.md` |

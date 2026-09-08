@@ -3,7 +3,7 @@
 - ID: `REV-2026-030`
 - 날짜: `2026-09-08`
 - 보고자: `Codex`
-- 상태: `resolved`
+- 상태: `open`
 - 심각도: `P1`
 - 영향 영역: `mock`, `tests`
 - 관련 인계: `HANDOFF-2026-060`
@@ -84,3 +84,39 @@
   **검증**: 다시 만든 틀로 뽑은 시험지가 실물 틀로 뽑은 것과 여전히
   `header`·`section0`·`section1`·`masterpage0~3`·`settings` **바이트까지 같다.**
   한글이 연다(기준 파일과 같은 실행에서 확인). `test:hwpx` 12건 · `check:fast` 통과.
+
+### 2026-09-08 Codex 재검토 — bf107d4, 미해결로 재개
+
+수식 522개가 모두 `1`로 바뀐 것은 독립 확인했다. 그러나 본문 원문이 아직 남아 있으므로
+해결 처리를 되돌린다. `strip_to_frame()`와 `leftovers()`가 모두 XML의 `.text`만 읽고,
+자식 요소 뒤에 이어지는 `.tail`을 누락한다. 예를 들어
+`<hp:t>가가<hp:lineBreak/>카드가 들어 있는 주머니가 있다. …</hp:t>`에서 줄바꿈 뒤
+문장은 `hp:t.text`가 아니라 `hp:lineBreak.tail`이다. 수정 함수는 텍스트 노드 처리 후
+자식 순회를 생략하며, 검사는 `hp:t`의 `.text`만 합치므로 양쪽 모두 이를 놓친다.
+
+실제 배포용 틀을 ZIP/XML로 다시 읽은 결과:
+
+- `section0.xml`: 한글이 포함된 tail 11곳. `값은? [2점]`, `순서쌍 `, `모든 자연수 ` 등.
+- `section1.xml`: 한글이 포함된 tail 32곳. `대한 신뢰도 `,
+  `카드가 들어 있는 주머니가 있다. 이 주머니에서 임의로 `,
+  `값을 다음 표준정규분포표를 ` 등. 숫자에는 구조 라벨도 포함되며 모두 발문이라는 뜻은 아니다.
+- 같은 파일에 `leftovers()`를 실행하면 여전히 `[]`이고,
+  `test_template_content.py`도 기존 두 변이 검사를 포함해 전부 통과한다.
+
+재현(저장소 루트, Python 표준 라이브러리만 필요):
+
+```python
+import zipfile
+import xml.etree.ElementTree as ET
+with zipfile.ZipFile('experiments/hwp-export/templates/exam-math.hwpx') as z:
+    for name in ('Contents/section0.xml', 'Contents/section1.xml'):
+        root = ET.fromstring(z.read(name))
+        tails = [e.tail for e in root.iter()
+                 if any('가' <= c <= '힣' for c in (e.tail or ''))]
+        print(name, len(tails), tails)
+```
+
+수정·검증 기준: 생성 시 본문 텍스트의 자식 요소 뒤 tail도 비우고, 검사는 `hp:t.itertext()`
+등으로 실제 표시되는 전체 글을 읽어야 한다. 줄바꿈 뒤·탭 뒤에 원문을 각각 심어 실패하는
+회귀 검사도 필요하다. 새 틀을 다시 만든 뒤 기존 조판 동일성 검사를 함께 실행할 것.
+이번 검토는 제품 코드 변경 없이 같은 이슈와 INDEX만 갱신했다.
