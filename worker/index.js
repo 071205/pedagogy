@@ -253,17 +253,9 @@ export function createWorker({
     }
 
     if (request.method === "DELETE") {
-      try {
-        // 현재 UTC 일자와 직전 이틀만 남아 있을 수 있다(48시간 retention).
-        const now = Date.now();
-        await Promise.all([0, 1, 2].map((daysAgo) =>
-          requestQuota(env, user.uid, "purge", "", { when: new Date(now - daysAgo * 24 * 60 * 60 * 1000) })
-        ));
-        return new Response(null, { status: 204, headers: cors });
-      } catch (e) {
-        console.error("AI usage 삭제 실패");
-        return json({ error: "AI 사용 기록을 지우지 못했습니다. 잠시 후 다시 시도해 주세요." }, 503, cors);
-      }
+      // 일반 사용자 토큰은 비용 카운터를 초기화할 권한이 없다.
+      // 계정 삭제 후에도 최초 예약부터 48시간인 DO alarm으로 자동 파기한다.
+      return json({ error: "사용량 기록은 최대 48시간 후 자동 삭제됩니다" }, 403, cors);
     }
 
     // ── 2. 본문 검사 (사용량을 깎기 전에 먼저) ──
@@ -274,10 +266,30 @@ export function createWorker({
 
     let body;
     try {
-      body = await request.json();
+      const reader = request.body?.getReader();
+      const chunks = []; let size = 0;
+      if (reader) {
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            size += value.byteLength;
+            if (size > MAX_BODY_BYTES) {
+              await reader.cancel();
+              return json({ error: "요청 본문이 너무 큽니다" }, 413, cors);
+            }
+            chunks.push(value);
+          }
+        } finally { reader.releaseLock(); }
+      }
+      const bytes = new Uint8Array(size); let offset = 0;
+      for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+      body = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
     } catch {
       return json({ error: "잘못된 요청 형식입니다" }, 400, cors);
     }
+    if (!body || typeof body !== 'object' || Array.isArray(body))
+      return json({ error: "JSON 객체가 필요합니다" }, 400, cors);
 
     const documentMode = body?.mode === "document";
     const { imageBase64, mimeType, prompt } = body || {};

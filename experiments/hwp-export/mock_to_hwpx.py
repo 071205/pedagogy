@@ -948,7 +948,19 @@ def emit_problem(doc: HwpxDocument, p: dict, rep: Report,
                          char_pr_id=STYLE.get("char_choice"))
 
 
+import threading
+
+# 임시 안전 장치: 요청별 BuildContext로 이관하기 전에는 모든 진입점을 직렬화한다.
+_BUILD_LOCK = threading.RLock()
+
+
 def build(data: dict, out: Path, *, ref: str | Path | None = None,
+          images: list[Path] | None = None) -> Report:
+    with _BUILD_LOCK:
+        return _build(data, out, ref=ref, images=images)
+
+
+def _build(data: dict, out: Path, *, ref: str | Path | None = None,
           images: list[Path] | None = None) -> Report:
     rep = Report()
     IMAGE_ROOTS.clear()

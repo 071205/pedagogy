@@ -1,12 +1,15 @@
 # 리뷰 현황
 
-마지막 정리: 2026-09-07
+마지막 정리: 2026-09-08
 
 ## 열린 이슈
 
 | ID | 심각도 | 요약 | 파일 |
 | --- | --- | --- | --- |
 | `REV-2026-030` | `P1` | 틀의 줄바꿈·탭 뒤 원문 잔존 — bf107d4 재검토로 재개 | `issues/2026-09/2026-09-08-mock-bundled-template-retains-exam-content.md` |
+
+독립 보안·안정성·효율성 분석과 수정 설계: [종합 보고서](audits/2026-09-08/REPORT.md).
+이번 9건은 `ae5740e`에서 재현 후 HANDOFF-2026-067로 수정·안전 회귀를 남겼다.
 
 [`docs/MOCK-STYLE-DESIGN.md`](../docs/MOCK-STYLE-DESIGN.md) 의 실물 조판 계획은
 **여섯 단계가 모두 끝났다**.
@@ -23,6 +26,15 @@
 
 | ID | 심각도 | 요약 | 파일 |
 | --- | --- | --- | --- |
+| `REV-2026-031` | `P1` | 인증된 DELETE로 AI 일일 비용 한도 초기화 | `issues/2026-09/2026-09-08-worker-quota-purge-reset.md` |
+| `REV-2026-032` | `P1` | 이전 계정 읽기 응답이 새 계정 로컬 캐시에 들어감 | `issues/2026-09/2026-09-08-index-stale-account-load.md` |
+| `REV-2026-033` | `P1` | 전송하지 않은 수정본을 클라우드 저장 완료로 표시 | `issues/2026-09/2026-09-08-index-cloud-ack-live-reference.md` |
+| `REV-2026-034` | `P1` | 즉시 이미지 원본 삭제로 Undo가 깨짐 | `issues/2026-09/2026-09-08-index-image-delete-breaks-undo.md` |
+| `REV-2026-035` | `P1` | 서버 동시 HWPX 변환이 전역 상태를 공유해 구역 혼선 | `issues/2026-09/2026-09-08-server-hwpx-shared-build-state.md` |
+| `REV-2026-036` | `P1` | 자기 클라우드 자료를 읽으며 머리말·블록을 조용히 자름 | `issues/2026-09/2026-09-08-index-own-cloud-normalization-truncates.md` |
+| `REV-2026-037` | `P2` | Content-Length 없는 요청이 Worker 본문 상한 우회 | `issues/2026-09/2026-09-08-worker-body-cap-header-only.md` |
+| `REV-2026-038` | `P1` | 로컬 저장 실패 후 dirty·종료 경고가 사라짐 | `issues/2026-09/2026-09-08-index-local-save-clears-dirty-on-failure.md` |
+| `REV-2026-039` | `P2` | 로컬 API의 JSON 배열 입력이 400 대신 연결 단절 | `issues/2026-09/2026-09-08-server-json-root-unhandled.md` |
 | `REV-2026-001` | `P1` | 원격 데이터 삭제 실패 시 계정 삭제 중단 | `issues/2026-08/2026-08-27-index-account-delete-partial-failure.md` |
 | `REV-2026-002` | `P1` | AI 일일 한도 경쟁 상태 제거 | `issues/2026-08/2026-08-27-worker-ai-quota-race.md` |
 | `REV-2026-003` | `P2` | 과목·선 색·문제집 순서 동기화 | `issues/2026-08/2026-08-27-index-cloud-metadata-fingerprint.md` |
@@ -58,6 +70,8 @@
 | ID | 작성자 | 내용 | 파일 |
 | --- | --- | --- | --- |
 | `HANDOFF-2026-062` | Codex | UX 수정 설계 검토 — 즉시 되돌리기·묶음 경계·진행 표시 보완 | `handoffs/2026-09/2026-09-08-ux-fixes-design-review.md` |
+| `HANDOFF-2026-066` | Codex | 독립 종합 감사 — 결함 9건·체크리스트·수정 설계·재현 도구, 제품 미수정 | `handoffs/2026-09/2026-09-08-independent-security-stability-audit.md` |
+| `HANDOFF-2026-067` | Codex | 독립 감사 9건 수정·실패 주입 회귀·보존 정책 정리 | `handoffs/2026-09/2026-09-08-audit-findings-fixed.md` |
 | `HANDOFF-2026-001` | Codex | 초기 독립 감사 — 제품 코드 변경 없음 | `handoffs/2026-08/2026-08-27-independent-initial-audit.md` |
 | `HANDOFF-2026-002` | Codex | 초기 감사 4건 해결 및 검증 | `handoffs/2026-08/2026-08-27-fix-audit-findings.md` |
 | `HANDOFF-2026-003` | Codex | 상용 출시 보안·권한·운영 기반 | `handoffs/2026-08/2026-08-28-commercial-launch-hardening.md` |

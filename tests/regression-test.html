@@ -203,6 +203,13 @@ async function runIndexTests(){
   });
 
   // ── 신뢰 경계: normSet / normProblem / normBlock ──
+  await check("저장 계약", "내 클라우드 머리말·51블록·긴 본문을 손실 없이 읽음", () => {
+    const raw={id:"round-trip",name:"검사",header:"가".repeat(500),problems:[{id:"q",
+      blocks:Array.from({length:51},()=>({type:"statement",data:{text:"나".repeat(20001)}}))}]};
+    const saved=win.setToDoc(raw,0),loaded=win.docToSet(saved);
+    return loaded.header===raw.header && loaded.problems[0].blocks.length===51
+      && loaded.problems[0].blocks[50].data.text===raw.problems[0].blocks[50].data.text;
+  });
   await check(G, "normProblem() answerImg 도 safeUrl 통과", () =>
     win.normProblem({answerImg:"javascript:alert(1)"}, false).answerImg === "");
 

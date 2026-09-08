@@ -1632,7 +1632,7 @@ document.addEventListener('DOMContentLoaded',()=>{
           <h4>모든 문제집 삭제</h4>
           <p>이 계정의 문제집을 전부 지웁니다. <b style="color:var(--text-primary)">계정은 그대로 둡니다.</b>
              되돌리기용 사본이 이 기기에 남아 위 '되돌리기'로 복구할 수 있어요.
-             다만 <b style="color:var(--text-primary)">첨부한 이미지는 함께 지워져 되돌려도 돌아오지 않습니다.</b></p>
+             <b style="color:var(--text-primary)">첨부 이미지는 복구를 위해 보존되며 저장 용량을 사용합니다. 계정 영구 삭제 때 함께 지웁니다.</b></p>
           <div class="dm-row">
             <input id="dmWipeConfirm" type="text" placeholder="삭제" autocomplete="off" aria-label="확인 문구 입력">
             <button id="dmWipeBtn" class="btn-danger" disabled>모든 문제집 삭제</button>
@@ -2015,6 +2015,11 @@ function migrateSharedLocalCache(){
 }
 let sets=[]; let currentSetId=null; let currentQId=null; let orderMode=false;
 let currentUser=null; // 로그인 유저
+let authEpoch=0;
+const sessionContext=()=>({uid:currentUser?.uid||null, epoch:authEpoch});
+const sessionMatches=c=>c.epoch===authEpoch && c.uid===(currentUser?.uid||null);
+// 저장 공간 오류 중 계정이 바뀌어도 이전 작업을 새 계정에 섞지 않는 메모리 복구본.
+const pendingLocalByOwner=new Map();
 let saveTimer=null;   // 디바운스용
 
 function newProblem(){ return { id:uid(), title:"", desc:"", answer:"", answerImg:"", numLabel:"", paired:false, blocks:[{type:"statement",data:{text:""}}] }; }
@@ -2064,12 +2069,14 @@ const CHOICE_LAYOUTS=["horizontal","cols3","cols2","vertical"];
 const IMG_SIZES=["full","large","medium","small"];
 const str=(v,max=20000)=>typeof v==="string"?v.slice(0,max):"";
 
-function normBlock(b){
+function normBlock(b, keepContent=false){
+  const lossless=keepContent===true;
+  const text=(v,max)=>str(v,lossless?Infinity:max);
   if(!b||typeof b!=="object") return null;
   const type=BLOCK_TYPES.includes(b.type)?b.type:null;
   if(!type) return null;
   const d=(b.data&&typeof b.data==="object")?b.data:{};
-  if(type==="statement"||type==="boxed") return {type,data:{text:str(d.text)}};
+  if(type==="statement"||type==="boxed") return {type,data:{text:text(d.text)}};
   /* 지문 — 국어·영어처럼 글 하나를 여러 문항이 함께 쓰는 형식.
      lead 는 "다음 글을 읽고 물음에 답하시오." 같은 안내문이다. 본문(text)은
      지문이라 길 수 있어 상한을 넉넉히 둔다(다른 텍스트 블록은 str 기본 상한). */
@@ -2082,16 +2089,16 @@ function normBlock(b){
        예전 형식({text,kind,label})도 그대로 읽어 parts 하나로 옮긴다. */
     const raw=Array.isArray(d.parts)&&d.parts.length ? d.parts
               : [{label:d.label, kind:d.kind, text:d.text, source:d.source, notes:d.notes}];
-    const parts=raw.slice(0,6).map(x=>{
+    const parts=raw.slice(0,lossless?undefined:6).map(x=>{
       const o=(x&&typeof x==="object")?x:{};
-      return { label:str(o.label,20),
+      return { label:text(o.label,20),
                kind:PASSAGE_KINDS.includes(o.kind)?o.kind:"prose",
-               text:str(o.text,20000),
-               source:str(o.source,200),
-               notes:str(o.notes,1000) };
+               text:text(o.text,20000),
+               source:text(o.source,200),
+               notes:text(o.notes,1000) };
     });
     return {type,data:{
-      lead:str(d.lead,200),
+      lead:text(d.lead,200),
       boxed:d.boxed!==false,          // 기본 상자 — 평가원 실물이 그렇다
       parts:parts.length?parts:[{label:"",kind:"prose",text:"",source:"",notes:""}]
     }};
@@ -2102,9 +2109,9 @@ function normBlock(b){
     /* <보기>/<자료> 안에는 설명문 뒤에 표가 붙는 형식이 매우 흔하다.
        표 블록을 밖에 따로 두면 테두리 밖으로 밀려 나가 실제 시험지 구조가 깨진다.
        구형 보기 데이터(text·label만 가진 것)는 rows=[]로 그대로 호환한다. */
-    const rows=(Array.isArray(d.rows)?d.rows:[]).slice(0,20).map(r=>
-      (Array.isArray(r)?r:[]).slice(0,10).map(cell=>str(cell,300)));
-    return {type,data:{text:str(d.text,5000), label:str(d.label,20)||"보 기",
+    const rows=(Array.isArray(d.rows)?d.rows:[]).slice(0,lossless?undefined:20).map(r=>
+      (Array.isArray(r)?r:[]).slice(0,lossless?undefined:10).map(cell=>text(cell,300)));
+    return {type,data:{text:text(d.text,5000), label:text(d.label,20)||"보 기",
                        rows, header:d.header!==false}};
   }
   /* 대화문 — 화법과 작문의 학생 대화, 매체의 방송 대화가 모두 이 모양이다.
@@ -2123,15 +2130,15 @@ function normBlock(b){
      ⚠️ 표가 들어가는 27번 형식은 아직 못 만든다(상자 안 표는 계약에 없다). */
   if(type==="notice")
     return {type,data:{
-      title:str(d.title,120),
-      items:(Array.isArray(d.items)?d.items:[]).slice(0,60).map(it=>{
+      title:text(d.title,120),
+      items:(Array.isArray(d.items)?d.items:[]).slice(0,lossless?undefined:60).map(it=>{
         const o=(it&&typeof it==="object")?it:{};
-        return { kind:NOTICE_KINDS.includes(o.kind)?o.kind:"text", text:str(o.text,1000) };
+        return { kind:NOTICE_KINDS.includes(o.kind)?o.kind:"text", text:text(o.text,1000) };
       })}};
   if(type==="dialogue")
-    return {type,data:{items:(Array.isArray(d.items)?d.items:[]).slice(0,60).map(it=>{
+    return {type,data:{items:(Array.isArray(d.items)?d.items:[]).slice(0,lossless?undefined:60).map(it=>{
       const o=(it&&typeof it==="object")?it:{};
-      return { who:str(o.who,40), text:str(o.text,3000) };
+      return { who:text(o.who,40), text:text(o.text,3000) };
     })}};
   /* 표 — 언어와 매체의 조음 위치·방법 표처럼 격자가 필요한 문항용.
      행마다 칸 수가 달라도 렌더가 알아서 맞춘다(모자란 칸은 빈칸). */
@@ -2139,14 +2146,14 @@ function normBlock(b){
      `Plant Seed Kits`). 안내문 상자와 같은 이름을 쓴다 — `blockExcerpt`·`setHasContent`
      가 이미 `d.title` 을 보므로 훑는 곳을 또 늘리지 않는다. */
   if(type==="table"){
-    const rows=(Array.isArray(d.rows)?d.rows:[]).slice(0,30).map(r=>
-      (Array.isArray(r)?r:[]).slice(0,10).map(cell=>str(cell,300)));
+    const rows=(Array.isArray(d.rows)?d.rows:[]).slice(0,lossless?undefined:30).map(r=>
+      (Array.isArray(r)?r:[]).slice(0,lossless?undefined:10).map(cell=>text(cell,300)));
     return {type,data:{rows:rows.length?rows:[["",""],["",""]], header:d.header!==false,
-                       title:str(d.title,120)}};
+                       title:text(d.title,120)}};
   }
   if(type==="conditions"||type==="examples")
-    return {type,data:{items:(Array.isArray(d.items)?d.items:[]).slice(0,20).map(t=>str(t)),
-                       label:str(d.label,20)}};   // 비우면 라벨 없음, "보 기" 면 <보기> 상자
+    return {type,data:{items:(Array.isArray(d.items)?d.items:[]).slice(0,lossless?undefined:20).map(t=>text(t)),
+                       label:text(d.label,20)}};   // 비우면 라벨 없음, "보 기" 면 <보기> 상자
   /* 선지 — 글과 **그림**을 함께 가질 수 있다(교과서의 그래프 이동 문항처럼 선지가
      그림인 형식). `items` 는 **문자열 배열 그대로 둔다** — 원소를 객체로 바꾸면
      `convertBlock`(조건↔보기↔선지)과 내용을 훑는 곳들이 전부 터진다(CLAUDE.md).
@@ -2154,8 +2161,8 @@ function normBlock(b){
      ⚠️ 두 배열은 늘 같은 길이여야 한다 — 한쪽만 splice 하면 그림이 옆 선지로 옮겨간다.
         길이를 여기서 못 박는 이유가 그것이다. */
   if(type==="choices"){
-    const items=(Array.isArray(d.items)?d.items:[]).slice(0,5).map(t=>str(t));
-    const raw=(Array.isArray(d.images)?d.images:[]).slice(0,5);
+    const items=(Array.isArray(d.items)?d.items:[]).slice(0,lossless?undefined:5).map(t=>text(t));
+    const raw=(Array.isArray(d.images)?d.images:[]).slice(0,lossless?undefined:5);
     const images=[];
     for(let i=0;i<5;i++){
       const u=safeUrl(raw[i]);
@@ -2189,12 +2196,13 @@ function reportNormDropped(){
    가져오기(남의 파일)는 항상 id 를 새로 발급해 기존 문항과 충돌하지 않게 한다. */
 function normProblem(p, keepId){
   if(!p||typeof p!=="object") return null;
-  const blocks=(Array.isArray(p.blocks)?p.blocks:[]).slice(0,50).map(normBlock).filter(Boolean);
+  const text=(v,max)=>str(v,keepId?Infinity:max);
+  const blocks=(Array.isArray(p.blocks)?p.blocks:[]).slice(0,keepId?undefined:50).map(b=>normBlock(b,keepId===true)).filter(Boolean);
   return {
     id:(keepId && typeof p.id==="string" && p.id) ? p.id : uid(),
-    title:str(p.title,300), desc:str(p.desc,300),
-    answer:str(p.answer,5000), answerImg:safeUrl(p.answerImg),
-    numLabel:str(p.numLabel,40), paired:p.paired===true,
+    title:text(p.title,300), desc:text(p.desc,300),
+    answer:text(p.answer,5000), answerImg:safeUrl(p.answerImg),
+    numLabel:text(p.numLabel,40), paired:p.paired===true,
     /* 몇 문항이 한 묶음인지(자기 자신 포함).
        · 지문 블록이 있으면 '그 지문을 함께 쓰는 문항 수' 다.
        · 지문 블록이 없으면 '안내만 공유하는 묶음' 이다 — 실물 영어 16~17·31~34·
@@ -2203,7 +2211,7 @@ function normProblem(p, keepId){
     groupSpan:Math.max(1,Math.min(10,Math.round(Number(p.groupSpan))||1)),
     /* 지문 없는 묶음의 안내 글([16~17] **다음을 듣고, 물음에 답하시오.**).
        지문이 있으면 그 글은 지문 블록의 lead 에 있다 — 여기는 쓰지 않는다. */
-    groupLead:str(p.groupLead,200),
+    groupLead:text(p.groupLead,200),
     span:['pair','col','page'].includes(p.span)?p.span:(p.paired===true?'pair':'col'),
     blocks:blocks.length?blocks:[{type:"statement",data:{text:""}}]
   };
@@ -2242,9 +2250,9 @@ function normSet(s, opts){
   if(!s||typeof s!=="object"||!Array.isArray(s.problems)) return null;
   const max=(opts&&opts.maxProblems)||500;
   const keepId=!!(opts&&opts.keepId);
-  const problems=s.problems.slice(0,max).map(p=>normProblem(p,keepId)).filter(Boolean);
+  const problems=s.problems.slice(0,keepId?undefined:max).map(p=>normProblem(p,keepId)).filter(Boolean);
   return { id:(keepId&&typeof s.id==="string"&&s.id)?s.id:uid(),
-           name:str(s.name,200)||"제목 없음", header:str(s.header,200),
+           name:str(s.name,keepId?Infinity:200)||"제목 없음", header:str(s.header,keepId?Infinity:200),
            lineColor:normSheetColor(s.lineColor), subject:normSubject(s.subject), problems };
 }
 
@@ -2363,7 +2371,9 @@ migrateLegacyLocalSets();
 
 function readLocalSets(){
   try{
-    const raw=localStorage.getItem(setsKey());
+    const pending=pendingLocalByOwner.get(setsKey());
+    if(pending) localDirty=true;
+    const raw=pending || localStorage.getItem(setsKey());
     const v=raw?JSON.parse(raw):[];
     clearWarn("readLocal");
     return v;
@@ -2530,15 +2540,18 @@ function touchSet(id){
 }
 
 async function loadSets(){
+  const session=sessionContext();
   if(currentUser){
     const owner=currentUser.uid;
     try{
       const snap=await SETS_COL(owner).get();
+      if(!sessionMatches(session)) return;
       const cloudEntries=snap.docs.map(d=>d.data()).filter(Boolean);
 
       // ── 구버전(users/{uid}.sets 배열)에서 한 번만 이관 ──
       if(!cloudEntries.length){
         const legacy=await fbDb.collection('users').doc(owner).get();
+        if(!sessionMatches(session)) return;
         const arr=(legacy.exists && Array.isArray(legacy.data().sets))?legacy.data().sets:[];
         if(arr.length){
           console.info(`구버전 클라우드 문서에서 문제집 ${arr.length}개를 서브컬렉션으로 이관합니다.`);
@@ -2553,6 +2566,7 @@ async function loadSets(){
           // 구버전 문서는 지우지 않는다 — 이관이 잘못돼도 되돌릴 수 있게 남긴다
           batch.set(fbDb.collection('users').doc(owner),{migratedAt:Date.now()},{merge:true});
           await batch.commit();
+          if(!sessionMatches(session)) return;
         }
       }
 
@@ -2570,6 +2584,7 @@ async function loadSets(){
         return;
       }
     }catch(e){
+      if(!sessionMatches(session)) return;
       console.warn('Firestore 로드 실패, 로컬 사용:', e);
       toast("클라우드에 연결하지 못했어요 · 이 기기 데이터로 계속합니다","error");
     }
@@ -2588,9 +2603,10 @@ function watchCloud(){
   if(setsUnsub){ setsUnsub(); setsUnsub=null; }
   if(!currentUser || !fbReady) return;
   const owner=currentUser.uid;
+  const session=sessionContext();
   try{
     setsUnsub=SETS_COL(owner).onSnapshot(snap=>{
-      if(!currentUser || currentUser.uid!==owner) return;
+      if(!sessionMatches(session)) return;
       let changed=false, warnedEditing=false;
       snap.docChanges().forEach(ch=>{
         const d=ch.doc.data(); if(!d||!d.id) return;
@@ -2854,17 +2870,19 @@ function persistLocal(){
 function flushLocal(){
   clearTimeout(localTimer); localTimer=null;
   if(!localDirty) return true;
-  localDirty=false;
   return writeLocalNow();
 }
 function writeLocalNow(){
   if(wiping) return true;      // 삭제 중 — 지운 내용을 도로 쓰지 않는다
   try{
     localStorage.setItem(setsKey(), JSON.stringify(sets));
+    localDirty=false;
+    pendingLocalByOwner.delete(setsKey());
     quotaWarned=false;
     return true;
   }catch(e){
     console.error("로컬 저장 실패:", e);
+    localDirty=true;
     setSaveStatus("⚠ 로컬 저장 실패", "#e57373");
     if(!quotaWarned){
       quotaWarned=true;
@@ -2876,6 +2894,7 @@ function writeLocalNow(){
 
 /* 아직 클라우드로 못 올린 변경이 있는가 (창 닫기 경고용) */
 function hasUnsavedCloudWork(){
+  if(localDirty || pendingLocalByOwner.size) return true;
   if(!currentUser) return false;
   return sets.some((s,i)=>!isCloudSynced(s,i));
 }
@@ -2884,30 +2903,47 @@ function hasUnsavedCloudWork(){
    예전에는 sets 배열 전체를 users/{uid} 문서 하나에 통째로 set() 했다 —
    다른 탭이 같은 순간에 저장하면 그쪽 작업이 통째로 사라졌고, 1MB 한도도
    문제집을 몇십 권 모으면 걸렸다. 이제 문제집 하나가 문서 하나다. */
-async function flushToCloud(uidAtSave){
+let cloudSaveQueue=Promise.resolve();
+function flushToCloud(uidAtSave){
+  const session=sessionContext();
+  const task=cloudSaveQueue.catch(()=>{}).then(()=>{
+    if(sessionMatches(session)) return writeCloudSnapshot(uidAtSave,session);
+  });
+  cloudSaveQueue=task;
+  return task;
+}
+async function writeCloudSnapshot(uidAtSave,session){
   if(wiping) return;               // 삭제 중 — 지운 문제집을 되올리지 않는다
   flushLocal();                    // 로컬부터 확정하고 올린다
   if(!currentUser || currentUser.uid!==uidAtSave){
     console.warn("저장 예약 뒤 계정이 바뀌어 건너뜁니다.");
     setSaveStatus(""); return;
   }
-  const dirty=sets.map((s,i)=>({s,i})).filter(({s,i})=>!isCloudSynced(s,i));
+  const dirty=sets.map((s,i)=>({s,i})).filter(({s,i})=>!isCloudSynced(s,i))
+    .map(({s,i})=>({id:s.id, doc:JSON.parse(JSON.stringify(setToDoc(s,i))), entry:cloudSyncEntry(s,i)}));
   // 순서만 바뀐 경우도 cloudSyncEntry 의 order 비교로 포함한다.
   if(!dirty.length){ setSaveStatus(""); return; }
   try{
     // 500개는 배치 상한. 한 번에 그만큼 바뀌는 일은 없지만 안전하게 나눠 보낸다
     for(let off=0; off<dirty.length; off+=400){
       const batch=fbDb.batch();
-      dirty.slice(off,off+400).forEach(({s,i})=>{
-        batch.set(SETS_COL(uidAtSave).doc(String(s.id)), setToDoc(s,i));
+      if(!sessionMatches(session) || wiping) return;
+      dirty.slice(off,off+400).forEach(({id,doc})=>{
+        batch.set(SETS_COL(uidAtSave).doc(String(id)), doc);
       });
       await batch.commit();
-      if(!currentUser || currentUser.uid!==uidAtSave) return;   // 도중 계정 전환
+      if(!sessionMatches(session) || wiping) return;
     }
-    dirty.forEach(({s,i})=>cloudSynced.set(s.id, cloudSyncEntry(s,i)));
+    dirty.forEach(({id,entry})=>cloudSynced.set(id, entry));
+    if(sets.some((s,i)=>!isCloudSynced(s,i))){
+      setSaveStatus("저장 중…");
+      void flushToCloud(uidAtSave);
+      return;
+    }
     setSaveStatus("✓ 저장됨", "#81c784");
-    setTimeout(()=>setSaveStatus(""), 2000);
+    setTimeout(()=>{if(sessionMatches(session) && !hasUnsavedCloudWork()) setSaveStatus("");}, 2000);
   }catch(e){
+    if(!sessionMatches(session)) return;
     console.error('Firestore 저장 실패:', e);
     let msg="⚠ 저장 실패";
     const es=String(e?.message||e);
@@ -2919,7 +2955,8 @@ async function flushToCloud(uidAtSave){
       msg="⚠ 용량 초과";
       toast("문제집 하나가 1MB를 넘었어요 · 이미지를 줄이거나 문제집을 나눠 주세요","error");
     }
-    else toast("클라우드 저장에 실패했어요 · 이 기기에는 저장돼 있습니다","error");
+    else toast(localDirty ? "로컬·클라우드 저장에 실패했어요 · 창을 닫지 말고 JSON으로 내보내 주세요"
+      : "클라우드 저장에 실패했어요 · 이 기기에는 저장돼 있습니다","error");
     setSaveStatus(msg, "#e57373");
   }
 }
@@ -2928,7 +2965,7 @@ async function flushToCloud(uidAtSave){
    문제집을 지울 때 해야 할 일이 셋이다.
      1) 클라우드 문서를 tombstone 으로 바꾼다 (그냥 지우면 다른 기기의 오래된
         로컬 사본이 다음 병합에서 되살린다)
-     2) 그 문제집이 쓰던 Storage 이미지를 지운다 (예전엔 그대로 남아 고아 파일이 됐다)
+     2) Undo·백업에서 복구할 수 있도록 Storage 원본은 보존한다
      3) 로컬 tombstone 도 기록해 이 기기에서도 되살아나지 않게 한다 */
 /* 이 블록이 품고 있는 Storage 그림 주소 전부.
    ⚠️ **그림을 가진 블록이 늘어나면 여기 한 곳만 고친다.**
@@ -2983,18 +3020,12 @@ function stillReferenced(url, exceptSetId){
    블록을 지우거나 이미지 블록을 다른 종류로 바꾸면 Firestore 에서는 URL 이
    사라지지만, 예전에는 Storage 의 원본 파일이 그대로 남아 영영 요금만 먹었다
    (문제집 통째 삭제만 정리했고, 블록 단위는 아무도 치우지 않았다).
-   지금 열려 있는 어느 문제집도 그 주소를 안 쓸 때만 지운다 — 복제본이
-   같은 파일을 가리키고 있을 수 있기 때문이다.
-   실패해도 조용히 넘어간다(용량만 남을 뿐 기능에는 영향이 없다). */
+   현재 탭만으로 Undo·백업·다른 기기의 참조를 판단할 수 없어 원본을 보존한다.
+   계정 영구 삭제는 폴더를 직접 정리한다. 참조 기반 GC는 별도 후속 작업이다. */
 function releaseImage(url){
-  if(!isStorageUrl(url) || !currentUser || !fbReady) return;
-  // sets 전체에서 아직 쓰이는지 확인 (지운 직후 호출되므로 남아 있으면 다른 곳)
-  const used=sets.some(s=>storagePathsOf(s).includes(url));
-  if(used) return;
-  Promise.resolve()
-    .then(()=>fbStorage.refFromURL(url).delete())
-    .then(()=>console.info("사용하지 않는 이미지를 정리했습니다"))
-    .catch(e=>console.warn("이미지 정리 실패(무시):", e && e.code));
+  // URL 삭제는 원본 삭제 권한이 아니다. 다른 탭·Undo·백업 참조를
+  // 서버에서 확정하는 GC가 생기기 전까지 보존한다. 계정 영구 삭제는 별도다.
+  return;
 }
 function releaseBlockImages(blk){
   blockImageUrls(blk).forEach(releaseImage);
@@ -3019,11 +3050,9 @@ async function deleteSetEverywhere(removed){
     console.warn('클라우드 삭제 실패:', e);
     toast("이 기기에서는 지웠지만 클라우드에는 남아 있어요 · 다른 기기에서 되살아날 수 있습니다","error");
   }
-  // 이미지 정리는 실패해도 조용히 넘어간다(용량만 남을 뿐 기능엔 영향 없음)
+  // 문제집 삭제도 Undo/백업이 참조할 수 있으므로 원본을 보존한다.
   for(const url of storagePathsOf(removed)){
-    if(stillReferenced(url, removed.id)) continue;
-    try{ await fbStorage.refFromURL(url).delete(); }
-    catch(e){ console.warn('이미지 정리 실패(무시):', e && e.code); }
+    releaseImage(url);
   }
 }
 
@@ -3153,12 +3182,13 @@ async function deleteAllSets(){
       dmSetBusy('클라우드에서 지우는 중…');
       const ids=await cloudSetDocIds(uid,{includeTombstones:false});
       await wipeCloudSets(uid, ids, {realDelete:false});   // tombstone — 다른 기기에서 되살아나지 않게
-      dmSetBusy('이미지를 지우는 중…');
-      imageCleanup=await wipeStorageImages(uid);
+      // 복구용 백업에 URL이 남는다. 계정 삭제와 달리 원본은 보존한다.
+      imageCleanup={listed:true,failed:0};
     }
 
     // 로컬 — 백업은 남긴다(복구 수단)
     clearLocalKeys(keys,{keepBackup:true});
+    localDirty=false; pendingLocalByOwner.delete(keys.sets);
     sets=[]; cloudSynced.clear();
     localStamps={}; lastQIdBySet={};
     currentSetId=null; currentQId=null;
@@ -3208,10 +3238,8 @@ async function deleteAccountEverything(){
   if(setsUnsub){ setsUnsub(); setsUnsub=null; }
 
   try{
-    // ② AI 사용 기록 → ③ 이미지 → ④ 문제집 문서 → ⑤ 사용자 문서 순으로 지운다.
-    // Worker의 uid 해시 카운터도 계정 데이터이므로 Auth 삭제 전에 확실히 지운다.
-    dmSetBusy('AI 사용 기록을 지우는 중…');
-    await purgeAiUsage(user);
+    // 비용 카운터는 클라이언트에서 지우지 않는다(최대 48시간 자동 만료).
+    // 이미지 → 문제집 문서 → 사용자 문서 순으로 영구 삭제한다.
 
     dmSetBusy('이미지를 지우는 중…');
     const imageCleanup=await wipeStorageImages(uid);
@@ -3230,6 +3258,7 @@ async function deleteAccountEverything(){
 
     // ⑥ 로컬 — 백업까지 전부
     clearLocalKeys(keys,{keepBackup:false});
+    localDirty=false; pendingLocalByOwner.delete(keys.sets);
     sets=[]; cloudSynced.clear(); deletedIds.clear();
     localStamps={}; lastQIdBySet={};
     currentSetId=null; currentQId=null;
@@ -3341,7 +3370,7 @@ $("#dmRestoreBtn").onclick=()=>{
 
 $("#dmWipeBtn").onclick=async ()=>{
   if($("#dmWipeConfirm").value.trim()!==DM_WIPE_PHRASE) return;
-  if(!confirm("이 계정의 문제집을 모두 지웁니다.\n\n· 계정은 그대로 둡니다\n· 되돌리기용 백업이 이 기기에 남습니다\n· 첨부 이미지는 함께 지워져 되돌려도 돌아오지 않습니다\n\n계속할까요?")) return;
+  if(!confirm("이 계정의 문제집을 모두 지웁니다.\n\n· 계정은 그대로 둡니다\n· 되돌리기용 백업이 이 기기에 남습니다\n· 첨부 이미지는 복구를 위해 보존되며 저장 용량을 사용합니다\n\n계속할까요?")) return;
   try{
     await deleteAllSets();
     closeModal(dataModal);
@@ -3362,7 +3391,7 @@ $("#dmDelBtn").onclick=async ()=>{
     closeModal(dataModal);
     alert(r.imagesFailed>0
       ? "계정을 삭제했습니다. (이미지 일부는 지우지 못했지만 접근할 수 없는 상태입니다)"
-      : "계정과 모든 데이터를 삭제했습니다. 그동안 이용해 주셔서 감사합니다.");
+      : "계정과 작업 자료를 삭제했습니다. 남용 방지용 AI 이용량 기록은 최초 기록부터 최대 48시간 후 자동 삭제됩니다.");
   }catch(e){
     console.error("계정 삭제 실패:", e);
     toast((e&&e.message)||"계정을 삭제하지 못했어요","error");
@@ -4639,26 +4668,6 @@ function confirmAiTransfer(){
   return ok;
 }
 
-/* 계정 삭제 때 Worker에 남는 AI 남용 방지 기록도 함께 없앤다.
-   이 요청이 실패하면 계정 삭제 전체를 중단한다. Auth를 먼저 지우면 동일한 Firebase
-   토큰으로 재시도할 수 없어 해당 기록을 지울 권한도 함께 사라지기 때문이다. */
-async function purgeAiUsage(user){
-  if(!user || !AI_PROXY_URL || AI_PROXY_URL.includes("YOUR-SUBDOMAIN"))
-    throw new Error('AI 사용 기록 서버가 설정되지 않아 계정 삭제를 진행할 수 없어요');
-  let idToken;
-  try{ idToken=await user.getIdToken(true); }
-  catch{ throw new Error('AI 사용 기록을 지우기 위한 로그인 정보를 확인하지 못했어요'); }
-  let r;
-  try{
-    r=await fetch(AI_PROXY_URL,{method:"DELETE",headers:{"Authorization":"Bearer "+idToken}});
-  }catch{
-    throw new Error('AI 사용 기록 서버에 연결하지 못해 계정은 그대로 두었습니다');
-  }
-  if(!r.ok){
-    const data=await r.json().catch(()=>({}));
-    throw new Error(data.error||'AI 사용 기록을 지우지 못해 계정은 그대로 두었습니다');
-  }
-}
 
 function aiStatus(msg, show=true){
   const s=$("#aiGenStatus"); if(!s) return;
@@ -6276,6 +6285,7 @@ let prevUid=null;            // 직전 콜백의 uid (로그인/로그아웃 전
 /* 최초 진입 공통 경로. 로그인 상태와 무관하게 한 번은 반드시 실행돼야
    라이브러리가 화면에 뜬다(Firebase 없이도 로컬 데이터로 동작). */
 async function bootLibrary(){
+  const session=sessionContext();
   authInitialized=true;
   migrateSharedLocalCache();
   migrateSharedAuxKeys();                // 백업·마지막문항 키도 계정 칸으로
@@ -6284,6 +6294,7 @@ async function bootLibrary(){
   snapshotLocalBackup();                 // 직전 세션 데이터를 백업으로 보관
   if(currentUser) showLibraryLoading();  // 불러오는 동안 '없어요' 대신 '불러오는 중'
   await loadSets();
+  if(!sessionMatches(session)) return;
   lastSnapshot=snapshot(); undoStack=[]; redoStack=[]; updateHistButtons();
   currentSetId=null; currentQId=null;
   /* 마지막에 편집기에 있었으면 그 문제집으로 돌아간다.
@@ -6297,12 +6308,19 @@ async function bootLibrary(){
 const onAuth=async (user)=>{
   // 계정이 바뀌는 순간 예약된 저장을 취소한다 — 이전 계정의 내용이 뒤늦게
   // 새 계정 문서로 넘어가지 않도록.
-  if(!user || !currentUser || currentUser.uid!==user.uid){
+  if(!authInitialized || (currentUser?.uid||null)!==(user?.uid||null)){
+    // 반드시 기존 owner인 동안 확정한다. 실패한 원본은 메모리에서 계정별 보존.
+    if(localDirty && !flushLocal()) pendingLocalByOwner.set(setsKey(),JSON.stringify(sets));
+    clearTimeout(localTimer); localTimer=null; localDirty=false;
+    clearTimeout(histTimer); histTimer=null;
+    authEpoch++;
     clearTimeout(saveTimer);
     if(setsUnsub){ setsUnsub(); setsUnsub=null; }   // 이전 계정 구독 해제
     cloudSynced.clear(); deletedIds.clear();
+    sets=[]; currentSetId=null; currentQId=null;
   }
   currentUser=user;
+  const session=sessionContext();
   migrateSharedLocalCache();   // 예전 공용 캐시가 있으면 지금 계정 칸으로
   migrateSharedAuxKeys();
   loadLastQ(); localStamps=readStamps();
@@ -6333,6 +6351,7 @@ const onAuth=async (user)=>{
     // (토큰 갱신처럼 uid 그대로면 화면 안 건드림 → 작업 중 덮어쓰기 방지)
     if(user) showLibraryLoading(user.displayName ? user.displayName+" 님의 문제집을 가져오고 있어요" : null);
     await loadSets();
+    if(!sessionMatches(session)) return;
     lastSnapshot=snapshot(); undoStack=[]; redoStack=[]; updateHistButtons();
     currentSetId=null; currentQId=null;
     showLibrary();

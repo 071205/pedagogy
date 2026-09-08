@@ -91,6 +91,11 @@ for (const name of TESTS) {
   }
 }
 
+const concurrency = spawnSync(python, [path.join(HERE, 'check-hwpx-concurrency.py')],
+  {cwd:path.join(HERE, '..'),encoding:'utf8'});
+console.log(concurrency.stdout.trim());
+if(concurrency.status!==0){failed++;console.error(concurrency.stderr);}
+
 if (failed) {
   console.error(`HWPX 검사 ${failed}건 실패`);
   process.exit(1);

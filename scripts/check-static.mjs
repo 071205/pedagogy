@@ -30,7 +30,7 @@ assert.match(cspDirective("frame-src"), /https:\/\/www\.google\.com/,
   "App Check reCAPTCHA 프레임 호스트가 CSP frame-src에 있어야 합니다");
 assert.match(cspDirective("connect-src"), /dawn-shape-2664\.dbruddl79\.workers\.dev/,
   "AI Worker API 호스트가 CSP connect-src에 있어야 합니다");
-assert.match(index, /purgeAiUsage\(user\)/, "계정 삭제 때 AI 사용 기록도 지워야 합니다");
+assert.doesNotMatch(index, /await purgeAiUsage\(/, "일반 사용자에게 비용 한도 초기화 권한을 주면 안 됩니다");
 assert.match(worker, /async alarm\(\)/, "AI quota는 자동 파기 alarm이 필요합니다");
 assert.match(worker, /QUOTA_RETENTION_MS/, "AI quota 보존 기간 상수가 필요합니다");
 assert.match(worker, /MAX_DAILY_LIMIT/, "AI 비용을 위한 절대 일일 상한이 필요합니다");

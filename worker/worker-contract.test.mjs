@@ -181,9 +181,9 @@ async function testDocumentDraftContract() {
 async function testDeletionPurgeContract() {
   const deletion = testWorker();
   const response = await deletion.worker.fetch(request("DELETE"), env);
-  assert.equal(response.status, 204);
+  assert.equal(response.status, 403);
   const purges = deletion.calls.filter((call) => call.kind === "quota" && call.op === "purge");
-  assert.equal(purges.length, 3, "48시간 보존 범위의 현재·직전 이틀 quota를 모두 지워야 한다");
+  assert.equal(purges.length, 0, "사용자가 비용 한도를 초기화할 수 없어야 한다");
   assert.equal(deletion.calls.filter((call) => call.kind === "ai").length, 0);
 }
 

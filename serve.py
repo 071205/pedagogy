@@ -28,6 +28,7 @@ import argparse, base64, hashlib, ipaddress, json, os, shutil, signal, socket, s
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import unquote
+from functools import wraps
 
 HERE = Path(__file__).resolve().parent
 WORK = HERE / "work"                 # 그림 등 typst 가 읽어도 되는 유일한 폴더
@@ -249,8 +250,21 @@ def _compile_typ_locked(src: str, ppi: int) -> dict:
 #    변환기를 고쳐 가며 실험할 때만 `--reload-hwpx` 로 예전 동작을 켠다.
 _HWPX: dict = {"mod": None}
 _DOCUMENT_HWPX: dict = {"mod": None}
-_HWPX_LOCK = threading.Lock()
+_HWPX_LOCK = threading.RLock()
 HWPX_RELOAD = False
+
+
+def serialized_hwpx(method):
+    @wraps(method)
+    def run(self, req):
+        # reload와 두 변환기 모두 같은 경계를 사용한다. 대기는 무한하지 않다.
+        if not _HWPX_LOCK.acquire(timeout=TIMEOUT):
+            return self._json(503, {"error": "한글 변환 중입니다. 잠시 후 다시 시도해 주세요"})
+        try:
+            return method(self, req)
+        finally:
+            _HWPX_LOCK.release()
+    return run
 
 
 def load_hwpx(exp: Path):
@@ -502,6 +516,8 @@ class Handler(BaseHTTPRequestHandler):
             req = json.loads(body.decode("utf-8"))
         except Exception:
             return self._json(400, {"error": "bad json"})
+        if not isinstance(req, dict):
+            return self._json(400, {"error": "JSON object required"})
 
         if path == "/hwpx":
             return self._hwpx(req)
@@ -517,6 +533,8 @@ class Handler(BaseHTTPRequestHandler):
             ppi = 110
         ppi = max(PPI_MIN, min(PPI_MAX, ppi))
         known = req.get("known") or []
+        if not isinstance(known, list):
+            return self._json(400, {"error": "known must be an array"})
         known = set(x for x in known if isinstance(x, str))
 
         res = compile_typ(src, ppi)
@@ -535,6 +553,7 @@ class Handler(BaseHTTPRequestHandler):
     #
     # ⚠️ 위 do_POST 의 보안 관문(Host·Origin·X-Exam-Client·본문 크기)을 그대로
     #    지난 뒤에만 들어온다. 새 경로를 만들 때 그 검사를 건너뛰지 말 것.
+    @serialized_hwpx
     def _hwpx(self, req: dict):
         exp = HERE / "experiments" / "hwp-export"
         if not (exp / "mock_to_hwpx.py").exists():
@@ -579,6 +598,7 @@ class Handler(BaseHTTPRequestHandler):
     # AI와 브라우저 미리보기는 `document_schema.py`의 JSON 블록만 주고받는다.
     # 이 경로는 파일 경로나 임의 XML을 받지 않으며, 위 do_POST의 같은 로컬 보안
     # 관문을 지난 요청만 처리한다.
+    @serialized_hwpx
     def _document_hwpx(self, req: dict):
         raw = req.get("document")
         if not isinstance(raw, dict):

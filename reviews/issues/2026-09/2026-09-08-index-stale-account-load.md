@@ -3,11 +3,12 @@
 - ID: `REV-2026-032`
 - 날짜: `2026-09-08`
 - 보고자: `Codex`
-- 상태: `open`
+- 상태: `resolved`
 - 심각도: `P1`
 - 영향 영역: `index`
-- 관련 인계: `HANDOFF-2026-063`
-- 분석 기준: `cbd951e`의 격리 사본. 이후 `11ef093`의 변경 파일과 겹치지 않음.
+- 관련 인계: `HANDOFF-2026-066`
+- 분석 기준: `cbd951e`의 격리 사본. 2026-09-08 최신 `ae5740e`에서도 같은 결함 재현.
+  아래 코드 줄 번호는 최초 분석 기준이며 최신 코드에서는 함수 이름으로 찾는다.
 
 ## 요약과 영향
 
@@ -37,5 +38,10 @@
 A→B, A→guest, A→B→A를 지연·역순 응답으로 재현. 이전 세대가 새 캐시·sets·구독·히스토리를 변경하지 않아야 한다.
 
 ## 처리 기록
+
+- 2026-09-08 — Codex / HANDOFF-2026-067: 사용자 승인으로 수정. authEpoch+uid로 읽기·legacy 이관 await·구독·boot/onAuth 후속 처리를 보호한다. 전환 전 기존 owner 캐시에 flush하고 실패 시 계정별 메모리 복구본으로 보존한다. A→B, A→B→A, 동일 uid/guest 콜백 보존·이전 owner flush 검사 통과.
+  새 안전 회귀는 `scripts/check-audit-safety.mjs`, `scripts/check-audit-browser.mjs`,
+  `scripts/check-hwpx-concurrency.py`에 있으며 수정 전 cbd951e 격리 사본의 실패도 확인했다.
+  운영 계정·AI·실제 사용자 원본을 호출/삭제하지 않았으며 배포·푸시는 하지 않았다.
 
 - 2026-09-08 — Codex: 실제 함수를 이용한 독립 재현으로 등록. 제품 수정은 하지 않았으며 Claude 검토 후 구현 예정.

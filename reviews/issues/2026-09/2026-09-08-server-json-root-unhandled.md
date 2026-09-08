@@ -3,11 +3,12 @@
 - ID: `REV-2026-039`
 - 날짜: `2026-09-08`
 - 보고자: `Codex`
-- 상태: `open`
+- 상태: `resolved`
 - 심각도: `P2`
 - 영향 영역: `server`
-- 관련 인계: `HANDOFF-2026-063`
-- 분석 기준: `cbd951e`의 격리 사본. 이후 `11ef093`의 변경 파일과 겹치지 않음.
+- 관련 인계: `HANDOFF-2026-066`
+- 분석 기준: `cbd951e`의 격리 사본. 2026-09-08 최신 `ae5740e`에서도 같은 결함 재현.
+  아래 코드 줄 번호는 최초 분석 기준이며 최신 코드에서는 함수 이름으로 찾는다.
 
 ## 요약과 영향
 
@@ -37,5 +38,10 @@
 null/배열/문자열/숫자를 세 POST 경로에 넣어 모두 400 확인. 그 직후 정상 요청이 성공해야 한다.
 
 ## 처리 기록
+
+- 2026-09-08 — Codex / HANDOFF-2026-067: 사용자 승인으로 수정. 공통 POST 관문에서 JSON 루트 dict를 강제한다. /render·/hwpx·/document-hwpx에 배열/null/문자열/숫자 12개 입력 모두 400, 후속 health200. /render known도 list만 허용한다.
+  새 안전 회귀는 `scripts/check-audit-safety.mjs`, `scripts/check-audit-browser.mjs`,
+  `scripts/check-hwpx-concurrency.py`에 있으며 수정 전 cbd951e 격리 사본의 실패도 확인했다.
+  운영 계정·AI·실제 사용자 원본을 호출/삭제하지 않았으며 배포·푸시는 하지 않았다.
 
 - 2026-09-08 — Codex: 실제 함수를 이용한 독립 재현으로 등록. 제품 수정은 하지 않았으며 Claude 검토 후 구현 예정.
