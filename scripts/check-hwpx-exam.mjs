@@ -10,13 +10,21 @@
  *    이 저장소에서 여러 번 났다(CLAUDE.md '반복된 실패 방식' 3번).
  *    AI 문서 쪽 `check-hwpx-browser.mjs` 와 같은 방식으로 **둘을 실제로 돌려 대조**한다.
  *
- * ⚠️ 이 검사는 브라우저가 필요 없다. `hwpx-exam-template.js` 는 DOM 을 쓰지 않고
- *    문자열·정규식만 쓰므로 node 에서 그대로 돈다 — 그래서 **CI 에서 늘 돈다.**
- *    (DOM 을 쓰게 되면 그때 Playwright 로 옮길 것.)
+ * ⚠️ **진짜 브라우저에서 돌린다.** 1단계(역할 읽기)는 문자열·정규식뿐이라 node 로도
+ *    됐지만, 2단계(떠 오기·비우기)는 `DOMParser`·`outerHTML` 을 쓴다. 흉내 낸 DOM 으로
+ *    견주면 "우리 흉내가 우리 흉내와 같다" 를 검사하게 된다 — 문서 쪽
+ *    `check-hwpx-browser.mjs` 가 같은 이유로 Playwright 를 쓴다.
+ *
+ * ⚠️ **이 대조가 덮지 못하는 것이 있다.** 일부러 깨서 확인한 결과, 아래 둘은 지금 틀에서
+ *    그 코드가 **아예 안 걸려** 깨도 통과한다 — 검사가 헛도는 것이 아니라 **표본이 그
+ *    경우를 담고 있지 않다.** 고칠 때 이 검사만 믿지 말 것:
+ *      · 문단 위 여백(`prev`) 합산 — 이 틀은 `prev=0` 이라 빼도 값이 같다
+ *      · 태그 표에서 '셀 안 문단이 하나인 사본' 고르기 — 이 틀은 사본이 전부 하나짜리다
+ *    (반대로 '머리말은 첫 것만' 은 처음엔 못 잡았다. 개수만 견줬기 때문인데, section1 에
+ *     머리말 문단이 6개라 마지막 것을 떠 와도 개수는 1 로 같았다. 지금은 내용을 견딘다.)
  */
-import { execFileSync, execSync } from "node:child_process";
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { execFileSync } from "node:child_process";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -58,6 +66,44 @@ if roles:
 if len(roles) < 3: roles = tmpl.read_roles(T)
 roles.update(tmpl.read_roles_by_usage(T))
 roles.pop("_source", None)
+
+# 2단계 — 떠 오기·비우기까지. \`open_template()\` 이 하는 것을 그대로 한다.
+from pedagogy_hwpx import HwpxDocument
+doc = HwpxDocument.open(str(T))
+roles["_page_header"] = tmpl.capture_page_headers(doc)
+roles["_line_mm"] = tmpl.read_pad_step_mm(doc, roles)
+roles["_column_tops"] = tmpl.read_column_tops_mm(doc)
+marks = tmpl.capture_marks(doc)
+# ⚠️ 표 XML 을 **문자열로 견주면 안 된다.** 파이썬은 요소마다 네임스페이스를 붙여 내고
+#    브라우저는 안 붙인다 — 같은 표인데 2531자 vs 1778자가 된다(실제로 그랬다).
+#    직렬화에 기대지 않는 **지문**으로 견준다: 요소 종류별 개수 + 보이는 글.
+import re as _re
+def _fp(xml: str) -> dict:
+    tags: dict[str, int] = {}
+    # WARN: 이 파이썬은 JS 템플릿 리터럴 안에 있다. 백슬래시를 두 번 적지 않으면
+    #       JS 가 하나를 먹어 파이썬이 w+ 를 받는다 — 태그가 하나도 안 잡혀 지문이
+    #       빈 사전이 되고, 그러면 이 대조가 아무것도 검사하지 않는다(실제로 그랬다).
+    #       그리고 여기에는 backtick 을 쓰지 말 것 — 리터럴이 거기서 끝난다.
+    for m in _re.finditer(r"<(?:\\w+:)?(\\w+)[\\s/>]", xml):
+        tags[m.group(1)] = tags.get(m.group(1), 0) + 1
+    text = "".join(_re.findall(r"<hp:t[^>]*>(.*?)</hp:t>", xml, _re.S))
+    return {"tags": tags, "text": _re.sub(r"<[^>]+>", "", text)}
+
+roles["_marks"] = {
+    "tag": {k: {"fp": _fp(v["tbl"]), "para": v["para"], "style": v["style"], "char": v["char"]}
+            for k, v in (marks.get("tag") or {}).items()},
+    "note": {str(k): {"fp": _fp(v["tbl"]), "para": v["para"]}
+             for k, v in (marks.get("note") or {}).items()},
+    "tag_step_mm": marks.get("tag_step_mm"),
+}
+# WARN: 개수만 견주면 안 된다. section1 에는 머리말을 품은 문단이 6개라, "첫 것만
+#       쓴다" 를 어겨 마지막 것을 떠 와도 개수는 그대로 1 이라 통과한다(실제로 그랬다).
+#       내용까지 지문으로 견딘다.
+roles["_page_header"] = {str(k): [_fp(x) for x in v] for k, v in roles["_page_header"].items()}
+roles["_column_tops"] = {str(k): [round(x, 3) for x in v] for k, v in roles["_column_tops"].items()}
+roles["_line_mm"] = round(roles["_line_mm"], 4) if roles["_line_mm"] else roles["_line_mm"]
+roles["_cleared"] = tmpl.clear_body(doc)
+roles["_bindata_gone"] = tmpl.strip_bindata(doc)   # 이 순서가 open_template() 과 같다
 print(json.dumps(roles, ensure_ascii=False, sort_keys=True))
 `;
 
@@ -68,26 +114,60 @@ try {
   skip("파이썬 쪽을 돌리지 못했습니다: " + String(e.message).split("\n")[0].slice(0, 120));
 }
 
-/* ── JS 쪽 ────────────────────────────────────────────────────────────── */
-const dir = mkdtempSync(join(tmpdir(), "pedagogy-tpl-"));
-try {
-  execSync(`unzip -qo ${JSON.stringify(TEMPLATE)} -d ${JSON.stringify(dir)}`);
-} catch {
-  rmSync(dir, { recursive: true, force: true });
-  skip("unzip 이 없습니다");
-}
-const parts = {};
-(function walk(d, pre) {
-  for (const e of readdirSync(d, { withFileTypes: true })) {
-    const p = join(d, e.name), k = pre ? pre + "/" + e.name : e.name;
-    if (e.isDirectory()) walk(p, k); else parts[k] = readFileSync(p);
-  }
-})(dir, "");
-rmSync(dir, { recursive: true, force: true });
+/* ── JS 쪽 (진짜 브라우저) ────────────────────────────────────────────── */
+let chromium;
+try { ({ chromium } = await import("playwright")); }
+catch { skip("playwright 가 없습니다 (npm ci)"); }
 
-globalThis.window = globalThis;
-await import(JS);
-const jsRoles = globalThis.PedagogyExamTemplate.readRoles(parts);
+let browser;
+try { browser = await chromium.launch(); }
+catch { skip("크로미움이 없습니다 (npx playwright install chromium)"); }
+
+const templateB64 = readFileSync(TEMPLATE).toString("base64");
+let jsRoles;
+try {
+  const page = await browser.newPage();
+  await page.setContent("<!doctype html><meta charset=utf-8><title>틀 읽기 대조</title>");
+  await page.addScriptTag({ path: join(ROOT, "hwpx-engine.js") });
+  await page.addScriptTag({ path: JS });
+  jsRoles = await page.evaluate(async (b64) => {
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    const T = window.PedagogyExamTemplate;
+    const { doc, roles } = await T.openTemplate(bytes.buffer);
+
+    /* ⚠️ 표 XML 을 **문자열로 견주면 안 된다** — 파이썬은 요소마다 네임스페이스를
+       붙여 내고 브라우저는 안 붙인다. 직렬화에 기대지 않는 지문으로 견준다. */
+    const fp = (xml) => {
+      const tags = {};
+      for (const m of xml.matchAll(/<(?:\w+:)?(\w+)[\s/>]/g)) tags[m[1]] = (tags[m[1]] || 0) + 1;
+      const text = [...xml.matchAll(/<hp:t[^>]*>([\s\S]*?)<\/hp:t>/g)].map((m) => m[1]).join("");
+      return { tags, text: text.replace(/<[^>]+>/g, "") };
+    };
+    const marks = roles._marks || {};
+    roles._marks = {
+      tag: Object.fromEntries(Object.entries(marks.tag || {}).map(([k, v]) =>
+        [k, { fp: fp(v.tbl), para: v.para, style: v.style, char: v.char }])),
+      note: Object.fromEntries(Object.entries(marks.note || {}).map(([k, v]) =>
+        [k, { fp: fp(v.tbl), para: v.para }])),
+      tag_step_mm: marks.tag_step_mm,
+    };
+    /* WARN: 개수만 견주면 "첫 것만 쓴다" 를 어겨도 통과한다 — 내용까지 본다. */
+    roles._page_header = Object.fromEntries(
+      Object.entries(roles._page_header || {}).map(([k, v]) => [k, v.map(fp)]));
+    roles._column_tops = Object.fromEntries(
+      Object.entries(roles._column_tops || {}).map(([k, v]) =>
+        [k, v.map((x) => Math.round(x * 1000) / 1000)]));
+    if (roles._line_mm) roles._line_mm = Math.round(roles._line_mm * 1e4) / 1e4;
+    /* ⚠️ 여기서 다시 부르면 안 된다 — `openTemplate()` 이 이미 비웠으므로 0 이 나온다.
+       파이썬은 그 순서에서 처음 부르니 273 이 나와, 같은 값을 견주는 것이 아니게 된다
+       (실제로 273 vs 0 으로 빨간불이 났다). 비운 개수는 `openTemplate()` 이 기록한다. */
+    return roles;
+  }, templateB64);
+} finally {
+  await browser.close();
+}
 
 /* ── 대조 ─────────────────────────────────────────────────────────────── */
 let fails = 0;
@@ -103,8 +183,12 @@ if (keys.length < 10) {
 /* ⚠️ `JSON.stringify` 를 그대로 견주면 **키 순서**만 달라도 전부 다르다고 나온다
    (파이썬은 정렬해 내고 JS 는 넣은 순서다). 처음에 그렇게 해서 **16종 중 14종이
    빨간불**이었는데 값은 하나도 다르지 않았다. 키를 정렬해 견준다. */
-const canon = (v) => v == null ? "null"
-  : JSON.stringify(Object.fromEntries(Object.entries(v).sort(([x], [y]) => x < y ? -1 : 1)));
+const sortDeep = (v) => Array.isArray(v) ? v.map(sortDeep)
+  : (v && typeof v === "object")
+    ? Object.fromEntries(Object.entries(v).sort(([x], [y]) => x < y ? -1 : 1)
+        .map(([k, x]) => [k, sortDeep(x)]))
+    : v;
+const canon = (v) => JSON.stringify(sortDeep(v ?? null));
 
 for (const k of keys) {
   const a = canon(pyRoles[k]);
