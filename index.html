@@ -1455,6 +1455,24 @@ document.addEventListener('DOMContentLoaded',()=>{
   };
 });
 
+/* ══ 편집기 전용 상단 동작 켜고 끄기 ══
+   되돌리기·상단 문구·AI 프롬프트·인쇄·내보내기·저장은 **문제집을 열었을 때만** 쓴다.
+   브랜드·모의고사·AI 문서·테마·로그인은 전역 탐색이라 늘 남긴다.
+
+   ⚠️ **`visibility` 로 끄면 안 된다**(`REV-2026-059`). `.btn` 의 `transition` 이 `all` 이라
+      `visibility` 도 **이산 전이**를 타고, 그래서 라이브러리로 나온 뒤 **약 130ms 동안**
+      버튼이 그대로 보이고 **눌린다** — 그 사이 인쇄·내보내기 모달이 실제로 열렸다.
+      계산 스타일을 재면 부모는 `hidden` 인데 자식 버튼만 `visible` 로 나와, CSS 규칙을
+      아무리 뒤져도 원인이 안 보인다(규칙이 아니라 전이가 원인이다).
+      `display` 는 즉시 반영되므로 그 창이 없다.
+   ⚠️ **이 함수는 모의고사 IIFE 보다 앞선 이 스크립트에 둔다.** 그 IIFE 는 "본체
+      스크립트가 실패해도 동작하도록" 일부러 독립시켜 둔 것이라(아래 주석), 본체
+      스크립트의 함수에 기대게 하면 그 결정이 깨진다. */
+function setEditorActions(on){
+  var t=document.getElementById('topActions');
+  if(t) t.style.display = on ? 'flex' : 'none';
+}
+
 /* ══ 모의고사 모드 ══
    PEDAGOGY 본체와 완전히 분리된 스크립트다. 본체 스크립트(Firebase 등)가
    실패해도 이 모드는 동작하도록 일부러 앞쪽에서 독립적으로 등록한다.
@@ -1468,7 +1486,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     ['libraryView','editorView'].forEach(function(id){
       var e=document.getElementById(id); if(e) e.style.display='none';
     });
-    var t=document.getElementById('topActions'); if(t) t.style.visibility='hidden';
+    setEditorActions(false);
   }
   function open(){
     hideOthers(); V.style.display='block'; B.classList.add('on'); B.textContent='← PEDAGOGY';
@@ -4053,7 +4071,7 @@ function renderLibrary(){
 }
 function showLibrary(){ $("#libraryView").style.display="flex"; $("#editorView").style.display="none";
   $("#mockView").style.display="none"; if(window.__mockClose) window.__mockClose();
-  $("#topActions").style.visibility="hidden"; rememberSet(null); renderLibrary(); }
+  setEditorActions(false); rememberSet(null); renderLibrary(); }
 
 /* 클라우드에서 문제집을 가져오는 동안 보여 줄 화면.
    예전에는 이 상태가 없어서, 로그인 직후 불러오는 몇 초 동안 '아직 문제집이
@@ -4063,7 +4081,7 @@ function showLibrary(){ $("#libraryView").style.display="flex"; $("#editorView")
 function showLibraryLoading(sub){
   $("#libraryView").style.display="flex"; $("#editorView").style.display="none";
   $("#mockView").style.display="none"; if(window.__mockClose) window.__mockClose();
-  $("#topActions").style.visibility="hidden";
+  setEditorActions(false);
   const grid=$("#setGrid"); if(!grid) return;
   grid.innerHTML="";
   const es=el("div","empty-state");
@@ -4142,7 +4160,7 @@ function showEditor(setId){
   $("#libraryView").style.display="none";
   $("#mockView").style.display="none"; if(window.__mockClose) window.__mockClose();
   $("#editorView").style.display="flex";
-  $("#topActions").style.visibility="visible";
+  setEditorActions(true);
   // 좁은 화면(탭 전환 레이아웃)에서 문제집에 새로 들어올 때마다 '편집' 탭으로.
   // 데스크톱에서는 CSS 가 탭을 숨기므로 아무 영향이 없다.
   if(typeof setActivePane==="function") setActivePane("edit");

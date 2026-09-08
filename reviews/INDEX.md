@@ -6,8 +6,6 @@
 
 | ID | 심각도 | 요약 | 파일 |
 | --- | --- | --- | --- |
-| `REV-2026-059` | `P2` | 라이브러리에서 편집기 전용 상단 동작이 노출·실행됨 | `issues/2026-09/2026-09-09-index-library-editor-actions-visible.md` |
-| `REV-2026-060` | `P3` | 인쇄 단계 검사가 측정 뒤 초기화하는 잘못된 순서를 통과시킴 | `issues/2026-09/2026-09-09-tests-print-stage-order-gap.md` |
 
 독립 보안·안정성·효율성 분석과 수정 설계: [종합 보고서](audits/2026-09-08/REPORT.md).
 이번 9건은 `ae5740e`에서 재현 후 HANDOFF-2026-067로 수정·안전 회귀를 남겼다.
@@ -40,10 +38,14 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 
 검토 완료: [HANDOFF-2026-079](handoffs/2026-09/2026-09-09-structure-step3-print.md)과 [HANDOFF-2026-080](handoffs/2026-09/2026-09-09-library-ui-independent-review.md)은 [HANDOFF-2026-081](handoffs/2026-09/2026-09-09-claude-latest-design-review.md)에서 독립 검토했다. 제품 결함 `REV-2026-059`와 검사 결함 `REV-2026-060`을 열고 수정 설계까지 확정했다.
 
+검토 대기: [HANDOFF-2026-082](handoffs/2026-09/2026-09-09-review-fixes-applied.md) — `HANDOFF-2026-081` 이 연 `REV-2026-059`·`-060` 수정. 059 의 **원인이 CSS 규칙이 아니라 `transition:all` 의 이산 전이**라는 실측을 보탰고, 검사 판정을 시간 대신 자리(`getBoundingClientRect`)로 해 깜빡임을 없앴다.
+
 ## 최근 해결
 
 | ID | 심각도 | 요약 | 파일 |
 | --- | --- | --- | --- |
+| `REV-2026-059` | `P2` | 라이브러리에서 편집기 전용 상단 동작이 노출·실행됨 | `issues/2026-09/2026-09-09-index-library-editor-actions-visible.md` |
+| `REV-2026-060` | `P3` | 인쇄 단계 검사가 측정 뒤 초기화하는 순서를 통과시킴 | `issues/2026-09/2026-09-09-tests-print-stage-order-gap.md` |
 | `REV-2026-052` | `P3` | 정규화 VM 검사가 표준 URL 없이 허용 URL 경로를 놓침 | `issues/2026-09/2026-09-08-tests-normalize-vm-missing-url.md` |
 | `REV-2026-053` | `P2` | 폴더 삭제·이름 변경을 일반 클릭과 키보드로 찾을 수 없음 | `issues/2026-09/2026-09-09-index-folder-actions-hidden.md` |
 | `REV-2026-054` | `P2` | 폴더 안에서 만든 새 문제집·A단계 복제본이 폴더 밖으로 빠짐 | `issues/2026-09/2026-09-09-index-folder-create-copy-membership.md` |
@@ -106,6 +108,7 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 
 | ID | 작성자 | 내용 | 파일 |
 | --- | --- | --- | --- |
+| `HANDOFF-2026-082` | Claude | **검토 지적 2건 수정 (059·060)** | `handoffs/2026-09/2026-09-09-review-fixes-applied.md` |
 | `HANDOFF-2026-081` | Codex | Claude 최신 변경 독립 검토 · 재현 2건 수정 설계 | `handoffs/2026-09/2026-09-09-claude-latest-design-review.md` |
 | `HANDOFF-2026-080` | Claude | 라이브러리 사용 흐름 6건 **실제 화면** 독립 검증 | `handoffs/2026-09/2026-09-09-library-ui-independent-review.md` |
 | `HANDOFF-2026-079` | Claude | **구조 3단계 — 인쇄 배치 엔진 분리** | `handoffs/2026-09/2026-09-09-structure-step3-print.md` |

@@ -206,24 +206,38 @@ try{
     'shrinkWideMath','fitMathIn','setPair','problemGroups','groupAt','spanOf','awaitPrintImages'];
    /* pair · page · col — 예전에 인쇄와 목록이 갈라졌던 바로 그 배치다. */
    const arr=[{span:'pair',blocks:[]},{span:'pair',blocks:[]},{span:'page',blocks:[]},{span:'col',blocks:[]}];
+   /* ⚠️ **가짜 노드가 '이미 축소된 상태' 로 시작한다.** 그래야 '재기 전에 해제했는가' 를
+      실제로 잴 수 있다 — 해제 전에 재면 자연 폭(400) 대신 축소된 폭(200)을 읽어 배율이
+      틀린다(재인쇄 때 실제로 그렇게 된다). 빈 값 쓰기는 `clear`, 나머지는 `apply` 로 센다.
+      ⚠️ 계측 대상은 지금 쓰는 레이아웃 읽기(`scrollWidth`·`offsetHeight`)뿐이다 —
+         새 읽기 API 를 쓰게 되면 여기에도 함께 더해야 이 검사가 계속 뜻을 갖는다. */
    const order=[];
-   const node=n=>({style:new Proxy({},{set:(t,k,v)=>{order.push('write');t[k]=v;return true;}}),
-                   get scrollWidth(){order.push('read');return 400;},
-                   get offsetHeight(){order.push('read');return 20;},
-                   querySelector:()=>null, firstElementChild:null});
+   const node=()=>{ const store={transform:'scale(0.5)',width:'200px',display:'inline-block'};
+    const self={ cleared:false,
+     style:new Proxy(store,{set:(t,key,v)=>{
+       if(v===''){ order.push('clear'); if(key==='transform') self.cleared=true; }
+       else order.push('apply');
+       t[key]=v; return true; }}),
+     get scrollWidth(){ order.push('read'); return self.cleared?400:200; },
+     get offsetHeight(){ order.push('read'); return 20; },
+     querySelector:()=>null, firstElementChild:null, store };
+    return self; };
    const pairs=[{disp:node(),inner:node(),avail:100},{disp:node(),inner:node(),avail:100}];
    shrinkWideMathAll(pairs);
-   /* ⚠️ **읽기가 한 덩어리여야 한다.** 처음엔 '첫 읽기 앞이 전부 쓰기인가' 만 봤는데,
-      그러면 읽기 **사이에** 쓰기가 끼어드는 진짜 스래싱을 놓친다(깨보기가 통과했다). */
    const firstRead=order.indexOf('read'), lastRead=order.lastIndexOf('read');
+   const lastClear=order.lastIndexOf('clear'), firstApply=order.indexOf('apply');
    return {ns:typeof window.PedagogyPrint?.problemGroups,
     missing:f.filter(n=>typeof window[n]!=='function'),
     leaked:['PRINT_IMG_WAIT_MS','MIN_PRINT_SCALE'].filter(n=>n in window),
     groups:JSON.stringify(problemGroups(arr).map(g=>g.full?[g.idx,'full']:[g.idx])),
-    /* 모든 해제 쓰기가 첫 측정보다 앞서야 한다 = 단계가 안 섞였다 */
-    staged:firstRead>=0 && order.slice(firstRead,lastRead+1).every(x=>x==='read')};
+    /* 해제 → 측정 → 적용. 세 단계가 겹치면 안 된다. */
+    staged:lastClear>=0 && lastClear<firstRead && firstRead<=lastRead && lastRead<firstApply,
+    /* 순서가 옳으면 자연 폭 400 을 읽어 100*0.99/400 = 0.2475 가 나온다.
+       해제 전에 재면 200 을 읽어 폭도 배율도 달라진다. */
+    applied:pairs[0].inner.store.width+' '+pairs[0].inner.store.transform};
   });assert.deepEqual(got,{ns:'function',missing:[],leaked:[],
-   groups:JSON.stringify([[[0,1]],[[2],'full'],[[3]]]),staged:true});await p.close();
+   groups:JSON.stringify([[[0,1]],[[2],'full'],[[3]]]),staged:true,
+   applied:'400px scale(0.2475)'});await p.close();
  });
  await test('render split keeps its surface, sanitization order, and context',async()=>{
   const p=await app('index.html',{schema:0});const got=await p.evaluate(()=>{

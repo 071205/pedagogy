@@ -110,6 +110,19 @@ flex 이고 본문이 `flex:1` 로 남는 만큼 가진다 — **빼는 값이 �
 떠안긴다.** 실측: 방문만 하면 **0MB**, 단추에 손이 닿으면 7.83MB 가 시작되고 대화상자에서
 고르는 1.5초 뒤 남은 대기는 **0ms**. `test:cross` 가 양쪽을 본다.
 
+⚠️ **화면 요소를 `visibility` 로 숨기지 말 것 — `display` 로 숨긴다**(`REV-2026-059`).
+`transition:.13s` 처럼 **속성 목록 없는 shorthand 는 `all`** 이라 `visibility` 도 **이산
+전이**를 타고, 그동안 **옛 값을 유지**한다. 그래서 부모를 `visibility:hidden` 으로 꺼도
+자식 버튼이 **약 130ms 동안 보이고 눌린다** — 라이브러리에서 인쇄·내보내기 모달이 실제로
+열렸다. ⚠️ **계산 스타일을 재면 부모는 `hidden` 인데 자식만 `visible` 이라, CSS 규칙을
+전수 조사해도 원인이 안 보인다**(규칙이 아니라 전이가 원인이다 — 실측으로만 찾았다).
+`display` 는 즉시 반영된다. 상단 동작은 `setEditorActions(on)` 한 곳이 가른다.
+⚠️ **그 검사는 시간이 아니라 자리로 판정한다** — `getBoundingClientRect().width` 가
+`visibility:hidden` 이면 그대로이고 `display:none` 이면 0 이다. 130ms 창을 시간으로 재면
+깜빡이는 검사가 된다.
+⚠️ 속성 목록 없는 `transition` 은 index.html 에만 넷이다. 지금은 짝이 되는 `visibility`
+숨김이 없어 무해하다.
+
 ⚠️ **`vh` 옆의 `dvh` 순서를 뒤집지 말 것.** `vh` 가 앞, `dvh` 가 뒤여야 폴백이 된다
 (`check:static` 이 본다).
 ⚠️ **`viewport-fit=cover` 를 그냥 넣지 말 것 — 없던 가림을 만든다.** 기본값이 이미 안전

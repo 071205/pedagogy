@@ -132,5 +132,28 @@ try{
     await p.locator('#sortBtn').click();await p.keyboard.press('Escape');
     assert.equal(await p.locator('#sortBtn').getAttribute('aria-expanded'),'false');
   });
+  await check('editor-only top actions stay out of the library',async p=>{
+    /* ⚠️ **판정을 `getBoundingClientRect().width` 로 한다 — 시간에 안 흔들리게.**
+       예전 구현은 `#topActions.style.visibility='hidden'` 이었는데, `.btn` 의
+       `transition` 이 `all` 이라 `visibility` 가 **이산 전이**를 타서 라이브러리로 나온 뒤
+       **약 130ms 동안 버튼이 그대로 보이고 눌렸다**(`REV-2026-059` — 그 사이 인쇄·내보내기
+       모달이 실제로 열렸다). 그 창을 시간으로 재면 깜빡이는 검사가 되므로 **자리를
+       차지하는가**로 본다: `visibility:hidden` 은 폭을 그대로 갖고 `display:none` 은 0 이다. */
+    const box=()=>p.evaluate(()=>{
+      const b=document.getElementById('printBtn');
+      return {w:Math.round(b.getBoundingClientRect().width), shown:!!b.offsetParent};
+    });
+    await p.evaluate(()=>showLibrary());
+    assert.deepEqual(await box(),{w:0,shown:false},'최초 라이브러리에서 편집기 동작이 보인다');
+    await p.evaluate(()=>showEditor('a'));
+    const on=await box();
+    assert.ok(on.w>0 && on.shown,'편집기에서는 보여야 한다: '+JSON.stringify(on));
+    /* 실제 사용자 경로(로고 클릭)로 나온다. **기다리지 않고 바로 읽는다.** */
+    await p.click('#brandBtn');
+    assert.deepEqual(await box(),{w:0,shown:false},'편집기 → 라이브러리에서 편집기 동작이 남는다');
+    assert.equal(await p.locator('#printBtn').isVisible(),false,'인쇄 단추를 누를 수 있다');
+    await p.evaluate(()=>showEditor('a'));
+    assert.ok((await box()).w>0,'편집기로 돌아오면 다시 보여야 한다');
+  });
   assert.deepEqual(failures,[]);
 }finally{await browser?.close();server.kill();}
