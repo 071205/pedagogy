@@ -1,0 +1,42 @@
+import { chromium } from "playwright";
+import { spawn } from "node:child_process";
+const srv=spawn("python3",["serve.py","--port","8791"],{stdio:"ignore"});
+await new Promise(r=>setTimeout(r,1500));
+const b=await chromium.launch(); const page=await b.newPage();
+const errs=[]; page.on("pageerror",e=>errs.push(String(e.message)));
+await page.goto("http://127.0.0.1:8791/",{waitUntil:"domcontentloaded"});
+await page.evaluate(()=>localStorage.setItem("PM_SETS_V7:guest",JSON.stringify(
+  ["가 세트","나 세트"].map((n,i)=>({id:"s"+i,name:n,header:"",problems:[{id:"q"+i,title:"",desc:"",
+    answer:"",answerImg:"",numLabel:"",paired:false,blocks:[{type:"statement",data:{text:"x"}}]}]})))));
+await page.goto("http://127.0.0.1:8791/?t="+Date.now(),{waitUntil:"networkidle"});
+await page.waitForFunction(()=>document.querySelectorAll("#setGrid .set-card").length>=2,{timeout:15000});
+console.log(JSON.stringify(await page.evaluate(()=>{
+  const q=s=>document.querySelector(s), all=s=>[...document.querySelectorAll(s)];
+  const r={};
+  // 폴더 만들고 하나를 넣는다
+  window.prompt=()=>"모의고사";
+  all(".folder-chip").find(c=>/New folder|새 폴더/.test(c.textContent)).click();
+  q("#selectBtn").click();
+  all("#setGrid .set-card .pick")[0].click();
+  window.prompt=()=>"1";
+  q("#selMoveBtn").click();
+  q("#selectBtn").click();
+  // ① 소속의 정본이 문제집 문서인가
+  const doc = window.setToDoc(window.sets ? window.sets[0] : null, 0);
+  r.setToDocHasFolder = doc ? doc.folderId : "(sets 가 window 에 없음)";
+  // window.sets 는 없으므로 실제 경로로 확인 — 로컬 저장본을 읽는다
+  const stored = JSON.parse(localStorage.getItem("PM_SETS_V7:guest")||"[]");
+  r.storedFolderIds = stored.map(s=>s.folderId===undefined?"(없음)":s.folderId);
+  // ② setJSON 이 폴더 변화를 감지하는가
+  const a={id:"x",name:"n",header:"",problems:[],folderId:"f1"};
+  const bb={...a, folderId:"f2"};
+  r.setJSONsees = window.setJSON(a)!==window.setJSON(bb);
+  // ③ docToSet 이 폴더를 살려 오는가
+  r.docToSet = window.docToSet({id:"z",name:"n",header:"",problems:[],folderId:"f9",
+                                deleted:false,updatedAt:1,lineColor:"indigo",subject:"math"}).folderId;
+  // ④ 가져온 파일(keepId 없음)의 folderId 는 버려야 한다
+  r.importDrops = window.normSet({name:"남의 것",problems:[],folderId:"남의폴더"},{}).folderId;
+  return r;
+}),null,1));
+console.log("errs:",errs.slice(0,3));
+await b.close(); srv.kill();

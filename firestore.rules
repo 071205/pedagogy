@@ -51,7 +51,7 @@ service cloud.firestore {
         function hasSetShape() {
           return request.resource.data.keys().hasOnly(
                    ['id','name','header','problems','order',
-                    'deleted','updatedAt','lineColor','subject'])
+                    'deleted','updatedAt','lineColor','subject','folderId'])
               && request.resource.data.id == setId
               && request.resource.data.name is string
               && request.resource.data.name.size() <= 160
@@ -69,7 +69,12 @@ service cloud.firestore {
               && request.resource.data.lineColor is string
               && request.resource.data.lineColor.size() <= 16
               && request.resource.data.subject is string
-              && request.resource.data.subject.size() <= 80;
+              && request.resource.data.subject.size() <= 80
+              // 폴더 소속. 이름은 여기 넣지 않는다 — 이름 하나 바꿀 때 문제집을
+              // 전부 다시 써야 하기 때문이다(300문항짜리가 여럿이면 수 MB).
+              // 이름 목록은 prefs/library 문서 하나에 둔다.
+              && request.resource.data.folderId is string
+              && request.resource.data.folderId.size() <= 60;
         }
 
         function isTombstone() {
@@ -85,6 +90,21 @@ service cloud.firestore {
                               && (!request.resource.data.deleted || isTombstone());
 
         // 실제 삭제는 쓰지 않는다(tombstone 으로 대체). 그래도 본인 것은 지울 수 있게 둔다.
+        allow delete: if isOwner();
+      }
+
+      // ── 라이브러리 설정(폴더 이름 목록) ──
+      // ⚠️ 이 문서 **하나만** 허용한다. `prefs/{anything}` 으로 열면 로그인한 사용자가
+      //    임의 문서를 무제한 만들 수 있다.
+      match /prefs/library {
+        allow read: if isOwner();
+        allow create, update: if isOwner()
+          && request.resource.data.keys().hasOnly(['folders','folderTombstones','updatedAt'])
+          && request.resource.data.folders is list
+          && request.resource.data.folders.size() <= 200
+          && request.resource.data.folderTombstones is map
+          && request.resource.data.folderTombstones.keys().size() <= 500
+          && request.resource.data.updatedAt is number;
         allow delete: if isOwner();
       }
 

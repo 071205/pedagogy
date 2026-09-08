@@ -46,6 +46,7 @@ const validSet = (id, overrides = {}) => ({
   updatedAt: 1,
   lineColor: "indigo",
   subject: "math",
+  folderId: "",
   ...overrides,
 });
 const png = (size = 32) => new Blob([new Uint8Array(size)], { type: "image/png" });
@@ -77,6 +78,40 @@ try {
   await assertSucceeds(setDoc(doc(aliceDb, "users", "alice", "sets", "tombstone"),
     validSet("tombstone", { deleted: true, name: "", header: "", problems: [] })));
   await assertSucceeds(deleteDoc(doc(aliceDb, "users", "alice", "sets", "set-1")));
+
+  // ── 폴더 (B단계) ──
+  // ⚠️ 규칙과 앱의 화이트리스트는 **함께** 넓혀야 한다. 한쪽만 넓히면 저장이 통째로
+  //    '권한 오류' 가 된다 — 그래서 folderId 가 실제로 통과하는지부터 본다.
+  await assertSucceeds(setDoc(doc(aliceDb, "users", "alice", "sets", "in-folder"),
+    validSet("in-folder", { folderId: "f-abc" })));
+  await assertFails(setDoc(doc(aliceDb, "users", "alice", "sets", "long-folder"),
+    validSet("long-folder", { folderId: "f".repeat(61) })),
+    "folderId 는 60자를 넘을 수 없어야 한다");
+  await assertFails(setDoc(doc(aliceDb, "users", "alice", "sets", "bad-folder"),
+    validSet("bad-folder", { folderId: 5 })),
+    "folderId 는 문자열이어야 한다");
+
+  // 폴더 **이름 목록**은 별도 문서 하나다. 문제집에 이름을 박으면 이름 하나 바꿀 때
+  // 문제집을 전부 다시 써야 한다.
+  const prefs = (db, who = "alice") => doc(db, "users", who, "prefs", "library");
+  const validPrefs = (over = {}) =>
+    ({ folders: [{ id: "f-abc", name: "모의고사", order: 0 }], folderTombstones: {}, updatedAt: 1, ...over });
+  await assertSucceeds(setDoc(prefs(aliceDb), validPrefs()));
+  await assertSucceeds(getDoc(prefs(aliceDb)));
+  await assertFails(getDoc(prefs(bobDb)), "남의 폴더 설정을 읽을 수 없어야 한다");
+  await assertFails(setDoc(prefs(bobDb), validPrefs()), "남의 폴더 설정을 쓸 수 없어야 한다");
+  await assertFails(setDoc(prefs(guestDb), validPrefs()), "로그인 없이 폴더 설정을 쓸 수 없어야 한다");
+  await assertFails(setDoc(prefs(aliceDb), validPrefs({ nickname: "x" })),
+    "모르는 필드는 거부돼야 한다");
+  await assertFails(setDoc(prefs(aliceDb),
+    validPrefs({ folders: Array.from({ length: 201 }, (_, i) => ({ id: "f" + i, name: "x", order: i })) })),
+    "폴더 200개를 넘을 수 없어야 한다");
+  await assertFails(setDoc(prefs(aliceDb), validPrefs({ folders: "많음" })),
+    "folders 는 목록이어야 한다");
+  // ⚠️ `prefs/{아무거나}` 로 열면 로그인 사용자가 임의 문서를 무제한 만들 수 있다.
+  await assertFails(setDoc(doc(aliceDb, "users", "alice", "prefs", "other"), validPrefs()),
+    "prefs 아래 다른 문서는 만들 수 없어야 한다");
+  await assertSucceeds(deleteDoc(prefs(aliceDb)));
 
   // Storage: 실제 앱의 한 단계 이미지 경로, MIME·용량·소유자 제한을 확인한다.
   const aliceStorage = alice.storage();

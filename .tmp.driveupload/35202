@@ -1,0 +1,11 @@
+[debug] [2026-09-08T08:31:21.617Z] ----------------------------------------------------------------------
+[debug] [2026-09-08T08:31:21.622Z] Command:       /opt/homebrew/Cellar/node/26.7.0/bin/node /opt/homebrew/bin/firebase login:list
+[debug] [2026-09-08T08:31:21.622Z] CLI Version:   15.28.1
+[debug] [2026-09-08T08:31:21.622Z] Platform:      darwin
+[debug] [2026-09-08T08:31:21.622Z] Node Version:  v26.7.0
+[debug] [2026-09-08T08:31:21.623Z] Detected Agent: claude-code_2-1-260_agent
+[debug] [2026-09-08T08:31:21.623Z] Time:          Tue Sep 08 2026 17:31:21 GMT+0900 (Korean Standard Time)
+[debug] [2026-09-08T08:31:21.623Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-09-08T08:31:21.628Z] >>> [apiv2][query] GET https://firebase-public.firebaseio.com/cli.json [none]
+[info] Logged in as dbruddl79@gmail.com

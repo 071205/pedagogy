@@ -1098,6 +1098,47 @@ async function runIndexTests(){
     return { pass: once === twice && once.startsWith("c"), note: once + " vs " + twice };
   });
 
+  /* ── 폴더 클라우드 동기화 (B단계) — 다섯 곳이 **함께** 알아야 한다 ── */
+  await check(G, "폴더가 바뀌면 '안 바뀌었다' 고 답하지 않는다(setJSON)", () => {
+    /* ⚠️ `setJSON` 에 folderId 가 빠지면 `isCloudSynced()` 가 '같다' 고 답해 폴더만 바꾼
+       변경이 **다른 기기로 영영 안 올라간다.** 저장은 조용히 성공한 것처럼 보인다. */
+    const H2 = installHooks(win, ["setJSON"]);
+    const a = {id:"x", name:"n", header:"", problems:[], folderId:"f1"};
+    return H2.setJSON(a) !== H2.setJSON({...a, folderId:"f2"});
+  });
+
+  await check(G, "폴더가 클라우드 문서에 실린다(setToDoc)", () => {
+    const H2 = installHooks(win, ["setToDoc"]);
+    const d = H2.setToDoc({id:"x", name:"n", header:"", problems:[], folderId:"f-abc"}, 0);
+    return { pass: d.folderId === "f-abc", note: JSON.stringify(d.folderId) };
+  });
+
+  await check(G, "클라우드에서 폴더를 살려 온다(docToSet)", () => {
+    const H2 = installHooks(win, ["docToSet"]);
+    const s = H2.docToSet({id:"z", name:"n", header:"", problems:[], folderId:"f9",
+                           deleted:false, updatedAt:1, lineColor:"indigo", subject:"math"});
+    return { pass: s && s.folderId === "f9", note: s && JSON.stringify(s.folderId) };
+  });
+
+  await check(G, "가져온 파일의 folderId 는 버린다 · 내 클라우드 것은 살린다", () => {
+    /* ⚠️ 남의 기기에서 만든 폴더 id 는 여기서 뜻이 없다 — 그대로 두면 '알 수 없는 폴더'
+       만 늘어난다. 반대로 내 클라우드 데이터(keepId)는 살려야 한다. */
+    const imported = win.normSet({name:"남의 것", problems:[], folderId:"남의폴더"}, {});
+    const mine = win.normSet({id:"c", name:"내 것", problems:[], folderId:"f1"}, {keepId:true});
+    return { pass: imported.folderId === "" && mine.folderId === "f1",
+             note: `가져오기=${JSON.stringify(imported.folderId)} 내것=${JSON.stringify(mine.folderId)}` };
+  });
+
+  await check(G, "규칙의 허용 필드와 앱이 보내는 필드가 같다", () => {
+    /* ⚠️ 이 저장소가 경고하는 사고 — 한쪽만 넓히면 저장이 통째로 '권한 오류' 가 된다.
+       규칙 파일을 직접 읽을 수 없으므로(브라우저), 앱이 **보내는 키**를 고정해 둔다.
+       규칙 쪽은 `verify-rules-emulator.mjs` 가 같은 목록을 확인한다. */
+    const H2 = installHooks(win, ["setToDoc"]);
+    const keys = Object.keys(H2.setToDoc({id:"x", name:"", header:"", problems:[]}, 0)).sort();
+    const want = ['deleted','folderId','header','id','lineColor','name','order','problems','subject','updatedAt'];
+    return { pass: keys.join(",") === want.join(","), note: keys.join(",") };
+  });
+
   /* ── 과목별 블록 팔레트 · 화작/언매 블록 ── */
   await check(G, "과목에 따라 블록 메뉴가 걸러진다", () => {
     const H2 = installHooks(win, ["SUBJECTS"]);
