@@ -11,6 +11,7 @@
 독립 보안·안정성·효율성 분석과 수정 설계: [종합 보고서](audits/2026-09-08/REPORT.md).
 이번 9건은 `ae5740e`에서 재현 후 HANDOFF-2026-067로 수정·안전 회귀를 남겼다.
 Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 수정·회귀를 보강했다.
+라이브러리 설계는 `HANDOFF-2026-070`의 세 데이터 계약을 반영한 뒤 구현한다.
 
 [`docs/MOCK-STYLE-DESIGN.md`](../docs/MOCK-STYLE-DESIGN.md) 의 실물 조판 계획은
 **여섯 단계가 모두 끝났다**.
@@ -77,6 +78,7 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 | `HANDOFF-2026-066` | Codex | 독립 종합 감사 — 결함 9건·체크리스트·수정 설계·재현 도구, 제품 미수정 | `handoffs/2026-09/2026-09-08-independent-security-stability-audit.md` |
 | `HANDOFF-2026-067` | Codex | 독립 감사 9건 수정·실패 주입 회귀·보존 정책 정리 | `handoffs/2026-09/2026-09-08-audit-findings-fixed.md` |
 | `HANDOFF-2026-069` | Codex | Claude 후속 검토 3건 수정·실행형 회귀 보강 | `handoffs/2026-09/2026-09-09-audit-review-findings-fixed.md` |
+| `HANDOFF-2026-070` | Codex | 라이브러리 설계 검토 — 폴더 tombstone·A/B 분리·원격 삭제 Undo 계약 | `handoffs/2026-09/2026-09-09-library-design-review.md` |
 | `HANDOFF-2026-001` | Codex | 초기 독립 감사 — 제품 코드 변경 없음 | `handoffs/2026-08/2026-08-27-independent-initial-audit.md` |
 | `HANDOFF-2026-002` | Codex | 초기 감사 4건 해결 및 검증 | `handoffs/2026-08/2026-08-27-fix-audit-findings.md` |
 | `HANDOFF-2026-003` | Codex | 상용 출시 보안·권한·운영 기반 | `handoffs/2026-08/2026-08-28-commercial-launch-hardening.md` |
