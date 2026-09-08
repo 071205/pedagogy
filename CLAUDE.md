@@ -989,14 +989,23 @@ Pages–hosted `index.html` can also call into (via `--allow-origin`).
 
 ### 코드 밖 — 반드시 해야 할 것 (남은 최우선 항목)
 
-- **`firestore.rules` / `storage.rules` 를 Firebase 에 실제로 배포해야 한다.**
-  두 파일은 이 저장소에 있지만 **배포하기 전까지는 아무 효력이 없다.**
-  콘솔 규칙이 `allow read, write: if request.auth != null` 수준이면
-  로그인한 아무나 다른 사용자의 데이터를 읽어갈 수 있다.
-  - 콘솔: Firestore Database → 규칙 / Storage → 규칙 에 붙여넣고 게시
+- ✅ **`firestore.rules` / `storage.rules` 배포 완료 (2026-09-09).**
+  `firebase deploy --only firestore:rules,storage --project pedagogy-huryul` 로 올렸고,
+  올리기 전에 `npm run check:rules`(에뮬레이터)로 검증했다.
+  ⚠️ **그때까지 Firestore 규칙은 실제로 배포돼 있지 않았다** — 배포 출력이 갈라 말해 준다:
+  `storage: already up to date, skipping upload` / **`firestore: uploading rules…`**.
+  그래서 `libraryCloudSchema` 를 보수적으로 0 으로 두었던 판단이 맞았다(1 이었다면 로그인
+  사용자의 저장이 전부 '권한 오류' 로 실패했다). 배포 뒤 **1(B단계)로 올렸다.**
+  ⚠️ **배포된 규칙을 읽는 CLI 명령은 없다**(`firebase firestore:*` 에 없고 `deploy` 에
+  `--dry-run` 도 없다). 상태를 알고 싶으면 콘솔을 보거나 그냥 다시 배포하는 수밖에 없다.
+  비로그인 REST 읽기로 `403 PERMISSION_DENIED` 인 것은 확인할 수 있다(테스트 모드로 열려
+  있지 않다는 것까지만 알려 준다).
+  - 콘솔: Firestore Database → 규칙 / Storage → 규칙
   - CLI: `firebase deploy --only firestore:rules,storage`
 
-  ⚠️ **이번에 `firestore.rules` 가 크게 바뀌었다** — 저장 구조가
+  ⚠️ **아래 두 가지는 배포로 이미 해소됐다** — 규칙을 또 고치면 다시 올려야 한다.
+
+  ⚠️ **`firestore.rules` 가 크게 바뀌었었다** — 저장 구조가
   `users/{uid}` 문서 하나에서 `users/{uid}/sets/{setId}` 서브컬렉션으로 옮겨졌다.
   **새 규칙을 배포하지 않으면 로그인 사용자의 저장이 전부 '권한 오류' 로 실패한다.**
   배포 후 반드시 이 순서로 확인할 것:
@@ -1242,11 +1251,11 @@ JSON 가져오기 크기·개수 상한, Storage 고아 이미지 정리, serve.
   정적 HTTP(S)로 열거나 기존 로컬 서버 대비 경로를 사용한다.
 - 파일 이름만 있는 모의고사 그림 및 Typst 정본 미리보기에는 로컬 서버가 필요하다.
 - 라이브러리 클라우드 스키마는 `service-config.js`의 `libraryCloudSchema`로 명시한다.
-  **지금 값은 `0`(A단계)이다** — 새 Rules(폴더 필드·`prefs/library` 경로)가 운영에 실제로
-  배포됐는지 확인되지 않았기 때문이다. 0에서는 소속을 계정별 로컬 metadata에만 쓰며
-  set 저장 요청에는 folderId를 넣지 않아 **구형 Rules 에서도 저장이 된다.**
-  ⚠️ **배포를 확인하기 전에 1로 올리지 말 것** — 구형 Rules 는 `hasOnly` 목록에 folderId 가
-  없어 로그인 사용자의 문제집 저장이 **전부 '권한 오류' 로 실패한다.**
+  **지금 값은 `1`(B단계)이다** — 2026-09-09 에 새 Rules 를 실제로 배포한 뒤 올렸다.
+  1에서는 소속이 문제집 문서의 `folderId` 로 올라가 **계정을 따라 기기 간에 따라다닌다.**
+  ⚠️ **구형 Rules 를 쓰는 배포에 코드를 올릴 때는 0으로 내릴 것** — 구형 Rules 는 `hasOnly`
+  목록에 folderId 가 없어 로그인 사용자의 문제집 저장이 **전부 '권한 오류' 로 실패한다.**
+  0에서는 소속을 계정별 로컬 metadata에만 쓰고 저장 요청에 folderId를 넣지 않는다.
   ⚠️ **검사가 이 배포 플래그를 물려받게 하지 말 것**(`REV-2026-051`). 예전에는 두 검사
   묶음의 7건이 `service-config.js` 값을 그대로 썼다 — "공개 전에 0으로 내려라" 는 지시를
   따르는 순간 P1 회귀들이 **잘못된 이유로** 빨간불이 되어, 제품이 깨진 건지 검사가 깨진
