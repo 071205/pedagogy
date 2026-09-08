@@ -57,6 +57,7 @@
 
 | ID | 작성자 | 내용 | 파일 |
 | --- | --- | --- | --- |
+| `HANDOFF-2026-062` | Codex | UX 수정 설계 검토 — 즉시 되돌리기·묶음 경계·진행 표시 보완 | `handoffs/2026-09/2026-09-08-ux-fixes-design-review.md` |
 | `HANDOFF-2026-001` | Codex | 초기 독립 감사 — 제품 코드 변경 없음 | `handoffs/2026-08/2026-08-27-independent-initial-audit.md` |
 | `HANDOFF-2026-002` | Codex | 초기 감사 4건 해결 및 검증 | `handoffs/2026-08/2026-08-27-fix-audit-findings.md` |
 | `HANDOFF-2026-003` | Codex | 상용 출시 보안·권한·운영 기반 | `handoffs/2026-08/2026-08-28-commercial-launch-hardening.md` |
