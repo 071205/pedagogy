@@ -167,6 +167,32 @@ try{
    return {disabled:document.querySelector('#hwpxBtn').disabled,success:messages.includes('success'),error:messages.includes('error')};
   });assert.deepEqual(got,{disabled:false,success:false,error:true});await p.close();
  });
+ /* ⚠️ **정규화를 별도 파일로 빼도 `file://` 전제가 깨지면 안 된다**(구조 1단계).
+    "파일을 그대로 열어 쓴다" 가 이 저장소의 전제이고, 고전 스크립트는 `file://` 에서
+    실행되지만 **ESM 은 아니다** — 그래서 ESM 을 쓰지 않았다. 이 검사가 그 결정을 지킨다.
+    ⚠️ `app()` 은 `--allow-file-access-from-files` 를 **끄고** 띄운다(위 launch 인자) —
+       그 플래그가 켜져 있으면 실제 제약을 재지 못한다. */
+ await test('index.html boots from file:// with the split normalization module',async()=>{
+  const p=await app('index.html',{fileMode:true,schema:0});
+  const got=await p.evaluate(()=>({ns:typeof window.PedagogyNormalize?.normSet,
+    norm:typeof window.normSet, safe:window.safeUrl('javascript:alert(1)'),
+    cards:document.querySelectorAll('#libGrid .card, .set-card').length>0}));
+  assert.deepEqual(got,{ns:'function',norm:'function',safe:'',cards:true});await p.close();
+ });
+ /* ⚠️ **정규화를 별도 파일로 옮겨도 `window` 표면이 바뀌면 안 된다**(구조 1단계).
+    옮기기 전 이 여덟은 최상위 `function` 선언이라 `window` 속성이었고 회귀 검사
+    80여 곳이 `win.normBlock(...)` 으로 부른다. 반대로 `uid`·`sanitize`·`str`·
+    `normOrder` 는 `const` 였으므로 **올라가면 안 된다** — 표면을 넓히는 것도 회귀다. */
+ await test('moving normalization keeps the exact window surface',async()=>{
+  const p=await app('index.html',{schema:0});const got=await p.evaluate(()=>({
+   up:['safeUrl','normSubject','normSheetColor','normBlock','normProblem','normSet',
+       'normLibMeta','resetNormDropped','reportNormDropped']
+      .filter(n=>typeof window[n]!=='function'),
+   down:['uid','sanitize','str','normOrder','BLOCK_TYPES','SUBJECTS','SET_NAME_MAX']
+      .filter(n=>n in window),
+   ns:typeof window.PedagogyNormalize?.normSet==='function',
+  }));assert.deepEqual(got,{up:[],down:[],ns:true});await p.close();
+ });
  await test('classic scripts share lexical bindings without window properties',async()=>{
   const p=await browser.newPage();await p.setContent('<!doctype html>');
   await p.addScriptTag({content:'const reviewLexical=42;'});

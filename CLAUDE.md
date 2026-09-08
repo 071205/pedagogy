@@ -201,6 +201,15 @@ git status -sb && git log --oneline main..HEAD
 브랜치에 쌓여 있으면 `git checkout main && git merge --ff-only <브랜치>` 로 올린다.
 (푸시는 GitHub Pages 배포로 이어지므로 사람이 판단한다)
 
+▶ **구조 분리 — 1단계(정규화) 완료.** `HANDOFF-2026-073` 이 조건부 승인했고
+`HANDOFF-2026-075` 가 1단계를 했다(`index.html` 7,096 → 6,847줄 · 모듈 327줄). 남은 것은 2단계(렌더)·
+3단계(인쇄)이며 [`docs/STRUCTURE-DESIGN.md`](docs/STRUCTURE-DESIGN.md) 를 따른다.
+⚠️ **한 단계 = 한 커밋. 옮기면서 동시에 고치지 않는다.**
+⚠️ **옮기면 `window` 표면이 바뀐다** — 최상위 `function` 은 `window` 속성이지만 `const` 는
+아니다. 1단계에서 이걸 놓쳐 교차 검사 여덟이 한꺼번에 터졌다(앱은 멀쩡한데 검사가
+`window.normSet` 을 부팅 신호로 쓰고 있었다). 다음 단계에서도 **옮기기 전에
+`git show HEAD:index.html | grep '^function 이름('` 으로 표면을 먼저 재고** 그대로 되돌릴 것.
+
 **아직 확인 못 한 것**
 - 모의고사 시험지의 **실물 인쇄 대조** — 신명 계열 글꼴이 이 컴퓨터에 없다.
 - 규격서 저작권이 요구하는 **출처 고지가 화면·매뉴얼에는 아직 없다**(소스에만 있다).
@@ -222,6 +231,20 @@ below). Each is a single-page app with all CSS/JS inlined and dependencies pulle
 (KaTeX, SortableJS, Firebase compat SDK, Pretendard/KoPub webfonts).
 
 - [`index.html`](index.html) — PEDAGOGY main app: problem-set library + block editor.
+- [`pedagogy-normalize.js`](pedagogy-normalize.js) — **신뢰 경계(정규화)를 떼어 낸 파일**
+  (구조 1단계 · `docs/STRUCTURE-DESIGN.md`). 가져온 `.json` · AI 응답 · 클라우드 데이터가
+  전부 여기를 지난다. `index.html` 은 `window.PedagogyNormalize` 에서 이름을 풀어 쓴다.
+  ⚠️ **`window` 표면을 옮기기 전 그대로 유지한다** — `safeUrl` `normSubject`
+  `normSheetColor` `normBlock` `normProblem` `normSet` `normLibMeta` `resetNormDropped`
+  여덟은 예전에 최상위 `function` 선언이라 `window` 속성이었고, 회귀 검사 80여 곳이
+  `win.normBlock(...)` 으로 부른다. 다리에서 `Object.assign(window, {...})` 로 되돌린다.
+  **`uid`·`sanitize`·`str`·`normOrder`·상수들은 예전에도 `window` 에 없었으니 더하지 말 것.**
+  ⚠️ **`reportNormDropped()` 는 본체에 남았다** — `toast()` 를 부르므로. 모듈이 UI 에
+  의존하면 Node 에서 그대로 못 돌리고, 검사를 다시 브라우저로 끌고 가야 한다.
+  ⚠️ **`serve.py` 의 `STATIC`** 과 **`check-static.mjs` 의 `SET_NAME_MAX` 대조 대상**이
+  이 파일을 가리킨다. 빼먹으면 각각 404 · 조용한 통과가 된다.
+  ⚠️ **평범한 고전 스크립트다(ESM 아님).** `file://` 에서 그대로 돌아야 하고
+  `test:review-contracts` 가 그것을 본다.
 - [`mock-exam-editor.html`](mock-exam-editor.html) — 모의고사(mock CSAT exam) editor, embedded
   into `index.html` via an `<iframe>` (see the mock-mode IIFE around line 583 of
   `index.html`). Intentionally isolated: separate global scope, separate storage (`.json`

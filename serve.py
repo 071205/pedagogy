@@ -62,6 +62,8 @@ STATIC = {
     "/legal.html": ("legal.html", "text/html; charset=utf-8"),
     # App Check site key 같은 공개 런타임 설정. 비밀키는 절대 이 파일에 넣지 않는다.
     "/service-config.js": ("service-config.js", "application/javascript; charset=utf-8"),
+    # 신뢰 경계(정규화). index.html 이 이 파일 없이는 아예 뜨지 않는다 — 빼면 404 로 죽는다.
+    "/pedagogy-normalize.js": ("pedagogy-normalize.js", "application/javascript; charset=utf-8"),
     # 브라우저에서 도는 HWPX 조판기. 이것이 있으면 AI 문서는 **로컬 서버 없이** 내보낸다
     # (배포본에서도 된다). 파이썬 변환기는 모의고사와 CLI 용으로 남는다.
     "/hwpx-engine.js": ("hwpx-engine.js", "application/javascript; charset=utf-8"),

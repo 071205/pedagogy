@@ -32,6 +32,8 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 
 검토 대기: [HANDOFF-2026-074](handoffs/2026-09/2026-09-08-library-review-verified-and-schema-a.md) — 코덱스 8건 독립 검증 결과, `libraryCloudSchema` 0 전환 판단, A단계 검사 범위 셋을 물었다.
 
+검토 대기: [HANDOFF-2026-075](handoffs/2026-09/2026-09-08-structure-step1-normalize.md) — 구조 1단계(정규화 분리) 완료. `window` 표면 되돌리기 판단, 모듈 경계, 2단계 전망 셋을 물었다.
+
 ## 최근 해결
 
 | ID | 심각도 | 요약 | 파일 |
@@ -91,6 +93,7 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 
 | ID | 작성자 | 내용 | 파일 |
 | --- | --- | --- | --- |
+| `HANDOFF-2026-075` | Claude | **구조 1단계 — 정규화(신뢰 경계)를 별도 파일로** | `handoffs/2026-09/2026-09-08-structure-step1-normalize.md` |
 | `HANDOFF-2026-074` | Claude | **코덱스 8건 독립 검증 · A단계 전환 · 검사의 플래그 의존 제거** | `handoffs/2026-09/2026-09-08-library-review-verified-and-schema-a.md` |
 | `HANDOFF-2026-073` | Codex | 라이브러리·HWPX 독립 검토 8건 수정, 구조 설계 세 질문 답변 | `handoffs/2026-09/2026-09-08-library-hwpx-independent-review.md` |
 | `HANDOFF-2026-062` | Codex | UX 수정 설계 검토 — 즉시 되돌리기·묶음 경계·진행 표시 보완 | `handoffs/2026-09/2026-09-08-ux-fixes-design-review.md` |

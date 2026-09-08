@@ -5,8 +5,9 @@ const root = new URL("../", import.meta.url);
 const text = async (path) => readFile(new URL(path, root), "utf8");
 const exists = async (path) => stat(new URL(path, root)).then(() => true, () => false);
 
-const [index, worker, rules, storageRules, config, workflow, integration, server, manifest, visual] = await Promise.all([
+const [index, normalize, worker, rules, storageRules, config, workflow, integration, server, manifest, visual] = await Promise.all([
   text("index.html"),
+  text("pedagogy-normalize.js"),
   text("worker/index.js"),
   text("firestore.rules"),
   text("storage.rules"),
@@ -37,13 +38,15 @@ assert.doesNotMatch(index, /await purgeAiUsage\(/, "일반 사용자에게 비�
    CI 에서 늘 돈다). */
 {
   const inRules = /name\.size\(\)\s*<=\s*(\d+)/.exec(rules);
-  const inApp = /const SET_NAME_MAX\s*=\s*(\d+)/.exec(index);
+  /* ⚠️ 정규화는 `pedagogy-normalize.js` 로 옮겼다(구조 1단계) — index.html 이 아니라
+     그 파일을 본다. 여기서 index.html 을 계속 보면 상한이 어긋나도 조용히 통과한다. */
+  const inApp = /const SET_NAME_MAX\s*=\s*(\d+)/.exec(normalize);
   assert.ok(inRules, "firestore.rules 에서 이름 상한을 찾지 못했습니다");
-  assert.ok(inApp, "index.html 에서 SET_NAME_MAX 를 찾지 못했습니다");
+  assert.ok(inApp, "pedagogy-normalize.js 에서 SET_NAME_MAX 를 찾지 못했습니다");
   assert.equal(inApp[1], inRules[1],
     `문제집 이름 상한이 어긋납니다 — 앱 ${inApp[1]} · 규칙 ${inRules[1]}. `
     + "앱이 더 크면 그 길이의 제목이 '권한 오류' 로 저장되지 않습니다.");
-  assert.match(index, /name:str\(s\.name,lossless\?Infinity:SET_NAME_MAX\)/,
+  assert.match(normalize, /name:str\(s\.name,lossless\?Infinity:SET_NAME_MAX\)/,
     "normSet 이 SET_NAME_MAX 를 써야 두 값이 실제로 이어집니다");
 }
 

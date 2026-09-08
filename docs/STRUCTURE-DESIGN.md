@@ -1,6 +1,6 @@
 # 구조 — `index.html` 을 어디까지, 어떻게 쪼갤 것인가
 
-작성: Claude · 2026-09-09 · **조건부 승인(HANDOFF-2026-073) / 구조 분리 미착수**
+작성: Claude · 2026-09-09 · **1단계 완료(HANDOFF-2026-075) · 2·3단계 미착수**
 
 여러 외부 검토가 "`index.html` 이 너무 크다" 고 지적했다. 맞는 말이지만 **원인 진단이
 대체로 틀렸다** — 그래서 처방도 틀렸다. 재서 확인한 것만 적는다.
@@ -91,6 +91,30 @@ mock-exam-editor    전역 let/var  9개   함수  79개
 각 단계는 **독립적으로 되돌릴 수 있어야 하고**, 끝날 때 `npm run check:fast` 가 통과해야
 한다. 한 번에 하나만 한다.
 
+### 1단계 — `pedagogy-normalize.js` ✅ **완료** (`HANDOFF-2026-075`)
+
+`index.html` **7,096 → 6,847줄**(`git diff` 36 추가 · 285 삭제), 모듈 327줄.
+`check:fast` 종료코드 0 · 회귀 154/154 · 계약 18/18.
+실제로 해 보고 알게 된 것 — 다음 단계에서도 그대로 걸린다:
+
+- ⚠️ **`window` 표면이 바뀐다.** 최상위 `function` 은 `window` 속성이지만 `const` 는
+  아니다. 옮기면 `window.normSet` 이 사라져 **교차 검사 여덟이 한꺼번에 터졌다**
+  (앱은 멀쩡한데 검사가 그것을 부팅 신호로 쓰고 있었다). 옮기기는 관측 표면을 바꾸면
+  안 되므로 다리에서 되돌렸다. **옮기기 전에 표면을 먼저 재라:**
+  `git show HEAD:index.html | grep '^function 이름('`
+- ⚠️ **코덱스가 옳았다 — 순수 함수가 아니다.** `normBlock` 은 `normDropped` 를 바꾸고
+  `reportNormDropped` 는 `toast` 를 부른다. 집계는 모듈 내부로, **toast 를 부르는
+  함수만 본체에 남겼다.** 그래서 모듈이 Node 에서 그대로 돈다.
+- ⚠️ **검사도 함께 옮겨야 한다** — `serve.py` 의 `STATIC`, `check-static.mjs` 의
+  `SET_NAME_MAX` 대조 대상. 후자를 안 고치면 상한이 어긋나도 **조용히 통과**한다.
+
+**얻은 것**: `check-audit-safety.mjs` 의 042 검사가 index.html 에서 함수를 문자열로
+떼어 내고 `safeUrl`·`BLOCK_TYPES`·`SET_NAME_MAX` 를 가짜로 넣던 것을 **진짜 모듈
+로딩**으로 바꿨다(`REV-2026-040` 이 바로 그 방식 때문이었다). 나머지 저장·인증 검사의
+문자열 추출은 코덱스 조언대로 **그대로 두었다**.
+
+<details><summary>원래 계획</summary>
+
 ### 1단계 — `pedagogy-normalize.js` (~12KB) · 값이 가장 크다
 
 `normSet` `normProblem` `normBlock` `normSubject` `normSheetColor` `normOrder`
@@ -103,6 +127,8 @@ mock-exam-editor    전역 let/var  9개   함수  79개
   (`installHooks`). 빼면 **Node 에서 직접** 부를 수 있어 검사가 빨라지고 정직해진다.
   ⚠️ `check-audit-safety.mjs` 가 소스에서 함수를 **문자열로 떼어 내** vm 에 넣는 방식도
   이때 없앨 수 있다 — `REV-2026-040`(검사가 자기 사본을 본다)이 바로 그 방식 때문이었다.
+
+</details>
 
 ### 2단계 — `pedagogy-render.js` (~15KB)
 
@@ -136,9 +162,17 @@ mock-exam-editor    전역 let/var  9개   함수  79개
 
 ## 7. 옮길 때 반드시 지킬 것
 
-⚠️ **`const`/`let` 은 파일 밖에서 안 보인다.** 빼는 순간 `index.html` 의 나머지가 그 이름을
-못 쓴다 — `hwpx-engine.js` 처럼 `window.PedagogyNormalize = {...}` 로 내놓고, 남는 쪽에
-`const {normSet, ...} = window.PedagogyNormalize;` 같은 다리를 놓아야 한다.
+⚠️ ~~**`const`/`let` 은 파일 밖에서 안 보인다.**~~ **이건 틀렸다**(코덱스가 짚었고
+1단계에서 실증했다). 같은 문서의 **고전 스크립트끼리는 global lexical environment 를
+공유하므로** 다른 파일의 최상위 `const` 도 그냥 보인다. namespace 를 거치는 이유는
+접근이 안 돼서가 아니라 **무엇에 기대는지 보이게** 하려는 것이다(`test:review-contracts`
+의 `classic scripts share lexical bindings without window properties` 가 이 사실을 지킨다).
+⚠️ **진짜 함정은 `window` 표면이다.** 최상위 `function` 선언은 `window` 속성이 되지만
+`const` 는 되지 않는다. 옮기면서 `function normSet(){}` 을 `const {normSet}=…` 로 바꾸면
+**`window.normSet` 이 사라진다** — 1단계에서 이걸 놓쳐 교차 검사 여덟이 한꺼번에 터졌다
+(앱은 멀쩡한데 검사가 그것을 부팅 신호로 쓰고 있었다). **옮기기 전에 표면을 먼저 재고**
+(`git show HEAD:index.html | grep '^function 이름('`) 다리에서 `Object.assign(window,{…})`
+로 되돌릴 것. 반대로 예전에 `const` 였던 것을 `window` 에 올리는 것도 회귀다.
 ⚠️ **`serve.py` 의 `STATIC` 목록에 새 파일을 함께 넣는다** — 빼먹으면 로컬에서 404 로 죽는다.
 ⚠️ **`tests/regression-test.html` 의 `installHooks` 대상도 함께 옮긴다** — 빠진 이름은
 '훅 설치 실패' 로 터진다.

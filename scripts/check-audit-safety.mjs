@@ -91,13 +91,13 @@ test('041: an upload that never attached is deleted, attached history remains',a
   assert.equal(vm.runInContext('JSON.stringify(deleted)',c),'["storage:orphan"]');
 });
 test('042: keepId, bounds, and lossless are independent',()=>{
-  const c=context(`const uid=()=> 'new';const str=(v,max=2e4)=>typeof v==='string'?v.slice(0,max):'';
-    const safeUrl=x=>x||'',normSheetColor=x=>x||'',normSubject=x=>x||'',BLOCK_TYPES=['statement'];
-    /* ⚠️ 이름 상한은 firestore.rules 와 묶여 있다(check-static 이 두 값을 대조한다).
-       여기서는 그 연결을 재는 것이 아니므로 같은 값을 넣어 준다. */
-    const SET_NAME_MAX=160;
-    const normDropped={images:0};`);
-  vm.runInContext(fn('normBlock')+'\n'+fn('normProblem')+'\n'+fn('normSet'),c);
+  /* ⚠️ **진짜 모듈을 통째로 올린다.** 예전에는 index.html 에서 세 함수를 문자열로 떼어
+     내고 `safeUrl`·`BLOCK_TYPES`·`SET_NAME_MAX` 를 **가짜로** 넣었다 — 그러면 상수가
+     갈라져도 이 검사는 모른다(`REV-2026-040` 이 바로 그 방식 때문이었다).
+     정규화를 별도 파일로 떼어 낸 뒤로는 그럴 이유가 없다: 진짜 상수·진짜 safeUrl 로 돈다. */
+  const c=context('const window={};');
+  vm.runInContext(fs.readFileSync('pedagogy-normalize.js','utf8'),c);
+  vm.runInContext('const {normSet}=window.PedagogyNormalize;',c);
   vm.runInContext(`const many={id:'same',name:'n'.repeat(201),header:'h'.repeat(201),problems:Array.from({length:12},(_,i)=>({id:'q'+i,blocks:Array.from({length:51},()=>({type:'statement',data:{text:'x'.repeat(20001)}}))}))}`,c);
   assert.equal(vm.runInContext('normSet(many,{keepId:true,maxProblems:10}).problems.length',c),10);
   assert.equal(vm.runInContext('normSet(many,{keepId:1,maxProblems:10}).problems.length',c),10);
