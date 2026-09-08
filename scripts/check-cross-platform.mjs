@@ -226,7 +226,13 @@ async function boot(page, setName) {
     showEditor(s.id); currentQId = s.problems[0].id;
     renderEditor(); renderPreview();
   }, setName);
-  await page.waitForTimeout(700);
+  /* ⚠️ **고정 시간으로 기다리면 안 된다.** 700ms 를 기다렸더니 CI 의 webkit 태블릿·
+     휴대폰에서만 `activeQ()` 가 undefined 라 흐름이 터졌다 — 느린 기기에서는 앱의 늦은
+     부팅(`loadSets`)이 우리가 넣은 세트를 **덮는 경쟁**이 일어난다.
+     검사가 필요로 하는 것은 시간이 아니라 **상태**다: 문항이 잡힐 때까지 기다린다. */
+  await page.waitForFunction(
+    () => typeof activeQ === "function" && !!(activeQ() && activeQ().blocks),
+    null, { timeout: 15000 });
   return libScroll;
 }
 
@@ -436,8 +442,16 @@ async function runServerNotice(engineName, engine) {
   const b = await engine.launch();
   for (const 서버있음 of [true, false]) {
     const ctx = await b.newContext({ viewport: { width: 1280, height: 900 } });
-    /* 서버가 '없는' 경우는 로컬 API 를 막아 흉내 낸다 — serve.py 를 끄면 페이지도 못 받는다. */
-    if (!서버있음) await ctx.route("**/health**", (r) => r.abort());
+    /* ⚠️ **`/health` 를 양쪽 다 흉내 낸다.** 그냥 두면 이 검사가 **개발 컴퓨터에서만**
+       통과한다 — `serve.py` 의 `/health` 는 `typst` 가 있어야 `ok:true` 를 내고
+       (`serve.py:447`), 없으면 앱이 옳게 '서버 없음' 으로 판단한다. 내 컴퓨터에는
+       typst 가 있어 통과했고 **CI 에서만 빨간불이 났다.**
+       여기서 보려는 것은 조판 능력이 아니라 **찾았을 때/못 찾았을 때 무엇을 말하는가**
+       이므로, 환경에 기대지 않게 응답을 고정한다. */
+    await ctx.route("**/health**", (route) => 서버있음
+      ? route.fulfill({ status: 200, contentType: "application/json",
+                        body: JSON.stringify({ ok: true, typst: true, webfonts: [] }) })
+      : route.abort());
     const page = await ctx.newPage();
     const where = `${engineName} · 서버 ${서버있음 ? "있음" : "없음"}`;
     try {
