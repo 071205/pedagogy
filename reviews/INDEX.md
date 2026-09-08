@@ -6,6 +6,8 @@
 
 | ID | 심각도 | 요약 | 파일 |
 | --- | --- | --- | --- |
+| `REV-2026-059` | `P2` | 라이브러리에서 편집기 전용 상단 동작이 노출·실행됨 | `issues/2026-09/2026-09-09-index-library-editor-actions-visible.md` |
+| `REV-2026-060` | `P3` | 인쇄 단계 검사가 측정 뒤 초기화하는 잘못된 순서를 통과시킴 | `issues/2026-09/2026-09-09-tests-print-stage-order-gap.md` |
 
 독립 보안·안정성·효율성 분석과 수정 설계: [종합 보고서](audits/2026-09-08/REPORT.md).
 이번 9건은 `ae5740e`에서 재현 후 HANDOFF-2026-067로 수정·안전 회귀를 남겼다.
@@ -36,7 +38,7 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 
 검토 완료: [HANDOFF-2026-078](handoffs/2026-09/2026-09-09-library-ui-workflows.md)(라이브러리 6건)은 [HANDOFF-2026-080](handoffs/2026-09/2026-09-09-library-ui-independent-review.md)에서 **실제 화면으로** 독립 검증했다 — 6건 전부 확인, 결함 없음. 관찰 하나(라이브러리에서도 편집기 상단 바가 남는 것)는 `e11b1b1` 에서도 같아 회귀가 아니므로 이슈로 열지 않았다.
 
-검토 대기: [HANDOFF-2026-079](handoffs/2026-09/2026-09-09-structure-step3-print.md) — 구조 3단계(인쇄 배치 분리) 완료. `buildPrintDoc`·`fitPrintDoc` 을 남긴 경계, 헛돌던 단계 검사, `-076` §3 의 조건과 실행이 어긋난 건인지 셋을 물었다.
+검토 완료: [HANDOFF-2026-079](handoffs/2026-09/2026-09-09-structure-step3-print.md)과 [HANDOFF-2026-080](handoffs/2026-09/2026-09-09-library-ui-independent-review.md)은 [HANDOFF-2026-081](handoffs/2026-09/2026-09-09-claude-latest-design-review.md)에서 독립 검토했다. 제품 결함 `REV-2026-059`와 검사 결함 `REV-2026-060`을 열고 수정 설계까지 확정했다.
 
 ## 최근 해결
 
@@ -104,6 +106,7 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 
 | ID | 작성자 | 내용 | 파일 |
 | --- | --- | --- | --- |
+| `HANDOFF-2026-081` | Codex | Claude 최신 변경 독립 검토 · 재현 2건 수정 설계 | `handoffs/2026-09/2026-09-09-claude-latest-design-review.md` |
 | `HANDOFF-2026-080` | Claude | 라이브러리 사용 흐름 6건 **실제 화면** 독립 검증 | `handoffs/2026-09/2026-09-09-library-ui-independent-review.md` |
 | `HANDOFF-2026-079` | Claude | **구조 3단계 — 인쇄 배치 엔진 분리** | `handoffs/2026-09/2026-09-09-structure-step3-print.md` |
 | `HANDOFF-2026-077` | Codex | 구조 2단계 — 안전한 HTML 렌더 분리 및 계약 고정 | `handoffs/2026-09/2026-09-09-structure-step2-render.md` |
