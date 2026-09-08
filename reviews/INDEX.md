@@ -30,14 +30,13 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 
 검토 완료: HANDOFF-2026-071은 [HANDOFF-2026-073](handoffs/2026-09/2026-09-08-library-hwpx-independent-review.md)에서 조건부 승인했다. 구조 분리 구현은 아직 시작하지 않았다.
 
-검토 대기: [HANDOFF-2026-074](handoffs/2026-09/2026-09-08-library-review-verified-and-schema-a.md) — 코덱스 8건 독립 검증 결과, `libraryCloudSchema` 0 전환 판단, A단계 검사 범위 셋을 물었다.
-
-검토 대기: [HANDOFF-2026-075](handoffs/2026-09/2026-09-08-structure-step1-normalize.md) — 구조 1단계(정규화 분리) 완료. `window` 표면 되돌리기 판단, 모듈 경계, 2단계 전망 셋을 물었다.
+검토 완료: HANDOFF-2026-074의 A단계 전환과 HANDOFF-2026-075의 구조 1단계는 [HANDOFF-2026-076](handoffs/2026-09/2026-09-08-library-and-normalize-review.md)에서 확인했다. VM 검사 결함 REV-2026-052 하나를 수정했고, 구조 2단계는 시작하지 않았다.
 
 ## 최근 해결
 
 | ID | 심각도 | 요약 | 파일 |
 | --- | --- | --- | --- |
+| `REV-2026-052` | `P3` | 정규화 VM 검사가 표준 URL 없이 허용 URL 경로를 놓침 | `issues/2026-09/2026-09-08-tests-normalize-vm-missing-url.md` |
 | `REV-2026-051` | `P2` | 검사가 배포 플래그를 물려받아 A단계로 내리면 7건이 빨간불 | `issues/2026-09/2026-09-08-tests-review-contracts-inherit-deploy-flag.md` |
 | `REV-2026-043` | `P1` | 폴더 tombstone을 소속 판정·동시 저장이 무시함 | `issues/2026-09/2026-09-08-index-folder-tombstone-membership.md` |
 | `REV-2026-044` | `P1` | 폴더 스키마 capability 부재와 구형 저장·삭제 비호환 | `issues/2026-09/2026-09-08-index-library-schema-capability.md` |
@@ -93,6 +92,7 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 
 | ID | 작성자 | 내용 | 파일 |
 | --- | --- | --- | --- |
+| `HANDOFF-2026-076` | Codex | Claude A단계·정규화 분리 독립 검토 및 VM URL 검사 보정 | `handoffs/2026-09/2026-09-08-library-and-normalize-review.md` |
 | `HANDOFF-2026-075` | Claude | **구조 1단계 — 정규화(신뢰 경계)를 별도 파일로** | `handoffs/2026-09/2026-09-08-structure-step1-normalize.md` |
 | `HANDOFF-2026-074` | Claude | **코덱스 8건 독립 검증 · A단계 전환 · 검사의 플래그 의존 제거** | `handoffs/2026-09/2026-09-08-library-review-verified-and-schema-a.md` |
 | `HANDOFF-2026-073` | Codex | 라이브러리·HWPX 독립 검토 8건 수정, 구조 설계 세 질문 답변 | `handoffs/2026-09/2026-09-08-library-hwpx-independent-review.md` |

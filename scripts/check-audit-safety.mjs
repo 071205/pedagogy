@@ -11,7 +11,7 @@ function fn(name){let start=src.indexOf('function '+name+'(');assert.ok(start>=0
   if(src.slice(start-6,start)==='async ')start-=6;
   return src.slice(start,src.indexOf('\n}',start)+2);}
 const productSession=`let authEpoch=0;\n${fn('sessionContext')}\n${fn('sessionMatches')}`;
-function context(code){const c=vm.createContext({console:{log(){},warn(){},error(){}},setTimeout:()=>0,clearTimeout(){}});
+function context(code){const c=vm.createContext({URL,console:{log(){},warn(){},error(){}},setTimeout:()=>0,clearTimeout(){}});
   vm.runInContext(code+'\n'+productSession,c);return c;}
 class Storage {
   data=new Map();alarm=null;
@@ -98,6 +98,8 @@ test('042: keepId, bounds, and lossless are independent',()=>{
   const c=context('const window={};');
   vm.runInContext(fs.readFileSync('pedagogy-normalize.js','utf8'),c);
   vm.runInContext('const {normSet}=window.PedagogyNormalize;',c);
+  assert.equal(vm.runInContext("window.PedagogyNormalize.safeUrl('https://storage.googleapis.com/pedagogy-test/image.png')",c),
+    'https://storage.googleapis.com/pedagogy-test/image.png');
   vm.runInContext(`const many={id:'same',name:'n'.repeat(201),header:'h'.repeat(201),problems:Array.from({length:12},(_,i)=>({id:'q'+i,blocks:Array.from({length:51},()=>({type:'statement',data:{text:'x'.repeat(20001)}}))}))}`,c);
   assert.equal(vm.runInContext('normSet(many,{keepId:true,maxProblems:10}).problems.length',c),10);
   assert.equal(vm.runInContext('normSet(many,{keepId:1,maxProblems:10}).problems.length',c),10);
