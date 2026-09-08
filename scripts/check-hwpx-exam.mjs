@@ -166,6 +166,24 @@ print(json.dumps({"paras": out, "warnings": rep.warnings,
                   "units": units, "ptsAt": pts_at}, ensure_ascii=False))
 `;
 
+const PY_LAYOUT = `
+import json, sys
+sys.path.insert(0, "experiments/hwp-export")
+import mock_to_hwpx as m
+cases = json.loads(sys.argv[1])
+out = {}
+for name, probs in cases.items():
+    out[name] = {
+        "columnStarts": sorted(m.column_starts(probs)),
+        "pageStarts": sorted(m.page_starts(probs)),
+        "columnSlots": m.column_slots(probs),
+        "slotTops": [round(m.slot_top_mm(i, 3, m.COL_H_FIRST_MM, 40.7), 4) for i in (0, 1, 2)],
+        "padLines": [m.pad_lines(a, b, c) for a, b, c in
+                     ((0, 168.5, 10.75), (100, 100, 10.75), (0, 5, 10.75), (0, 168.5, 0))],
+    }
+print(json.dumps(out, ensure_ascii=False))
+`;
+
 let pyRoles;
 try {
   pyRoles = JSON.parse(execFileSync("python3", ["-c", PY], { cwd: ROOT, encoding: "utf8" }));
@@ -331,3 +349,72 @@ if (canon(pyEmit.warnings) !== canon(jsEmit.warnings)) {
 
 if (efails) { console.log(`\n문항 방출이 갈라졌습니다 — ${efails}건`); process.exit(1); }
 console.log(`문항 방출 대조 통과 — 문단 ${pp.length}개가 파이썬과 같습니다`);
+
+/* ── 4단계: 문항 배치 대조 ────────────────────────────────────────────────
+   ⚠️ 이 규칙은 편집기 `buildPages()` 의 것이다. 파이썬도 JS 도 그 사본을 안고 있으므로
+   둘이 갈라지면 화면 미리보기와 실제 시험지가 어긋난다. 표본은 **실제로 갈라질 수 있는
+   자리**를 고른다 — 단이 꽉 차는 곳, `breakAfter`, 과목 구분이 바뀌는 곳, 그리고 그
+   셋이 겹치는 곳. 규칙이 같으면 지루한 표본으로도 통과하므로 그런 것은 안 넣는다. */
+const LAYOUT_CASES = {
+  "평범": Array.from({ length: 7 }, (_, i) => ({ sect: "common" })),
+  /* ⚠️ `breakAfter` 는 **PER_COL 경계와 어긋난 자리**에 둔다. 경계와 겹치면 그 규칙을
+     통째로 지워도 결과가 같아 깨보기가 통과한다(실제로 그랬다). */
+  "단 끊기": [{ sect: "c", breakAfter: true }, { sect: "c" }, { sect: "c" }, { sect: "c" }, { sect: "c" }],
+  "과목 바뀜": [{ sect: "c" }, { sect: "c" }, { sect: "c" }, { sect: "e" }, { sect: "e" }, { sect: "e" }],
+  "첫 문항에서 바뀜": [{ sect: "c" }, { sect: "e" }, { sect: "e" }, { sect: "e" }],
+  "끊기와 바뀜이 겹침": [{ sect: "c" }, { sect: "c", breakAfter: true }, { sect: "e" }, { sect: "e" },
+                    { sect: "e", breakAfter: true }, { sect: "e" }],
+  "문항 하나": [{ sect: "c" }],
+  "빈 시험지": [],
+};
+
+let pyLayout;
+try {
+  pyLayout = JSON.parse(execFileSync("python3", ["-c", PY_LAYOUT, JSON.stringify(LAYOUT_CASES)],
+                                     { cwd: ROOT, encoding: "utf8" }));
+} catch (e) {
+  console.log("배치 대조를 건너뜁니다 — 파이썬 쪽 실패: "
+    + String(e.stderr || e.message).split("\n").filter(Boolean).slice(-1)[0]?.slice(0, 160));
+  process.exit(REQUIRE ? 1 : 0);
+}
+
+const jsLayout = {};
+{
+  const browser3 = await chromium.launch();
+  try {
+    const page = await browser3.newPage();
+    await page.setContent("<!doctype html><meta charset=utf-8><title>배치 대조</title>");
+    await page.addScriptTag({ path: join(ROOT, "hwpx-engine.js") });
+    await page.addScriptTag({ path: join(ROOT, "hwpx-exam.js") });
+    Object.assign(jsLayout, await page.evaluate((cases) => {
+      const E = window.PedagogyExam;
+      const out = {};
+      for (const [name, probs] of Object.entries(cases)) {
+        out[name] = {
+          columnStarts: [...E.columnStarts(probs)].sort((a, b) => a - b),
+          pageStarts: [...E.pageStarts(probs)].sort((a, b) => a - b),
+          columnSlots: E.columnSlots(probs),
+          /* 자리·빈 문단 수는 순수 계산이므로 대표값 몇 개만 견준다. */
+          slotTops: [0, 1, 2].map((i) => +E.slotTopMm(i, 3, E.COL_H_FIRST_MM, 40.7).toFixed(4)),
+          padLines: [[0, 168.5, 10.75], [100, 100, 10.75], [0, 5, 10.75], [0, 168.5, 0]]
+            .map(([a, b, c]) => E.padLines(a, b, c)),
+        };
+      }
+      return out;
+    }, LAYOUT_CASES));
+  } finally { await browser3.close(); }
+}
+
+let lfails = 0;
+for (const name of Object.keys(LAYOUT_CASES)) {
+  const a = canon(pyLayout[name]), b = canon(jsLayout[name]);
+  if (a === b) continue;
+  console.log(`  ❌ ${name}\n      파이썬 ${a.slice(0, 240)}\n      JS     ${b.slice(0, 240)}`);
+  lfails++;
+}
+/* ⚠️ 표본이 실제로 단·쪽을 나누는지 확인한다 — 전부 빈 답이면 '같다' 로 통과한다. */
+const splits = Object.values(pyLayout).reduce((n, v) => n + v.columnStarts.length + v.pageStarts.length, 0);
+if (splits < 8) { console.log(`  ❌ 표본이 단·쪽을 ${splits}번밖에 안 나눕니다 — 이 검사가 헛돌고 있습니다`); lfails++; }
+
+if (lfails) { console.log(`\n문항 배치가 갈라졌습니다 — ${lfails}건`); process.exit(1); }
+console.log(`문항 배치 대조 통과 — 표본 ${Object.keys(LAYOUT_CASES).length}종이 파이썬과 같습니다`);

@@ -67,6 +67,71 @@
   const eqTabXml = () =>
     `<hp:t xmlns:hp="${HP}"><hp:tab width="${EQ_TAB_WIDTH}" leader="0" type="1"/></hp:t>`;
 
+  /* ── 문항 배치 ────────────────────────────────────────────────────────────
+   * ⚠️ **이것은 편집기 `buildPages()` 의 규칙이다.** 여기서 다르게 나누면 화면
+   *    미리보기와 실제 시험지가 어긋난다. 파이썬도 같은 규칙을 안고 있고
+   *    `npm run test:hwpx-exam` 이 셋이 아니라 **둘(파이썬↔JS)** 을 견준다.
+   * ⚠️ 편집기의 `SPEC.perCol` 이 바뀌면 이 값도 함께 고쳐야 한다.
+   */
+  const PER_COL = 2;
+
+  /* 단 높이(mm) — 편집기 Typst 정본의 `BOT - ruleY - 4.5mm` 와 같은 값이다.
+     ⚠️ 편집기의 `RULE1`·`RULEN`·`BOT` 이 바뀌면 여기도 함께 고쳐야 한다. */
+  const COL_H_FIRST_MM = 295.43;
+  const COL_H_NEXT_MM = 319.90;
+
+  /** 새 단에서 시작해야 하는 문항의 인덱스. */
+  function columnStarts(problems) {
+    const starts = new Set();
+    let count = 0;
+    problems.forEach((p, i) => {
+      if (count === 0 && i > 0) starts.add(i);
+      count += 1;
+      const nxt = problems[i + 1];
+      if (count >= PER_COL || p.breakAfter || (nxt && nxt.sect !== p.sect)) count = 0;
+    });
+    return starts;
+  }
+
+  /** 새 쪽에서 시작해야 하는 문항의 인덱스(첫 쪽은 뺀다).
+      **한 쪽은 두 단**이므로 단 시작을 두 번 셀 때마다 새 쪽이다.
+      ⚠️ 쪽나눔을 안 내보내고 한글에 맡기면 쪽 경계가 편집기와 어긋나고,
+         무엇보다 **이어지는 쪽 머리말을 붙일 자리를 알 수 없다**. */
+  function pageStarts(problems) {
+    const cols = [0, ...[...columnStarts(problems)].sort((a, b) => a - b)];
+    return new Set(cols.filter((c, n) => n && n % 2 === 0));
+  }
+
+  /** 단마다 어떤 문항 인덱스가 들어가는지. `columnStarts()` 와 같은 규칙이다. */
+  function columnSlots(problems) {
+    const starts = columnStarts(problems);
+    const cols = [];
+    for (let i = 0; i < problems.length; i++) {
+      if (i === 0 || starts.has(i)) cols.push([]);
+      cols[cols.length - 1].push(i);
+    }
+    return cols;
+  }
+
+  /** 단 안에서 `index` 번째 문항이 **시작해야 하는 자리**(단 위 기준 mm).
+      '앞 문항 아래로 몇 칸' 이 아니라 **'몇 번째 줄에서 시작한다'** 로 잡는다 —
+      앞 문항 길이는 매번 달라 상대값이면 오차가 쌓이고, 실물이 그렇게 돼 있지 않다.
+      ⚠️ **`topMm` 을 빼지 않으면 그만큼 아래로 내려간다**(실측 20mm). */
+  function slotTopMm(index, count, colHMm, topMm) {
+    return topMm + (colHMm - topMm) * index / Math.max(1, count);
+  }
+
+  /** 지금 자리에서 목표 자리까지 채울 빈 문단 수.
+      ⚠️ 문항 높이는 **편집기가 실제로 재서 보낸 값**이다. 값이 없으면 **벌리지
+         않는다** — 어림으로 넣으면 배치가 통째로 어긋나 없는 것보다 나쁘다.
+      ⚠️ **반올림한다.** 내림으로 자르면 빈 문단 한 개(10.75mm)까지 잃는다.
+      ⚠️ `problem()` 이 문항마다 빈 문단을 **이미 하나** 붙인다 — 여기서 빼지 않으면
+         칸마다 한 줄씩 넉넉해진다. */
+  function padLines(nowMm, targetMm, lineMm) {
+    if (!lineMm || lineMm <= 0) return 0;
+    return Math.max(0, Math.round((targetMm - nowMm) / lineMm) - 1);
+  }
+
   /* 한 시험지를 만드는 동안의 상태. 파이썬의 모듈 전역(STYLE·CUR·rep)에 해당한다.
      ⚠️ 모듈 전역으로 두지 않는다 — 브라우저에서는 두 번 눌러 겹칠 수 있다. */
   class ExamWriter {
@@ -102,6 +167,17 @@
         charPrId: this.style[char], withRun,
       });
       return this.doc.paragraphCount(this.sec) - 1;
+    }
+
+    /** 마지막으로 만든 문단을 '새 단에서 시작' 으로 표시한다.
+        HWPX 는 문단 속성 하나로 끝난다 — 우리가 어느 단에 넣을지 계산할 필요가 없다.
+        ⚠️ **쪽나눔을 준 문단에 단나눔까지 주지 말 것** — 한글이 둘 다 수행해 새 쪽의
+           왼쪽 단이 통째로 빈다. */
+    markColumnBreak() {
+      const paras = this.doc.paragraphs(this.sec);
+      if (!paras.length) return false;
+      paras[paras.length - 1].setAttribute("columnBreak", "1");
+      return true;
     }
 
     /* 문단 뒤에 글자 조각 하나를 잇는다.
@@ -288,5 +364,7 @@
     }
   }
 
-  global.PedagogyExam = { ExamWriter, splitInline, spaceBeforeMath, numPrefixXml, eqTabXml };
+  global.PedagogyExam = { ExamWriter, splitInline, spaceBeforeMath, numPrefixXml, eqTabXml,
+                          columnStarts, pageStarts, columnSlots, slotTopMm, padLines,
+                          PER_COL, COL_H_FIRST_MM, COL_H_NEXT_MM };
 })(typeof window !== "undefined" ? window : globalThis);
