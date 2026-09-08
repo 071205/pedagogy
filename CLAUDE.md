@@ -201,14 +201,23 @@ git status -sb && git log --oneline main..HEAD
 브랜치에 쌓여 있으면 `git checkout main && git merge --ff-only <브랜치>` 로 올린다.
 (푸시는 GitHub Pages 배포로 이어지므로 사람이 판단한다)
 
-▶ **구조 분리 — 1단계(정규화) 완료.** `HANDOFF-2026-073` 이 조건부 승인했고
-`HANDOFF-2026-075` 가 1단계를 했다(`index.html` 7,096 → 6,847줄 · 모듈 327줄). 남은 것은 2단계(렌더)·
-3단계(인쇄)이며 [`docs/STRUCTURE-DESIGN.md`](docs/STRUCTURE-DESIGN.md) 를 따른다.
-⚠️ **한 단계 = 한 커밋. 옮기면서 동시에 고치지 않는다.**
+▶ **구조 분리 — 세 단계 모두 완료.** `index.html` 7,096 → **6,353줄**.
+[`pedagogy-normalize.js`](pedagogy-normalize.js)(327줄 · 신뢰 경계) ·
+[`pedagogy-render.js`](pedagogy-render.js)(447줄 · 안전한 HTML) ·
+[`pedagogy-print.js`](pedagogy-print.js)(252줄 · 묶음 경계·번호·수식 축소).
+설계와 근거는 [`docs/STRUCTURE-DESIGN.md`](docs/STRUCTURE-DESIGN.md).
 ⚠️ **옮기면 `window` 표면이 바뀐다** — 최상위 `function` 은 `window` 속성이지만 `const` 는
 아니다. 1단계에서 이걸 놓쳐 교차 검사 여덟이 한꺼번에 터졌다(앱은 멀쩡한데 검사가
-`window.normSet` 을 부팅 신호로 쓰고 있었다). 다음 단계에서도 **옮기기 전에
-`git show HEAD:index.html | grep '^function 이름('` 으로 표면을 먼저 재고** 그대로 되돌릴 것.
+`window.normSet` 을 부팅 신호로 쓰고 있었다). **옮기기 전에 표면을 먼저 재고**
+(`git show HEAD:index.html | grep '^function 이름('`) 다리에서 `Object.assign(window,{…})`
+로 정확히 그만큼 되돌린다 — 예전에 `const` 였던 것을 올리는 것도 회귀다.
+⚠️ **화면을 건드리는 함수는 본체에 남긴다** — `reportNormDropped`(toast) ·
+`buildPrintDoc`·`fitPrintDoc`·`doPrint`(`activeSet`·`#printDoc`·`toast`). 옮기려면 의존
+주입이 필요하고 그건 '옮기기 + 고치기' 다. 그래서 세 모듈은 Node 에서 그대로 돈다.
+⚠️ **새 모듈은 `serve.py` 의 `STATIC` 과 `check-static.mjs` 의 대조 대상을 함께 고쳐야
+한다** — 각각 404 · **조용한 통과**가 된다.
+⚠️ **`const` 는 파일 밖에서 안 보인다는 말은 거짓이다** — 고전 스크립트는 global lexical
+environment 를 공유한다. namespace 는 의존성을 **보이게** 하려는 선택이다.
 
 **아직 확인 못 한 것**
 - 모의고사 시험지의 **실물 인쇄 대조** — 신명 계열 글꼴이 이 컴퓨터에 없다.

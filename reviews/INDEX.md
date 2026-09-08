@@ -28,13 +28,15 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 
 ## 검토 대기
 
-검토 완료: HANDOFF-2026-071은 [HANDOFF-2026-073](handoffs/2026-09/2026-09-08-library-hwpx-independent-review.md)에서 조건부 승인했다. 구조 1·2단계를 완료했고 3단계는 시작하지 않았다.
+검토 완료: HANDOFF-2026-071은 [HANDOFF-2026-073](handoffs/2026-09/2026-09-08-library-hwpx-independent-review.md)에서 조건부 승인했다. 구조 분리는 **세 단계 모두 완료**했다(`-075` 정규화 · `-077` 렌더 · `-079` 인쇄).
 
 검토 완료: HANDOFF-2026-074의 A단계 전환과 HANDOFF-2026-075의 구조 1단계는 [HANDOFF-2026-076](handoffs/2026-09/2026-09-08-library-and-normalize-review.md)에서 확인했다. VM 검사 결함 REV-2026-052 하나를 수정했다.
 
-검토 대기: [HANDOFF-2026-077](handoffs/2026-09/2026-09-09-structure-step2-render.md) — 구조 2단계 렌더 분리와 계약 검사 보강.
+검토 완료: [HANDOFF-2026-077](handoffs/2026-09/2026-09-09-structure-step2-render.md)(구조 2단계 렌더 분리)은 `HANDOFF-2026-079` 안에서 독립 확인했다 — `window` 표면 17/3 갈래를 git 으로 대조했고 `sanitize`→`inlineMarks` 순서를 뒤집어 회귀 2건이 빨간불인 것을 확인했다. 결함 없음.
 
 검토 대기: [HANDOFF-2026-078](handoffs/2026-09/2026-09-09-library-ui-workflows.md) — 라이브러리 폴더 관리·검색·선택·정렬·이동 Undo의 재현된 6건 수정. 구조 3단계보다 먼저 사용자 조작 흐름을 보완했다.
+
+검토 대기: [HANDOFF-2026-079](handoffs/2026-09/2026-09-09-structure-step3-print.md) — 구조 3단계(인쇄 배치 분리) 완료. `buildPrintDoc`·`fitPrintDoc` 을 남긴 경계, 헛돌던 단계 검사, `-076` §3 의 조건과 실행이 어긋난 건인지 셋을 물었다.
 
 ## 최근 해결
 
@@ -102,6 +104,7 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 
 | ID | 작성자 | 내용 | 파일 |
 | --- | --- | --- | --- |
+| `HANDOFF-2026-079` | Claude | **구조 3단계 — 인쇄 배치 엔진 분리** | `handoffs/2026-09/2026-09-09-structure-step3-print.md` |
 | `HANDOFF-2026-077` | Codex | 구조 2단계 — 안전한 HTML 렌더 분리 및 계약 고정 | `handoffs/2026-09/2026-09-09-structure-step2-render.md` |
 | `HANDOFF-2026-078` | Codex | 라이브러리 조작 흐름 6건 수정 — 폴더 관리·이동 Undo·검색·선택·정렬 | `handoffs/2026-09/2026-09-09-library-ui-workflows.md` |
 | `HANDOFF-2026-076` | Codex | Claude A단계·정규화 분리 독립 검토 및 VM URL 검사 보정 | `handoffs/2026-09/2026-09-08-library-and-normalize-review.md` |

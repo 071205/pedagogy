@@ -1,6 +1,6 @@
 # 구조 — `index.html` 을 어디까지, 어떻게 쪼갤 것인가
 
-작성: Claude · 2026-09-09 · **1단계 완료(HANDOFF-2026-075) · 2단계 완료(HANDOFF-2026-077) · 3단계 미착수**
+작성: Claude · 2026-09-09 · **세 단계 모두 완료** (`-075` 정규화 · `-077` 렌더 · `-079` 인쇄)
 
 여러 외부 검토가 "`index.html` 이 너무 크다" 고 지적했다. 맞는 말이지만 **원인 진단이
 대체로 틀렸다** — 그래서 처방도 틀렸다. 재서 확인한 것만 적는다.
@@ -146,15 +146,31 @@ mock-exam-editor    전역 let/var  9개   함수  79개
 기존 최상위 함수 17개의 `window` 표면, `sanitize` → 인라인 표시 순서, `subject/range`
 문맥, HTTP·`file://` 로딩을 한 검사에서 고정했다. `check:fast`와 회귀 154/154가 통과했다.
 
-### 3단계 — `pedagogy-print.js` (~20KB)
+### 3단계 — `pedagogy-print.js` ✅ **완료** (`HANDOFF-2026-079`)
 
-`buildPrintDoc` `fitPrintDoc` `awaitPrintImages` `shrinkWideMath*` `problemGroups`
-`groupAt` `pairEveryN` `computeNums`
+`index.html` **6,546 → 6,353줄**, 모듈 252줄. 옮긴 것 12개 — `spanOf` `setPair`
+`problemGroups` `groupAt` `pairEveryN` `hasPassage` `groupSpanOf` `computeNums`
+`shrinkWideMathAll` `shrinkWideMath` `fitMathIn` `awaitPrintImages`.
 
-⚠️ `fitPrintDoc` 의 **읽기·쓰기 분리 순서**를 깨지 말 것(레이아웃 스래싱 — 1616ms → 265ms).
-⚠️ `problemGroups()` 는 묶음 경계를 아는 **유일한 곳**이다. 사본을 만들지 말 것.
+⚠️ **계획과 달리 `buildPrintDoc`·`fitPrintDoc` 은 옮기지 않았다.** 재어 보니 순수하지
+않다 — `buildPrintDoc` 은 `activeSet()` 을 읽고 `#headerInput` 값으로 세트를 **고치며**
+`#printDoc` 에 쓰고 `toast()` 한다. `fitPrintDoc` 도 `#printDoc` 을 직접 잡고 넘침을
+`toast()` 로 알린다. 옮기려면 의존을 다섯 개 주입해야 하고 그건 '옮기기 + 고치기' 다.
+`reportNormDropped` 를 본체에 남긴 것과 같은 판단이며, `HANDOFF-2026-076` §2 의 기준
+("모듈은 경계에 필요한 값만 소유한다")과도 맞는다. 옮기려면 **별도 단계**다.
 
-3단계의 줄 수는 계획 당시 추정치보다 실제 이동 결과를 기준으로 다시 잰다.
+⚠️ **내가 만든 검사가 헛돌았다 — 깨보기가 잡았다.** 읽기·쓰기 단계를 검사하면서 "첫
+읽기 **앞**이 전부 쓰기인가" 만 봤는데, 그러면 읽기 **사이에** 쓰기가 끼어드는 진짜
+스래싱을 놓친다(일부러 섞었는데 초록불이었다). 진짜 성질은 **읽기가 한 덩어리인가**이고,
+그렇게 고치니 양방향으로 물었다. 깨보기가 없었으면 검사가 있다고 믿고 넘어갔을 것이다.
+
+⚠️ `problemGroups()` 는 묶음 경계를 아는 **유일한 곳**이다. 사본을 만들지 말 것 —
+모듈로 옮긴 것은 그 유일성을 **구조로** 못 박으려는 것이다. 검사는 목록과 인쇄를 서로
+견주지 않고 **고정 기대 묶음**(`pair·page·col`)과 견준다.
+
+**세 단계 결과**: `index.html` 7,096 → **6,353줄**. 모듈 셋 327 + 447 + 252 = **1,026줄**.
+계획의 "약 5,200줄" 에는 못 미치는데, 그 값은 `buildPrintDoc`·`fitPrintDoc` 을 옮긴다고
+본 추정이었다.
 
 ## 6. 하지 않을 것 (이유 포함)
 

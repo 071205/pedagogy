@@ -196,6 +196,35 @@ try{
  /* 구조 2단계는 렌더 함수를 옮기되 기존 window 표면과 두 핵심 계약을 그대로 지킨다.
     processText 는 먼저 sanitize 한 뒤 제한된 인라인 표지만 HTML 로 바꿔야 하고,
     blockHTML 은 미리보기·인쇄가 넘기는 subject/range 문맥을 잃으면 안 된다. */
+ /* ⚠️ **인쇄 배치를 옮겨도 묶음 경계와 축소 순서가 살아 있어야 한다**(구조 3단계).
+    `problemGroups()` 는 묶음 경계를 아는 **유일한 곳**이고, `shrinkWideMathAll()` 의
+    읽기·쓰기 단계 순서는 300문항 인쇄에서 1616ms → 265ms 를 만든 것이다.
+    ⚠️ 고정 기대 묶음과 견준다 — 목록과 인쇄를 서로 견주면 **함께 틀려도 통과**한다. */
+ await test('print split keeps its surface, group boundaries, and staged shrink',async()=>{
+  const p=await app('index.html',{schema:0});const got=await p.evaluate(()=>{
+   const f=['hasPassage','groupSpanOf','computeNums','pairEveryN','shrinkWideMathAll',
+    'shrinkWideMath','fitMathIn','setPair','problemGroups','groupAt','spanOf','awaitPrintImages'];
+   /* pair · page · col — 예전에 인쇄와 목록이 갈라졌던 바로 그 배치다. */
+   const arr=[{span:'pair',blocks:[]},{span:'pair',blocks:[]},{span:'page',blocks:[]},{span:'col',blocks:[]}];
+   const order=[];
+   const node=n=>({style:new Proxy({},{set:(t,k,v)=>{order.push('write');t[k]=v;return true;}}),
+                   get scrollWidth(){order.push('read');return 400;},
+                   get offsetHeight(){order.push('read');return 20;},
+                   querySelector:()=>null, firstElementChild:null});
+   const pairs=[{disp:node(),inner:node(),avail:100},{disp:node(),inner:node(),avail:100}];
+   shrinkWideMathAll(pairs);
+   /* ⚠️ **읽기가 한 덩어리여야 한다.** 처음엔 '첫 읽기 앞이 전부 쓰기인가' 만 봤는데,
+      그러면 읽기 **사이에** 쓰기가 끼어드는 진짜 스래싱을 놓친다(깨보기가 통과했다). */
+   const firstRead=order.indexOf('read'), lastRead=order.lastIndexOf('read');
+   return {ns:typeof window.PedagogyPrint?.problemGroups,
+    missing:f.filter(n=>typeof window[n]!=='function'),
+    leaked:['PRINT_IMG_WAIT_MS','MIN_PRINT_SCALE'].filter(n=>n in window),
+    groups:JSON.stringify(problemGroups(arr).map(g=>g.full?[g.idx,'full']:[g.idx])),
+    /* 모든 해제 쓰기가 첫 측정보다 앞서야 한다 = 단계가 안 섞였다 */
+    staged:firstRead>=0 && order.slice(firstRead,lastRead+1).every(x=>x==='read')};
+  });assert.deepEqual(got,{ns:'function',missing:[],leaked:[],
+   groups:JSON.stringify([[[0,1]],[[2],'full'],[[3]]]),staged:true});await p.close();
+ });
  await test('render split keeps its surface, sanitization order, and context',async()=>{
   const p=await app('index.html',{schema:0});const got=await p.evaluate(()=>{
    const f=['setHasContent','blockExcerpt','autoDisplayStyle','addCasesRowGap','inlineMarks',
