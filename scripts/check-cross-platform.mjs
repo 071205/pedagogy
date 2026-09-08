@@ -214,6 +214,16 @@ async function boot(page, setName) {
   await page.goto(`${base}/index.html?xplat=${Date.now()}`, { waitUntil: "domcontentloaded", timeout: 30000 });
   await page.waitForFunction(() => typeof window.normSet === "function" && typeof window.katex !== "undefined",
                              null, { timeout: 20000 });
+  /* ⚠️ **앱의 부팅이 끝나기 전에 가져오면 안 된다.** 늦게 도는 `loadSets()` 가 우리가 넣은
+     세트를 **덮는다** — CI 의 느린 webkit 에서만 그렇게 돼 `activeQ()` 가 undefined 로
+     터졌다. 한 번 기다리는 것으로는 모자란다(그 뒤에 덮일 수 있다).
+     `sets` 가 **더 이상 바뀌지 않을 때까지** 기다려 경쟁 자체를 없앤다. */
+  await page.waitForFunction(() => {
+    const now = JSON.stringify((window.sets || []).map((s) => s.id));
+    const same = window.__xplatPrev === now;
+    window.__xplatPrev = now;
+    return same;
+  }, null, { timeout: 20000, polling: 400 });
   await page.setInputFiles("#importAllInput",
     { name: "smoke.json", mimeType: "application/json", buffer: Buffer.from(JSON.stringify(fixtureSet(setName))) });
   await page.waitForFunction(n => Array.isArray(sets) && sets.some(s => s.name === n), setName, { timeout: 30000 });
@@ -230,9 +240,11 @@ async function boot(page, setName) {
      휴대폰에서만 `activeQ()` 가 undefined 라 흐름이 터졌다 — 느린 기기에서는 앱의 늦은
      부팅(`loadSets`)이 우리가 넣은 세트를 **덮는 경쟁**이 일어난다.
      검사가 필요로 하는 것은 시간이 아니라 **상태**다: 문항이 잡힐 때까지 기다린다. */
+  /* ⚠️ 여기까지 오면 편집기에 들어가 있어야 한다. 고정 시간으로 기다리지 않는다 —
+     700ms 는 이 컴퓨터에서만 충분했고 CI 의 webkit 에서 터졌다. */
   await page.waitForFunction(
     () => typeof activeQ === "function" && !!(activeQ() && activeQ().blocks),
-    null, { timeout: 15000 });
+    null, { timeout: 20000 });
   return libScroll;
 }
 
@@ -319,6 +331,8 @@ async function selfCheck(engine) {
       await boot(page, `[자기검사] ${b.key}`);
       await b.run(page);
       await page.waitForTimeout(250);
+      /* ⚠️ 여기서 편집기 상태를 '다시 다잡으면' **심은 고장까지 되돌린다** — 실제로
+         그렇게 했다가 '블록 더하기 단추를 죽여도 통과' 가 났다. 흔든 뒤에는 손대지 않는다. */
       const r = await probes(page, vp, seen);
       const hit = r[b.key];
       say(hit && hit.pass === false, `${b.이름} 빨간불이 된다`,
@@ -457,7 +471,14 @@ async function runServerNotice(engineName, engine) {
     try {
       await page.goto(`${base}/mock-exam-editor.html?xplat=${Date.now()}`, { waitUntil: "domcontentloaded", timeout: 30000 });
       await page.waitForFunction(() => typeof window.markServerFeatures === "function", null, { timeout: 20000 });
-      await page.waitForTimeout(4000);
+      /* ⚠️ **고정 시간으로 기다리지 않는다.** `pingServer()` 는 같은 출처 + 포트 셋을
+         차례로 두드리고 하나에 1.5초 상한이라 느린 기기에서는 4초를 넘긴다 — CI 의
+         firefox 가 그래서 아직 판정 전인 화면을 보고 빨간불이 났다.
+         `markServerFeatures()` 는 어느 쪽으로 끝나든 단추에 `okTitle` 을 남긴다.
+         **그 자국**을 기다린다(어느 쪽으로 끝났는지는 말하지 않으므로 검사가 헛돌지 않는다). */
+      await page.waitForFunction(
+        () => document.getElementById("liveBtn")?.dataset.okTitle !== undefined,
+        null, { timeout: 20000 });
       const r = await page.evaluate(() => ({
         안내: !document.getElementById("serverNote")?.hidden,
         이유: (document.getElementById("serverNoteWhy")?.textContent || "").trim(),
