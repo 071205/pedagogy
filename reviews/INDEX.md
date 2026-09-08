@@ -119,6 +119,7 @@
 | `HANDOFF-2026-059` | Claude | 범용성 6단계 — 서버 필요 기능을 미리 알리기 | `handoffs/2026-09/2026-09-07-cross-platform-step6.md` |
 | `HANDOFF-2026-060` | Claude | **시험지 틀을 저장소에 (결정 1)** | `handoffs/2026-09/2026-09-07-exam-template-bundled.md` |
 | `HANDOFF-2026-061` | Claude | 사용자 수정 요청 셋의 설계 — 검토 요청 | `handoffs/2026-09/2026-09-08-ux-fixes-design.md` |
+| `HANDOFF-2026-063` | Claude | UX 수정 설계 — 검토 반영 | `handoffs/2026-09/2026-09-08-ux-fixes-design-applied.md` |
 | `HANDOFF-2026-046` | Claude | 영어 표 문항 (10번) + 표 머리글 굵기 | `handoffs/2026-09/2026-09-06-english-table-question.md` |
 | `HANDOFF-2026-038` | Claude | 영어 과목 조판의 토대 (실물 대조) | `handoffs/2026-09/2026-09-03-english-subject-foundation.md` |
 | `HANDOFF-2026-039` | Claude | 지문 문단 모델 — 문단마다 첫 줄 들여쓰기 | `handoffs/2026-09/2026-09-03-passage-paragraph-model.md` |
