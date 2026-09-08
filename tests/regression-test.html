@@ -1041,6 +1041,63 @@ async function runIndexTests(){
     return { pass: await firesOnInnerHTML(html, marker) };
   });
 
+  /* ── 라이브러리 — 폴더 · 정렬 · 선택 · 언어 (A단계는 전부 로컬) ── */
+  await check(G, "숨긴 선택 막대는 자리를 차지하지 않는다", () => {
+    /* ⚠️ `.select-bar{display:flex}` 가 브라우저 기본 `[hidden]{display:none}` 을 **이긴다.**
+       그래서 안 보이는 막대가 375px 에서 **144px 를 먹어** 라이브러리가 화면 밖으로 밀렸다.
+       마크업만 보는 검사로는 못 잡는다 — 계산된 값을 재야 한다. */
+    const bar = win.document.getElementById("selectBar");
+    if(!bar) return { pass:false, note:"선택 막대가 없음" };
+    const was = bar.hidden; bar.hidden = true;
+    const d = win.getComputedStyle(bar).display;
+    const h = Math.round(bar.getBoundingClientRect().height);
+    bar.hidden = was;
+    return { pass: d === "none" && h === 0, note: d !== "none" ? `display=${d} · 높이 ${h}px` : undefined };
+  });
+
+  await check(G, "폴더를 지워도 문제집은 남고 tombstone 이 생긴다", () => {
+    /* ⚠️ '폴더 삭제' 가 '문제집 삭제' 로 읽히면 되돌릴 수 없는 손실이 된다.
+       ⚠️ tombstone 이 없으면 다른 기기의 예전 소속이 **삭제한 폴더를 되살린다**. */
+    const H2 = installHooks(win, ["normLibMeta"]);
+    const m = H2.normLibMeta({ folders:[{id:"f1",name:"A"},{id:"f2",name:"B"}],
+                               folderBySetId:{ s1:"f1", s2:"f2" },
+                               folderTombstones:{ f0: 111 } });
+    return { pass: m.folders.length===2 && m.folderBySetId.s1==="f1" && m.folderTombstones.f0===111,
+             note: JSON.stringify(m.folderTombstones) };
+  });
+
+  await check(G, "모르는 folderId 를 조용히 버리지 않는다", () => {
+    /* 다른 기기에서 만든 폴더가 아직 안 내려왔을 수 있다 — 소속은 그대로 둔다. */
+    const H2 = installHooks(win, ["normLibMeta"]);
+    const m = H2.normLibMeta({ folders:[], folderBySetId:{ s1:"없는폴더" } });
+    return m.folderBySetId.s1 === "없는폴더";
+  });
+
+  await check(G, "없는 번역 키는 한국어로 떨어진다(빈 글자가 아니라)", () => {
+    /* ⚠️ 없는 키가 빈 글자가 되면 화면이 **조용히 비어** 버린다. */
+    const H2 = installHooks(win, ["t"]);
+    return H2.t("전혀.없는.키", "기본 글") === "기본 글";
+  });
+
+  await check(G, "언어는 화면 글만 바꾼다 — 문제집 이름은 그대로", () => {
+    /* ⚠️ 사용자가 쓴 글은 절대 번역하지 않는다. */
+    const H2 = installHooks(win, ["UI_STRINGS"]);
+    const values = Object.values(H2.UI_STRINGS.en || {});
+    const keys = Object.keys(H2.UI_STRINGS.en || {});
+    return { pass: keys.length > 0 && keys.every(k => /^(lib|sort|set)\./.test(k)),
+             note: keys.find(k => !/^(lib|sort|set)\./.test(k)) };
+  });
+
+  await check(G, "이름순 정렬은 로케일 정렬이고 동점이면 흔들리지 않는다", () => {
+    const H2 = installHooks(win, ["libSorted","libMeta"]);
+    H2.libMeta.sort = "name";
+    const list = [{id:"b",name:"같은 이름"},{id:"a",name:"같은 이름"},{id:"c",name:"가"}];
+    const once = H2.libSorted(list).map(x=>x.id).join(",");
+    const twice = H2.libSorted(list.slice().reverse()).map(x=>x.id).join(",");
+    H2.libMeta.sort = "manual";
+    return { pass: once === twice && once.startsWith("c"), note: once + " vs " + twice };
+  });
+
   /* ── 과목별 블록 팔레트 · 화작/언매 블록 ── */
   await check(G, "과목에 따라 블록 메뉴가 걸러진다", () => {
     const H2 = installHooks(win, ["SUBJECTS"]);

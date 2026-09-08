@@ -1221,6 +1221,46 @@ input:focus-visible,textarea:focus-visible{outline:none}
   background:no-repeat center/16px 16px url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="%2355555F" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>');
 }
 
+/* ── 검색 줄 · 폴더 칩 · 선택 막대 ──────────────────────────────────────
+   ⚠️ 한 줄(`lib-bar`)에 검색칸과 단추 셋을 넣되 **줄바꿈을 허용한다.** 375px 에서
+      줄바꿈이 없으면 단추가 화면 밖으로 밀려난다(`REV-2026-026` 이 그 사고였다). */
+.lib-bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:12px}
+/* ⚠️ 좁은 화면에서 **한 줄에 들어가도록** 검색칸이 더 줄게 둔다(1 1 120px).
+   200px 로 두면 375px 에서 두 줄이 되어 라이브러리가 96px 높아지고, 상단 바까지 더하면
+   화면 밖으로 11px 밀린다(실측). `flex-wrap` 은 그대로 두어 더 좁으면 접히게 한다. */
+.lib-bar .lib-search{flex:1 1 120px;margin-bottom:0;max-width:360px}
+.lib-tools{display:flex;align-items:center;gap:6px;margin-left:auto}
+.lib-menu-wrap{position:relative}
+.lib-menu{right:0;left:auto;top:calc(100% + 4px)}
+.folder-bar{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px}
+.folder-chip{
+  display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 12px;
+  border:1px solid var(--border);border-radius:999px;background:var(--surface-1);
+  color:var(--text-secondary);font-size:13px;font-family:var(--ui-sans);cursor:pointer;
+  transition:.15s;white-space:nowrap;
+}
+.folder-chip:hover{background:var(--surface-2);color:var(--text-primary)}
+.folder-chip[aria-pressed="true"]{
+  background:var(--blue);border-color:var(--blue);color:#fff;font-weight:600;
+}
+.folder-chip .chip-n{opacity:.7;font-size:12px}
+.select-bar{
+  display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:16px;padding:10px 12px;
+  border:1px solid var(--blue);border-radius:var(--radius-md);background:var(--surface-1);
+}
+/* ⚠️ **`display:flex` 는 브라우저 기본 `[hidden]{display:none}` 을 이긴다**(선택자 우선순위).
+   이 한 줄이 없으면 숨겨 둔 막대가 **안 보이는 채로 144px 를 먹어** 휴대폰에서 라이브러리가
+   화면 밖으로 밀린다(실측 375×812 에서 982 > 812). `test:cross` 가 그것을 잡았다. */
+.select-bar[hidden]{display:none}
+.select-bar>span{font-size:13px;font-weight:600;color:var(--text-primary)}
+.select-actions{display:flex;flex-wrap:wrap;gap:6px;margin-left:auto}
+.danger-text{color:var(--red)!important}
+.set-card .pick{
+  position:absolute;top:12px;left:12px;width:20px;height:20px;margin:0;cursor:pointer;accent-color:var(--blue);
+}
+.lib-grid.picking .set-card{padding-left:42px}
+.set-card .card-folder{font-size:12px;color:var(--text-tertiary);margin-top:2px}
+
 /* ── 빈 상태 ── */
 .empty-state{
   grid-column:1/-1;display:flex;flex-direction:column;align-items:center;justify-content:center;
@@ -1298,7 +1338,27 @@ input:focus-visible,textarea:focus-visible{outline:none}
       <input id="importAllInput" type="file" accept="application/json" style="display:none">
     </div>
   </div>
-  <div class="lib-search"><input id="setSearch" type="text" placeholder="문제집 검색"></div>
+  <div class="lib-bar">
+    <div class="lib-search"><input id="setSearch" type="text" placeholder="문제집 검색"></div>
+    <div class="lib-tools">
+      <div class="lib-menu-wrap">
+        <button id="sortBtn" class="btn-ghost" aria-haspopup="true" aria-expanded="false">정렬</button>
+        <div id="sortMenu" class="menu lib-menu" role="menu"></div>
+      </div>
+      <button id="selectBtn" class="btn-ghost" aria-pressed="false">선택</button>
+      <button id="settingsBtn" class="btn-ghost" title="설정">설정</button>
+    </div>
+  </div>
+  <div id="folderBar" class="folder-bar"></div>
+  <div id="selectBar" class="select-bar" hidden>
+    <span id="selectCount" aria-live="polite">0개 선택</span>
+    <div class="select-actions">
+      <button id="selAllBtn" class="btn-ghost">모두 선택</button>
+      <button id="selMoveBtn" class="btn-ghost">폴더로 이동</button>
+      <button id="selExportBtn" class="btn-ghost">내보내기</button>
+      <button id="selDeleteBtn" class="btn-ghost danger-text">삭제</button>
+    </div>
+  </div>
   <div id="setGrid" class="lib-grid"></div>
   <footer class="lib-footer">
     <div class="lib-footer-links">
@@ -1598,6 +1658,42 @@ document.addEventListener('DOMContentLoaded',()=>{
     <div style="display:flex;gap:8px;justify-content:flex-end">
       <button id="closePrompt2" class="btn" style="height:40px">닫기</button>
       <button id="copyPrompt" class="btn-primary" style="height:40px;font-weight:700;padding:0 20px">📋 복사</button>
+    </div>
+  </div>
+</div>
+
+<!-- 설정 모달 — 흩어져 있던 것을 한 곳으로 모은다(새로 만드는 것보다 모으는 것이 먼저다).
+     ⚠️ 구독은 **보여 주기까지만** 한다. 실제 권한은 Worker 가 검증하는 서명된 claim 이고
+        이 저장소에는 결제 흐름이 없다 — 결제되는 것처럼 보이는 화면을 만들지 않는다. -->
+<div id="settingsModal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:2000;align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--surface-1);border:1px solid var(--border);border-radius:24px;padding:26px 26px 22px;width:100%;max-width:520px;max-height:88vh;max-height:88dvh;overflow-y:auto;display:flex;flex-direction:column;gap:16px;box-shadow:0 24px 64px rgba(0,0,0,.6)">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+      <div id="settingsTitle" style="font-size:18px;font-weight:800;color:var(--text-primary);letter-spacing:-.02em">설정</div>
+      <button id="settingsClose" class="btn-ghost" style="width:36px;height:36px;padding:0;border-radius:50%;font-size:18px;flex-shrink:0" aria-label="닫기">✕</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <section class="dm-sec">
+        <h4>계정</h4>
+        <div id="setAccount" class="dm-note">로그인하지 않았어요</div>
+      </section>
+      <section class="dm-sec">
+        <h4>구독</h4>
+        <div id="setPlan" class="dm-note"></div>
+        <p class="dm-note">플랜 변경은 아직 이 화면에서 할 수 없어요. 문의해 주시면 도와드릴게요.</p>
+      </section>
+      <section class="dm-sec">
+        <h4>화면</h4>
+        <label class="dm-row"><span>테마</span>
+          <select id="setTheme"></select></label>
+        <label class="dm-row"><span>언어</span>
+          <select id="setLang"></select></label>
+        <p class="dm-note">언어는 <b>화면 글</b>만 바꿉니다 — 문제집 내용과 인쇄물은 그대로예요.</p>
+      </section>
+      <section class="dm-sec">
+        <h4>데이터</h4>
+        <p class="dm-note">백업 되돌리기 · 모든 문제집 삭제 · 계정 삭제</p>
+        <button id="setDataBtn">데이터 관리 열기</button>
+      </section>
     </div>
   </div>
 </div>
@@ -3080,9 +3176,161 @@ async function deleteSetEverywhere(removed){
 /* 계정별 로컬 키 이름을 '지금' 확정해 둔다.
    계정 삭제는 마지막에 currentUser 를 없애므로, 그 뒤에 setsKey() 를 부르면
    이미 ':guest' 를 가리켜 엉뚱한 칸을 지운다. 반드시 시작 시점에 잡아 둘 것. */
+/* ── 화면 언어 ────────────────────────────────────────────────────────────
+ * 해리의 방향: **시스템 언어를 따르고**, 바꾸는 것은 **화면 글만**이다.
+ * ⚠️ **문제집 이름·지문·정답·내보내는 JSON·AI 프롬프트는 절대 번역하지 않는다.**
+ *    사용자가 쓴 글이고, 인쇄물은 조판 규칙이 실물에 묶여 있다.
+ * ⚠️ `t()` 는 **textContent 로만** 넣는다 — 번역문을 innerHTML 로 넣으면 카탈로그가
+ *    주입 통로가 된다.
+ * ⚠️ 한 번에 660곳을 번역하지 않는다. 지금은 **라이브러리 화면부터** 옮기고, 없는 키는
+ *    한국어로 떨어진다(`unknown key` 가 빈 글자가 되면 화면이 조용히 비어 버린다).
+ * ⚠️ RTL 은 아직 지원하지 않으므로 카탈로그에 노출하지 않는다.
+ */
+const UI_LOCALES=[
+  {v:"system", name:"시스템 언어", en:"System"},
+  {v:"ko",     name:"한국어",     en:"Korean"},
+  {v:"en",     name:"English",    en:"English"},
+];
+const UI_STRINGS={
+  en:{
+    "lib.search":"Search sets", "lib.sort":"Sort", "lib.select":"Select",
+    "lib.settings":"Settings", "lib.all":"All", "lib.noFolder":"No folder",
+    "lib.newFolder":"+ New folder", "lib.unknownFolder":"Unknown folder",
+    "lib.selectAll":"Select all", "lib.moveTo":"Move to folder", "lib.selected":"{n} selected",
+    "lib.export":"Export", "lib.delete":"Delete", "lib.done":"Done",
+    "sort.manual":"My order", "sort.name":"By name",
+    "sort.updated":"Recently edited", "sort.opened":"Recently opened (this device)",
+    "set.account":"Account", "set.plan":"Subscription", "set.display":"Display",
+    "set.theme":"Theme", "set.language":"Language", "set.data":"Data",
+    "set.openData":"Open data management", "set.signedOut":"Not signed in",
+    "set.langNote":"Language changes the interface only — your sets and printouts stay as they are.",
+    "set.planNote":"Plan changes aren't available here yet. Get in touch and we'll help.",
+  },
+};
+let uiLangPref="system";
+function langKey(){ return "PM_LANG:"+((currentUser&&currentUser.uid)||"guest"); }
+function activeUiLocale(){
+  if(uiLangPref!=="system") return uiLangPref;
+  /* BCP-47 로 내려간다 — `en-GB` 는 `en` 으로. 모르는 언어는 한국어다. */
+  for(const tag of (navigator.languages||[navigator.language||"ko"])){
+    const base=String(tag||"").toLowerCase().split("-")[0];
+    if(base==="ko") return "ko";
+    if(UI_STRINGS[base]) return base;
+  }
+  return "ko";
+}
+function t(key, ko){
+  const table=UI_STRINGS[activeUiLocale()];
+  const v=table&&table[key];
+  return (typeof v==="string"&&v)?v:ko;   // 없는 키는 한국어로 — 빈 글자로 두지 않는다
+}
+/* 화면에 이미 있는 글을 다시 칠한다. ⚠️ textContent 만 쓴다. */
+function applyUiLang(){
+  const loc=activeUiLocale();
+  document.documentElement.lang=loc;
+  const put=(sel,key,ko,attr)=>{
+    const n=$(sel); if(!n) return;
+    if(attr) n.setAttribute(attr,t(key,ko)); else n.textContent=t(key,ko);
+  };
+  put("#setSearch","lib.search","문제집 검색","placeholder");
+  put("#sortBtn","lib.sort","정렬");
+  put("#selectBtn", libPicking?"lib.done":"lib.select", libPicking?"완료":"선택");
+  put("#settingsBtn","lib.settings","설정");
+  put("#selAllBtn","lib.selectAll","모두 선택");
+  put("#selMoveBtn","lib.moveTo","폴더로 이동");
+  put("#selExportBtn","lib.export","내보내기");
+  put("#selDeleteBtn","lib.delete","삭제");
+  put("#settingsTitle","set.settings","설정");
+  if(typeof renderFolderBar==="function") renderFolderBar();
+}
+
+/* ── 라이브러리 메타 (폴더 · 정렬 · 최근 사용) ────────────────────────────
+ * ⚠️ **A단계는 전부 로컬이다.** 코덱스 검토(`HANDOFF-2026-070`)가 막았다 —
+ *    `folderId` 를 문제집 문서에 넣으려면 `firestore.rules` 의 `hasOnly` 를 함께
+ *    고쳐 배포해야 하고, **규칙이 배포되기 전에는 그 필드 하나 때문에 저장이 통째로
+ *    권한 오류가 된다.** 그래서 소속은 set 객체가 아니라 여기 따로 둔다.
+ *    클라우드로 올리는 B단계는 규칙 배포를 확인한 뒤 별도 릴리스에서 한다.
+ * ⚠️ 새 로컬 키에는 **반드시 uid 를 붙인다**(공용 키로 두면 한 브라우저에서 계정을
+ *    바꿨을 때 데이터가 샌다).
+ */
+function libMetaKey(){ return "PM_LIBRARY_META:"+((currentUser&&currentUser.uid)||"guest"); }
+
+const LIB_SORTS=[
+  {v:"manual", name:"직접 정한 순서"},
+  {v:"name",   name:"이름순"},
+  {v:"updated",name:"최근 수정순"},
+  {v:"opened", name:"최근 사용순 (이 기기)"},
+];
+function normLibMeta(m){
+  const o=(m&&typeof m==="object")?m:{};
+  const folders=(Array.isArray(o.folders)?o.folders:[]).slice(0,200).map((f,i)=>{
+    const x=(f&&typeof f==="object")?f:{};
+    return { id:str(x.id,60)||uid(), name:str(x.name,60)||"새 폴더",
+             order:Number.isFinite(Number(x.order))?Number(x.order):i };
+  });
+  const map=(v,max)=>{
+    const out={}; let n=0;
+    for(const [k,val] of Object.entries((v&&typeof v==="object")?v:{})){
+      if(n++>=max) break;
+      if(typeof k!=="string"||k.length>60) continue;
+      out[k]=typeof val==="number"?val:str(val,60);
+    }
+    return out;
+  };
+  return { folders,
+           folderBySetId:map(o.folderBySetId,5000),
+           /* ⚠️ 폴더 삭제도 tombstone 이 필요하다 — 소속만 풀고 목록에서 지우면 다른
+              기기의 예전 소속이 다음 저장 때 **삭제한 폴더를 되살린다**(코덱스 §1). */
+           folderTombstones:map(o.folderTombstones,500),
+           lastOpenedBySet:map(o.lastOpenedBySet,5000),
+           sort:LIB_SORTS.some(x=>x.v===o.sort)?o.sort:"manual" };
+}
+let libMeta=normLibMeta(null);
+function readLibMeta(){
+  try{ libMeta=normLibMeta(JSON.parse(localStorage.getItem(libMetaKey())||"null")); }
+  catch(e){ console.warn("라이브러리 설정을 읽지 못했습니다", e); libMeta=normLibMeta(null); }
+  return libMeta;
+}
+function writeLibMeta(){
+  if(wiping) return;
+  try{ localStorage.setItem(libMetaKey(), JSON.stringify(libMeta)); }
+  catch(e){ console.warn("라이브러리 설정을 저장하지 못했습니다", e); }
+}
+const folderName=(id)=>{ const f=libMeta.folders.find(x=>x.id===id); return f?f.name:""; };
+const folderOf=(setId)=>libMeta.folderBySetId[setId]||"";
+function setFolder(setId, folderId){
+  if(folderId) libMeta.folderBySetId[setId]=folderId;
+  else delete libMeta.folderBySetId[setId];
+}
+/* ⚠️ **모르는 folderId 를 조용히 버리지 않는다.** 다른 기기에서 만든 폴더가 아직 안
+   내려왔을 수 있다 — 화면에서는 `알 수 없는 폴더` 로 묶고 소속은 그대로 둔다. */
+const knownFolder=(id)=>!id||libMeta.folders.some(f=>f.id===id);
+
+let libFolderFilter="";     // "" = 전체 · "__none" = 폴더 없음
+let libPicking=false;
+const libPicked=new Set();  // ⚠️ setId 로만 담는다 — 검색·정렬·폴더가 바뀌어도 살아남게
+
+function libSorted(list){
+  const mode=libMeta.sort;
+  if(mode==="manual") return list;
+  const arr=list.slice();
+  if(mode==="name"){
+    /* ⚠️ 이름은 로케일 정렬이라야 한다(한글·영문이 섞인다). 같은 이름일 때를 대비해
+       id 로 tie-break 하지 않으면 순서가 실행마다 흔들린다. */
+    const coll=new Intl.Collator(activeUiLocale(),{numeric:true,sensitivity:"base"});
+    arr.sort((a,b)=>coll.compare(a.name||"",b.name||"")||String(a.id).localeCompare(String(b.id)));
+  }else if(mode==="updated"){
+    arr.sort((a,b)=>(localStamps[b.id]||0)-(localStamps[a.id]||0)||String(a.id).localeCompare(String(b.id)));
+  }else if(mode==="opened"){
+    const L=libMeta.lastOpenedBySet;
+    arr.sort((a,b)=>(L[b.id]||0)-(L[a.id]||0)||String(a.id).localeCompare(String(b.id)));
+  }
+  return arr;
+}
+
 function accountLocalKeys(){
   return { sets:setsKey(), backup:backupKey(), lastQ:lastQKey(),
-           stamps:stampsKey(), lastSet:lastSetKey() };
+           stamps:stampsKey(), lastSet:lastSetKey(), libMeta:libMetaKey() };
 }
 
 function readBackupInfo(){
@@ -3356,6 +3604,117 @@ function openDataModal(){
   openModal(dataModal);
 }
 
+/* ── 라이브러리 단추들 ──────────────────────────────────────────────────── */
+$("#sortBtn").onclick=(e)=>{
+  e.stopPropagation();
+  const m=$("#sortMenu"), open=m.style.display!=="block";
+  m.innerHTML="";
+  LIB_SORTS.forEach(o=>{
+    const b=el("button",null,(libMeta.sort===o.v?"✓ ":"")+t("sort."+o.v,o.name));
+    b.onclick=()=>{ libMeta.sort=o.v; writeLibMeta(); m.style.display="none";
+                    $("#sortBtn").setAttribute("aria-expanded","false"); renderLibrary(); };
+    m.append(b);
+  });
+  m.style.display=open?"block":"none";
+  $("#sortBtn").setAttribute("aria-expanded",String(open));
+  if(open) setTimeout(()=>document.addEventListener("click",()=>{
+    m.style.display="none"; $("#sortBtn").setAttribute("aria-expanded","false");
+  },{once:true}),0);
+};
+
+$("#selectBtn").onclick=()=>{ libPicking=!libPicking; libPicked.clear(); renderLibrary(); };
+$("#selAllBtn").onclick=()=>{
+  /* ⚠️ '모두 선택' 은 **지금 보이는 것만** 고른다 — 검색·폴더로 걸러 놓고 안 보이는
+     것까지 고르면 놀란다. 그래서 화면에 그린 카드가 아니라 **같은 필터를 다시 태운다**
+     (DOM 을 훑으면 그리는 규칙의 사본이 하나 더 생겨 갈라진다). */
+  const ids=libVisibleSets().map(x=>x.id);
+  if(ids.length && ids.every(id=>libPicked.has(id))) ids.forEach(id=>libPicked.delete(id));
+  else ids.forEach(id=>libPicked.add(id));
+  renderLibrary();
+};
+
+$("#selMoveBtn").onclick=()=>{
+  if(!libPicked.size) return;
+  const names=libMeta.folders.slice().sort((a,b)=>a.order-b.order);
+  const lines=names.map((f,i)=>`${i+1}. ${f.name}`).join("\n");
+  const ans=(prompt(`${libPicked.size}개를 어디로 옮길까요?\n\n0. 폴더 없음\n${lines}\n\n번호를 적어 주세요`)||"").trim();
+  if(!ans) return;
+  const n=parseInt(ans,10);
+  if(!Number.isInteger(n)||n<0||n>names.length){ toast("그 번호는 없어요","error"); return; }
+  const target=n===0?"":names[n-1].id;
+  libPicked.forEach(id=>setFolder(id,target));
+  writeLibMeta();
+  toast(`${libPicked.size}개를 ${n===0?"'폴더 없음' 으로":"'"+names[n-1].name+"' 으로"} 옮겼어요`,"success");
+  libPicked.clear(); renderLibrary();
+};
+
+$("#selExportBtn").onclick=()=>{
+  const picked=sets.filter(s=>libPicked.has(s.id));
+  if(!picked.length) return;
+  /* ⚠️ 내보내는 JSON 에는 폴더 소속을 싣지 않는다 — 남의 기기에서 그 id 는 뜻이 없다.
+     `sets` 원소를 그대로 쓰므로 folderId 가 애초에 들어 있지 않다(A단계는 전부 별도 저장). */
+  const blob=new Blob([JSON.stringify(picked,null,2)],{type:"application/json"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
+  a.download=`pedagogy-${picked.length}개.json`; a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+};
+
+$("#selDeleteBtn").onclick=async ()=>{
+  const picked=sets.filter(s=>libPicked.has(s.id));
+  if(!picked.length) return;
+  /* ⚠️ **'되돌릴 수 있다' 고 말하지 않는다**(코덱스 §3). 지금 삭제는 화면에서 먼저 빼고
+     tombstone 을 **비동기로** 쓴다. 즉시 ⌘Z 하면 복원 저장과 늦은 tombstone 이 경쟁해
+     복원본이 다시 지워질 수 있다. 그 큐 계약이 생기기 전에는 약속하지 않는다. */
+  if(!confirm(`문제집 ${picked.length}개를 지울까요?\n\n· 이 기기의 백업에는 남지만 ⌘Z 로는 되돌릴 수 없어요\n· 계속하려면 확인을 눌러 주세요`)) return;
+  const btn=$("#selDeleteBtn"); btn.disabled=true;
+  const failed=[];
+  /* 한 장 지우기와 **같은 경로**를 쓴다 — tombstone 과 이미지 정리가 거기 있다. */
+  for(const s of picked){
+    const at=sets.indexOf(s);
+    if(at<0) continue;
+    sets.splice(at,1);
+    delete libMeta.folderBySetId[s.id];
+    try{ await deleteSetEverywhere(s); }
+    catch(e){ console.warn("클라우드 삭제 실패", s.id, e); failed.push(s.name||s.id); }
+  }
+  if(!sets.length) sets=[{id:uid(),name:"새 문제집",header:"",problems:[newProblem()]}];
+  writeLibMeta(); saveSets();
+  libPicked.clear(); btn.disabled=false; renderLibrary();
+  if(failed.length) toast(`${failed.length}개를 지우지 못했어요 · ${failed.slice(0,3).join(", ")}`,"error");
+  else toast(`${picked.length}개를 지웠어요`,"success");
+};
+
+/* ── 설정 ─────────────────────────────────────────────────────────────── */
+function openSettings(){
+  const acc=$("#setAccount");
+  acc.textContent = currentUser
+    ? `${currentUser.displayName||"이름 없음"} · ${currentUser.email||""}`
+    : t("set.signedOut","로그인하지 않았어요");
+  const plan=$("#setPlan");
+  /* ⚠️ 표시 전용이다. 실제 권한은 Worker 가 검증하는 **서명된 claim** 이고 이 저장소에는
+     결제 흐름이 없다 — 결제되는 것처럼 보이는 화면을 만들지 않는다. */
+  const badge=$("#planBadge");
+  plan.textContent = (badge && badge.textContent) || (currentUser ? "무료" : "로그인 후 확인");
+
+  const th=$("#setTheme"); th.innerHTML="";
+  THEMES.forEach(o=>{ const op=document.createElement("option"); op.value=o.v; op.textContent=o.name; th.append(op); });
+  th.value=themeCur;
+  th.onchange=()=>setTheme(th.value);
+
+  const lg=$("#setLang"); lg.innerHTML="";
+  UI_LOCALES.forEach(o=>{ const op=document.createElement("option"); op.value=o.v; op.textContent=o.name; lg.append(op); });
+  lg.value=uiLangPref;
+  lg.onchange=()=>{
+    uiLangPref=UI_LOCALES.some(x=>x.v===lg.value)?lg.value:"system";
+    try{ localStorage.setItem(langKey(),uiLangPref); }catch(e){ console.warn("언어 설정 저장 실패", e); }
+    applyUiLang(); renderLibrary();
+  };
+  openModal($("#settingsModal"));
+}
+$("#settingsBtn").onclick=openSettings;
+$("#settingsClose").onclick=()=>closeModal($("#settingsModal"));
+$("#setDataBtn").onclick=()=>{ closeModal($("#settingsModal")); openDataModal(); };
+
 $("#dataMgmtBtn").onclick=openDataModal;
 $("#dmClose").onclick=()=>closeModal(dataModal);
 dataModal.addEventListener("click",e=>{ if(e.target===dataModal) closeModal(dataModal); });
@@ -3489,10 +3848,107 @@ function computeNums(arr){
 
 /* ===== Library ===== */
 let setSearchTerm="";
+/* ── 폴더 칩 줄 ───────────────────────────────────────────────────────────
+   ⚠️ 왼쪽 사이드바로 두지 않는다 — 375px 에서 격자가 한 칸(`1fr`)이라 사이드바가
+      화면 절반을 먹는다. */
+function renderFolderBar(){
+  const bar=$("#folderBar"); if(!bar) return;
+  bar.innerHTML="";
+  const counts={};
+  sets.forEach(x=>{ const f=folderOf(x.id)||"__none"; counts[f]=(counts[f]||0)+1; });
+  const chip=(id,label,n)=>{
+    const b=el("button","folder-chip",label);
+    b.type="button";
+    b.setAttribute("aria-pressed", String(libFolderFilter===id));
+    if(typeof n==="number") b.append(el("span","chip-n",String(n)));
+    b.onclick=()=>{ libFolderFilter=(libFolderFilter===id&&id!=="")?"":id; renderFolderBar(); renderLibrary(); };
+    bar.append(b);
+    return b;
+  };
+  chip("", t("lib.all","전체"), sets.length);
+  libMeta.folders.slice().sort((a,b)=>a.order-b.order).forEach(f=>{
+    const b=chip(f.id, f.name, counts[f.id]||0);
+    b.oncontextmenu=(e)=>{ e.preventDefault(); folderMenu(f); };
+    /* 이름 변경·삭제는 길게 누르거나 오른쪽 클릭 — 칩마다 점 메뉴를 달면 좁은 화면에서
+       칩 줄이 두 배로 길어진다. 손가락에는 길게 누르기가 오른쪽 클릭이다. */
+    let timer=null;
+    b.addEventListener("pointerdown",()=>{ timer=setTimeout(()=>folderMenu(f),550); });
+    ["pointerup","pointerleave","pointercancel"].forEach(ev=>
+      b.addEventListener(ev,()=>{ clearTimeout(timer); }));
+  });
+  if(counts.__none) chip("__none", t("lib.noFolder","폴더 없음"), counts.__none);
+  /* 모르는 folderId — 다른 기기에서 만든 폴더가 아직 안 내려온 것일 수 있다.
+     ⚠️ 소속을 지우지 않는다. 묶어서 보여만 준다. */
+  const unknown=sets.filter(x=>{ const f=folderOf(x.id); return f&&!knownFolder(f); }).length;
+  if(unknown) chip("__unknown", t("lib.unknownFolder","알 수 없는 폴더"), unknown);
+
+  const add=el("button","folder-chip", t("lib.newFolder","+ 새 폴더"));
+  add.type="button";
+  add.onclick=()=>{
+    const name=(prompt("새 폴더 이름")||"").trim();
+    if(!name) return;
+    libMeta.folders.push({id:uid(), name:name.slice(0,60), order:libMeta.folders.length});
+    writeLibMeta(); renderFolderBar(); renderLibrary();
+  };
+  bar.append(add);
+}
+
+/* 폴더 이름 변경·삭제.
+   ⚠️ **폴더를 지워도 문제집은 지우지 않는다** — 소속만 풀어 '폴더 없음' 으로 보낸다.
+      '폴더 삭제' 가 '문제집 삭제' 로 읽히면 되돌릴 수 없는 손실이 된다.
+   ⚠️ 그리고 **tombstone 을 남긴다**(코덱스 §1) — 안 남기면 다른 기기의 예전 소속이
+      다음 병합에서 삭제한 폴더를 되살린다. */
+function folderMenu(f){
+  const what=prompt(`'${f.name}' — 새 이름을 적으면 이름이 바뀝니다.\n비우고 확인하면 폴더를 지웁니다(문제집은 그대로 남아요).`, f.name);
+  if(what===null) return;
+  const name=what.trim();
+  if(name){ f.name=name.slice(0,60); writeLibMeta(); renderFolderBar(); renderLibrary(); return; }
+  if(!confirm(`'${f.name}' 폴더를 지울까요?\n\n· 안에 있던 문제집은 지워지지 않고 '폴더 없음' 으로 갑니다\n· 폴더만 사라집니다`)) return;
+  Object.keys(libMeta.folderBySetId).forEach(sid=>{
+    if(libMeta.folderBySetId[sid]===f.id) delete libMeta.folderBySetId[sid];
+  });
+  libMeta.folderTombstones[f.id]=Date.now();
+  libMeta.folders=libMeta.folders.filter(x=>x.id!==f.id);
+  if(libFolderFilter===f.id) libFolderFilter="";
+  writeLibMeta(); renderFolderBar(); renderLibrary();
+  toast("폴더를 지웠어요 · 문제집은 '폴더 없음' 에 있어요","success");
+}
+
+function renderSelectBar(){
+  const bar=$("#selectBar"); if(!bar) return;
+  bar.hidden=!libPicking;
+  const n=libPicked.size;
+  const c=$("#selectCount"); if(c) c.textContent=t("lib.selected","{n}개 선택").replace("{n}",n);
+  ["selMoveBtn","selExportBtn","selDeleteBtn"].forEach(id=>{ const b=$("#"+id); if(b) b.disabled=!n; });
+  const sb=$("#selectBtn");
+  if(sb){ sb.setAttribute("aria-pressed",String(libPicking));
+          sb.textContent = libPicking ? t("lib.done","완료") : t("lib.select","선택"); }
+}
+
+/* 지금 화면에 보여야 할 문제집. ⚠️ **이것을 아는 곳은 여기 하나다** — 그리는 쪽과
+   '모두 선택' 이 각자 훑으면 갈라진다(이 저장소가 여러 번 겪은 방식이다).
+   ⚠️ **폴더 안에서도 검색은 전체를 찾는다** — 찾는 사람은 어느 폴더인지 모른다.
+      대신 결과 카드에 어느 폴더인지 작게 적는다. */
+function libVisibleSets(){
+  const term=setSearchTerm.trim().toLowerCase();
+  let visible = term ? sets.filter(s=>(s.name||"").toLowerCase().includes(term)) : sets;
+  if(!term && libFolderFilter){
+    visible = visible.filter(s=>{
+      const f=folderOf(s.id);
+      if(libFolderFilter==="__none") return !f;
+      if(libFolderFilter==="__unknown") return !!f && !knownFolder(f);
+      return f===libFolderFilter;
+    });
+  }
+  return libSorted(visible);
+}
+
 function renderLibrary(){
   const grid=$("#setGrid"); grid.innerHTML="";
+  grid.classList.toggle("picking", libPicking);
+  renderFolderBar(); renderSelectBar();
   const term=setSearchTerm.trim().toLowerCase();
-  const visible = term ? sets.filter(s=>(s.name||"").toLowerCase().includes(term)) : sets;
+  const visible = libVisibleSets();
 
   if(!visible.length){
     const es=el("div","empty-state");
@@ -3515,6 +3971,31 @@ function renderLibrary(){
       count.append(document.createTextNode(" "), tag);
     }
     card.append(title,count);
+    /* 검색 결과·전체 보기에서는 어느 폴더인지 카드에 적는다. */
+    const fid=folderOf(s.id);
+    if(fid && !libFolderFilter){
+      card.append(el("div","card-folder", knownFolder(fid)?folderName(fid):t("lib.unknownFolder","알 수 없는 폴더")));
+    }
+
+    if(libPicking){
+      const pick=el("input","pick"); pick.type="checkbox";
+      pick.checked=libPicked.has(s.id);
+      pick.setAttribute("aria-label", (s.name||"제목 없음")+" 선택");
+      const flip=(on)=>{ if(on) libPicked.add(s.id); else libPicked.delete(s.id); renderSelectBar(); };
+      pick.onclick=(e)=>{ e.stopPropagation(); flip(pick.checked); };
+      card.prepend(pick);
+      /* ⚠️ 고르는 중에는 카드를 눌러도 **열리지 않아야** 한다 — 카드 아무 데나 눌러도
+         골라지게 한다.
+         ⚠️ **체크칸에서 시작한 클릭은 그냥 보낸다.** 여기서 가로채면 체크칸이 자기
+            핸들러에 닿기 전에 멈춰서, 눌러도 아무 일이 안 일어난다(실제로 그랬다 —
+            2개를 눌렀는데 '0개 선택' 이었다). */
+      card.addEventListener("click",(e)=>{
+        if(e.target===pick) return;
+        e.stopPropagation(); pick.checked=!pick.checked; flip(pick.checked);
+      }, true);
+      card.tabIndex=0;
+      card.onkeydown=(e)=>{ if(e.key===" "||e.key==="Enter"){ e.preventDefault(); pick.checked=!pick.checked; flip(pick.checked); } };
+    }
 
     const dots=el("button","dotbtn","⋮"); card.append(dots);
     const menu=el("div","menu");
@@ -3647,6 +4128,9 @@ $("#importAllInput").onchange=e=>{ const f=e.target.files?.[0]; if(!f) return;
 
 /* ===== Editor ===== */
 function showEditor(setId){
+  /* ⚠️ '최근 **사용**' 은 '최근 **수정**' 과 다르다 — 열어만 보고 안 고친 것이 위로 와야
+     사용자가 기대하는 '최근' 이다. 클라우드 필드가 없으므로 **이 기기에서만** 센다. */
+  if(setId){ libMeta.lastOpenedBySet[setId]=Date.now(); writeLibMeta(); }
   // 라이브러리 화면에서 계산된 폭이 굳어 있을 수 있어 진입할 때 한 번 다시 맞춘다
   setTimeout(()=>{
     let want=PV_W_DEFAULT;
@@ -6290,8 +6774,19 @@ let prevUid=null;            // 직전 콜백의 uid (로그인/로그아웃 전
 /* 최초 진입 공통 경로. 로그인 상태와 무관하게 한 번은 반드시 실행돼야
    라이브러리가 화면에 뜬다(Firebase 없이도 로컬 데이터로 동작). */
 async function bootLibrary(){
+  /* 로그인 없이 들어온 첫 화면(guest)도 자기 폴더·언어를 갖는다. */
+  readLibMeta();
+  try{ const v=localStorage.getItem(langKey()); uiLangPref=UI_LOCALES.some(x=>x.v===v)?v:"system"; }
+  catch(e){ uiLangPref="system"; }
+  applyUiLang();
   const session=sessionContext();
   authInitialized=true;
+  /* ⚠️ 라이브러리 메타와 언어는 **계정별**이다 — 계정이 바뀌면 함께 갈아 끼운다.
+     안 하면 앞 계정의 폴더가 새 계정 화면에 남는다. */
+  readLibMeta();
+  try{ const v=localStorage.getItem(langKey()); uiLangPref=UI_LOCALES.some(x=>x.v===v)?v:"system"; }
+  catch(e){ uiLangPref="system"; }
+  applyUiLang();
   migrateSharedLocalCache();
   migrateSharedAuxKeys();                // 백업·마지막문항 키도 계정 칸으로
   dropLegacyLastSet();                   // 예전에 localStorage 에 남긴 값 정리
