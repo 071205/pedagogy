@@ -449,7 +449,158 @@
     }
   }
 
-  global.PedagogyExam = { ExamWriter, splitInline, spaceBeforeMath, numPrefixXml, eqTabXml,
+  /* ── 시험지 한 부 만들기 ──────────────────────────────────────────────────
+   * 파이썬 `_build()` 에 대응한다. **틀 없는 경로는 옮기지 않는다** — 브라우저는
+   * 저장소에 든 `templates/exam-math.hwpx` 를 늘 쓰고, 값만 심는 옛 경로는 CLI 몫이다.
+   *
+   * ⚠️ 문항의 `units`·`ptsAt`·`layoutResolved`·`heightMm` 은 **편집기가 재서 보낸다**.
+   *    파이썬은 글꼴 실측을 못 해 사본을 안고 있지만 브라우저는 그럴 이유가 없다.
+   */
+  async function buildExam(doc, roles, data) {
+    const w = new ExamWriter(doc, roles);
+    const rep = w.report;
+    const T = global.PedagogyExamTemplate;
+
+    for (const r of ["stem", "choice", "cont"]) {
+      if (!(("para_" + r) in w.style)) w.warn(`틀에 ${r} 역할이 없어 기본 서식으로 대신합니다`);
+    }
+
+    const pageHeader = roles._page_header || {};
+    const columnTops = roles._column_tops || {};
+    const lineMm = roles._line_mm;
+    const tagStepMm = Number((roles._marks || {}).tag_step_mm || 0);
+
+    T.setMastheadTitle(doc, String(data.round || "모의고사"));
+    const elective = String(data.elective || "").trim();
+    if (elective && !T.setMastheadElective(doc, elective)) {
+      w.warn(`틀에서 선택과목 머리말을 찾지 못해 '${elective}' 를 반영하지 못했습니다`);
+    }
+
+    /* 선지만 있는 문항은 시험지에 싣지 않는다(발문이 비었다는 뜻). */
+    const shown = (data.problems || []).filter((p) => (p.units || []).some((u) => u.k !== "choices"));
+
+    /* ── 구역 배정 — 공통은 0, 선택은 1. ⚠️ 모든 `doc.*` 호출이 그 값을 함께 넘겨야
+       한다. 하나라도 빠지면 그 조각만 공통 구역으로 떨어져 조용히 깨진다. */
+    const nSections = [...doc.parts.keys()]
+      .filter((x) => /^Contents\/section\d+\.xml$/.test(x)).length;
+    const groups = [];
+    const common = shown.filter((q) => q.sect !== "선택");
+    const electiveQs = shown.filter((q) => q.sect === "선택");
+    if (common.length) groups.push([0, common]);
+    if (electiveQs.length) {
+      if (nSections >= 2) groups.push([1, electiveQs]);
+      else {
+        groups.push([0, electiveQs]);
+        w.warn("틀에 선택과목 구역이 없어 선택 문항을 공통 구역에 이어 붙였습니다 "
+             + "— 머리말과 쪽번호가 편집기 미리보기와 달라집니다");
+      }
+    }
+
+    /* ⚠️ '틀 문단에 이미 썼는가' 는 **구역별로** 기억한다. 묶음마다 새로 세면 구역이
+       하나뿐인 틀에서 선택 첫 문항이 공통 1번 문단에 덧쓰여 순서가 뒤엉킨다. */
+    const framed = new Set();
+    const headersDone = new Set();   // 이어지는 쪽 머리말은 구역마다 한 번만
+
+    for (const [secI, group] of groups) {
+      w.sec = secI;
+      const breaks = columnStarts(group);
+      const pages = pageStarts(group);
+
+      /* 구획 태그가 붙는 문항 — 그 구역에서 처음 나오는 단답형(편집기 `isGroupFirst()`). */
+      let tagAt = group.findIndex((q) => q.type === "short");
+      if (tagAt < 0) tagAt = null;
+      const tagAtColTop = tagAt !== null && (tagAt === 0 || breaks.has(tagAt));
+      if (tagAt !== null && !((w.marks.tag || {}).short)) {
+        w.warn("틀에서 '단답형' 구획 태그를 찾지 못해 넣지 못했습니다");
+      }
+      if (group.length && group[0].type === "short") {
+        w.warn(`${group[0].num == null ? "?" : group[0].num}번이 이 구역의 첫 문항인데 단답형입니다 `
+             + "— 표제부의 '5지선다형' 상자는 틀에 박혀 있어 그대로 인쇄됩니다");
+      }
+
+      /* 단 안에서 문항을 벌릴 양. 단의 **마지막 문항 뒤는 벌리지 않는다.** */
+      const pads = {};
+      columnSlots(group).forEach((col, cI) => {
+        const colH = Math.floor(cI / 2) === 0 ? COL_H_FIRST_MM : COL_H_NEXT_MM;
+        const tops = columnTops[secI] || [];
+        let top = cI < tops.length ? tops[cI] : 0;
+        /* ⚠️ 태그가 단 첫머리면 그만큼 문항이 내려간다. 안 더하면 둘째 문항이 태그
+           높이(15.9mm)만큼 위로 올라붙는다. `readColumnTopsMm` 과 이중으로 세지 않는다 —
+           그쪽 값은 그 단의 **첫 문단**(= 태그 문단) 자리라 태그 높이를 안 담고 있다. */
+        if (tagAtColTop && col.length && col[0] === tagAt) top += tagStepMm;
+        col.slice(0, -1).forEach((idx, j) => {
+          let height = group[idx].heightMm;
+          if (!height) return;                 // 편집기가 재 주지 않았다 — 벌리지 않는다
+          if (idx === tagAt && !tagAtColTop) height += tagStepMm;   // 단 중간에 낀 태그
+          const now = slotTopMm(j, col.length, colH, top) + height;
+          const target = slotTopMm(j + 1, col.length, colH, top);
+          pads[idx] = padLines(now, target, lineMm);
+        });
+      });
+
+      /* ※ 확인 사항을 매달 문단 — 그 구역 **마지막 쪽**의 첫 문단(쪽 기준 절대배치라
+         '어느 쪽에 나오는가' 만 정해 주면 된다). */
+      let lastPagePara = 0;
+      group.forEach((q, i) => {
+        const before = doc.paragraphCount(secI);
+        const useFrame = i === 0 && !framed.has(secI);
+        /* 구획 태그는 그 문항 **앞**에 온다. `before` 를 태그보다 먼저 잡아 두었으므로
+           쪽나눔·단나눔·이어지는 쪽 머리말이 모두 태그 문단에 붙는다(실물과 같다). */
+        if (i === tagAt) w.sectionTag(useFrame ? 0 : null);
+        w.problem(q, useFrame ? 0 : null);
+        if (useFrame) framed.add(secI);
+
+        const paras = doc.paragraphs(secI);
+        if (pages.has(i) && paras.length > before) {
+          lastPagePara = before;
+          paras[before].setAttribute("pageBreak", "1");
+          rep.pages += 1;
+          /* 실물은 2쪽 첫 문단에 머리말을 한 번 정의하고 뒤 쪽이 물려받는다.
+             안 넣으면 **2쪽부터 시험지 형식이 사라진다.** */
+          if (!headersDone.has(secI) && (pageHeader[secI] || []).length) {
+            const frag = pageHeader[secI];
+            frag.forEach((runXml, at) => {
+              const tmp = new DOMParser().parseFromString(
+                `<w xmlns:hp="${HP}">${runXml}</w>`, "application/xml");
+              const node = paras[before].ownerDocument.importNode(tmp.documentElement.firstChild, true);
+              paras[before].insertBefore(node, paras[before].childNodes[at] || null);
+            });
+            headersDone.add(secI);
+          }
+        }
+        /* ⚠️ **쪽나눔을 준 문단에 단나눔까지 주지 말 것** — 한글이 둘 다 수행해 새 쪽의
+           왼쪽 단이 통째로 빈다. 쪽나눔은 그 자체로 '새 쪽의 첫 단' 에서 시작한다. */
+        if (breaks.has(i) && !pages.has(i) && paras.length > before) {
+          paras[before].setAttribute("columnBreak", "1");   // 문항의 **첫** 문단에 표시한다
+          rep.breaks += 1;
+        }
+        /* 다음 문항을 자기 칸으로 밀어 내린다(실물·편집기 모두 균등 분할이다). */
+        const n = pads[i] || 0;
+        for (let k = 0; k < n; k++) {
+          w.para("", { para: "para_cont",
+                       char: "char_cont" in w.style ? "char_cont" : "char_stem" });
+        }
+        rep.padded += n;
+        rep.problems += 1;
+      });
+
+      /* ※ 확인 사항 — 편집기 `noteFor()` 와 같은 규칙이다.
+         공통 3줄(이어서 「선택과목(…)」 안내 포함) · 선택 2줄. */
+      const want = group[0].sect === "선택" ? 2 : 3;
+      const placed = w.attachNote(lastPagePara, { lines: want, elective: want === 3 ? elective : "" });
+      if (group.length && !placed) w.warn("틀에서 '※ 확인 사항' 상자를 찾지 못해 넣지 못했습니다");
+    }
+    w.sec = 0;
+
+    /* ⚠️ 이어지는 쪽 머리말은 **위 반복문에서야** 문서에 들어간다. 앞에서 부른
+       `setMastheadElective()` 는 그때 없던 것을 고칠 수 없어 표지만 바뀌고 2쪽부터는
+       틀의 이름이 그대로 인쇄됐다. 여기서 한 번 더 맞춘다. */
+    if (elective) T.setMastheadElective(doc, elective);
+
+    return { blob: await doc.toBlob(), report: rep };
+  }
+
+  global.PedagogyExam = { ExamWriter, buildExam, splitInline, spaceBeforeMath, numPrefixXml, eqTabXml,
                           columnStarts, pageStarts, columnSlots, slotTopMm, padLines,
                           PER_COL, COL_H_FIRST_MM, COL_H_NEXT_MM };
 })(typeof window !== "undefined" ? window : globalThis);

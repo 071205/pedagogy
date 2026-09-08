@@ -234,6 +234,55 @@ print(json.dumps({
 }, ensure_ascii=False))
 `;
 
+const PY_BUILD = `
+import json, sys, re, dataclasses, tempfile, os
+sys.path.insert(0, "experiments/hwp-export")
+from pathlib import Path
+import mock_to_hwpx as m
+data = json.loads(sys.argv[1])
+tmpdir = tempfile.mkdtemp()
+out = Path(tmpdir) / "exam.hwpx"
+rep = m.build(data, out, ref=${JSON.stringify(TEMPLATE)})
+keep = os.environ.get("HWPX_EXAM_OUT")
+if keep:
+    os.makedirs(keep, exist_ok=True)
+    import shutil; shutil.copy(out, os.path.join(keep, "python-exam.hwpx"))
+import zipfile
+from lxml import etree
+z = zipfile.ZipFile(out)
+def tags(x):
+    o = {}
+    for mm in re.finditer(r"<(?:\\w+:)?(\\w+)[\\s/>]", x):
+        o[mm.group(1)] = o.get(mm.group(1), 0) + 1
+    return o
+HPNS = "{http://www.hancom.co.kr/hwpml/2011/paragraph}"
+sections = {}
+for i in (0, 1):
+    name = f"Contents/section{i}.xml"
+    if name not in z.namelist():
+        sections[str(i)] = []
+        continue
+    root = etree.fromstring(z.read(name))
+    rows = []
+    for p in root:
+        if not str(p.tag).endswith("}p"): continue
+        x = etree.tostring(p, encoding="unicode")
+        text = "".join(re.findall(r"<hp:t[^>]*>(.*?)</hp:t>", x, re.S))
+        rows.append({
+            "para": p.get("paraPrIDRef"), "style": p.get("styleIDRef"),
+            "pageBreak": p.get("pageBreak"), "columnBreak": p.get("columnBreak"),
+            "tags": tags(x), "text": re.sub(r"<[^>]+>", "", text),
+            "tabs": re.findall(r'<hp:tab width="(\\d+)"', x),
+            "scripts": re.findall(r"<hp:script[^>]*>(.*?)</hp:script>", x, re.S),
+        })
+    sections[str(i)] = rows
+units = []
+for p in data.get("problems") or []:
+    u, at = m.prob_units(p)
+    units.append({"units": u, "ptsAt": at})
+print(json.dumps({"report": dataclasses.asdict(rep), "sections": sections, "units": units}, ensure_ascii=False))
+`;
+
 let pyRoles;
 try {
   pyRoles = JSON.parse(execFileSync("python3", ["-c", PY], { cwd: ROOT, encoding: "utf8" }));
@@ -553,3 +602,136 @@ if (new Set(pyMarks.tblIds).size !== pyMarks.tblIds.length) {
 
 if (mfails) { console.log(`\n표 개체가 갈라졌습니다 — ${mfails}건`); process.exit(1); }
 console.log(`표 개체 대조 통과 — 표 ${pyMarks.tblCount}개·개체 id 가 파이썬과 같습니다`);
+
+/* ── 6단계: 시험지 한 부 대조 ─────────────────────────────────────────────
+   앞의 조각 검사들이 다 통과해도 **조립이 틀리면** 시험지가 깨진다 — 구역 배정,
+   쪽나눔·단나눔 자리, 이어지는 쪽 머리말, 벌린 줄 수, 선택과목 이름. 그래서 같은
+   payload 를 양쪽에 넣고 **완성된 section XML 을 통째로** 견준다. */
+/* ⚠️ **여기서 못 보는 것 하나** — `framed` 를 구역별이 아니라 묶음별로 세는 결함은 이
+   표본으로 못 잡는다. 그 결함은 **두 묶음이 같은 구역으로 갈 때만** 드러나는데(구역이
+   하나뿐인 틀), 저장소의 틀에는 구역이 둘이라 그 상황을 만들 수 없다. 실제로 깨보기가
+   통과했다 — 검사가 옳아서가 아니라 표본이 거기 닿지 못해서다. */
+const stmt = (t) => ({ type: "statement", data: { text: t } });
+const ch = (items) => ({ type: "choices", data: { items } });
+const EXAM = {
+  round: "2026 대비 9월 모의고사", elective: "기하",
+  problems: [
+    { num: 1, sect: "공통", type: "choice", pts: 2, layoutResolved: "1", heightMm: 60,
+      blocks: [stmt("함수 $f(x)=2x+1$ 의 값은?"), ch(["$1$", "$2$", "$3$", "$4$", "$5$"])] },
+    { num: 2, sect: "공통", type: "choice", pts: 3, layoutResolved: "2", heightMm: 80,
+      blocks: [stmt("다음을 구하시오.\n$\\lim_{x\\to0}\\frac{\\sin x}{x}$"),
+               { type: "conditions", data: { items: ["(가) $a_1=1$", "$a_{n+1}=a_n+2$"] } },
+               ch(["$1$", "$2$", "$3$", "$4$", "$5$"])] },
+    { num: 3, sect: "공통", type: "choice", pts: 4, layoutResolved: "v", heightMm: 120, breakAfter: true,
+      blocks: [stmt("보기에서 옳은 것만 고른 것은?"),
+               { type: "examples", data: { items: ["$p$ 는 소수이다.", "$q$ 는 짝수이다."] } },
+               ch(["ㄱ", "ㄴ", "ㄱ, ㄴ", "ㄴ, ㄷ", "ㄱ, ㄴ, ㄷ"])] },
+    /* ⚠️ 단답형이 섞여야 구획 태그가 들어간다.
+       ⚠️ `heightMm` 은 아무 값이나 쓰면 안 된다 — 70 으로 두었더니 태그 높이(15.92mm)를
+          단 위 여백에 더하든 말든 **반올림 뒤 빈 문단 수가 같아** 깨보기가 통과했다.
+          65 는 그 경계를 넘는 값이다(7줄 ↔ 8줄). */
+    { num: 4, sect: "공통", type: "short", pts: 3, heightMm: 65,
+      blocks: [stmt("$f(3)$ 의 값을 구하시오.")] },
+    { num: 5, sect: "공통", type: "short", pts: 4, heightMm: 70,
+      blocks: [stmt("$g(2)$ 의 값을 구하시오.")] },
+    /* ⚠️ 선택과목 — 구역 1 로 가야 한다. 여기가 안 갈리면 머리말·쪽번호가 통째로 틀린다. */
+    { num: 23, sect: "선택", type: "choice", pts: 2, layoutResolved: "1", heightMm: 60,
+      blocks: [stmt("확률변수 $X$ 의 평균은?"), ch(["$1$", "$2$", "$3$", "$4$", "$5$"])] },
+    { num: 24, sect: "선택", type: "short", pts: 4, heightMm: 90,
+      blocks: [stmt("$E(X)$ 를 구하시오.")] },
+    /* ⚠️ 발문이 없어 시험지에서 빠져야 하는 문항 */
+    { num: 25, sect: "선택", type: "choice", layoutResolved: "1",
+      blocks: [ch(["$1$", "$2$", "$3$", "$4$", "$5$"])] },
+  ],
+};
+
+let pyExam;
+try {
+  pyExam = JSON.parse(execFileSync("python3", ["-c", PY_BUILD, JSON.stringify(EXAM)],
+                                   { cwd: ROOT, encoding: "utf8", maxBuffer: 64 << 20 }));
+} catch (e) {
+  console.log("시험지 대조를 건너뜁니다 — 파이썬 쪽 실패: "
+    + String(e.stderr || e.message).split("\n").filter(Boolean).slice(-1)[0]?.slice(0, 200));
+  process.exit(REQUIRE ? 1 : 0);
+}
+
+let jsExam;
+{
+  const browser5 = await chromium.launch();
+  try {
+    const page = await browser5.newPage();
+    await page.setContent("<!doctype html><meta charset=utf-8><title>시험지 대조</title>");
+    await page.addScriptTag({ path: join(ROOT, "hwpx-engine.js") });
+    await page.addScriptTag({ path: join(ROOT, "hwpx-exam-template.js") });
+    await page.addScriptTag({ path: join(ROOT, "hwpx-exam.js") });
+    jsExam = await page.evaluate(async ([b64, exam]) => {
+      const bin = atob(b64); const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      const { doc, roles } = await window.PedagogyExamTemplate.openTemplate(bytes.buffer);
+      const { blob, report } = await window.PedagogyExam.buildExam(doc, roles, exam);
+      const raw = new Uint8Array(await blob.arrayBuffer());
+      let rb = ""; for (let i = 0; i < raw.length; i++) rb += String.fromCharCode(raw[i]);
+      const ser = new XMLSerializer();
+      const out = { report, sections: {}, b64: btoa(rb) };
+      for (const i of [0, 1]) {
+        const paras = doc.paragraphs(i);
+        out.sections[i] = paras.map((p) => {
+          const xml = ser.serializeToString(p);
+          const tags = {};
+          for (const m of xml.matchAll(/<(?:\w+:)?(\w+)[\s/>]/g)) tags[m[1]] = (tags[m[1]] || 0) + 1;
+          return {
+            para: p.getAttribute("paraPrIDRef"), style: p.getAttribute("styleIDRef"),
+            pageBreak: p.getAttribute("pageBreak"), columnBreak: p.getAttribute("columnBreak"),
+            tags,
+            text: [...xml.matchAll(/<hp:t[^>]*>([\s\S]*?)<\/hp:t>/g)]
+              .map((m) => m[1]).join("").replace(/<[^>]+>/g, ""),
+            tabs: [...xml.matchAll(/<hp:tab width="(\d+)"/g)].map((m) => m[1]),
+            scripts: [...xml.matchAll(/<hp:script[^>]*>([\s\S]*?)<\/hp:script>/g)].map((m) => m[1]),
+          };
+        });
+      }
+      return out;
+    }, [templateB64, { ...EXAM, problems: EXAM.problems.map((p, i) => ({
+          ...p, units: pyExam.units[i].units, ptsAt: pyExam.units[i].ptsAt })) }]);
+  } finally { await browser5.close(); }
+}
+
+/* ⚠️ 검사가 초록불이어도 **한글이 열어 주는가**는 다른 질문이다(이 저장소가 두 번 겪었다).
+   `HWPX_EXAM_OUT=폴더` 로 두 파일을 남겨 `npm run test:hwpx-opens` 로 확인한다 —
+   파이썬 것과 **같은 실행에서** 함께 열어야 한글이 이상한 상태인지 가릴 수 있다. */
+if (process.env.HWPX_EXAM_OUT) {
+  const { writeFileSync, mkdirSync } = await import("node:fs");
+  mkdirSync(process.env.HWPX_EXAM_OUT, { recursive: true });
+  writeFileSync(join(process.env.HWPX_EXAM_OUT, "browser-exam.hwpx"), Buffer.from(jsExam.b64, "base64"));
+  console.log(`      → ${process.env.HWPX_EXAM_OUT}/browser-exam.hwpx · python-exam.hwpx`);
+}
+delete jsExam.b64;
+
+let bfails = 0;
+if (canon(pyExam.report) !== canon(jsExam.report)) {
+  console.log(`  ❌ 집계\n      파이썬 ${canon(pyExam.report)}\n      JS     ${canon(jsExam.report)}`);
+  bfails++;
+}
+for (const i of ["0", "1"]) {
+  const P = pyExam.sections[i] || [], J = jsExam.sections[i] || [];
+  if (P.length !== J.length) { console.log(`  ❌ 구역 ${i} 문단 수 — 파이썬 ${P.length} · JS ${J.length}`); bfails++; }
+  for (let k = 0; k < Math.min(P.length, J.length); k++) {
+    const A = canon(P[k]), B = canon(J[k]);
+    if (A === B) continue;
+    let at = 0; while (at < A.length && A[at] === B[at]) at++;
+    console.log(`  ❌ 구역 ${i} 문단 ${k}\n      파이썬 …${A.slice(Math.max(0, at - 50), at + 150)}\n      JS     …${B.slice(Math.max(0, at - 50), at + 150)}`);
+    bfails++;
+    if (bfails > 6) break;
+  }
+}
+/* ⚠️ 조립이 실제로 일어나야 한다 — 쪽나눔·단나눔·태그·상자가 하나도 없으면
+   빈 문서끼리 '같다' 로 통과한다. */
+const r = pyExam.report;
+for (const [name, v] of [["문항", r.problems], ["쪽나눔", r.pages], ["단나눔", r.breaks],
+                         ["구획 태그", r.tags], ["확인 사항", r.notes]]) {
+  if (!v) { console.log(`  ❌ ${name}이 0입니다 — 이 검사가 헛돌고 있습니다`); bfails++; }
+}
+if (r.problems !== 7) { console.log(`  ❌ 발문 없는 문항이 안 걸러졌습니다 — 문항 ${r.problems}개(7 이어야 한다)`); bfails++; }
+
+if (bfails) { console.log(`\n시험지가 갈라졌습니다 — ${bfails}건`); process.exit(1); }
+console.log(`시험지 한 부 대조 통과 — 문항 ${r.problems}개·쪽나눔 ${r.pages}회가 파이썬과 같습니다`);
