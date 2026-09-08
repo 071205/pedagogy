@@ -494,13 +494,14 @@ def _figure_bytes(value) -> bytes | None:
     ⚠️ **형식은 확장자가 아니라 바이트로 판정한다**(`image_size` 가 겸한다). 여기서는
        데이터 URL 껍데기만 벗기고, 아니면 None 을 준다 — 파일 경로로 떨어진다.
     """
-    if not isinstance(value, str) or not value.startswith("data:image/"):
+    if not isinstance(value, str) or len(value) > 4 * ((2 * 1024 * 1024 + 2) // 3) + 23:
         return None
     head, _, body = value.partition(",")
-    if "base64" not in head or not body:
+    if head not in ("data:image/png;base64", "data:image/jpeg;base64") or not body:
         return None
     try:
-        return base64.b64decode(body, validate=True)
+        data = base64.b64decode(body, validate=True)
+        return data if len(data) <= 2 * 1024 * 1024 else None
     except Exception:      # noqa: BLE001 — 깨진 데이터는 없는 것으로 본다
         return None
 
@@ -509,8 +510,9 @@ def _place_image(doc: HwpxDocument, data: bytes, name: str, width_mm: float,
                  para: str, rep: Report) -> bool:
     """그림 한 장을 심는다. 크기를 못 읽으면 False."""
     size = image_size(data)
-    if not size or not size[0]:
+    if not size or not size[0] or not size[1]:
         return False
+    name = (Path(name).stem or "figure") + (".png" if data.startswith(b"\x89PNG") else ".jpg")
     w = round(width_mm * MM_TO_HWPUNIT)
     h = round(w * size[1] / size[0])          # 비율 유지
     doc.append_paragraph("", section_index=cur_sec(),

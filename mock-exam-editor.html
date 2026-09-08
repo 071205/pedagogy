@@ -521,6 +521,7 @@ body.embedded .brand-tag{margin-left:0}
 .btn.needs-server{opacity:.62}
 .btn.needs-server::after{content:"·서버";font-size:10px;opacity:.7;margin-left:4px}
 </style>
+<script src="exam-template-data.js"></script>
 </head>
 <body>
 
@@ -2212,9 +2213,15 @@ function saveHwpxBlob(blob){
    ⚠️ 이것이 이 이식의 목적이다. 예전에는 `python3 serve.py` 를 켜야만 한글 파일이
       나왔고, 윈도우 사용자에게 터미널을 열게 할 수는 없었다. */
 async function hwpxInBrowser(payload){
-  const res=await fetch(EXAM_TEMPLATE_URL);
-  if(!res.ok) throw new Error('시험지 틀을 받지 못했습니다 ('+res.status+')');
-  const {doc,roles}=await window.PedagogyExamTemplate.openTemplate(await res.arrayBuffer());
+  let bytes;
+  if(location.protocol==='file:'){
+    bytes=Uint8Array.from(atob(window.PEDAGOGY_EXAM_TEMPLATE_BASE64),c=>c.charCodeAt(0)).buffer;
+  }else{
+    const res=await fetch(EXAM_TEMPLATE_URL);
+    if(!res.ok) throw new Error('시험지 틀을 받지 못했습니다 ('+res.status+')');
+    bytes=await res.arrayBuffer();
+  }
+  const {doc,roles}=await window.PedagogyExamTemplate.openTemplate(bytes);
   const {blob,report}=await window.PedagogyExam.buildExam(doc,roles,payload);
   saveHwpxBlob(blob);
   const n=report.warnings.length;
@@ -2292,7 +2299,8 @@ function normBlockM(b,S){
      PNG·JPEG 만, 크기 상한도 여기서 다시 본다(UI 검사는 편의일 뿐이다). */
   const raw=typeof d.data==='string'?d.data:'';
   const okData=/^data:image\/(png|jpeg);base64,[A-Za-z0-9+/=]+$/.test(raw)
-               && raw.length<=MAX_FIG_BYTES*2 ? raw : '';
+               && raw.length-raw.indexOf(',')-1<=4*Math.ceil(MAX_FIG_BYTES/3)
+               && (()=>{try{return atob(raw.split(',')[1]).length<=MAX_FIG_BYTES;}catch{return false;}})() ? raw : '';
   return {type:'image',data:{width:Math.max(0,Math.min(110,+d.width||0)),
                              src:S(d.src,'').replace(/["\\]/g,''), data:okData}};
 }

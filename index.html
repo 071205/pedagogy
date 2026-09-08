@@ -2366,7 +2366,7 @@ function normSet(s, opts){
               폴더 id 는 여기서 뜻이 없고, 두면 '알 수 없는 폴더' 만 늘어난다.
               ⚠️ `lossless` 가 아니라 `keepId` 를 따른다 — 이건 '얼마나 자를까' 가 아니라
                  '이 문서가 내 것인가' 의 문제다(코덱스가 두 결정을 갈라 놓았다). */
-           folderId:keepId?str(s.folderId,60):"", problems };
+           ...(keepId ? (Object.hasOwn(s,"folderId")?{folderId:str(s.folderId,60)}:{}) : {folderId:""}), problems };
 }
 
 /* ── 계정별로 갈라 두는 로컬 키 ──
@@ -2573,13 +2573,13 @@ const setJSON = s => JSON.stringify({
   lineColor:normSheetColor(s.lineColor), subject:normSubject(s.subject),
   /* ⚠️ **폴더도 여기 들어가야 한다.** 빠지면 폴더만 바꿨을 때 `isCloudSynced()` 가
      '안 바뀌었다' 고 답해 **다른 기기로 영영 안 올라간다**(코덱스 `HANDOFF-2026-070` §2). */
-  folderId:str(s.folderId,60)
+  ...(libraryCloudEnabled()?{folderId:str(s.folderId,60)}:{})
 });
 const normOrder = v => Math.max(0, Math.floor(Number(v)||0));
 const cloudSyncEntry = (s, order) => ({json:setJSON(s), order:normOrder(order)});
 function isCloudSynced(s, order){
   const prev=cloudSynced.get(s.id);
-  return !!prev && prev.json===setJSON(s) && prev.order===normOrder(order);
+  return !!prev && prev.json===setJSON({...s,folderId:liveFolderId(s.folderId)}) && prev.order===normOrder(order);
 }
 
 /* 문제집 하나를 클라우드 문서 모양으로 */
@@ -2590,7 +2590,7 @@ function setToDoc(s, order){
   //    안 넣으면 저장이 통째로 '권한 오류' 로 실패한다.
   return { id:String(s.id), name:s.name||"", header:s.header||"", problems:s.problems||[],
            lineColor:normSheetColor(s.lineColor), subject:normSubject(s.subject),
-           folderId:str(s.folderId,60),
+           ...(libraryCloudEnabled()?{folderId:liveFolderId(s.folderId)}:{}),
            order:normOrder(order), deleted:false, updatedAt:Date.now() };
 }
 
@@ -2605,6 +2605,7 @@ function docToSet(d){
                   {keepId:true, lossless:true});
   if(!s) return null;
   if(typeof d.id==="string" && d.id) s.id=d.id;
+  if(!Object.hasOwn(d,"folderId")) delete s.folderId;
   return s;
 }
 
@@ -2666,7 +2667,7 @@ async function loadSets(){
       const cloudEntries=snap.docs.map(d=>d.data()).filter(Boolean);
       /* ⚠️ 폴더 **이름 목록**은 문제집과 다른 문서에 있다 — 함께 읽어야 칩에 이름이 뜬다.
          ⚠️ 이것이 실패해도 문제집 읽기는 계속한다(폴더는 편의, 문제집은 본체다). */
-      loadLibraryPrefs(session).catch(e=>console.warn('폴더 설정 읽기 실패', e));
+
 
       // ── 구버전(users/{uid}.sets 배열)에서 한 번만 이관 ──
       if(!cloudEntries.length){
@@ -2695,6 +2696,8 @@ async function loadSets(){
 
       if(shouldUseCloudResult(cloudEntries, merged)){
         sets=merged;
+        await loadLibraryPrefs(session);
+        if(!sessionMatches(session)) return;
         cloudSynced=new Map(cloudEntries.filter(e=>!e.deleted)
           .map(e=>{ const s=docToSet(e); return s?[s.id,cloudSyncEntry(s,e.order)]:null; }).filter(Boolean));
         writeLocalNow();       // 클라우드에서 막 읽어 온 결과 — 즉시 확정
@@ -2710,6 +2713,8 @@ async function loadSets(){
     }
   }
   loadSetsLocal();
+  await loadLibraryPrefs(session);
+  if(!sessionMatches(session)) return;
   // 클라우드가 비어 있던 새 계정도 구독은 걸어 둔다 — 다른 기기에서 만든
   // 문제집이 나중에 올라오면 이 탭에도 바로 반영되게.
   if(currentUser) watchCloud();
@@ -2879,10 +2884,24 @@ function applySnapshot(snap){
    예전에는 로컬에만 썼다. 그 결과 (1) 되돌린 내용이 클라우드로 안 올라가고,
    (2) 되돌리기 직전에 예약돼 있던 저장 타이머가 뒤늦게 터지면서 '되돌리기 전'
    상태를 클라우드에 올려 로컬과 어긋났다. 이제 예약을 취소하고 다시 예약한다. */
-function persistAfterHistory(){
+function persistAfterHistory(previousSets=[]){
+  const session=sessionContext();
+  // Redo (or undoing creation) removes sets too; send those tombstones before restoration saves.
+  for(const removed of previousSets.filter(s=>!sets.some(x=>x.id===s.id))){
+    deleteSetEverywhere(removed).catch(e=>{
+      if(!sessionMatches(session)) return;
+      if(!sets.some(x=>x.id===removed.id)) sets.push(removed);
+      deletedIds.delete(removed.id); saveSets(); refreshAfterHistory();
+      toast("되돌리기 삭제 저장 실패 · 문제집을 보존했어요","error");
+    });
+  }
+  localDirty=true;
   flushLocal();          // 되돌리기는 한 번의 동작이라 즉시 쓴다
   // 되돌리기로 바뀐 문제집들의 수정 시각을 갱신해야 병합에서 최신으로 인정된다
-  sets.forEach((s,i)=>{ if(!isCloudSynced(s,i)) touchSet(s.id); });
+  sets.forEach((s,i)=>{ if(!isCloudSynced(s,i) || deletedIds.has(s.id)){
+    touchSet(s.id); localStamps[s.id]=Math.max(localStamps[s.id],(deletedIds.get(s.id)||0)+1);
+  } });
+  writeStamps(localStamps);
   if(currentUser){
     clearTimeout(saveTimer);
     const uidAtSave=currentUser.uid;
@@ -2899,9 +2918,10 @@ function doUndo(){
   const prev=undoStack.pop();
   redoStack.push(cur);
   trimHistory();
+  const previousSets=sets;
   applySnapshot(prev);
   lastSnapshot=snapshot();
-  persistAfterHistory();
+  persistAfterHistory(previousSets);
   // 화면 갱신
   refreshAfterHistory();
   isRestoring=false;
@@ -2916,9 +2936,10 @@ function doRedo(){
   const next=redoStack.pop();
   undoStack.push(cur);
   trimHistory();
+  const previousSets=sets;
   applySnapshot(next);
   lastSnapshot=snapshot();
-  persistAfterHistory();
+  persistAfterHistory(previousSets);
   refreshAfterHistory();
   isRestoring=false;
   updateHistButtons();
@@ -3040,9 +3061,9 @@ async function writeCloudSnapshot(uidAtSave,session){
     setSaveStatus(""); return;
   }
   const dirty=sets.map((s,i)=>({s,i})).filter(({s,i})=>!isCloudSynced(s,i))
-    .map(({s,i})=>({id:s.id, doc:JSON.parse(JSON.stringify(setToDoc(s,i))), entry:cloudSyncEntry(s,i)}));
+    .map(({s,i})=>({id:s.id, doc:JSON.parse(JSON.stringify(setToDoc(s,i))), entry:cloudSyncEntry(setToDoc(s,i),i)}));
   // 순서만 바뀐 경우도 cloudSyncEntry 의 order 비교로 포함한다.
-  if(!dirty.length){ setSaveStatus(""); return; }
+  if(!dirty.length){ setSaveStatus(""); return true; }
   try{
     // 500개는 배치 상한. 한 번에 그만큼 바뀌는 일은 없지만 안전하게 나눠 보낸다
     for(let off=0; off<dirty.length; off+=400){
@@ -3062,6 +3083,7 @@ async function writeCloudSnapshot(uidAtSave,session){
     }
     setSaveStatus("✓ 저장됨", "#81c784");
     setTimeout(()=>{if(sessionMatches(session) && !hasUnsavedCloudWork()) setSaveStatus("");}, 2000);
+    return true;
   }catch(e){
     if(!sessionMatches(session)) return;
     console.error('Firestore 저장 실패:', e);
@@ -3078,6 +3100,7 @@ async function writeCloudSnapshot(uidAtSave,session){
     else toast(localDirty ? "로컬·클라우드 저장에 실패했어요 · 창을 닫지 말고 JSON으로 내보내 주세요"
       : "클라우드 저장에 실패했어요 · 이 기기에는 저장돼 있습니다","error");
     setSaveStatus(msg, "#e57373");
+    return false;
   }
 }
 
@@ -3155,24 +3178,24 @@ function releaseProblemImages(q){
   if(isStorageUrl(q.answerImg)) releaseImage(q.answerImg);
   (q.blocks||[]).forEach(releaseBlockImages);
 }
-async function deleteSetEverywhere(removed){
-  if(!removed || !currentUser || !fbReady) return;
-  const owner=currentUser.uid;
-  deletedIds.set(removed.id, Date.now());
-  try{
+function deleteSetEverywhere(removed){
+  if(!removed || !currentUser || !fbReady) return Promise.resolve();
+  const owner=currentUser.uid, session=sessionContext();
+  const deletedAt=Date.now();
+  deletedIds.set(removed.id, deletedAt);
+  // Deletion and ordinary/Undo saves share one queue, including an already in-flight save.
+  const task=cloudSaveQueue.catch(()=>{}).then(async()=>{
+    if(!sessionMatches(session) || wiping) return;
     await SETS_COL(owner).doc(String(removed.id)).set({
-      id:String(removed.id), deleted:true, updatedAt:Date.now(), order:0,
-      name:"", header:"", problems:[], lineColor:"", subject:""
+      ...setToDoc({id:removed.id,name:"",header:"",problems:[]},0),
+      deleted:true, updatedAt:deletedAt
     });
+    if(!sessionMatches(session)) return;
     cloudSynced.delete(removed.id);
-  }catch(e){
-    console.warn('클라우드 삭제 실패:', e);
-    toast("이 기기에서는 지웠지만 클라우드에는 남아 있어요 · 다른 기기에서 되살아날 수 있습니다","error");
-  }
-  // 문제집 삭제도 Undo/백업이 참조할 수 있으므로 원본을 보존한다.
-  for(const url of storagePathsOf(removed)){
-    releaseImage(url);
-  }
+    for(const url of storagePathsOf(removed)) releaseImage(url);
+  });
+  cloudSaveQueue=task;
+  return task;
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -3295,7 +3318,7 @@ function normLibMeta(m){
     }
     return out;
   };
-  return { folders,
+  return { folders, syncPending:o.syncPending===true,
            folderBySetId:map(o.folderBySetId,5000),
            /* ⚠️ 폴더 삭제도 tombstone 이 필요하다 — 소속만 풀고 목록에서 지우면 다른
               기기의 예전 소속이 다음 저장 때 **삭제한 폴더를 되살린다**(코덱스 §1). */
@@ -3317,15 +3340,24 @@ function writeLibMeta(){
 const folderName=(id)=>{ const f=libMeta.folders.find(x=>x.id===id); return f?f.name:""; };
 /* ⚠️ **소속의 정본은 이제 문제집 문서다**(B단계). `libMeta.folderBySetId` 는 이관이 끝나기
    전의 옛 데이터만 남아 있는 자리라, 문제집에 값이 없을 때만 본다. */
+function libraryCloudEnabled(){
+  return window.PEDAGOGY_PUBLIC_CONFIG?.libraryCloudSchema===1;
+}
+function liveFolderId(id){
+  const fid=str(id,60);
+  return Object.hasOwn(libMeta.folderTombstones,fid)?"":fid;
+}
 function folderOf(setId){
   const s=sets.find(x=>x.id===setId);
-  if(s && typeof s.folderId==="string" && s.folderId) return s.folderId;
-  return libMeta.folderBySetId[setId]||"";
+  const fid=libraryCloudEnabled() && s && typeof s.folderId==="string"
+    ? s.folderId : libMeta.folderBySetId[setId] ?? s?.folderId ?? "";
+  return liveFolderId(fid);
 }
 function setFolder(setId, folderId){
-  const s=sets.find(x=>x.id===setId);
-  if(s) s.folderId=folderId||"";
-  delete libMeta.folderBySetId[setId];   // 정본이 옮겨졌으니 옛 자리는 비운다
+  const s=sets.find(x=>x.id===setId), fid=liveFolderId(folderId);
+  if(libraryCloudEnabled() && s){
+    s.folderId=fid; delete libMeta.folderBySetId[setId]; touchSet(setId);
+  }else libMeta.folderBySetId[setId]=fid;
 }
 /* ⚠️ **모르는 folderId 를 조용히 버리지 않는다.** 다른 기기에서 만든 폴더가 아직 안
    내려왔을 수 있다 — 화면에서는 `알 수 없는 폴더` 로 묶고 소속은 그대로 둔다. */
@@ -3362,64 +3394,88 @@ function libSorted(list){
  */
 const PREFS_DOC = (uid) => fbDb.collection('users').doc(uid).collection('prefs').doc('library');
 
+function mergeLibraryPrefs(local, remote){
+  const tomb={...local.folderTombstones};
+  for(const [id,t] of Object.entries(remote.folderTombstones||{}))
+    tomb[id]=Math.max(Number(t)||0,Number(tomb[id])||0);
+  const byId=new Map();
+  for(const f of [...(remote.folders||[]),...local.folders]) byId.set(f.id,f);
+  const folders=[...byId.values()].filter(f=>!Object.hasOwn(tomb,f.id));
+  if(folders.length>200 || Object.keys(tomb).length>500) throw Error('폴더 설정 한도를 넘었습니다');
+  return {folders,folderTombstones:tomb};
+}
+let prefsUnsub=null;
+function applyLibraryPrefs(data){
+  const remote=normLibMeta(data);
+  const merged=libMeta.syncPending?mergeLibraryPrefs(libMeta,remote):mergeLibraryPrefs(remote,libMeta);
+  Object.assign(libMeta,merged);
+  // A deleted folder ID is never reused. Keep raw incoming membership until a set save.
+  writeLibMeta(); renderLibrary();
+}
 async function loadLibraryPrefs(session){
-  if(!currentUser || !fbReady) return;
+  if(!currentUser || !fbReady || !libraryCloudEnabled()) return;
   const owner=currentUser.uid;
   try{
     const snap=await PREFS_DOC(owner).get();
-    if(!sessionMatches(session)) return;              // 읽는 사이 계정이 바뀌었다
-    const d=snap.exists?snap.data():null;
-    if(d){
-      /* ⚠️ 클라우드도 신뢰 경계다 — 한 번 정규화해서 들인다. */
-      const cloud=normLibMeta({folders:d.folders, folderTombstones:d.folderTombstones});
-      /* 삭제된 폴더는 되살리지 않는다. tombstone 이 그래서 있다. */
-      const tomb={...libMeta.folderTombstones, ...cloud.folderTombstones};
-      const byId=new Map();
-      [...cloud.folders, ...libMeta.folders].forEach(f=>{ if(!byId.has(f.id)) byId.set(f.id,f); });
-      libMeta.folders=[...byId.values()].filter(f=>!tomb[f.id]);
-      libMeta.folderTombstones=tomb;
-    }
+    if(!sessionMatches(session)) return;
+    if(snap.exists) applyLibraryPrefs(snap.data());
     await migrateFoldersToCloud(session);
-    writeLibMeta();
+    if(!sessionMatches(session)) return;
+    if(prefsUnsub) prefsUnsub();
+    prefsUnsub=PREFS_DOC(owner).onSnapshot(s=>{
+      if(sessionMatches(session) && s.exists) applyLibraryPrefs(s.data());
+    },e=>console.warn('폴더 구독 실패',e));
   }catch(e){ console.warn('폴더 설정을 읽지 못했습니다(이 기기 것으로 계속합니다)', e); }
 }
-
-let prefsSaveTimer=null;
+let prefsSaveTimer=null, libraryEditEpoch=0;
 function saveLibraryPrefs(){
+  libraryEditEpoch++;
+  libMeta.syncPending=libraryCloudEnabled();
   writeLibMeta();
-  if(!currentUser || !fbReady || wiping) return;
-  const owner=currentUser.uid, session=sessionContext();
+  if(!currentUser || !fbReady || wiping || !libraryCloudEnabled()) return;
+  const session=sessionContext();
   clearTimeout(prefsSaveTimer);
-  prefsSaveTimer=setTimeout(async ()=>{
-    if(!sessionMatches(session) || wiping) return;
-    try{
-      await PREFS_DOC(owner).set({ folders:libMeta.folders,
-                                   folderTombstones:libMeta.folderTombstones,
-                                   updatedAt:Date.now() });
-    }catch(e){
-      console.warn('폴더 설정을 올리지 못했습니다', e);
-      toast('폴더 설정을 클라우드에 올리지 못했어요 · 이 기기에는 저장돼 있습니다','error');
-    }
-  }, 400);
+  prefsSaveTimer=setTimeout(()=>{if(!sessionMatches(session)) return; return retryLibrarySync().catch(e=>{
+    if(!sessionMatches(session)) return;
+    console.warn('폴더 설정 저장 실패',e);
+    renderLibrary(); toast('폴더 설정 저장 실패 · 폴더 동기화 재시도를 눌러 주세요','error');
+  });},400);
 }
-
-/* A단계에서 로컬에만 있던 소속을 문제집 문서로 한 번 옮긴다.
-   ⚠️ 옮긴 뒤에도 **로컬 지도를 지우지 않는다** — 이 저장이 실패하면 소속이 통째로
-      사라진다. `folderOf()` 가 문제집 값을 먼저 보므로 남아 있어도 해가 없고,
-      다음 성공한 저장에서 `setFolder()` 가 정리한다. */
-async function migrateFoldersToCloud(session){
-  const pending=Object.entries(libMeta.folderBySetId);
-  if(!pending.length) return;
-  let moved=0;
-  for(const [setId, fid] of pending){
-    const s=sets.find(x=>x.id===setId);
-    if(!s || (typeof s.folderId==="string" && s.folderId)) continue;
-    s.folderId=String(fid).slice(0,60); moved++;
+async function persistLibraryPrefs(session){
+  if(!sessionMatches(session) || wiping || !libraryCloudEnabled()) return;
+  const local=JSON.parse(JSON.stringify(libMeta)), ref=PREFS_DOC(session.uid);
+  const merged=await fbDb.runTransaction(async tx=>{
+    const snap=await tx.get(ref);
+    const next=mergeLibraryPrefs(local,normLibMeta(snap.exists?snap.data():null));
+    tx.set(ref,{...next,updatedAt:Date.now()});
+    return next;
+  });
+  if(sessionMatches(session)) applyLibraryPrefs(merged);
+}
+async function retryLibrarySync(){
+  const session=sessionContext(), revision=libraryEditEpoch;
+  if(!currentUser || !fbReady || !libraryCloudEnabled()) return;
+  try{
+    await persistLibraryPrefs(session);
+    if(!sessionMatches(session)) return;
+    const ok=await flushToCloud(session.uid);
+    if(!sessionMatches(session)) return;
+    libMeta.syncPending=ok!==true || revision!==libraryEditEpoch; writeLibMeta(); renderLibrary();
+    if(libMeta.syncPending) toast('폴더 소속 저장 실패 · 다시 시도해 주세요','error');
+  }catch(e){
+    if(sessionMatches(session)){libMeta.syncPending=true;writeLibMeta();renderLibrary();
+      toast('폴더 동기화 실패 · 다시 시도해 주세요','error');}
   }
-  if(!moved) return;
-  if(!sessionMatches(session)) return;
-  console.info(`폴더 소속 ${moved}개를 문제집 문서로 옮깁니다.`);
-  saveSets();
+}
+async function migrateFoldersToCloud(session){
+  if(!sessionMatches(session) || !libraryCloudEnabled()) return;
+  let moved=0;
+  for(const [setId,fid] of Object.entries(libMeta.folderBySetId)){
+    const s=sets.find(x=>x.id===setId);
+    if(!s || typeof s.folderId==='string') continue;
+    s.folderId=liveFolderId(fid); touchSet(setId); moved++;
+  }
+  if(moved) saveSets();
 }
 
 function accountLocalKeys(){
@@ -3455,7 +3511,7 @@ async function wipeCloudSets(uid, ids, {realDelete}){
       if(realDelete) batch.delete(ref);
       else batch.set(ref,{ id:String(id), deleted:true, updatedAt:Date.now(),
                            order:0, name:"", header:"", problems:[],
-                           lineColor:"", subject:"" });
+                           lineColor:"", subject:"", ...(libraryCloudEnabled()?{folderId:""}:{}) });
     });
     await batch.commit();
     if(!realDelete) ids.slice(i,i+CHUNK).forEach(id=>deletedIds.set(id, Date.now()));
@@ -3750,9 +3806,8 @@ $("#selMoveBtn").onclick=()=>{
 $("#selExportBtn").onclick=()=>{
   const picked=sets.filter(s=>libPicked.has(s.id));
   if(!picked.length) return;
-  /* ⚠️ 내보내는 JSON 에는 폴더 소속을 싣지 않는다 — 남의 기기에서 그 id 는 뜻이 없다.
-     `sets` 원소를 그대로 쓰므로 folderId 가 애초에 들어 있지 않다(A단계는 전부 별도 저장). */
-  const blob=new Blob([JSON.stringify(picked,null,2)],{type:"application/json"});
+  // External imports discard folderId; omit it from selected exports as well.
+  const blob=new Blob([JSON.stringify(picked.map(({folderId,...s})=>s),null,2)],{type:"application/json"});
   const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
   a.download=`pedagogy-${picked.length}개.json`; a.click();
   setTimeout(()=>URL.revokeObjectURL(a.href),1000);
@@ -3761,26 +3816,27 @@ $("#selExportBtn").onclick=()=>{
 $("#selDeleteBtn").onclick=async ()=>{
   const picked=sets.filter(s=>libPicked.has(s.id));
   if(!picked.length) return;
-  /* ⚠️ **'되돌릴 수 있다' 고 말하지 않는다**(코덱스 §3). 지금 삭제는 화면에서 먼저 빼고
-     tombstone 을 **비동기로** 쓴다. 즉시 ⌘Z 하면 복원 저장과 늦은 tombstone 이 경쟁해
-     복원본이 다시 지워질 수 있다. 그 큐 계약이 생기기 전에는 약속하지 않는다. */
-  if(!confirm(`문제집 ${picked.length}개를 지울까요?\n\n· 이 기기의 백업에는 남지만 ⌘Z 로는 되돌릴 수 없어요\n· 계속하려면 확인을 눌러 주세요`)) return;
+  // Remove synchronously, enqueue remote deletes before the ordinary/Undo save queue.
+  if(!confirm(`문제집 ${picked.length}개를 지울까요?\n\n· ⌘Z로 되돌릴 수 있어요\n· 계속하려면 확인을 눌러 주세요`)) return;
   const btn=$("#selDeleteBtn"); btn.disabled=true;
-  const failed=[];
-  /* 한 장 지우기와 **같은 경로**를 쓴다 — tombstone 과 이미지 정리가 거기 있다. */
-  for(const s of picked){
-    const at=sets.indexOf(s);
-    if(at<0) continue;
-    sets.splice(at,1);
-    delete libMeta.folderBySetId[s.id];
-    try{ await deleteSetEverywhere(s); }
-    catch(e){ console.warn("클라우드 삭제 실패", s.id, e); failed.push(s.name||s.id); }
-  }
+  const session=sessionContext();
+  flushHistory();
+  sets=sets.filter(s=>!libPicked.has(s.id));
   if(!sets.length) sets=[{id:uid(),name:"새 문제집",header:"",problems:[newProblem()]}];
-  writeLibMeta(); saveSets();
-  libPicked.clear(); btn.disabled=false; renderLibrary();
-  if(failed.length) toast(`${failed.length}개를 지우지 못했어요 · ${failed.slice(0,3).join(", ")}`,"error");
-  else toast(`${picked.length}개를 지웠어요`,"success");
+  let completed=0;
+  const tasks=picked.map(s=>deleteSetEverywhere(s).finally(()=>{
+    if(sessionMatches(session)) btn.textContent=`삭제 ${++completed}/${picked.length}`;
+  }));
+  saveSets(); flushHistory(); renderLibrary();
+  const results=await Promise.allSettled(tasks);
+  if(!sessionMatches(session)) return;
+  const failed=picked.filter((s,i)=>results[i].status==='rejected');
+  // Failed IDs stay visible and selected so the same button safely retries them.
+  for(const s of failed){ if(!sets.some(x=>x.id===s.id)) sets.push(s); deletedIds.delete(s.id); }
+  libPicked.clear(); failed.forEach(s=>libPicked.add(s.id));
+  saveSets(); btn.disabled=false; btn.textContent=t("lib.delete","삭제"); renderLibrary();
+  if(failed.length) toast(`${failed.length}개 삭제 실패 · 선택된 문제집을 다시 시도해 주세요`,"error");
+  else toast(`${picked.length}개를 지웠어요 · ⌘Z로 되돌릴 수 있어요`,"success");
 };
 
 /* ── 설정 ─────────────────────────────────────────────────────────────── */
@@ -3953,6 +4009,10 @@ let setSearchTerm="";
 function renderFolderBar(){
   const bar=$("#folderBar"); if(!bar) return;
   bar.innerHTML="";
+  if(libMeta.syncPending && currentUser && libraryCloudEnabled()){
+    const retry=el("button","folder-chip","폴더 동기화 재시도");
+    retry.onclick=()=>{retry.disabled=true;void retryLibrarySync();};bar.append(retry);
+  }
   const counts={};
   sets.forEach(x=>{ const f=folderOf(x.id)||"__none"; counts[f]=(counts[f]||0)+1; });
   const chip=(id,label,n)=>{
@@ -3997,12 +4057,15 @@ function renderFolderBar(){
       '폴더 삭제' 가 '문제집 삭제' 로 읽히면 되돌릴 수 없는 손실이 된다.
    ⚠️ 그리고 **tombstone 을 남긴다**(코덱스 §1) — 안 남기면 다른 기기의 예전 소속이
       다음 병합에서 삭제한 폴더를 되살린다. */
-function folderMenu(f){
+async function folderMenu(f){
   const what=prompt(`'${f.name}' — 새 이름을 적으면 이름이 바뀝니다.\n비우고 확인하면 폴더를 지웁니다(문제집은 그대로 남아요).`, f.name);
   if(what===null) return;
   const name=what.trim();
   if(name){ f.name=name.slice(0,60); saveLibraryPrefs(); renderFolderBar(); renderLibrary(); return; }
   if(!confirm(`'${f.name}' 폴더를 지울까요?\n\n· 안에 있던 문제집은 지워지지 않고 '폴더 없음' 으로 갑니다\n· 폴더만 사라집니다`)) return;
+  if(Object.keys(libMeta.folderTombstones).length>=500 && !Object.hasOwn(libMeta.folderTombstones,f.id)){
+    toast("폴더 삭제 기록 한도에 도달했어요","error"); return;
+  }
   Object.keys(libMeta.folderBySetId).forEach(sid=>{
     if(libMeta.folderBySetId[sid]===f.id) delete libMeta.folderBySetId[sid];
   });
@@ -4011,7 +4074,12 @@ function folderMenu(f){
   libMeta.folderTombstones[f.id]=Date.now();
   libMeta.folders=libMeta.folders.filter(x=>x.id!==f.id);
   if(libFolderFilter===f.id) libFolderFilter="";
-  saveLibraryPrefs(); saveSets(); renderFolderBar(); renderLibrary();
+  libraryEditEpoch++; libMeta.syncPending=libraryCloudEnabled();
+  writeLibMeta(); renderLibrary(); saveSets();
+  if(currentUser && fbReady && libraryCloudEnabled()) await retryLibrarySync();
+
+  renderFolderBar(); renderLibrary();
+  if(libMeta.syncPending && currentUser) return;
   toast("폴더를 지웠어요 · 문제집은 '폴더 없음' 에 있어요","success");
 }
 
@@ -4154,13 +4222,20 @@ function renderLibrary(){
     bDel.onclick=async (e)=>{
       e.stopPropagation();
       if(!confirm(`'${s.name||"제목 없음"}' 문제집을 삭제할까요?`)) return;
+      flushHistory();
       const removed=s;
       sets.splice(idx,1);
       if(!sets.length) sets=[{id:uid(),name:"새 문제집",header:"",problems:[newProblem()]}];
-      saveSets(); renderLibrary(); toast("문제집을 삭제했어요");
+      const deletion=deleteSetEverywhere(removed), session=sessionContext();
+      saveSets(); flushHistory(); renderLibrary();
       // 클라우드에서도 지운다 — tombstone 을 남겨야 다른 기기의 오래된 사본이
       // 다음 접속에 이 문제집을 되살리지 않는다. 이미지도 함께 정리한다.
-      await deleteSetEverywhere(removed);
+      try{ await deletion; if(sessionMatches(session)) toast("문제집을 삭제했어요"); }
+      catch(e){ if(sessionMatches(session)){
+        if(!sets.some(x=>x.id===removed.id)) sets.push(removed);
+        deletedIds.delete(removed.id); saveSets(); renderLibrary();
+        toast("삭제 실패 · 문제집을 다시 시도해 주세요","error");
+      } }
     };
 
     grid.append(card);
@@ -6917,10 +6992,19 @@ const onAuth=async (user)=>{
     authEpoch++;
     clearTimeout(saveTimer);
     if(setsUnsub){ setsUnsub(); setsUnsub=null; }   // 이전 계정 구독 해제
+    if(prefsUnsub){ prefsUnsub(); prefsUnsub=null; }
+    clearTimeout(prefsSaveTimer);
     cloudSynced.clear(); deletedIds.clear();
     sets=[]; currentSetId=null; currentQId=null;
   }
+  const changedOwner=(currentUser?.uid||null)!==(user?.uid||null);
   currentUser=user;
+  if(changedOwner){
+    readLibMeta(); libPicked.clear(); libFolderFilter=""; libPicking=false;
+    $("#selDeleteBtn").disabled=false;
+    try{uiLangPref=localStorage.getItem(langKey())||"system";}catch{uiLangPref="system";}
+    applyUiLang();
+  }
   const session=sessionContext();
   migrateSharedLocalCache();   // 예전 공용 캐시가 있으면 지금 계정 칸으로
   migrateSharedAuxKeys();

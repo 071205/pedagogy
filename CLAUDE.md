@@ -1168,3 +1168,23 @@ undo/redo 후 클라우드 반영, `redoStack` 메모리 상한, AI 응답 `norm
 JSON 가져오기 크기·개수 상한, Storage 고아 이미지 정리, serve.py Host 검사(DNS 리바인딩),
 `/health` 로컬 경로 노출 제거, Typst `//` 주석 버그(`tq()`), 모의고사 `esc()` 따옴표 방어,
 죽은 `gauge()` 제거, Worker 키 이름 문서 불일치.
+
+
+### 2026-09-08 독립 검토: 실행 방식별 지원 범위
+
+- 일반 `<script src>` 분리는 `file://`에서도 가능하다. 다른 고전 스크립트의 최상위
+  `const`/`let`도 같은 global lexical environment에서 접근할 수 있다(`window` 속성은 아니다).
+  명시적 namespace는 의존성·중복 선언을 관리하기 위한 선택이다.
+- 정적 HTTP(S): 모의고사 및 AI 문서 HWPX는 변환 API 서버 없이 템플릿을 fetch한다.
+- `file://`: 본체 편집과 모의고사 HWPX(내장 PNG/JPEG 포함)는 지원한다. 모의고사 틀은
+  `exam-template-data.js`를 사용한다. 원본 틀 변경 시 `node scripts/build-exam-template.mjs`로
+  재생성하고 `--check`로 원본과 일치를 확인한다.
+- AI 문서 HWPX는 아직 `templates/blank.hwpx` fetch를 사용하므로 `file://` 예외다.
+  정적 HTTP(S)로 열거나 기존 로컬 서버 대비 경로를 사용한다.
+- 파일 이름만 있는 모의고사 그림 및 Typst 정본 미리보기에는 로컬 서버가 필요하다.
+- 라이브러리 클라우드 스키마는 `service-config.js`의 `libraryCloudSchema:1`로 명시한다.
+  구형 Rules를 쓰는 배포는 코드 공개 전에 0으로 설정한다. 0에서는 소속을 계정별 로컬
+  metadata에만 쓰며 set 저장 요청에는 folderId를 넣지 않는다. Rules 수정은 로컬 검증만
+  했고 이번 검토에서 운영 배포 여부를 조회하거나 배포하지 않았다.
+
+구조 분리 승인 조건·검사 근거는 HANDOFF-2026-073을 따른다.

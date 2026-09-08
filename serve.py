@@ -41,6 +41,7 @@ PPI_MIN, PPI_MAX = 48, 400   # 레티나에서 크게 확대하면 200 으로는
 
 # 정적 파일 화이트리스트 — 여기 없는 이름은 어떤 경로로도 못 가져간다
 STATIC = {
+    "/exam-template-data.js": ("exam-template-data.js", "application/javascript; charset=utf-8"),
     # / 는 index.html(PEDAGOGY)이 같은 폴더에 있으면 그쪽을, 없으면 모의고사 편집기를 연다
     "/": ("index.html" if (HERE / "index.html").is_file() else "mock-exam-editor.html",
           "text/html; charset=utf-8"),

@@ -10,7 +10,7 @@
 독립 보안·안정성·효율성 분석과 수정 설계: [종합 보고서](audits/2026-09-08/REPORT.md).
 이번 9건은 `ae5740e`에서 재현 후 HANDOFF-2026-067로 수정·안전 회귀를 남겼다.
 Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 수정·회귀를 보강했다.
-라이브러리 설계는 `HANDOFF-2026-070`의 세 데이터 계약을 반영한 뒤 구현한다.
+라이브러리·브라우저 HWPX 최신 구현은 `HANDOFF-2026-073`에서 독립 검토하고 8건을 수정했다.
 
 [`docs/MOCK-STYLE-DESIGN.md`](../docs/MOCK-STYLE-DESIGN.md) 의 실물 조판 계획은
 **여섯 단계가 모두 끝났다**.
@@ -25,14 +25,20 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 
 ## 검토 대기
 
-| ID | 무엇 | 파일 |
-| --- | --- | --- |
-| `HANDOFF-2026-071` | `index.html` 쪼개기 설계 — 원인은 길이가 아니라 전역 상태 | `handoffs/2026-09/2026-09-09-structure-design.md` |
+검토 완료: HANDOFF-2026-071은 [HANDOFF-2026-073](handoffs/2026-09/2026-09-08-library-hwpx-independent-review.md)에서 조건부 승인했다. 구조 분리 구현은 아직 시작하지 않았다.
 
 ## 최근 해결
 
 | ID | 심각도 | 요약 | 파일 |
 | --- | --- | --- | --- |
+| `REV-2026-043` | `P1` | 폴더 tombstone을 소속 판정·동시 저장이 무시함 | `issues/2026-09/2026-09-08-index-folder-tombstone-membership.md` |
+| `REV-2026-044` | `P1` | 폴더 스키마 capability 부재와 구형 저장·삭제 비호환 | `issues/2026-09/2026-09-08-index-library-schema-capability.md` |
+| `REV-2026-045` | `P1` | 계정 전환 뒤 앞 계정의 폴더 메타가 남음 | `issues/2026-09/2026-09-08-index-library-account-switch.md` |
+| `REV-2026-046` | `P1` | 선택 삭제 tombstone이 Undo 복원 저장과 경쟁함 | `issues/2026-09/2026-09-08-index-library-delete-undo-queue.md` |
+| `REV-2026-047` | `P1` | 선택 삭제의 원격 실패를 삼켜 성공으로 표시함 | `issues/2026-09/2026-09-08-index-library-delete-failure-report.md` |
+| `REV-2026-048` | `P1` | file:// 모의고사 HWPX가 템플릿 fetch에서 실패함 | `issues/2026-09/2026-09-08-mock-hwpx-file-template.md` |
+| `REV-2026-049` | `P2` | 가져온 그림이 UI의 2MiB 상한을 우회함 | `issues/2026-09/2026-09-08-mock-hwpx-figure-byte-limit.md` |
+| `REV-2026-050` | `P2` | 그림 바이트와 파일명 확장자가 다르면 HWPX MIME이 틀림 | `issues/2026-09/2026-09-08-mock-hwpx-figure-mime.md` |
 | `REV-2026-031` | `P1` | 인증된 DELETE로 AI 일일 비용 한도 초기화 | `issues/2026-09/2026-09-08-worker-quota-purge-reset.md` |
 | `REV-2026-040` | `P1` | REV-032 검사가 제품이 아니라 검사 자신의 사본을 봄 | `issues/2026-09/2026-09-09-audit-check-tests-its-own-copy.md` |
 | `REV-2026-041` | `P1` | releaseImage 무동작화가 업로드 롤백까지 샘 | `issues/2026-09/2026-09-09-release-image-noop-leaks-uploads.md` |
@@ -79,6 +85,7 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 
 | ID | 작성자 | 내용 | 파일 |
 | --- | --- | --- | --- |
+| `HANDOFF-2026-073` | Codex | 라이브러리·HWPX 독립 검토 8건 수정, 구조 설계 세 질문 답변 | `handoffs/2026-09/2026-09-08-library-hwpx-independent-review.md` |
 | `HANDOFF-2026-062` | Codex | UX 수정 설계 검토 — 즉시 되돌리기·묶음 경계·진행 표시 보완 | `handoffs/2026-09/2026-09-08-ux-fixes-design-review.md` |
 | `HANDOFF-2026-066` | Codex | 독립 종합 감사 — 결함 9건·체크리스트·수정 설계·재현 도구, 제품 미수정 | `handoffs/2026-09/2026-09-08-independent-security-stability-audit.md` |
 | `HANDOFF-2026-067` | Codex | 독립 감사 9건 수정·실패 주입 회귀·보존 정책 정리 | `handoffs/2026-09/2026-09-08-audit-findings-fixed.md` |

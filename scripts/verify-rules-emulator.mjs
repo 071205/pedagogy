@@ -3,6 +3,7 @@
  * 계정에는 절대 닿지 않는다. 단순 문법 파싱만 하던 이전 검사와 달리, 아래 시나리오는
  * 본인/타인/비로그인·스키마·tombstone·Storage 경로·MIME·용량을 직접 실행한다. */
 import assert from "node:assert/strict";
+import {execFileSync} from "node:child_process";
 import { readFile } from "node:fs/promises";
 import {
   assertFails,
@@ -14,7 +15,7 @@ import { deleteObject, getBytes, ref, uploadBytes } from "firebase/storage";
 
 const root = new URL("../", import.meta.url);
 const [firestoreRules, storageRules] = await Promise.all([
-  readFile(new URL("firestore.rules", root), "utf8"),
+  process.env.REVIEW_RED === "1" ? execFileSync("git",["show","31da3eb:firestore.rules"],{encoding:"utf8"}) : readFile(new URL("firestore.rules", root), "utf8"),
   readFile(new URL("storage.rules", root), "utf8"),
 ]);
 
@@ -98,6 +99,12 @@ try {
   await assertFails(setDoc(doc(aliceDb, "users", "alice", "sets", "bad-folder"),
     validSet("bad-folder", { folderId: 5 })),
     "folderId 는 문자열이어야 한다");
+
+  // A-stage and pre-folder clients must still save and delete under B-stage Rules.
+  const oldSet=validSet("legacy-no-folder"); delete oldSet.folderId;
+  await assertSucceeds(setDoc(doc(aliceDb,"users","alice","sets","legacy-no-folder"),oldSet));
+  await assertSucceeds(setDoc(doc(aliceDb,"users","alice","sets","legacy-no-folder"),
+    {...oldSet,deleted:true,name:"",header:"",problems:[]}));
 
   // 폴더 **이름 목록**은 별도 문서 하나다. 문제집에 이름을 박으면 이름 하나 바꿀 때
   // 문제집을 전부 다시 써야 한다.

@@ -119,7 +119,9 @@ test('038: failed local writes retain dirty and close warning, retry clears them
 
 test('032: repeated auth notification preserves edits; switching flushes old owner',async()=>{
   const c=context(`let currentUser={uid:'A'},sets=[{id:'work'}],currentSetId='work',currentQId='q';
-    let localDirty=true,localTimer=0,histTimer=0,saveTimer=0,setsUnsub=null;
+    let localDirty=true,localTimer=0,histTimer=0,saveTimer=0,setsUnsub=null,prefsUnsub=null,prefsSaveTimer=null;
+    let libFolderFilter="",libPicking=false,uiLangPref="system";
+    const libPicked=new Set(),readLibMeta=()=>{},applyUiLang=()=>{};
     let cloudSynced=new Map(),deletedIds=new Map(),pendingLocalByOwner=new Map(),writes=[];
     let authInitialized=true,prevUid='A',localStamps={},lastSnapshot=null,undoStack=[],redoStack=[];
     const flushLocal=()=>{writes.push(currentUser?.uid);return true;},setsKey=()=>currentUser?.uid;

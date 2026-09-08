@@ -8,6 +8,8 @@
  * enforcement를 켠다. 빈 값인 현재 상태는 의도적으로 check:launch에서 실패한다.
  */
 window.PEDAGOGY_PUBLIC_CONFIG = Object.freeze({
+  // 1 = folder schema release; set to 0 before deploying against pre-folder Rules.
+  libraryCloudSchema: 1,
   appCheckSiteKey: "",
   supportEmail: "",
   legalVersion: "",

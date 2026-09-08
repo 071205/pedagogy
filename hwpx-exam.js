@@ -30,14 +30,14 @@
       ⚠️ **형식은 확장자가 아니라 바이트로 판정한다**(`imageSize` 가 겸한다).
          여기서는 데이터 URL 껍데기만 벗기고, 아니면 null 을 준다. */
   function figureBytes(value) {
-    if (typeof value !== "string" || !value.startsWith("data:image/")) return null;
+    if (typeof value !== "string" || !/^data:image\/(png|jpeg);base64,/.test(value) || value.length > 4 * Math.ceil(2 * 1024 * 1024 / 3) + 23) return null;
     const at = value.indexOf(",");
     if (at < 0 || !/base64/.test(value.slice(0, at))) return null;
     try {
       const bin = atob(value.slice(at + 1));
       const out = new Uint8Array(bin.length);
       for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-      return out.length ? out : null;
+      return out.length && out.length <= 2 * 1024 * 1024 ? out : null;
     } catch { return null; }        // 깨진 데이터는 없는 것으로 본다
   }
 
@@ -448,7 +448,8 @@
          `image_size()` 는 튜플이다. 파이썬처럼 `size[0]` 으로 읽었더니 늘 실패해
          그림이 자리표시로만 나갔다(대조가 잡았다). */
       const size = global.PedagogyHwpx.imageSize(bytes);
-      if (!size || !size.width) return false;
+      if (!size || !size.width || !size.height) return false;
+      name = name.replace(/\.[^.]*$/, "") + (size.png ? ".png" : ".jpg");
       const w = Math.round(widthMm * MM_TO_HWPUNIT);
       const h = Math.round(w * size.height / size.width);   // 비율 유지
       /* ⚠️ 빈 run 을 남긴다 — 파이썬 `append_paragraph("")` 이 그렇게 만든다.
