@@ -166,7 +166,7 @@ async function runIndexTests(){
   try{
     win = await loadFrame(mainFrame, "index.html",
       w => w.safeUrl && w.normSet && w.normProblem && w.setActivePane && w.showLibrary);
-    H = installHooks(win, ["sanitize","MAX_UPLOAD_BYTES","CLOUD_MAX_PROBLEMS","AI_MAX_DIM","AI_QUALITY",
+    H = installHooks(win, ["sanitize","MAX_UPLOAD_BYTES","AI_MAX_DIM","AI_QUALITY",
       "setJSON","cloudSyncEntry","isCloudSynced","shouldUseCloudResult",
       "storageCleanupComplete","storageCleanupMessage","planLabel"]);
   }catch(e){
@@ -221,9 +221,14 @@ async function runIndexTests(){
     return win.normSet(big, {}).problems.length === 500;
   });
 
-  await check(G, "normSet() CLOUD_MAX_PROBLEMS 로는 안 잘림", () => {
-    const big = { name:"x", problems: Array.from({length:600}, ()=>({})) };
-    return win.normSet(big, {maxProblems: H.CLOUD_MAX_PROBLEMS}).problems.length === 600;
+  await check(G, "normSet() keepId와 lossless·상한은 독립", () => {
+    const big = { id:"set", header:"가".repeat(500), problems: Array.from({length:600}, (_,i)=>({id:"q"+i,
+      blocks:Array.from({length:51},()=>({type:"statement",data:{text:"나".repeat(20001)}})) })) };
+    const bounded=win.normSet(big,{keepId:true,maxProblems:10});
+    const exact=win.normSet(big,{keepId:true,lossless:true});
+    return bounded.problems.length===10 && exact.problems.length===600
+      && exact.header.length===500 && exact.problems[0].blocks.length===51
+      && exact.problems[0].blocks[0].data.text.length===20001;
   });
 
   /* ── 구조 분리 기준 문제집 ──
@@ -268,7 +273,7 @@ async function runIndexTests(){
       const response=await fetch(spec.file+"?t="+Date.now());
       if(!response.ok) return {pass:false,note:"HTTP "+response.status+" — 기준 샘플 파일을 못 읽음"};
       const raw=await response.json();
-      const set=win.normSet(raw,{keepId:false,maxProblems:H.CLOUD_MAX_PROBLEMS});
+      const set=win.normSet(raw,{keepId:false,maxProblems:500});
       const types=new Set(set?.problems.flatMap(p=>p.blocks.map(b=>b.type))||[]);
       const pass=!!set && set.subject===spec.subject && set.problems.length===spec.problems
         && spec.types.every(type=>types.has(type)) && spec.extra(set);

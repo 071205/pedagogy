@@ -2016,8 +2016,12 @@ function migrateSharedLocalCache(){
 let sets=[]; let currentSetId=null; let currentQId=null; let orderMode=false;
 let currentUser=null; // 로그인 유저
 let authEpoch=0;
-const sessionContext=()=>({uid:currentUser?.uid||null, epoch:authEpoch});
-const sessionMatches=c=>c.epoch===authEpoch && c.uid===(currentUser?.uid||null);
+function sessionContext(){
+  return {uid:currentUser?.uid||null, epoch:authEpoch};
+}
+function sessionMatches(c){
+  return c.epoch===authEpoch && c.uid===(currentUser?.uid||null);
+}
 // 저장 공간 오류 중 계정이 바뀌어도 이전 작업을 새 계정에 섞지 않는 메모리 복구본.
 const pendingLocalByOwner=new Map();
 let saveTimer=null;   // 디바운스용
@@ -2069,8 +2073,8 @@ const CHOICE_LAYOUTS=["horizontal","cols3","cols2","vertical"];
 const IMG_SIZES=["full","large","medium","small"];
 const str=(v,max=20000)=>typeof v==="string"?v.slice(0,max):"";
 
-function normBlock(b, keepContent=false){
-  const lossless=keepContent===true;
+function normBlock(b, opts={}){
+  const lossless=opts.lossless===true;
   const text=(v,max)=>str(v,lossless?Infinity:max);
   if(!b||typeof b!=="object") return null;
   const type=BLOCK_TYPES.includes(b.type)?b.type:null;
@@ -2194,10 +2198,12 @@ function reportNormDropped(){
 
 /* keepId=true 는 '내 클라우드에서 읽어온 내 데이터'에 쓴다.
    가져오기(남의 파일)는 항상 id 를 새로 발급해 기존 문항과 충돌하지 않게 한다. */
-function normProblem(p, keepId){
+function normProblem(p, opts={}){
   if(!p||typeof p!=="object") return null;
-  const text=(v,max)=>str(v,keepId?Infinity:max);
-  const blocks=(Array.isArray(p.blocks)?p.blocks:[]).slice(0,keepId?undefined:50).map(b=>normBlock(b,keepId===true)).filter(Boolean);
+  const keepId=opts.keepId===true, lossless=opts.lossless===true;
+  const text=(v,max)=>str(v,lossless?Infinity:max);
+  const blocks=(Array.isArray(p.blocks)?p.blocks:[]).slice(0,lossless?undefined:50)
+    .map(b=>normBlock(b,{lossless})).filter(Boolean);
   return {
     id:(keepId && typeof p.id==="string" && p.id) ? p.id : uid(),
     title:text(p.title,300), desc:text(p.desc,300),
@@ -2218,10 +2224,7 @@ function normProblem(p, keepId){
 }
 
 /* maxProblems 기본값 500 은 '남이 준 파일'에 대한 방어선이다.
-   ⚠️ 내 클라우드 데이터를 읽을 때 이 값을 쓰면 안 된다 — N제 문제집은 문항이
-   500개를 넘길 수 있고, 그러면 읽을 때마다 조용히 잘려 나간다.
-   그래서 loadSets() 는 CLOUD_MAX_PROBLEMS 를 넘겨 준다. */
-const CLOUD_MAX_PROBLEMS=20000;
+   자기 클라우드/백업은 lossless:true 를 명시해 읽을 때 절대 자르지 않는다. */
 /* ── 시험지 괘선 색 ──
    인쇄면 위·가운데·아래 선의 색. 문제집마다 따로 둔다(과목별로 구분하려고).
    ⚠️ 임의의 색 문자열을 받지 않고 '고른 목록' 으로만 제한한다. 이 값은 결국
@@ -2248,11 +2251,14 @@ function sheetHex(v){
 
 function normSet(s, opts){
   if(!s||typeof s!=="object"||!Array.isArray(s.problems)) return null;
-  const max=(opts&&opts.maxProblems)||500;
-  const keepId=!!(opts&&opts.keepId);
-  const problems=s.problems.slice(0,keepId?undefined:max).map(p=>normProblem(p,keepId)).filter(Boolean);
+  const keepId=opts?.keepId===true, lossless=opts?.lossless===true;
+  const requested=Number(opts?.maxProblems);
+  const max=opts?.maxProblems===Infinity ? Infinity
+    : Number.isFinite(requested) ? Math.max(0,Math.floor(requested)) : 500;
+  const problems=s.problems.slice(0,lossless?undefined:max)
+    .map(p=>normProblem(p,{keepId,lossless})).filter(Boolean);
   return { id:(keepId&&typeof s.id==="string"&&s.id)?s.id:uid(),
-           name:str(s.name,keepId?Infinity:200)||"제목 없음", header:str(s.header,keepId?Infinity:200),
+           name:str(s.name,lossless?Infinity:200)||"제목 없음", header:str(s.header,lossless?Infinity:200),
            lineColor:normSheetColor(s.lineColor), subject:normSubject(s.subject), problems };
 }
 
@@ -2482,10 +2488,10 @@ function setToDoc(s, order){
 function docToSet(d){
   if(!d || d.deleted) return null;
   // keepId: 문제집·문항 id 를 그대로 살려야 병합과 '마지막 보던 문항'이 이어진다
-  // maxProblems: 내 데이터라 자르면 안 된다 (기본 500 은 가져오기 전용 방어선)
+  // lossless: 내 데이터라 자르면 안 된다 (기본 500 은 가져오기 전용 방어선)
   const s=normSet({id:d.id, name:d.name, header:d.header, problems:d.problems,
                    lineColor:d.lineColor, subject:d.subject},
-                  {keepId:true, maxProblems:CLOUD_MAX_PROBLEMS});
+                  {keepId:true, lossless:true});
   if(!s) return null;
   if(typeof d.id==="string" && d.id) s.id=d.id;
   return s;
@@ -3011,21 +3017,20 @@ function storagePathsOf(s){
   });
   return urls;
 }
-/* 같은 이미지를 다른 문제집도 쓰고 있으면 지우지 않는다(복제본 등) */
-function stillReferenced(url, exceptSetId){
-  return sets.some(s=>s.id!==exceptSetId && storagePathsOf(s).includes(url));
-}
-
 /* ── 이미지 한 장 정리 ──
    블록을 지우거나 이미지 블록을 다른 종류로 바꾸면 Firestore 에서는 URL 이
    사라지지만, 예전에는 Storage 의 원본 파일이 그대로 남아 영영 요금만 먹었다
    (문제집 통째 삭제만 정리했고, 블록 단위는 아무도 치우지 않았다).
    현재 탭만으로 Undo·백업·다른 기기의 참조를 판단할 수 없어 원본을 보존한다.
    계정 영구 삭제는 폴더를 직접 정리한다. 참조 기반 GC는 별도 후속 작업이다. */
-function releaseImage(url){
+function releaseImage(url, {attached=true}={}){
   // URL 삭제는 원본 삭제 권한이 아니다. 다른 탭·Undo·백업 참조를
   // 서버에서 확정하는 GC가 생기기 전까지 보존한다. 계정 영구 삭제는 별도다.
-  return;
+  if(attached || !isStorageUrl(url) || !currentUser || !fbReady) return;
+  // 업로드가 아직 상태/Undo/백업 어디에도 붙기 전이라는 사실은 호출부만 안다.
+  Promise.resolve().then(()=>fbStorage.refFromURL(url).delete())
+    .then(()=>console.info("붙지 못한 업로드를 정리했습니다"))
+    .catch(e=>console.warn("업로드 롤백 정리 실패(무시):", e && e.code));
 }
 function releaseBlockImages(blk){
   blockImageUrls(blk).forEach(releaseImage);
@@ -3285,7 +3290,7 @@ function restoreFromBackup(){
   if(!b) return false;
 
   const before=sets.slice();
-  sets=b.sets.map(s=>normSet(s,{keepId:true, maxProblems:CLOUD_MAX_PROBLEMS})).filter(Boolean);
+  sets=b.sets.map(s=>normSet(s,{keepId:true, lossless:true})).filter(Boolean);
 
   // 되돌리기 직전 상태를 백업으로 — 이 동작 자체를 되돌릴 수 있게
   try{ localStorage.setItem(backupKey(), JSON.stringify({sets:before, t:Date.now()})); }
@@ -3981,7 +3986,7 @@ async function putChoiceImage(blk, i, f){
     /* ⚠️ 올리는 동안 사용자가 블록 종류를 바꿨을 수 있다 — 그러면 `blk.data` 가 통째로
        갈린 뒤라 여기 쓰면 엉뚱한 블록에 `images` 가 생긴다. 확인하고 쓴다. */
     if(blk.type!=="choices" || !Array.isArray(blk.data.images)){
-      if(isStorageUrl(stored)) releaseImage(stored);              // 올려 둔 것은 도로 반납
+      if(isStorageUrl(stored)) releaseImage(stored,{attached:false}); // 아직 어떤 상태에도 붙지 않음
       return false;
     }
     blk.data.images[i]=stored;

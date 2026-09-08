@@ -3,7 +3,7 @@
 - ID: `REV-2026-042`
 - 날짜: `2026-09-09`
 - 보고자: `Claude`
-- 상태: `open`
+- 상태: `resolved`
 - 심각도: `P2`
 - 영향 영역: `index`
 - 관련 인계: `HANDOFF-2026-066` · 수정 커밋 `ff2b288`
@@ -65,3 +65,11 @@ keepId=1 → 블록 80개 유지(무제한)  ·  첫 블록 글자수 20000(잘�
 `normSet(…,{keepId:true, maxProblems:10})` 이 10문항으로 잘리고,
 `{keepId:true, lossless:true}` 만 자르지 않는 것. `keepId:1` 이 개수·내용에 **같은** 결정을
 내리는 것.
+
+## 처리 기록
+
+- 2026-09-09 — Codex / HANDOFF-2026-069: 호출자 없는 `stillReferenced`와 무효인
+  `CLOUD_MAX_PROBLEMS`를 제거했다. `keepId`·`maxProblems`·`lossless`를 독립 옵션으로
+  분리하고 엄격한 `=== true`를 사용했다. 자기 클라우드와 백업은 명시적으로
+  `{keepId:true,lossless:true}`를 쓰며, 외부 가져오기는 기존 500 상한을 유지한다.
+  10문항 상한, keepId=1, lossless 12문항/51블록/20,001자 검사가 통과했다.

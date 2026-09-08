@@ -10,10 +10,9 @@ const {createWorker,DailyQuota}=await import(pathToFileURL(path.resolve('worker/
 function fn(name){let start=src.indexOf('function '+name+'(');assert.ok(start>=0,name);
   if(src.slice(start-6,start)==='async ')start-=6;
   return src.slice(start,src.indexOf('\n}',start)+2);}
-const session=`let authEpoch=0;const sessionContext=()=>({uid:currentUser?.uid||null,epoch:authEpoch});
-const sessionMatches=c=>c.epoch===authEpoch&&c.uid===(currentUser?.uid||null);`;
+const productSession=`let authEpoch=0;\n${fn('sessionContext')}\n${fn('sessionMatches')}`;
 function context(code){const c=vm.createContext({console:{log(){},warn(){},error(){}},setTimeout:()=>0,clearTimeout(){}});
-  vm.runInContext(code+'\n'+session,c);return c;}
+  vm.runInContext(code+'\n'+productSession,c);return c;}
 class Storage {
   data=new Map();alarm=null;
   async get(k){return structuredClone(this.data.get(k));}
@@ -82,6 +81,26 @@ test('034: restoring image URL does not delete remote bytes',async()=>{
   await Promise.resolve();await Promise.resolve();assert.equal(vm.runInContext('deleted.length',c),0);
   assert.doesNotMatch(fn('deleteAllSets'),/await wipeStorageImages/,'backup-capable deletion preserves assets');
   assert.match(fn('deleteAccountEverything'),/await wipeStorageImages/,'permanent deletion still removes assets');
+});
+test('041: an upload that never attached is deleted, attached history remains',async()=>{
+  const c=context(`let currentUser={uid:'A'},fbReady=true,deleted=[];
+    const isStorageUrl=u=>u.startsWith('storage:'),fbStorage={refFromURL:u=>({delete:async()=>deleted.push(u)})};`);
+  vm.runInContext(fn('releaseImage'),c);
+  vm.runInContext("releaseImage('storage:history');releaseImage('storage:orphan',{attached:false})",c);
+  await Promise.resolve();await Promise.resolve();
+  assert.equal(vm.runInContext('JSON.stringify(deleted)',c),'["storage:orphan"]');
+});
+test('042: keepId, bounds, and lossless are independent',()=>{
+  const c=context(`const uid=()=> 'new';const str=(v,max=2e4)=>typeof v==='string'?v.slice(0,max):'';
+    const safeUrl=x=>x||'',normSheetColor=x=>x||'',normSubject=x=>x||'',BLOCK_TYPES=['statement'];
+    const normDropped={images:0};`);
+  vm.runInContext(fn('normBlock')+'\n'+fn('normProblem')+'\n'+fn('normSet'),c);
+  vm.runInContext(`const many={id:'same',name:'n'.repeat(201),header:'h'.repeat(201),problems:Array.from({length:12},(_,i)=>({id:'q'+i,blocks:Array.from({length:51},()=>({type:'statement',data:{text:'x'.repeat(20001)}}))}))}`,c);
+  assert.equal(vm.runInContext('normSet(many,{keepId:true,maxProblems:10}).problems.length',c),10);
+  assert.equal(vm.runInContext('normSet(many,{keepId:1,maxProblems:10}).problems.length',c),10);
+  assert.equal(vm.runInContext('normSet(many,{keepId:true,lossless:true}).problems.length',c),12);
+  assert.equal(vm.runInContext('normSet(many,{keepId:true,lossless:true}).problems[0].blocks.length',c),51);
+  assert.equal(vm.runInContext('normSet(many,{keepId:true,lossless:true}).problems[0].blocks[0].data.text.length',c),20001);
 });
 test('038: failed local writes retain dirty and close warning, retry clears them',()=>{
   const c=context(`let currentUser=null,localDirty=true,localTimer=0,wiping=false,sets=[{id:'unsaved'}],quotaWarned=false;

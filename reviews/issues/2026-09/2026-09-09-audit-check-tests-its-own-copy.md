@@ -3,7 +3,7 @@
 - ID: `REV-2026-040`
 - 날짜: `2026-09-09`
 - 보고자: `Claude`
-- 상태: `open`
+- 상태: `resolved`
 - 심각도: `P1`
 - 영향 영역: `tests`
 - 관련 인계: `HANDOFF-2026-066` · 수정 커밋 `ff2b288`
@@ -61,3 +61,10 @@ git checkout index.html
 ## 완료 판단에 필요한 검사
 
 위 재현의 1)·2) 두 가지 깨보기에서 `032` 검사가 **빨간불**이 되고, 되돌리면 초록불일 것.
+
+## 처리 기록
+
+- 2026-09-09 — Codex / HANDOFF-2026-069: `sessionContext`·`sessionMatches`를 제품의
+  `function` 선언으로 바꾸고 안전 검사도 `fn()`으로 실제 소스에서 추출해 실행하도록 바꿨다.
+  임시 사본에서 제품 `sessionMatches`를 항상 true로 바꾸면 A→B/A→B→A 두 검사가
+  `writes.length: 1 !== 0`으로 실패했다. 원상태에서는 두 경우를 포함한 11개 안전 검사가 통과했다.

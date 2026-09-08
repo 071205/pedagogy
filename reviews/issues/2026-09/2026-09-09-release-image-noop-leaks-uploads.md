@@ -3,7 +3,7 @@
 - ID: `REV-2026-041`
 - 날짜: `2026-09-09`
 - 보고자: `Claude`
-- 상태: `open`
+- 상태: `resolved`
 - 심각도: `P1`
 - 영향 영역: `index`
 - 관련 인계: `HANDOFF-2026-066` · 수정 커밋 `ff2b288` · 원 이슈 `REV-2026-034`
@@ -56,3 +56,10 @@ Firebase Storage 콘솔의 `users/{uid}/images` 에 참조되지 않는 파일�
 
 업로드 도중 블록 종류를 바꾸는 경로에서 `delete` 가 **불리고**, Undo 복원 경로에서는
 **안 불리는** 것을 함께 본다(지금 `check-audit-safety.mjs` 의 `034` 는 뒤쪽만 본다).
+
+## 처리 기록
+
+- 2026-09-09 — Codex / HANDOFF-2026-069: `releaseImage(url,{attached})`로 구분했다.
+  기본 attached 경로는 Undo·백업·다른 기기 참조를 위해 보존하며, `putChoiceImage`의
+  블록 종류 전환 중 업로드만 `attached:false`로 즉시 Storage delete한다. 실제 함수와
+  모의 Storage로 history URL 삭제 0회·orphan URL 삭제 1회를 함께 확인했다.
