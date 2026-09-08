@@ -9,7 +9,7 @@
  */
 window.PEDAGOGY_PUBLIC_CONFIG = Object.freeze({
   // 1 = folder schema release; set to 0 before deploying against pre-folder Rules.
-  libraryCloudSchema: 1,
+  libraryCloudSchema: 0,
   appCheckSiteKey: "",
   supportEmail: "",
   legalVersion: "",

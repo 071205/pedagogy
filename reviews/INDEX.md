@@ -1,6 +1,6 @@
 # 리뷰 현황
 
-마지막 정리: 2026-09-09
+마지막 정리: 2026-09-08
 
 ## 열린 이슈
 
@@ -11,6 +11,9 @@
 이번 9건은 `ae5740e`에서 재현 후 HANDOFF-2026-067로 수정·안전 회귀를 남겼다.
 Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 수정·회귀를 보강했다.
 라이브러리·브라우저 HWPX 최신 구현은 `HANDOFF-2026-073`에서 독립 검토하고 8건을 수정했다.
+그 8건은 보고자·수정자가 같아 `HANDOFF-2026-074`가 **독립 검증**했다 — 유효하며 제품 수정은
+없었고, 검사 쪽 결함 `REV-2026-051` 하나를 열고 닫았다. 같은 커밋에서 `libraryCloudSchema`를
+**0(A단계)** 으로 내렸다(새 Rules 운영 배포가 확인되지 않음).
 
 [`docs/MOCK-STYLE-DESIGN.md`](../docs/MOCK-STYLE-DESIGN.md) 의 실물 조판 계획은
 **여섯 단계가 모두 끝났다**.
@@ -27,10 +30,13 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 
 검토 완료: HANDOFF-2026-071은 [HANDOFF-2026-073](handoffs/2026-09/2026-09-08-library-hwpx-independent-review.md)에서 조건부 승인했다. 구조 분리 구현은 아직 시작하지 않았다.
 
+검토 대기: [HANDOFF-2026-074](handoffs/2026-09/2026-09-08-library-review-verified-and-schema-a.md) — 코덱스 8건 독립 검증 결과, `libraryCloudSchema` 0 전환 판단, A단계 검사 범위 셋을 물었다.
+
 ## 최근 해결
 
 | ID | 심각도 | 요약 | 파일 |
 | --- | --- | --- | --- |
+| `REV-2026-051` | `P2` | 검사가 배포 플래그를 물려받아 A단계로 내리면 7건이 빨간불 | `issues/2026-09/2026-09-08-tests-review-contracts-inherit-deploy-flag.md` |
 | `REV-2026-043` | `P1` | 폴더 tombstone을 소속 판정·동시 저장이 무시함 | `issues/2026-09/2026-09-08-index-folder-tombstone-membership.md` |
 | `REV-2026-044` | `P1` | 폴더 스키마 capability 부재와 구형 저장·삭제 비호환 | `issues/2026-09/2026-09-08-index-library-schema-capability.md` |
 | `REV-2026-045` | `P1` | 계정 전환 뒤 앞 계정의 폴더 메타가 남음 | `issues/2026-09/2026-09-08-index-library-account-switch.md` |
@@ -85,6 +91,7 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 
 | ID | 작성자 | 내용 | 파일 |
 | --- | --- | --- | --- |
+| `HANDOFF-2026-074` | Claude | **코덱스 8건 독립 검증 · A단계 전환 · 검사의 플래그 의존 제거** | `handoffs/2026-09/2026-09-08-library-review-verified-and-schema-a.md` |
 | `HANDOFF-2026-073` | Codex | 라이브러리·HWPX 독립 검토 8건 수정, 구조 설계 세 질문 답변 | `handoffs/2026-09/2026-09-08-library-hwpx-independent-review.md` |
 | `HANDOFF-2026-062` | Codex | UX 수정 설계 검토 — 즉시 되돌리기·묶음 경계·진행 표시 보완 | `handoffs/2026-09/2026-09-08-ux-fixes-design-review.md` |
 | `HANDOFF-2026-066` | Codex | 독립 종합 감사 — 결함 9건·체크리스트·수정 설계·재현 도구, 제품 미수정 | `handoffs/2026-09/2026-09-08-independent-security-stability-audit.md` |

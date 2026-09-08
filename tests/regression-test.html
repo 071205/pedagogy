@@ -1098,20 +1098,32 @@ async function runIndexTests(){
     return { pass: once === twice && once.startsWith("c"), note: once + " vs " + twice };
   });
 
-  /* ── 폴더 클라우드 동기화 (B단계) — 다섯 곳이 **함께** 알아야 한다 ── */
-  await check(G, "폴더가 바뀌면 '안 바뀌었다' 고 답하지 않는다(setJSON)", () => {
+  /* ── 폴더 클라우드 동기화 — 다섯 곳이 **함께** 알아야 한다 ──────────────
+     ⚠️ **검사가 배포 플래그를 물려받으면 안 된다**(`REV-2026-051`). 아래 넷은 B단계
+        (`libraryCloudSchema:1`) 동작인데, 예전에는 `service-config.js` 의 값을 그대로
+        썼다 — 공개 전에 그 값을 0 으로 내리라는 지시를 따르는 순간 넷이 빨간불이 되고
+        제품이 깨진 건지 검사가 깨진 건지 가를 수 없었다. 이제 **단계를 스스로 걸고
+        되돌린다**(안 되돌리면 뒤 검사가 오염된다). */
+  const withSchema = (v, fn) => {
+    const had = Object.hasOwn(win, "PEDAGOGY_PUBLIC_CONFIG"), old = win.PEDAGOGY_PUBLIC_CONFIG;
+    win.PEDAGOGY_PUBLIC_CONFIG = Object.freeze({ ...old, libraryCloudSchema: v });
+    try { return fn(); }
+    finally { if (had) win.PEDAGOGY_PUBLIC_CONFIG = old; else delete win.PEDAGOGY_PUBLIC_CONFIG; }
+  };
+
+  await check(G, "폴더가 바뀌면 '안 바뀌었다' 고 답하지 않는다(setJSON · B단계)", () => withSchema(1, () => {
     /* ⚠️ `setJSON` 에 folderId 가 빠지면 `isCloudSynced()` 가 '같다' 고 답해 폴더만 바꾼
        변경이 **다른 기기로 영영 안 올라간다.** 저장은 조용히 성공한 것처럼 보인다. */
     const H2 = installHooks(win, ["setJSON"]);
     const a = {id:"x", name:"n", header:"", problems:[], folderId:"f1"};
     return H2.setJSON(a) !== H2.setJSON({...a, folderId:"f2"});
-  });
+  }));
 
-  await check(G, "폴더가 클라우드 문서에 실린다(setToDoc)", () => {
+  await check(G, "폴더가 클라우드 문서에 실린다(setToDoc · B단계)", () => withSchema(1, () => {
     const H2 = installHooks(win, ["setToDoc"]);
     const d = H2.setToDoc({id:"x", name:"n", header:"", problems:[], folderId:"f-abc"}, 0);
     return { pass: d.folderId === "f-abc", note: JSON.stringify(d.folderId) };
-  });
+  }));
 
   await check(G, "클라우드에서 폴더를 살려 온다(docToSet)", () => {
     const H2 = installHooks(win, ["docToSet"]);
@@ -1120,14 +1132,14 @@ async function runIndexTests(){
     return { pass: s && s.folderId === "f9", note: s && JSON.stringify(s.folderId) };
   });
 
-  await check(G, "삭제된 폴더는 오래된 소속을 직렬화하지 않는다", () => {
+  await check(G, "삭제된 폴더는 오래된 소속을 직렬화하지 않는다(B단계)", () => withSchema(1, () => {
     const H2=installHooks(win,["libMeta","setToDoc"]);
     const old=H2.libMeta.folderTombstones;
     try{
       H2.libMeta.folderTombstones={reviewDeleted:1};
       return H2.setToDoc({id:"r",name:"r",problems:[],folderId:"reviewDeleted"},0).folderId==="";
     }finally{H2.libMeta.folderTombstones=old;}
-  });
+  }));
 
   await check(G, "폴더 병합은 원격 tombstone을 보존하고 폴더 부활을 막는다", () => {
     const H2=installHooks(win,["mergeLibraryPrefs"]);
@@ -1145,14 +1157,20 @@ async function runIndexTests(){
              note: `가져오기=${JSON.stringify(imported.folderId)} 내것=${JSON.stringify(mine.folderId)}` };
   });
 
-  await check(G, "규칙의 허용 필드와 앱이 보내는 필드가 같다", () => {
+  await check(G, "규칙의 허용 필드와 앱이 보내는 필드가 같다(두 단계 모두)", () => {
     /* ⚠️ 이 저장소가 경고하는 사고 — 한쪽만 넓히면 저장이 통째로 '권한 오류' 가 된다.
        규칙 파일을 직접 읽을 수 없으므로(브라우저), 앱이 **보내는 키**를 고정해 둔다.
-       규칙 쪽은 `verify-rules-emulator.mjs` 가 같은 목록을 확인한다. */
-    const H2 = installHooks(win, ["setToDoc"]);
-    const keys = Object.keys(H2.setToDoc({id:"x", name:"", header:"", problems:[]}, 0)).sort();
-    const want = ['deleted','folderId','header','id','lineColor','name','order','problems','subject','updatedAt'];
-    return { pass: keys.join(",") === want.join(","), note: keys.join(",") };
+       규칙 쪽은 `verify-rules-emulator.mjs` 가 같은 목록을 확인한다.
+       ⚠️ **두 단계를 함께 본다.** 새 규칙은 `folderId` 를 선택 필드로 받으므로 A(0)가
+          보내는 좁은 목록도 유효해야 한다 — 한쪽만 보면 구형 Rules 배포에서 저장이
+          통째로 막히는 것을 못 잡는다. */
+    const base = {id:"x", name:"", header:"", problems:[]};
+    const keysAt = v => withSchema(v, () =>
+      Object.keys(installHooks(win, ["setToDoc"]).setToDoc(base, 0)).sort().join(","));
+    const A = keysAt(0), B = keysAt(1);
+    const wantA = ['deleted','header','id','lineColor','name','order','problems','subject','updatedAt'].join(",");
+    const wantB = ['deleted','folderId','header','id','lineColor','name','order','problems','subject','updatedAt'].join(",");
+    return { pass: A === wantA && B === wantB, note: `A=${A} · B=${B}` };
   });
 
   /* ── 과목별 블록 팔레트 · 화작/언매 블록 ── */

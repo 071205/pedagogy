@@ -7,33 +7,58 @@ import assert from 'node:assert/strict';
 const port=18879, base=`http://127.0.0.1:${port}`;
 const server=spawn(process.env.HWPX_PYTHON||'python3',['serve.py','--port',String(port)],{stdio:'ignore'});
 let browser;const failures=[];
-async function test(name,run){try{await run();console.log('PASS',name);}catch(e){failures.push(name);console.error('FAIL',name,e.message);}}
+async function test(name,run){try{await run();console.log('PASS',name);}catch(e){failures.push(name);console.error('FAIL',name,e.message.replace(/\n/g,' | '));}}
 try{
  for(let i=0;i<80;i++){try{if((await fetch(base+'/health')).ok)break;}catch{}await new Promise(r=>setTimeout(r,100));}
  browser=await chromium.launch({ignoreDefaultArgs:['--allow-file-access-from-files']});
- async function app(file='index.html',fileMode=false){
+ /* ⚠️ **검사가 배포 플래그를 물려받으면 안 된다.** 예전에는 `service-config.js` 의
+    `libraryCloudSchema` 를 그대로 썼다 — 공개 전에 그 값을 0 으로 내리라는 지시를 따르는
+    순간 B단계 검사 3건이 빨간불이 되고, 제품이 깨진 건지 검사가 깨진 건지 가를 수 없었다.
+    그래서 `index.html` 검사는 **자기 단계를 스스로 선언해야 하고**, 안 하면 여기서 터진다. */
+ async function app(file='index.html',{fileMode=false,schema}={}){
+  if(file==='index.html'&&schema!==0&&schema!==1)
+   throw Error('index.html 검사는 libraryCloudSchema 를 선언해야 합니다 (A=0 · B=1)');
   const p=await browser.newPage();
   await p.route('**/*',r=>{const u=new URL(r.request().url());if(process.env.REVIEW_RED==='1' && ['index.html','mock-exam-editor.html','hwpx-exam.js'].some(f=>u.pathname.endsWith('/'+f))){
    const name=u.pathname.split('/').pop(); return r.fulfill({contentType:name.endsWith('.js')?'application/javascript':'text/html',body:execFileSync('git',['show','31da3eb:'+name])});
   }return u.origin===base||u.protocol==='file:'?r.continue():r.abort();});
   await p.goto(fileMode?pathToFileURL(process.cwd()+'/'+file).href:base+'/'+file);
-  await p.waitForFunction(()=>typeof toast==='function');return p;
+  await p.waitForFunction(()=>typeof toast==='function');
+  /* service-config.js 가 로드 때 이 객체를 덮으므로 **로드 뒤에** 건다.
+     `libraryCloudEnabled()` 는 호출 시점에 읽으므로 이걸로 충분하다. */
+  if(schema===0||schema===1) await p.evaluate(v=>{
+   window.PEDAGOGY_PUBLIC_CONFIG=Object.freeze({...window.PEDAGOGY_PUBLIC_CONFIG,libraryCloudSchema:v});},schema);
+  return p;
  }
- await test('folder tombstone masks stale membership; empty cloud value beats migration map',async()=>{
-  const p=await app();const got=await p.evaluate(()=>{
-   libMeta=normLibMeta({folderTombstones:{gone:10},folderBySetId:{empty:'old'}});
-   sets=[{id:'s',folderId:'gone'},{id:'empty',folderId:''}];
-   return [folderOf('s'),folderOf('empty'),setToDoc(sets[0],0).folderId];
-  });assert.deepEqual(got,['','','']);await p.close();
+ /* 소속의 **정본이 단계마다 다르다** — A 는 로컬 지도(`setFolder` 가 쓰는 곳), B 는
+    문제집 문서다. 그래서 두 갈래로 나눠 검사한다.
+    ⚠️ 삭제된 폴더 가리기는 **두 단계 모두** 지켜야 하고, 정본이 어느 쪽이든 가려야 한다. */
+ for(const schema of [0,1])
+ await test(`folder tombstone masks membership from either source (schema ${schema})`,async()=>{
+  const p=await app('index.html',{schema});const got=await p.evaluate(()=>{
+   libMeta=normLibMeta({folderTombstones:{gone:10},folderBySetId:{viaMap:'gone'}});
+   sets=[{id:'viaSet',folderId:'gone'},{id:'viaMap'}];
+   const doc=setToDoc(sets[0],0);
+   return [folderOf('viaSet'),folderOf('viaMap'),Object.hasOwn(doc,'folderId')?doc.folderId:'(absent)'];
+  });assert.deepEqual(got,['','',schema===1?'':'(absent)']);await p.close();
+ });
+ /* ⚠️ B 전용 계약이다. A 는 클라우드에 folderId 를 **보내지도 읽지도 않으므로**
+    옛 이관 지도가 정본으로 남는 것이 맞다 — 여기서 A 를 함께 돌리면 안 된다. */
+ await test('explicit empty cloud folderId beats stale migration map (schema 1)',async()=>{
+  const p=await app('index.html',{schema:1});const got=await p.evaluate(()=>{
+   libMeta=normLibMeta({folderBySetId:{empty:'old'}});
+   sets=[{id:'empty',folderId:''}];
+   return [folderOf('empty'),setToDoc(sets[0],0).folderId];
+  });assert.deepEqual(got,['','']);await p.close();
  });
  await test('capability off never sends folderId or changes set for local move',async()=>{
-  const p=await app();const got=await p.evaluate(()=>{
-   window.PEDAGOGY_PUBLIC_CONFIG={libraryCloudSchema:0};sets=[{id:'s',name:'s',problems:[]}];
+  const p=await app('index.html',{schema:0});const got=await p.evaluate(()=>{
+   sets=[{id:'s',name:'s',problems:[]}];
    setFolder('s','local');return {inSet:'folderId' in sets[0],inDoc:'folderId' in setToDoc(sets[0],0),folder:folderOf('s')};
   });assert.deepEqual(got,{inSet:false,inDoc:false,folder:'local'});await p.close();
  });
  await test('A migration distinguishes absent field from explicit cloud no-folder',async()=>{
-  const p=await app();const got=await p.evaluate(async()=>{
+  const p=await app('index.html',{schema:1});const got=await p.evaluate(async()=>{
    currentUser={uid:'test'};saveSets=()=>{};
    const base={name:'s',header:'',problems:[]};
    sets=[normSet({...base,id:'local'},{keepId:true}),docToSet({...base,id:'cloud',folderId:''})];
@@ -42,7 +67,7 @@ try{
   });assert.deepEqual(got,['old','']);await p.close();
  });
  await test('delete and immediate restore use same queue, delete errors propagate',async()=>{
-  const p=await app();const got=await p.evaluate(async()=>{
+  const p=await app('index.html',{schema:1});const got=await p.evaluate(async()=>{
    currentUser={uid:'test'};fbReady=true;let release;const gate=new Promise(r=>release=r),events=[];
    fbDb={collection:()=>({doc:()=>({collection:()=>({doc:id=>({set:async d=>{events.push('delete');await gate;events.push('deleted');}})})})}),batch:()=>({set:()=>events.push('restore'),commit:async()=>{}})};
    const s={id:'s',name:'s',header:'',problems:[]};sets=[];
@@ -55,7 +80,7 @@ try{
   });assert.deepEqual(got.early,['delete']);assert.deepEqual(got.events,['delete','deleted','restore']);assert.equal(got.rejected,true);await p.close();
  });
  await test('account switch reloads local folder metadata',async()=>{
-  const p=await app();const got=await p.evaluate(async()=>{
+  const p=await app('index.html',{schema:1});const got=await p.evaluate(async()=>{
    authInitialized=true;prevUid='A';currentUser={uid:'A'};libMeta=normLibMeta({folders:[{id:'A-only',name:'A'}]});
    loadSets=async()=>{};updatePlanBadge=async()=>{};
    localStorage.setItem('PM_LIBRARY_META:B',JSON.stringify({folders:[{id:'B-only',name:'B'}]}));
@@ -66,7 +91,7 @@ try{
   const p=await app('mock-exam-editor.html');const got=await p.evaluate(()=>normBlockM({type:'image',data:{data:'data:image/png;base64,'+btoa('x'.repeat(2*1024*1024+1))}},(x,d)=>x??d).data.data.length);assert.equal(got,0);await p.close();
  });
  await test('actual selection Undo and Redo survive delayed tombstone snapshot',async()=>{
-  const p=await app();const got=await p.evaluate(async()=>{
+  const p=await app('index.html',{schema:1});const got=await p.evaluate(async()=>{
    currentUser={uid:'test'};fbReady=true;window.confirm=()=>true;
    let release,callback;const gate=new Promise(r=>release=r),remote=new Map();
    const emit=d=>callback?.({docChanges:()=>[{doc:{data:()=>d}}]});
@@ -85,7 +110,7 @@ try{
   });assert.deepEqual(got,{undo:true,redo:true});await p.close();
  });
  await test('401 selected deletes retain only failed ID and permit retry',async()=>{
-  const p=await app();const got=await p.evaluate(async()=>{
+  const p=await app('index.html',{schema:1});const got=await p.evaluate(async()=>{
    currentUser={uid:'test'};fbReady=true;window.confirm=()=>true;
    let rejectOne=true,deleted=0;
    fbDb={collection:()=>({doc:()=>({collection:()=>({doc:id=>({set:async()=>{if(id==='s400'&&rejectOne)throw Error('injected');deleted++;}})})})}),batch:()=>({set(){},commit:async()=>{}})};
@@ -98,7 +123,7 @@ try{
   });assert.deepEqual(got,{failed:['s400'],kept:true,deleted:401,picked:0});await p.close();
  });
  await test('concurrent prefs save preserves remote tombstones and clears 401 memberships in chunks',async()=>{
-  const p=await app();const got=await p.evaluate(async()=>{
+  const p=await app('index.html',{schema:1});const got=await p.evaluate(async()=>{
    currentUser={uid:'test'};fbReady=true;
    libMeta=normLibMeta({folders:[{id:'gone',name:'old'}],syncPending:true});
    sets=Array.from({length:401},(_,i)=>({id:'s'+i,name:'s',header:'',problems:[],folderId:'gone'}));
@@ -126,7 +151,7 @@ try{
   },template);assert.deepEqual(got,{png:true,jpeg:true,mime:true,figures:2,warnings:1});await p.close();
  });
  for(const fileMode of [false,true])await test(`exam download without API server (${fileMode?'file':'http'})`,async()=>{
-  const p=await app('mock-exam-editor.html',fileMode);
+  const p=await app('mock-exam-editor.html',{fileMode});
   await p.evaluate(()=>{pingServer=async()=>{throw Error('API must not be used');};LIVE.found=false;
    state.problems=[{id:1,num:1,sect:'공통',type:'short',pts:2,blocks:[{type:'statement',data:{text:'test'}},{type:'image',data:{width:58,src:'figure.png',data:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAABCAIAAAB2XpiaAAAADUlEQVR4nGP4z8AARwAd7wP95hFmHQAAAABJRU5ErkJggg=='}}]}];});
   const download=p.waitForEvent('download',{timeout:8000});await p.locator('#hwpxBtn').click();

@@ -1182,9 +1182,17 @@ JSON 가져오기 크기·개수 상한, Storage 고아 이미지 정리, serve.
 - AI 문서 HWPX는 아직 `templates/blank.hwpx` fetch를 사용하므로 `file://` 예외다.
   정적 HTTP(S)로 열거나 기존 로컬 서버 대비 경로를 사용한다.
 - 파일 이름만 있는 모의고사 그림 및 Typst 정본 미리보기에는 로컬 서버가 필요하다.
-- 라이브러리 클라우드 스키마는 `service-config.js`의 `libraryCloudSchema:1`로 명시한다.
-  구형 Rules를 쓰는 배포는 코드 공개 전에 0으로 설정한다. 0에서는 소속을 계정별 로컬
-  metadata에만 쓰며 set 저장 요청에는 folderId를 넣지 않는다. Rules 수정은 로컬 검증만
-  했고 이번 검토에서 운영 배포 여부를 조회하거나 배포하지 않았다.
+- 라이브러리 클라우드 스키마는 `service-config.js`의 `libraryCloudSchema`로 명시한다.
+  **지금 값은 `0`(A단계)이다** — 새 Rules(폴더 필드·`prefs/library` 경로)가 운영에 실제로
+  배포됐는지 확인되지 않았기 때문이다. 0에서는 소속을 계정별 로컬 metadata에만 쓰며
+  set 저장 요청에는 folderId를 넣지 않아 **구형 Rules 에서도 저장이 된다.**
+  ⚠️ **배포를 확인하기 전에 1로 올리지 말 것** — 구형 Rules 는 `hasOnly` 목록에 folderId 가
+  없어 로그인 사용자의 문제집 저장이 **전부 '권한 오류' 로 실패한다.**
+  ⚠️ **검사가 이 배포 플래그를 물려받게 하지 말 것**(`REV-2026-051`). 예전에는 두 검사
+  묶음의 7건이 `service-config.js` 값을 그대로 썼다 — "공개 전에 0으로 내려라" 는 지시를
+  따르는 순간 P1 회귀들이 **잘못된 이유로** 빨간불이 되어, 제품이 깨진 건지 검사가 깨진
+  건지 가를 수 없었다. 지금은 `check-review-contracts.mjs` 의 `app()` 이 단계 선언을
+  **강제하고**(안 하면 던진다), `tests/regression-test.html` 은 `withSchema()` 로 걸었다
+  되돌린다. 규칙 허용 필드 대조는 **두 단계를 함께** 본다.
 
 구조 분리 승인 조건·검사 근거는 HANDOFF-2026-073을 따른다.
