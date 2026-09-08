@@ -1782,8 +1782,19 @@ async function runMockTests(){
        fetch 를 잠시 가로채 헤더만 확인하고 원래대로 돌려놓는다. */
     const real = win.fetch;
     let seen = null;
+    /* ⚠️ `toHwpx()` 는 먼저 `pingServer()` 로 서버를 찾고, **못 찾으면 보내지 않는다.**
+       그런데 `serve.py` 의 `/health` 는 **typst 가 깔려 있어야** `ok:true` 를 낸다 —
+       개발 컴퓨터에는 typst 가 있고 CI 에는 없어서, 이 검사가 **CI 에서만** 빨간불이었다
+       (`CLAUDE.md` 가 경고하는 그 함정을 그대로 밟았다).
+       보려는 것은 '조판 능력' 이 아니라 **'보낼 때 그 헤더를 붙이는가'** 이므로
+       `/health` 응답도 함께 흉내 낸다 — 그러면 어느 환경에서나 같은 것을 잰다. */
     win.fetch = (url, opt) => {
-      seen = { url: String(url), headers: (opt && opt.headers) || {} };
+      const u = String(url);
+      if (u.includes("/health")) {
+        return Promise.resolve({ ok: true, status: 200,
+          json: async () => ({ ok: true }), headers: { get: () => null } });
+      }
+      seen = { url: u, headers: (opt && opt.headers) || {} };
       return Promise.resolve({ ok: false, status: 503,
         json: async () => ({ error: "테스트" }), headers: { get: () => null } });
     };
