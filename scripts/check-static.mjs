@@ -31,6 +31,22 @@ assert.match(cspDirective("frame-src"), /https:\/\/www\.google\.com/,
 assert.match(cspDirective("connect-src"), /dawn-shape-2664\.dbruddl79\.workers\.dev/,
   "AI Worker API 호스트가 CSP connect-src에 있어야 합니다");
 assert.doesNotMatch(index, /await purgeAiUsage\(/, "일반 사용자에게 비용 한도 초기화 권한을 주면 안 됩니다");
+/* ⚠️ **규칙의 상한과 앱의 상한이 어긋나면 그 길이의 제목은 영영 저장되지 않는다.**
+   앱은 200자까지 받는데 규칙이 160에서 끊고 있었다 — 저장이 '권한 오류' 로 실패했고
+   아무 검사도 그것을 보지 않았다. 두 숫자를 여기서 묶는다(브라우저도 파이썬도 필요 없어
+   CI 에서 늘 돈다). */
+{
+  const inRules = /name\.size\(\)\s*<=\s*(\d+)/.exec(rules);
+  const inApp = /const SET_NAME_MAX\s*=\s*(\d+)/.exec(index);
+  assert.ok(inRules, "firestore.rules 에서 이름 상한을 찾지 못했습니다");
+  assert.ok(inApp, "index.html 에서 SET_NAME_MAX 를 찾지 못했습니다");
+  assert.equal(inApp[1], inRules[1],
+    `문제집 이름 상한이 어긋납니다 — 앱 ${inApp[1]} · 규칙 ${inRules[1]}. `
+    + "앱이 더 크면 그 길이의 제목이 '권한 오류' 로 저장되지 않습니다.");
+  assert.match(index, /name:str\(s\.name,lossless\?Infinity:SET_NAME_MAX\)/,
+    "normSet 이 SET_NAME_MAX 를 써야 두 값이 실제로 이어집니다");
+}
+
 assert.match(worker, /async alarm\(\)/, "AI quota는 자동 파기 alarm이 필요합니다");
 assert.match(worker, /QUOTA_RETENTION_MS/, "AI quota 보존 기간 상수가 필요합니다");
 assert.match(worker, /MAX_DAILY_LIMIT/, "AI 비용을 위한 절대 일일 상한이 필요합니다");

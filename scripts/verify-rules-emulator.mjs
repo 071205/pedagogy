@@ -79,6 +79,14 @@ try {
     validSet("tombstone", { deleted: true, name: "", header: "", problems: [] })));
   await assertSucceeds(deleteDoc(doc(aliceDb, "users", "alice", "sets", "set-1")));
 
+  // ⚠️ **규칙의 상한과 앱의 상한이 어긋나면 그 길이의 제목은 영영 저장되지 않는다.**
+  //    앱은 200자까지 받아 두는데 규칙이 160자에서 끊고 있었다(외부 검토가 짚었다).
+  await assertSucceeds(setDoc(doc(aliceDb, "users", "alice", "sets", "name-160"),
+    validSet("name-160", { name: "가".repeat(160) })));
+  await assertFails(setDoc(doc(aliceDb, "users", "alice", "sets", "name-161"),
+    validSet("name-161", { name: "가".repeat(161) })),
+    "규칙의 이름 상한(160)을 넘으면 거부돼야 한다 — 앱도 같은 값으로 잘라야 한다");
+
   // ── 폴더 (B단계) ──
   // ⚠️ 규칙과 앱의 화이트리스트는 **함께** 넓혀야 한다. 한쪽만 넓히면 저장이 통째로
   //    '권한 오류' 가 된다 — 그래서 folderId 가 실제로 통과하는지부터 본다.

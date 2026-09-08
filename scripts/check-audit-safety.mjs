@@ -93,6 +93,9 @@ test('041: an upload that never attached is deleted, attached history remains',a
 test('042: keepId, bounds, and lossless are independent',()=>{
   const c=context(`const uid=()=> 'new';const str=(v,max=2e4)=>typeof v==='string'?v.slice(0,max):'';
     const safeUrl=x=>x||'',normSheetColor=x=>x||'',normSubject=x=>x||'',BLOCK_TYPES=['statement'];
+    /* ⚠️ 이름 상한은 firestore.rules 와 묶여 있다(check-static 이 두 값을 대조한다).
+       여기서는 그 연결을 재는 것이 아니므로 같은 값을 넣어 준다. */
+    const SET_NAME_MAX=160;
     const normDropped={images:0};`);
   vm.runInContext(fn('normBlock')+'\n'+fn('normProblem')+'\n'+fn('normSet'),c);
   vm.runInContext(`const many={id:'same',name:'n'.repeat(201),header:'h'.repeat(201),problems:Array.from({length:12},(_,i)=>({id:'q'+i,blocks:Array.from({length:51},()=>({type:'statement',data:{text:'x'.repeat(20001)}}))}))}`,c);

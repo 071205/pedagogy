@@ -640,12 +640,28 @@ def strip_to_frame(doc: HwpxDocument) -> dict:
         """
         for child in node.children:
             frame = in_frame or child.local_name in _FRAME_IN_RUN
-            if child.local_name == "t" and (child.text or ""):
+            # ⚠️ **꼬리 글자도 내용이다.** `<hp:t>값<hp:tab/>은?</hp:t>` 의 `은?` 은
+            #    `<hp:tab>` 의 꼬리라 `.text` 에 없다. 이걸 빠뜨려 원본 발문 41낱말이
+            #    (`값은`·`곡선`·`순서쌍`·`자연수`…) 배포용 틀에 그대로 남아 있었다
+            #    (`REV-2026-030` 재발). 확인하는 `leftovers()` 도 같은 곳만 봐서
+            #    **둘이 함께 놓쳤다.**
+            if not in_frame and (child.tail or "").strip():
+                child.tail = _blank_text(child.tail)
+                counts["changed"] += 1
+            if child.local_name == "t":
                 if frame:
                     counts["kept"] += 1
-                else:
+                    continue
+                # ⚠️ `<hp:t>` 안에서 **끝내면 안 된다.** `값<hp:tab/>은?` 처럼 자식이 끼면
+                #    `은?` 은 그 자식의 꼬리에 있다. 글과 꼬리를 **함께** 지운다.
+                if child.text or "":
                     child.text = _blank_text(child.text)
                     counts["changed"] += 1
+                for inner in child.iter():
+                    if (inner.tail or "").strip():
+                        inner.tail = _blank_text(inner.tail)
+                        counts["changed"] += 1
+                continue
             elif child.local_name == "script" and (child.text or "").strip():
                 # 수식은 안쪽이든 바깥이든 남기지 않는다 — 글자가 아니라고 내용이
                 # 아닌 것이 아니다. 자리만 남기려고 가장 단순한 유효 수식으로 바꾼다.

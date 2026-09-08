@@ -101,8 +101,10 @@ def leftovers(path: Path) -> list[str]:
                 bad.append(f"{name}: 원본 수식 {len(real)}개 (예: {real[0][:40]!r})")
 
             # ② 글 — 허용 글자와 형식 문구를 걷어내고 남는 것이 있으면 남의 내용이다
-            text = "".join(e.text or "" for e in root.iter()
-                           if etree.QName(e).localname == "t")
+            # ⚠️ **`.text` 만 읽으면 안 된다.** `<hp:t>값<hp:tab/>은?</hp:t>` 의 `은?` 은
+            #    `<hp:tab>` 의 꼬리라 `.text` 에 없다 — 만드는 쪽도 여기도 `.text` 만 봐서
+            #    **둘이 함께** 원본 발문을 놓쳤다(`REV-2026-030` 재발).
+            text = "".join((e.text or "") + (e.tail or "") for e in root.iter())
             for pattern in FRAME_PATTERNS:
                 text = re.sub(pattern, "", text)
             rest = "".join(c for c in text if c not in ALLOWED_CHARS)

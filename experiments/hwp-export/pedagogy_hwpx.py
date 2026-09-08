@@ -127,6 +127,21 @@ class XmlNode:
         self.element.text = value
         self.part.mark_modified()
 
+    @property
+    def tail(self) -> str | None:
+        """이 노드 **뒤**에 붙은 글자.
+
+        ⚠️ `<hp:t>값<hp:tab/>은?</hp:t>` 의 `은?` 은 `<hp:tab>` 의 **꼬리**다.
+           `.text` 만 읽고 쓰면 그 글자를 못 보고 못 고친다 — 틀에서 원본 발문이
+           그렇게 살아남았다(`REV-2026-030`).
+        """
+        return self.element.tail
+
+    @tail.setter
+    def tail(self, value: str | None) -> None:
+        self.element.tail = value
+        self.part.mark_modified()
+
     def find(self, path: str) -> "XmlNode | None":
         found = self.element.find(path, namespaces=NS)
         return XmlNode(found, self.part) if found is not None else None

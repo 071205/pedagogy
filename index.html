@@ -2165,6 +2165,7 @@ const PASSAGE_KINDS=["prose","verse"];
      5열  6번 "① $100 ② $150 …"      · 3열  8·17번
      2열  5·19·31·36번               · 세로  22·23·24·26·33·34·35번 (영어 선지 대부분)
    예전에는 5열(horizontal)과 세로뿐이라, 2·3열 문항은 만들 수 없었다. */
+const SET_NAME_MAX=160;   // ↔ firestore.rules 의 name.size()
 const CHOICE_LAYOUTS=["horizontal","cols3","cols2","vertical"];
 const IMG_SIZES=["full","large","medium","small"];
 const str=(v,max=20000)=>typeof v==="string"?v.slice(0,max):"";
@@ -2354,7 +2355,12 @@ function normSet(s, opts){
   const problems=s.problems.slice(0,lossless?undefined:max)
     .map(p=>normProblem(p,{keepId,lossless})).filter(Boolean);
   return { id:(keepId&&typeof s.id==="string"&&s.id)?s.id:uid(),
-           name:str(s.name,lossless?Infinity:200)||"제목 없음", header:str(s.header,lossless?Infinity:200),
+           /* ⚠️ **이름 상한은 `firestore.rules` 와 같아야 한다.** 앱이 200자까지 받는데
+              규칙이 160에서 끊고 있어, 161~200자 제목은 저장이 통째로 '권한 오류' 로
+              실패했다(외부 검토가 짚었고 에뮬레이터로 재현했다). `check:static` 이 두
+              숫자를 대조한다 — 한쪽만 고치면 빨간불이 난다. */
+           name:str(s.name,lossless?Infinity:SET_NAME_MAX)||"제목 없음",
+           header:str(s.header,lossless?Infinity:200),
            lineColor:normSheetColor(s.lineColor), subject:normSubject(s.subject),
            /* ⚠️ **가져온 파일(`keepId` 없음)의 folderId 는 버린다** — 남의 기기에서 만든
               폴더 id 는 여기서 뜻이 없고, 두면 '알 수 없는 폴더' 만 늘어난다.
