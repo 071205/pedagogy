@@ -468,15 +468,21 @@
       return !text.trim();
     }
 
-    appendParagraph(text, { sectionIndex = 0, paraPrId, styleId, charPrId } = {}) {
+    /** 빈 문단을 하나 잇는다.
+     *  ⚠️ `withRun:false` 면 **글자 run 을 만들지 않는다.** 곧바로 다른 run 을 붙일
+     *     자리에 쓴다 — 그러지 않으면 빈 `<hp:t/>` run 이 앞에 남는다. 실물 시험지의
+     *     문항 문단은 **번호 run 으로 바로 시작**하므로 그 모양을 맞추려는 것이다. */
+    appendParagraph(text, { sectionIndex = 0, paraPrId, styleId, charPrId, withRun = true } = {}) {
       const xdoc = this.section(sectionIndex);
       const p = sub(xdoc.documentElement, "hp:p", {
         paraPrIDRef: String(paraPrId ?? 0), styleIDRef: String(styleId ?? 0),
         pageBreak: "0", columnBreak: "0", merged: "0",
       });
       p.setAttribute("id", String(this.paragraphCount(sectionIndex) - 1));
-      const run = sub(p, "hp:run", { charPrIDRef: String(charPrId ?? 0) });
-      sub(run, "hp:t").textContent = text;
+      if (withRun) {
+        const run = sub(p, "hp:run", { charPrIDRef: String(charPrId ?? 0) });
+        sub(run, "hp:t").textContent = text;
+      }
       return p;
     }
 

@@ -107,6 +107,65 @@ roles["_bindata_gone"] = tmpl.strip_bindata(doc)   # 이 순서가 open_template
 print(json.dumps(roles, ensure_ascii=False, sort_keys=True))
 `;
 
+/* ── 3단계: **문항을 실제로 내보고** 결과를 견준다 ─────────────────────────
+   ⚠️ 역할 표가 같아도 방출이 다르면 시험지가 다르게 나온다. 여기서는 편집기가 보내는
+      것과 같은 payload 를 양쪽에 넣고 **만들어진 문단**을 지문으로 견준다. */
+/* 편집기가 실제로 보내는 모양(블록 배열)이다 — 유닛 나누기까지 파이썬이 하게 두고,
+   그 결과를 JS 에 그대로 먹여 **방출**만 견준다(브라우저는 편집기의 `probUnits()` 를 쓴다). */
+const PROBLEM = {
+  num: 12, pts: 4, type: "choice", layoutResolved: "2",
+  blocks: [
+    { type: "statement", data: { text: "함수 $f(x)=x^{2}-3x$ 에 대하여 $f(2)$ 의 값은? (단, $x>0$)\n$\\int_0^1 x^2\\,dx$" } },
+    { type: "conditions", data: { items: ["(가) $a_1=1$", "$a_{n+1}=a_n+2$"] } },
+    { type: "examples", data: { items: ["$p$ 는 소수이다.", "$q$ 는 짝수이다."] } },
+    { type: "boxed", data: { text: "보기" } },
+    { type: "choices", data: { items: ["$1$", "$2$", "$3$", "$4$", "$5$"], layout: "auto" } },
+  ],
+};
+
+const PY_EMIT = `
+import json, sys
+sys.path.insert(0, "experiments/hwp-export")
+from pathlib import Path
+import mock_to_hwpx as m, template as tmpl
+T = Path(${JSON.stringify(TEMPLATE)})
+doc, roles = tmpl.open_template(T)
+m.STYLE.clear(); m.CUR["sec"] = 0
+m.PROFILE.clear(); m.PROFILE["_source"] = "x (틀)"
+for role, spec in roles.items():
+    if role.startswith("_"): continue
+    if "para" in spec: m.STYLE["para_" + role] = spec["para"]
+    if "char" in spec: m.STYLE["char_" + role] = spec["char"]
+    if "style" in spec: m.STYLE["style_" + role] = spec["style"]
+m.STYLE["char_num"] = roles.get("num", {}).get("char", m.STYLE.get("char_stem"))
+m.PROFILE["_eq_base"] = roles.get("_eq_base")
+
+p = json.loads(sys.argv[1] if len(sys.argv) > 1 else "{}")
+rep = m.Report()
+units, pts_at = m.prob_units(p)
+before = doc.paragraph_count(0)
+m.emit_problem(doc, p, rep)
+out = []
+import re as _re
+sec = doc.get_part("Contents/section0.xml")
+paras = [k for k in sec.root.children if k.local_name == "p"][before:]
+for para in paras:
+    xml = para.to_xml()
+    tags = {}
+    for mm in _re.finditer(r"<(?:\\w+:)?(\\w+)[\\s/>]", xml):
+        tags[mm.group(1)] = tags.get(mm.group(1), 0) + 1
+    text = "".join(_re.findall(r"<hp:t[^>]*>(.*?)</hp:t>", xml, _re.S))
+    out.append({
+        "para": para.get_attr("paraPrIDRef"), "style": para.get_attr("styleIDRef"),
+        "tags": tags, "text": _re.sub(r"<[^>]+>", "", text),
+        "chars": _re.findall(r'charPrIDRef="(\\d+)"', xml),
+        "tabs": _re.findall(r'<hp:tab width="(\\d+)"', xml),
+        "scripts": _re.findall(r"<hp:script[^>]*>(.*?)</hp:script>", xml, _re.S),
+    })
+print(json.dumps({"paras": out, "warnings": rep.warnings,
+                  "units": units, "ptsAt": pts_at}, ensure_ascii=False))
+`;
+
 let pyRoles;
 try {
   pyRoles = JSON.parse(execFileSync("python3", ["-c", PY], { cwd: ROOT, encoding: "utf8" }));
@@ -203,3 +262,72 @@ if (fails) {
   process.exit(1);
 }
 console.log(`틀 읽기 대조 통과 — 역할 ${keys.length}종이 파이썬과 같습니다`);
+
+/* ── 3단계: 문항 방출 대조 ───────────────────────────────────────────────── */
+let pyEmit;
+try {
+  pyEmit = JSON.parse(execFileSync("python3", ["-c", PY_EMIT, JSON.stringify(PROBLEM)],
+                                   { cwd: ROOT, encoding: "utf8", maxBuffer: 32 << 20 }));
+} catch (e) {
+  console.log("문항 방출 대조를 건너뜁니다 — 파이썬 쪽 실패: "
+    + String(e.stderr || e.message).split("\n").filter(Boolean).slice(-1)[0]?.slice(0, 160));
+  process.exit(REQUIRE ? 1 : 0);
+}
+
+let jsEmit;
+{
+  const browser2 = await chromium.launch();
+  try {
+    const page = await browser2.newPage();
+    await page.setContent("<!doctype html><meta charset=utf-8><title>방출 대조</title>");
+    await page.addScriptTag({ path: join(ROOT, "hwpx-engine.js") });
+    await page.addScriptTag({ path: join(ROOT, "hwpx-exam-template.js") });
+    await page.addScriptTag({ path: join(ROOT, "hwpx-exam.js") });
+    jsEmit = await page.evaluate(async ([b64, problem]) => {
+      const bin = atob(b64); const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      const { doc, roles } = await window.PedagogyExamTemplate.openTemplate(bytes.buffer);
+      const w = new window.PedagogyExam.ExamWriter(doc, roles);
+      const before = doc.paragraphCount(0);
+      w.problem(problem, null);
+      const ser = new XMLSerializer();
+      const paras = doc.paragraphs(0).slice(before);
+      const out = paras.map((p) => {
+        const xml = ser.serializeToString(p);
+        const tags = {};
+        for (const m of xml.matchAll(/<(?:\w+:)?(\w+)[\s/>]/g)) tags[m[1]] = (tags[m[1]] || 0) + 1;
+        const text = [...xml.matchAll(/<hp:t[^>]*>([\s\S]*?)<\/hp:t>/g)].map((m) => m[1]).join("");
+        return {
+          para: p.getAttribute("paraPrIDRef"), style: p.getAttribute("styleIDRef"),
+          tags, text: text.replace(/<[^>]+>/g, ""),
+          chars: [...xml.matchAll(/charPrIDRef="(\d+)"/g)].map((m) => m[1]),
+          tabs: [...xml.matchAll(/<hp:tab width="(\d+)"/g)].map((m) => m[1]),
+          scripts: [...xml.matchAll(/<hp:script[^>]*>([\s\S]*?)<\/hp:script>/g)].map((m) => m[1]),
+        };
+      });
+      return { paras: out, warnings: w.report.warnings };
+    }, [templateB64, { ...PROBLEM, units: pyEmit.units, ptsAt: pyEmit.ptsAt }]);
+  } finally { await browser2.close(); }
+}
+
+let efails = 0;
+const pp = pyEmit.paras, jp = jsEmit.paras;
+if (pp.length !== jp.length) {
+  console.log(`  ❌ 문단 개수 — 파이썬 ${pp.length} · JS ${jp.length}`);
+  efails++;
+}
+/* ⚠️ 문단이 몇 개는 나와야 한다 — 둘 다 0 이면 "같다" 로 통과해 아무것도 검사하지 않는다. */
+if (pp.length < 5) { console.log(`  ❌ 문단이 ${pp.length}개뿐입니다 — 이 검사가 헛돌고 있습니다`); efails++; }
+for (let i = 0; i < Math.min(pp.length, jp.length); i++) {
+  const a = canon(pp[i]), b = canon(jp[i]);
+  if (a === b) continue;
+  console.log(`  ❌ 문단 ${i}\n      파이썬 ${a.slice(0, 220)}\n      JS     ${b.slice(0, 220)}`);
+  efails++;
+}
+if (canon(pyEmit.warnings) !== canon(jsEmit.warnings)) {
+  console.log(`  ❌ 경고 — 파이썬 ${canon(pyEmit.warnings)} · JS ${canon(jsEmit.warnings)}`);
+  efails++;
+}
+
+if (efails) { console.log(`\n문항 방출이 갈라졌습니다 — ${efails}건`); process.exit(1); }
+console.log(`문항 방출 대조 통과 — 문단 ${pp.length}개가 파이썬과 같습니다`);

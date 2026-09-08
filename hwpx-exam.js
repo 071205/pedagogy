@@ -1,0 +1,292 @@
+/* 시험지 만들기 — `experiments/hwp-export/mock_to_hwpx.py` 의 **방출 부분**을 옮긴 것.
+ *
+ * ⚠️ **편집기 로직은 옮기지 않는다.** 파이썬은 `probUnits`·`layoutOf`·`buildPages` 를
+ *    베껴 안고 있는데(280줄), 브라우저에서는 **편집기의 것을 그대로 쓴다.** 그래서 이
+ *    이식은 사본을 늘리는 것이 아니라 **줄인다.** 편집기가 유닛과 배치를 실어 보낸다:
+ *      payload.problems[i].units / ptsAt / layoutResolved / heightMm / breakAfter
+ *
+ * ⚠️ 여기 있는 것은 **글자·수식·선지·문단을 HWPX 로 내는 일**뿐이다. 틀을 읽고 떠 오는
+ *    것은 `hwpx-exam-template.js`, ZIP·수식 변환은 `hwpx-engine.js` 가 한다.
+ *
+ * ⚠️ 파이썬 쪽을 고치면 여기도 고쳐야 하고, 그 일치는 `npm run test:hwpx-exam` 이
+ *    **같은 payload 를 양쪽에 넣어 결과 XML 을 대조**해 지킨다.
+ */
+(function (global) {
+  "use strict";
+
+  const HP = "http://www.hancom.co.kr/hwpml/2011/paragraph";
+
+  /* 실물에서 잰 값. 번호 뒤는 **공백이 아니라 탭**이고 자릿수마다 구성이 다르다.
+     ⚠️ 공백으로 두면 한 자리·두 자리 문항의 발문 시작 위치가 어긋난다. */
+  const NUM_TAB_WIDTHS = { 1: [636], 2: [132, 671] };
+
+  /* 발문 아래 별행 수식도 탭 하나로 14.11mm 에서 시작한다.
+     ⚠️ **상자 안(`condeq`)에는 탭이 없다** — 같은 별행 수식이라도 쓰임이 다르다. */
+  const EQ_TAB_WIDTH = 2850;
+
+  const esc = (s) => global.PedagogyHwpx.xmlEscape(String(s == null ? "" : s));
+
+  /* ── 실물의 조판 관례 — 수식 **앞**에는 공백 한 칸, 뒤에는 조사를 바로 붙인다.
+     실물 인라인 수식 361개 중 349개(96.7%)가 앞에 공백을 둔다.
+     ⚠️ 여는 괄호 뒤와 줄 첫머리에는 넣지 않는다.
+     ⚠️ **정규식 하나로 하지 말 것.** `$1$,$2$` 에서 앞 수식의 닫는 `$` 와 뒤 수식의
+        여는 `$` 를 짝지어 수식 안에 공백이 들어간다 — 쪼갠 뒤 이어 붙인다. */
+  function spaceBeforeMath(text) {
+    const parts = String(text).split(/(\$[^$\n]*\$)/);
+    let out = "";
+    for (const part of parts) {
+      if (part.startsWith("$") && part.endsWith("$") && part.length >= 2) {
+        const prev = out.slice(-1);
+        if (prev && !/[\s(\[{]/.test(prev)) out += " ";
+      }
+      out += part;
+    }
+    return out;
+  }
+
+  /* `함수 $f(x)$에 대하여` → [['text','함수 '], ['eq','f(x)'], ['text','에 대하여']] */
+  function splitInline(text) {
+    const out = [];
+    for (const chunk of spaceBeforeMath(text).split(/(\$[^$]*\$)/)) {
+      if (!chunk) continue;
+      if (chunk.startsWith("$") && chunk.endsWith("$") && chunk.length >= 2) {
+        out.push(["eq", chunk.slice(1, -1)]);
+      } else out.push(["text", chunk]);
+    }
+    return out;
+  }
+
+  /* `12.` + 탭 — 문항 번호 앞머리 한 조각. 탭은 `<hp:t>` **안의 요소**다. */
+  function numPrefixXml(num) {
+    const label = String(num);
+    const widths = NUM_TAB_WIDTHS[Math.min(label.length, 2)] || NUM_TAB_WIDTHS[2];
+    const tabs = widths.map((w) => `<hp:tab width="${w}" leader="0" type="1"/>`).join("");
+    return `<hp:t xmlns:hp="${HP}">${esc(label)}.${tabs}</hp:t>`;
+  }
+
+  const eqTabXml = () =>
+    `<hp:t xmlns:hp="${HP}"><hp:tab width="${EQ_TAB_WIDTH}" leader="0" type="1"/></hp:t>`;
+
+  /* 한 시험지를 만드는 동안의 상태. 파이썬의 모듈 전역(STYLE·CUR·rep)에 해당한다.
+     ⚠️ 모듈 전역으로 두지 않는다 — 브라우저에서는 두 번 눌러 겹칠 수 있다. */
+  class ExamWriter {
+    constructor(doc, roles) {
+      this.doc = doc;
+      this.roles = roles;
+      this.sec = 0;                      // 지금 쓰는 구역(0 공통 · 1 선택)
+      this.report = { problems: 0, equations: 0, figures: 0, warnings: [] };
+      /* 역할 → 문단·글자·스타일 id. 파이썬 `STYLE` 과 같은 이름을 쓴다. */
+      this.style = {};
+      for (const [role, spec] of Object.entries(roles)) {
+        if (role.startsWith("_")) continue;
+        if (spec.para != null) this.style["para_" + role] = spec.para;
+        if (spec.char != null) this.style["char_" + role] = spec.char;
+        if (spec.style != null) this.style["style_" + role] = spec.style;
+      }
+      /* ⚠️ 이름 붙은 스타일에는 '문항 번호' 서식이 없다 — 발문 첫 조각에서 찾아 온다. */
+      this.style.char_num = (roles.num && roles.num.char) || this.style.char_stem;
+    }
+
+    warn(msg) { this.report.warnings.push(msg); }
+
+    /* 문단 모양 역할에 대응하는 '이름 붙은 스타일' id (있으면). */
+    styleOf(para) { return this.style["style_" + para.replace(/^para_/, "")]; }
+
+    /* 실물 수식의 기준 크기. ⚠️ 본문과 다르다(본문 11.5pt · 수식 11.0pt). */
+    eqBase() { return this.roles._eq_base || 1100; }
+
+    para(text, { para, char, withRun = true } = {}) {
+      this.doc.appendParagraph(text, {
+        sectionIndex: this.sec,
+        paraPrId: this.style[para], styleId: this.styleOf(para || ""),
+        charPrId: this.style[char], withRun,
+      });
+      return this.doc.paragraphCount(this.sec) - 1;
+    }
+
+    /* 문단 뒤에 글자 조각 하나를 잇는다.
+       ⚠️ `appendRunXml()` 은 넘긴 XML 을 `<hp:run>` 으로 **한 번 더 감싼다.**
+          `<hp:run>` 을 통째로 넘기면 run 이 중첩돼 한글이 그 문단의 뒤쪽 글자를 통째로
+          그리지 않는다(수식 뒤 한글이 사라지고 선지가 뭉개졌다). `<hp:t>` 만 넘긴다. */
+    textRun(idx, text, char = "char_stem") {
+      this.doc.appendRunXml(`<hp:t xmlns:hp="${HP}">${esc(text)}</hp:t>`,
+        { sectionIndex: this.sec, paragraphIndex: idx, charPrId: this.style[char] });
+    }
+
+    equation(idx, tex, charRole, where) {
+      try {
+        const script = global.PedagogyHwpx.texToHwp(tex);
+        this.doc.appendEquation(script, {
+          sectionIndex: this.sec, paragraphIndex: idx,
+          charPrId: this.style[charRole], baseUnit: this.eqBase(),
+        });
+        this.report.equations++;
+        return true;
+      } catch (e) {
+        /* 조용히 버리면 시험지에 수식이 빠진 채로 인쇄된다. 자리를 남기고 알린다. */
+        this.warn(`${where}: 수식 변환 실패 — ${e.message} (${tex})`);
+        this.textRun(idx, `[수식 변환 실패: ${tex}]`, charRole);
+        return false;
+      }
+    }
+
+    /* 글자와 인라인 수식이 섞인 문단 하나. 만든 문단 번호를 준다.
+       `prefix` 는 문항 번호처럼 **본문과 다른 서식**으로 나가는 앞머리다(13.5pt). */
+    rich(text, { where, para = "para_stem", char = "char_stem", prefix = "", into = null } = {}) {
+      const parts = splitInline(text);
+      let idx, rest;
+      if (into != null) {
+        /* 틀 문단(구역·단 정의를 안고 있는 첫 문단)에 이어 쓴다 — 새 문단을 만들면
+           비워진 틀 문단이 빈 줄로 남아 첫 문항이 밀린다. */
+        idx = into;
+        if (prefix) this.doc.appendRunXml(numPrefixXml(prefix),
+          { sectionIndex: this.sec, paragraphIndex: idx, charPrId: this.style.char_num });
+        rest = parts;
+      } else if (prefix) {
+        /* ⚠️ `withRun:false` 다 — 기본값이면 빈 `<hp:t/>` run 이 번호 앞에 남는데,
+           실물 문항 문단은 번호 run 으로 바로 시작한다. */
+        idx = this.para("", { para, char: "char_num", withRun: false });
+        this.doc.appendRunXml(numPrefixXml(prefix),
+          { sectionIndex: this.sec, paragraphIndex: idx, charPrId: this.style.char_num });
+        rest = parts;
+      } else {
+        const lead = (parts[0] && parts[0][0] === "text") ? parts[0][1] : "";
+        idx = this.para(lead, { para, char });
+        rest = lead ? parts.slice(1) : parts;
+      }
+      for (const [kind, body] of rest) {
+        if (kind === "text") this.textRun(idx, body, char);
+        else this.equation(idx, body, "char_stem", where);
+      }
+      return idx;
+    }
+
+    /* `$...$` 한 줄만 있는 유닛 — 별행 수식.
+       ⚠️ 상자 안에서 `eq` 로 떨어지면 **그 줄만 상자 밖으로 나간다** — 테두리는 문단
+          모양이 그리므로 다른 모양을 주면 상자가 끊긴다. */
+    displayEq(tex, { where, roles = ["eq", "cont"] } = {}) {
+      const body = (tex.startsWith("$") && tex.endsWith("$")) ? tex.slice(1, -1) : tex;
+      const paraRole = roles.map((r) => "para_" + r).find((r) => r in this.style) || "para_cont";
+      /* ⚠️ 글자 모양 '0'(문서 기본)을 고른 것으로 치지 않는다 — `21 문제다음 별행` 의
+         글자 모양이 실제로 0 이라, 그대로 쓰면 본문 글자 모양을 잃는다. */
+      const charId = roles.map((r) => this.style["char_" + r])
+        .find((v) => v != null && String(v) !== "0")
+        ?? (this.style.char_cont ?? this.style.char_stem);
+
+      /* 발문 아래(`eq`)만 탭으로 14.11mm 에 맞춘다 — 상자 안은 탭이 없는 것이 실물이다. */
+      const tabbed = paraRole === "para_eq";
+      this.doc.appendParagraph("", {
+        sectionIndex: this.sec, paraPrId: this.style[paraRole],
+        styleId: this.styleOf(paraRole), charPrId: charId, withRun: !tabbed,
+      });
+      const idx = this.doc.paragraphCount(this.sec) - 1;
+      if (tabbed) this.doc.appendRunXml(eqTabXml(),
+        { sectionIndex: this.sec, paragraphIndex: idx, charPrId: charId });
+      this.equation(idx, body, "char_stem", where);
+    }
+
+    /* 선지 배치에 해당하는 문단 역할.
+       ⚠️ 배치 전체가 **한 문단 모양**을 쓴다 — 3+2 라면 두 줄이 같은 것을 써야
+          넷째가 첫째 아래에 선다. 줄마다 다르게 주면 아래 줄이 엉뚱하게 벌어진다. */
+    rowPara(layout) {
+      const role = { "1": "para_ch1row", "2": "para_ch2row", "v": "para_ch1row" }[layout]
+                 || "para_ch1row";
+      if (role in this.style) return role;
+      return "para_choice" in this.style ? "para_choice" : "para_cont";
+    }
+
+    /* 선지 한 줄. 항목 사이를 **탭**으로 벌린다.
+       ⚠️ 공백으로 이어 붙이면 왼쪽에 몰린다(실제로 그랬다). */
+    choiceRow(items, { where, layout }) {
+      if (!items.length) return;
+      const para = this.rowPara(layout);
+      const char = "char_choice" in this.style ? "char_choice" : "char_stem";
+      const MARKS = global.PedagogyHwpx.MARKS;
+      let first = true, idx = -1;
+      for (const [markI, body] of items) {
+        const label = MARKS[markI % MARKS.length] + " ";
+        if (first) {
+          idx = this.rich(label + body, { where, para, char });
+          first = false;
+          continue;
+        }
+        this.doc.appendRunXml(
+          `<hp:t xmlns:hp="${HP}"><hp:tab width="0" leader="0" type="1"/>${esc(label)}</hp:t>`,
+          { sectionIndex: this.sec, paragraphIndex: idx, charPrId: this.style[char] });
+        for (const [kind, chunk] of splitInline(body)) {
+          if (kind === "text") this.textRun(idx, chunk, char);
+          else this.equation(idx, chunk, char, `${where} 선지`);
+        }
+      }
+    }
+
+    /* 배치는 **편집기가 정해서 보낸다**(`layoutResolved`).
+       ⚠️ 편집기는 KaTeX 로 실제 폭을 재지만 우리는 못 잰다 — 어림하지 말고 받은 값을 쓴다. */
+    choices(unit, layout, where) {
+      const used = (unit.items || []).map((c, i) => [i, String(c || "")])
+        .filter(([, c]) => c.trim());
+      if (!used.length) return;
+      const lay = layout || "1";
+      if (lay === "1") this.choiceRow(used, { where, layout: lay });
+      else if (lay === "2") {
+        this.choiceRow(used.slice(0, 3), { where, layout: lay });
+        this.choiceRow(used.slice(3), { where, layout: lay });
+      } else for (const one of used) this.choiceRow([one], { where, layout: lay });
+    }
+
+    /* 문항 하나. 유닛은 **편집기가 만든 것**을 그대로 받는다. */
+    problem(p, into) {
+      const units = p.units || [];
+      const ptsAt = typeof p.ptsAt === "number" ? p.ptsAt : -1;
+      const num = p.num == null ? "?" : p.num;
+      const where = `${num}번`;
+      if (!units.some((u) => u.k !== "choices")) {
+        this.para(`${num}. (발문 비어 있음)`, { para: "para_stem", char: "char_stem" });
+        return;
+      }
+      this.report.problems++;
+      let first = true;
+      units.forEach((u, i) => {
+        const tail = (i === ptsAt && p.pts) ? `  [${p.pts}점]` : "";
+        if (u.k === "text") {
+          if (first) { this.rich(u.t + tail, { where, para: "para_stem", char: "char_stem", prefix: String(num), into }); into = null; }
+          /* 둘째 줄부터는 실물처럼 '이어지는 줄' 서식을 쓴다. */
+          else this.rich(u.t + tail, { where, para: "para_cont", char: "char_cont" });
+          first = false;
+        } else if (u.k === "eq") {
+          this.displayEq(u.t, { where });
+        } else if (u.k === "boxed") {
+          this.rich("〈" + u.t + "〉", { where, para: "para_cont", char: "char_cont" });
+        } else if (u.k === "cond") {
+          /* 실물은 상자를 앞뒤 여백 문단으로 감싼다 — 없으면 상자 뒤 발문이 딱 붙는다. */
+          if ("para_boxtop" in this.style) this.para("", { para: "para_boxtop", char: "char_boxtop" });
+          const kinds = u.kinds || u.items.map(() => "text");
+          u.items.forEach((item, j) => {
+            /* ⚠️ 상자 안 별행 수식은 **상자 스타일로** 내려간다 — `eq` 로 떨어지면
+               그 줄만 테두리 밖으로 나간다. */
+            if (kinds[j] === "eq") { this.displayEq(item, { where, roles: ["condeq", "cond"] }); return; }
+            this.rich(item, { where,
+              para: "para_cond" in this.style ? "para_cond" : "para_cont",
+              char: "char_cond" in this.style ? "char_cond" : "char_cont" });
+          });
+          if ("para_boxbot" in this.style) this.para("", { para: "para_boxbot", char: "char_boxbot" });
+        } else if (u.k === "ex") {
+          const HGND = global.PedagogyHwpx.HGND;
+          u.items.forEach((item, j) => {
+            this.rich(`${HGND[j % HGND.length]}. ${item}`, { where,
+              para: "para_ex" in this.style ? "para_ex" : "para_cont",
+              char: "char_ex" in this.style ? "char_ex" : "char_cont" });
+          });
+        } else if (u.k === "choices") {
+          this.choices(u, p.layoutResolved, where);
+        }
+        /* `fig` 는 아직 옮기지 않았다 — 그림은 편집기가 base64 로 실어 보내야 한다. */
+      });
+      /* 문항 사이를 한 줄 띄운다. 실물도 선지 스타일의 빈 문단으로 띄우고, 그 스타일의
+         '문단 아래' 가 0 이라 이것 없이는 다음 문항이 바로 붙는다. */
+      this.para("", { para: "para_choice", char: "char_choice" });
+    }
+  }
+
+  global.PedagogyExam = { ExamWriter, splitInline, spaceBeforeMath, numPrefixXml, eqTabXml };
+})(typeof window !== "undefined" ? window : globalThis);
