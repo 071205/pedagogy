@@ -1,6 +1,6 @@
 # 리뷰 현황
 
-마지막 정리: 2026-09-08
+마지막 정리: 2026-09-09
 
 ## 열린 이슈
 
@@ -34,11 +34,19 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 
 검토 대기: [HANDOFF-2026-077](handoffs/2026-09/2026-09-09-structure-step2-render.md) — 구조 2단계 렌더 분리와 계약 검사 보강.
 
+검토 대기: [HANDOFF-2026-078](handoffs/2026-09/2026-09-09-library-ui-workflows.md) — 라이브러리 폴더 관리·검색·선택·정렬·이동 Undo의 재현된 6건 수정. 구조 3단계보다 먼저 사용자 조작 흐름을 보완했다.
+
 ## 최근 해결
 
 | ID | 심각도 | 요약 | 파일 |
 | --- | --- | --- | --- |
 | `REV-2026-052` | `P3` | 정규화 VM 검사가 표준 URL 없이 허용 URL 경로를 놓침 | `issues/2026-09/2026-09-08-tests-normalize-vm-missing-url.md` |
+| `REV-2026-053` | `P2` | 폴더 삭제·이름 변경을 일반 클릭과 키보드로 찾을 수 없음 | `issues/2026-09/2026-09-09-index-folder-actions-hidden.md` |
+| `REV-2026-054` | `P2` | 폴더 안에서 만든 새 문제집·A단계 복제본이 폴더 밖으로 빠짐 | `issues/2026-09/2026-09-09-index-folder-create-copy-membership.md` |
+| `REV-2026-055` | `P2` | 검색 중 폴더 클릭이 무효처럼 보이고 결과의 소속도 빠짐 | `issues/2026-09/2026-09-09-index-folder-search-navigation.md` |
+| `REV-2026-056` | `P2` | 선택 모드의 점 메뉴가 메뉴를 열지 않고 선택을 뒤집음 | `issues/2026-09/2026-09-09-index-selection-card-menu.md` |
+| `REV-2026-057` | `P2` | 라이브러리 이름 변경이 최근 수정순과 잘못된 문제집 시각을 갱신함 | `issues/2026-09/2026-09-09-index-library-edit-timestamps.md` |
+| `REV-2026-058` | `P2` | 폴더 이동 직후 Undo가 작동하지 않으며 A단계 소속이 기록되지 않음 | `issues/2026-09/2026-09-09-index-folder-move-undo.md` |
 | `REV-2026-051` | `P2` | 검사가 배포 플래그를 물려받아 A단계로 내리면 7건이 빨간불 | `issues/2026-09/2026-09-08-tests-review-contracts-inherit-deploy-flag.md` |
 | `REV-2026-043` | `P1` | 폴더 tombstone을 소속 판정·동시 저장이 무시함 | `issues/2026-09/2026-09-08-index-folder-tombstone-membership.md` |
 | `REV-2026-044` | `P1` | 폴더 스키마 capability 부재와 구형 저장·삭제 비호환 | `issues/2026-09/2026-09-08-index-library-schema-capability.md` |
@@ -95,6 +103,7 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 | ID | 작성자 | 내용 | 파일 |
 | --- | --- | --- | --- |
 | `HANDOFF-2026-077` | Codex | 구조 2단계 — 안전한 HTML 렌더 분리 및 계약 고정 | `handoffs/2026-09/2026-09-09-structure-step2-render.md` |
+| `HANDOFF-2026-078` | Codex | 라이브러리 조작 흐름 6건 수정 — 폴더 관리·이동 Undo·검색·선택·정렬 | `handoffs/2026-09/2026-09-09-library-ui-workflows.md` |
 | `HANDOFF-2026-076` | Codex | Claude A단계·정규화 분리 독립 검토 및 VM URL 검사 보정 | `handoffs/2026-09/2026-09-08-library-and-normalize-review.md` |
 | `HANDOFF-2026-075` | Claude | **구조 1단계 — 정규화(신뢰 경계)를 별도 파일로** | `handoffs/2026-09/2026-09-08-structure-step1-normalize.md` |
 | `HANDOFF-2026-074` | Claude | **코덱스 8건 독립 검증 · A단계 전환 · 검사의 플래그 의존 제거** | `handoffs/2026-09/2026-09-08-library-review-verified-and-schema-a.md` |

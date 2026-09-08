@@ -279,7 +279,7 @@ function normSet(s, opts){
 
 
 const LIB_SORTS=[
-  {v:"manual", name:"직접 정한 순서"},
+  {v:"manual", name:"기본 순서"},
   {v:"name",   name:"이름순"},
   {v:"updated",name:"최근 수정순"},
   {v:"opened", name:"최근 사용순 (이 기기)"},
