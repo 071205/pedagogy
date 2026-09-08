@@ -1838,8 +1838,17 @@ async function runMockTests(){
     win.hwpxPayload = () => ({ round: "검사", problems: [
       { num: 1, sect: "공통", type: "choice", layoutResolved: "1", ptsAt: 0,
         units: [{ k: "text", t: "글" }, { k: "fig", w: 58, src: "있는이름.png" }] }] });
+    /* ⚠️ `toHwpx()` 는 서버를 부르기 전에 `/health` 로 **찾는다**. 그런데 `serve.py` 의
+       `/health` 는 **typst 가 깔려 있어야** `ok:true` 를 낸다 — 개발 컴퓨터에는 있고
+       CI 에는 없어서 이 검사가 **CI 에서만** 빨간불이었다(같은 함정을 이 파일에서 두 번
+       밟았다). 보려는 것은 조판 능력이 아니라 **'서버로 넘기는가'** 이므로 흉내 낸다. */
     win.fetch = (u, o) => {
-      if (String(u).includes("/hwpx")) { hitServer = true; return Promise.reject(new Error("막음")); }
+      const url = String(u);
+      if (url.includes("/health")) {
+        return Promise.resolve({ ok: true, status: 200,
+          json: async () => ({ ok: true }), headers: { get: () => null } });
+      }
+      if (url.includes("/hwpx")) { hitServer = true; return Promise.reject(new Error("막음")); }
       return realFetch(u, o);
     };
     win.HTMLAnchorElement.prototype.click = function () {};
