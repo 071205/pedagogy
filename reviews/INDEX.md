@@ -84,6 +84,7 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 | `HANDOFF-2026-067` | Codex | 독립 감사 9건 수정·실패 주입 회귀·보존 정책 정리 | `handoffs/2026-09/2026-09-08-audit-findings-fixed.md` |
 | `HANDOFF-2026-069` | Codex | Claude 후속 검토 3건 수정·실행형 회귀 보강 | `handoffs/2026-09/2026-09-09-audit-review-findings-fixed.md` |
 | `HANDOFF-2026-070` | Codex | 라이브러리 설계 검토 — 폴더 tombstone·A/B 분리·원격 삭제 Undo 계약 | `handoffs/2026-09/2026-09-09-library-design-review.md` |
+| `HANDOFF-2026-072` | Codex | 새 채팅 전환용 현재 상태·안전 계약·검토 순서 | `handoffs/2026-09/2026-09-09-new-chat-project-context.md` |
 | `HANDOFF-2026-001` | Codex | 초기 독립 감사 — 제품 코드 변경 없음 | `handoffs/2026-08/2026-08-27-independent-initial-audit.md` |
 | `HANDOFF-2026-002` | Codex | 초기 감사 4건 해결 및 검증 | `handoffs/2026-08/2026-08-27-fix-audit-findings.md` |
 | `HANDOFF-2026-003` | Codex | 상용 출시 보안·권한·운영 기반 | `handoffs/2026-08/2026-08-28-commercial-launch-hardening.md` |
