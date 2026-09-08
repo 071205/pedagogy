@@ -5,9 +5,11 @@ const root = new URL("../", import.meta.url);
 const text = async (path) => readFile(new URL(path, root), "utf8");
 const exists = async (path) => stat(new URL(path, root)).then(() => true, () => false);
 
-const [index, normalize, worker, rules, storageRules, config, workflow, integration, server, manifest, visual] = await Promise.all([
+const [index, normalize, mock, documentEditor, worker, rules, storageRules, config, workflow, integration, server, manifest, visual] = await Promise.all([
   text("index.html"),
   text("pedagogy-normalize.js"),
+  text("mock-exam-editor.html"),
+  text("document-editor.html"),
   text("worker/index.js"),
   text("firestore.rules"),
   text("storage.rules"),
@@ -48,6 +50,30 @@ assert.doesNotMatch(index, /await purgeAiUsage\(/, "일반 사용자에게 비�
     + "앱이 더 크면 그 길이의 제목이 '권한 오류' 로 저장되지 않습니다.");
   assert.match(normalize, /name:str\(s\.name,lossless\?Infinity:SET_NAME_MAX\)/,
     "normSet 이 SET_NAME_MAX 를 써야 두 값이 실제로 이어집니다");
+}
+
+/* ⚠️ **화면 요소를 `visibility` 로 숨기지 말 것 — `display` 로 숨긴다**(`REV-2026-059`).
+   이 저장소의 버튼·입력은 `transition:.13s` 처럼 **속성 목록 없는 shorthand**(= `all`)를
+   쓴다. 그러면 `visibility` 도 **이산 전이**를 타서, 부모를 `visibility:hidden` 으로 꺼도
+   자식이 **약 130ms 동안 보이고 눌린다** — 라이브러리에서 인쇄·내보내기 모달이 실제로
+   열렸다. 통제 실험으로 확인했다:
+
+     transition:.13s (목록 없음)      → 숨긴 직후 visible · 400ms 뒤 hidden
+     transition:background-color .13s → 숨긴 직후 hidden
+     전이 없음                        → 숨긴 직후 hidden
+
+   ⚠️ **`transition` 쪽을 고치지 않고 이 짝을 막는다.** 목록 없는 shorthand 가 세 화면에
+      23곳이라 전부 다시 쓰면 시각 동작이 통째로 바뀐다 — 위험 대비 이득이 나쁘다.
+      함정은 `all` 단독으로는 안 터지고 **`visibility` 로 숨길 때만** 터지므로, 그 짝을
+      여기서 금지한다. 숨김은 `setEditorActions()` 처럼 `display` 로 한다.
+   (모의고사의 화면 밖 측정 노드는 `style.cssText` 로 한 번에 넣으므로 이 규칙 밖이다 —
+    그건 사용자가 볼 수 있는 조작이 아니라 폭을 재려고 만드는 임시 요소다.) */
+for (const [name, src] of [["index.html", index], ["mock-exam-editor.html", mock],
+                           ["document-editor.html", documentEditor]]) {
+  assert.doesNotMatch(src, /\.style\.visibility\s*=/,
+    `${name} 에서 \`.style.visibility\` 로 숨기고 있습니다 — \`display\` 로 바꾸세요. `
+    + "목록 없는 `transition` shorthand 가 `all` 이라 약 130ms 동안 요소가 보이고 눌립니다"
+    + "(REV-2026-059).");
 }
 
 assert.match(worker, /async alarm\(\)/, "AI quota는 자동 파기 alarm이 필요합니다");

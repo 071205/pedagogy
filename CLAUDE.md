@@ -120,8 +120,11 @@ flex 이고 본문이 `flex:1` 로 남는 만큼 가진다 — **빼는 값이 �
 ⚠️ **그 검사는 시간이 아니라 자리로 판정한다** — `getBoundingClientRect().width` 가
 `visibility:hidden` 이면 그대로이고 `display:none` 이면 0 이다. 130ms 창을 시간으로 재면
 깜빡이는 검사가 된다.
-⚠️ 속성 목록 없는 `transition` 은 index.html 에만 넷이다. 지금은 짝이 되는 `visibility`
-숨김이 없어 무해하다.
+⚠️ 속성 목록 없는 `transition` 은 세 화면에 **23곳**이다(index 16 · 모의고사 7).
+**그걸 다시 쓰지 않았다** — 전부 시각 동작이 바뀌어 위험 대비 이득이 나쁘다. 대신
+**짝을 금지한다**: `check:static` 이 세 화면에서 `.style.visibility = …` 를 막는다
+(지금 0곳). 통제 실험으로 확인 — 목록 없음 `.13s` 는 숨긴 직후 `visible`, 명시하면
+`hidden`, 전이 없으면 `hidden`. **지속시간이 아니라 목록 생략이 원인이다.**
 
 ⚠️ **`vh` 옆의 `dvh` 순서를 뒤집지 말 것.** `vh` 가 앞, `dvh` 가 뒤여야 폴백이 된다
 (`check:static` 이 본다).

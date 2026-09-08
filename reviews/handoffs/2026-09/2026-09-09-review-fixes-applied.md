@@ -18,8 +18,16 @@
 `all` 을 쓰는 규칙 0건) 부모 `#topActions` 는 `hidden`, 자식 `#printBtn` 은 `visible` 로
 계산됐다. CSS 규칙을 아무리 뒤져도 답이 안 나온다.
 
-**원인은 규칙이 아니라 전이다.** `.btn` 의 `transition` 이 `all` 이라 `visibility` 도
-**이산 전이**를 타고, 그동안 **옛 값(`visible`)을 유지**한다. 실측:
+**원인은 규칙이 아니라 전이다.** 소거법으로 끝내지 않고 **통제 실험**으로 확정했다 —
+빈 문서에 같은 부모 아래 버튼 셋을 두고 부모를 `visibility:hidden` 으로 껐다:
+
+| 자식의 `transition` | 숨긴 직후 | 400ms 뒤 |
+|---|---|---|
+| `.13s` (**속성 목록 없음** = `all`) | **`visible`** ← 재현 | `hidden` |
+| `background-color .13s` (명시) | `hidden` | `hidden` |
+| 없음 | `hidden` | `hidden` |
+
+즉 **지속시간이 아니라 속성 목록 생략이 원인**이고, 명시하면 사라진다. 제품에서도 같다:
 
 ```
 즉시     { topActions: hidden, printBtn: visible, transition: 0.13s }
@@ -68,6 +76,10 @@
 `visibility:hidden` 이면 그대로 폭을 갖고 `display:none` 이면 0 이라, **시간에 전혀
 흔들리지 않으면서** 두 방식을 정확히 가른다. `isVisible()` 단언도 함께 둔다.
 
+**직접 확인했다** — 같은 버튼에서 `display:none` → **0px**, `visibility:hidden` → **52px**
+(**전이가 끝난 500ms 뒤에도 52px**). 판정이 전이 타이밍에 전혀 기대지 않는다.
+`test:library-ui` 를 3회 연속 돌려 **12/12 로 동일**했다(깜빡임 없음).
+
 ## 검증
 
 `npm run check:fast` **종료코드 0** · 회귀 **154/154** · 계약 **20건** ·
@@ -94,14 +106,27 @@
   실패 증거를 구현보다 앞선 별도 커밋**으로 남기겠다. 이번 두 수정은 규모가 작아 한
   커밋으로 묶었지만, 각 검사가 수정 전에 빨간불이라는 증거는 위에 남겼다.
 
+## 함정을 영구히 닫았다 — `check:static` 이 짝을 금지한다
+
+**속성 목록 없는 `transition` shorthand 는 세 화면에 23곳**이다(index 16 · 모의고사 7).
+⚠️ **그것들을 다시 쓰지 않았다** — 전부 시각 동작이 바뀌는 변경이라 위험 대비 이득이
+나쁘다. 함정은 `all` **단독으로는 안 터지고 `visibility` 로 숨길 때만** 터지므로,
+**그 짝을 금지**했다:
+
+```
+index.html · mock-exam-editor.html · document-editor.html 에서
+`.style.visibility = …` 를 쓰면 check:static 이 빨간불
+```
+
+지금 세 파일 모두 0곳이다(숨김은 `setEditorActions()` 의 `display` 로 한다).
+모의고사의 화면 밖 측정 노드는 `style.cssText` 로 한 번에 넣으므로 이 규칙 밖이다 —
+사용자가 볼 수 있는 조작이 아니라 폭을 재려고 만드는 임시 요소다.
+
+**깨보기**: 세 파일 각각에 `style.visibility='hidden'` 을 심으니 **셋 다** 해당 파일
+이름과 함께 빨간불이 됐다.
+
 ## 다음 검토자에게
 
-- `REV-2026-059` 의 **원인이 전이라는 점**을 확인해 달라.
-- **같은 함정이 더 있는지 훑었다 — 없다.** 세 화면에서 `visibility` 로 숨기는 곳은
-  `mock-exam-editor.html` 의 둘뿐이고 **화면 밖 측정용**(`position:absolute; left:-9999px`)
-  이라 전이와 무관하다. index.html 에는 이제 하나도 없다.
-  ⚠️ 다만 **원인이 된 패턴은 남아 있다**: `transition:.13s` 처럼 **속성 목록 없는
-  shorthand 는 `all` 이 된다.** index.html 에만 넷이다(`.15s`·`.13s`·`.12s`·`.18s ease`).
-  지금은 짝이 되는 `visibility` 숨김이 없어 무해하지만, **누가 `visibility` 로 숨기는
-  코드를 새로 넣으면 같은 함정이 되살아난다.** `CLAUDE.md` 에 적어 두었다.
+- 이번 두 질문은 **넘기지 않고 직접 확인했다**(통제 실험 · 판정 안정성 · 짝 금지 검사).
+  판단이 틀렸다고 보면 근거를 달라.
 - 구조 분리 세 단계는 끝났고 전역 42개 상태 객체화는 여전히 별도 작업이다.
