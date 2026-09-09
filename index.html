@@ -2293,10 +2293,10 @@ Object.assign(window, {setHasContent, blockExcerpt,
 if(!window.PedagogyPrint)
   throw new Error("pedagogy-print.js 를 불러오지 못했습니다 — 인쇄 배치 없이는 그릴 수 없습니다");
 const {hasPassage, groupSpanOf, computeNums, pairEveryN,
-       shrinkWideMathAll, shrinkWideMath, fitMathIn,
+       shrinkWideMathAll, shrinkWideTablesAll, shrinkWideMath, fitMathIn,
        setPair, problemGroups, groupAt, spanOf, awaitPrintImages}=window.PedagogyPrint;
 Object.assign(window, {hasPassage, groupSpanOf, computeNums, pairEveryN,
-                       shrinkWideMathAll, shrinkWideMath, fitMathIn,
+                       shrinkWideMathAll, shrinkWideTablesAll, shrinkWideMath, fitMathIn,
                        setPair, problemGroups, groupAt, spanOf, awaitPrintImages});
 
 /* ── 같은 경고를 반복해서 띄우지 않기 ──
@@ -7335,6 +7335,18 @@ function fitPrintDoc(){
     return {disp, inner, avail: s0.getBoundingClientRect().right - disp.getBoundingClientRect().left};
   }).filter(Boolean);
   shrinkWideMathAll(mathPairs);
+
+  /* ── (2-b) 넘치는 표 (`REV-2026-078`) ──
+     ⚠️ **표는 `width:100%` 라도 넘친다** — min-content 아래로 못 줄기 때문이다. 칸에
+        그림이나 줄바꿈할 수 없는 긴 값이 들어가면 단 밖으로 나가 그대로 잘렸고,
+        보정 함수는 **넘침 0 건으로 보고**했다(코덱스 실측 1897.53px).
+     ⚠️ **세로 넘침 판정(3단계)보다 먼저** 와야 한다. 여기서 줄인 만큼 높이도 줄어드는데,
+        순서가 뒤바뀌면 줄이기 전 높이로 판정해 멀쩡한 쪽에 경고가 뜬다. */
+  const tblPairs=[...wrap.querySelectorAll(".pq .ktbl")].map(tbl=>{
+    const s0=slotOf(tbl); if(!s0) return null;
+    return {tbl, avail: s0.getBoundingClientRect().right - tbl.getBoundingClientRect().left};
+  }).filter(Boolean);
+  shrinkWideTablesAll(tblPairs);
 
   // ── (1-b) 줄바꿈 후에도 넘치는 개별 선지 — 전부 읽고 나서 전부 적용 ──
   const choices=[...wrap.querySelectorAll(".pq .choices .choice")];

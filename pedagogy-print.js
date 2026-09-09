@@ -168,6 +168,39 @@ function shrinkWideMathAll(pairs){
   });
 }
 
+/* ── 넘치는 표를 줄인다 (`REV-2026-078`) ─────────────────────────────────────
+   ⚠️ **표는 `width:100%` 라도 넘친다.** 표는 min-content 아래로 못 줄어서, 줄바꿈할 수
+      없는 긴 값이나 그림이 든 칸이 있으면 단 밖으로 나간다. 코덱스가 실측했다 —
+      표 오른쪽이 단 오른쪽보다 **1897.53px** 밖인데 보정이 하나도 안 걸렸다.
+   ⚠️ **변형(`transform`)은 자리를 줄이지 않는다.** 그대로 두면 남는 높이만큼 세로 넘침
+      판정(`fitPrintDoc` 3단계)이 과대평가돼 멀쩡한 쪽에 '안 담김' 경고가 뜬다.
+      그래서 아래 여백에서 그만큼 뺀다. 여백 기준값은 **CSS 에서 읽는다** — 2mm 를
+      코드에 박으면 CSS 를 고칠 때 조용히 어긋난다.
+   ⚠️ 읽기·쓰기 단계를 나눈다(`shrinkWideMathAll` 과 같은 이유). 요소마다 번갈아 하면
+      300문항에서 강제 동기 레이아웃으로 1.6초가 걸렸다. */
+function shrinkWideTablesAll(pairs){
+  if(!pairs.length) return;
+  // ① 쓰기 — 이전 축소를 전부 해제
+  for(const {tbl} of pairs){
+    tbl.style.transform=""; tbl.style.transformOrigin=""; tbl.style.marginBottom="";
+  }
+  // ② 읽기 — 한 번의 레이아웃으로 전부 측정
+  const m=pairs.map(({tbl})=>{
+    const r=tbl.getBoundingClientRect();
+    const mb=parseFloat(getComputedStyle(tbl).marginBottom)||0;
+    return {w:Math.max(tbl.scrollWidth, r.width), h:r.height, mb};
+  });
+  // ③ 쓰기 — 계산해 둔 값으로 일괄 적용
+  pairs.forEach(({tbl,avail},i)=>{
+    const {w,h,mb}=m[i];
+    if(!avail || !w || w<=avail+1) return;
+    const k=(avail*0.99)/w;
+    tbl.style.transformOrigin="left top";
+    tbl.style.transform=`scale(${k.toFixed(4)})`;
+    tbl.style.marginBottom=(mb - h*(1-k))+"px";   // 유령 높이 제거
+  });
+}
+
 /* 한 개짜리 편의 래퍼 (호출부가 하나뿐일 때) */
 function shrinkWideMath(disp, avail){
   const inner=disp.querySelector(".katex")||disp.firstElementChild;
@@ -245,7 +278,7 @@ function awaitPrintImages(root, onProgress){
    `PRINT_IMG_WAIT_MS` 는 `const` 였으므로 **올리지 않는다**(표면을 넓히는 것도 회귀다). */
 global.PedagogyPrint = Object.freeze({
   hasPassage, groupSpanOf, computeNums, pairEveryN,
-  shrinkWideMathAll, shrinkWideMath, fitMathIn,
+  shrinkWideMathAll, shrinkWideTablesAll, shrinkWideMath, fitMathIn,
   setPair, problemGroups, groupAt, spanOf, awaitPrintImages,
 });
 

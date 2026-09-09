@@ -6,7 +6,6 @@
 
 | ID | 심각도 | 요약 | 파일 |
 | --- | --- | --- | --- |
-| `REV-2026-078` | `P2` | 인쇄 넘침 보정이 표 자체의 가로 넘침을 놓치고 성공으로 보고한다 | `issues/2026-09/2026-09-10-index-print-table-overflow-unchecked.md` |
 | `REV-2026-074` | `P2` | macOS 폴더 아이콘 파일이 새 Git 폴더에서 재발해 refs를 오염시킨다 | `issues/2026-09/2026-09-09-rules-macos-icon-files-corrupt-git-refs.md` |
 | `REV-2026-075` | `P2` | AI 문서에 들어갔다 나오면 로그인이 안 된다(재현 절차 없음) | `issues/2026-09/2026-09-09-document-editor-login-after-return.md` |
 
@@ -147,6 +146,8 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 | `HANDOFF-2026-098` | Codex | **한컴 고지·전체 화면 데이터 설정·모바일 일반 흐름 탭바 결정** | `handoffs/2026-09/2026-09-09-library-ux-design-decisions.md` |
 | `HANDOFF-2026-095` | Codex | **한국어 원문 + 영어·일본어·중국어 핵심 법률정보 선택과 AI 번역 고지** | `handoffs/2026-09/2026-09-09-legal-multilingual-reader-guide.md` |
 | `HANDOFF-2026-094` | Codex | **공식 법령·12개 서비스군 벤치마크 · 로그인/AI 동의 분리와 과장 고지 교정** | `handoffs/2026-09/2026-09-09-legal-benchmark-and-consent-corrections.md` |
+| `HANDOFF-2026-112` | Claude | **인쇄 보정이 넘치는 표를 줄인다(`REV-2026-078` 해결)** | `handoffs/2026-09/2026-09-10-print-table-overflow-fix.md` |
+| `HANDOFF-2026-111` | Codex | 영어·탐구 다섯 건 독립 검토 (`REV-2026-078` 발견) | `handoffs/2026-09/2026-09-10-subjects-independent-review.md` |
 | `HANDOFF-2026-110` | Claude | **검토 요청 — 영어 짝 선지·탐구 과목 다섯 건 (공격 지점·미확인 목록 포함)** | `handoffs/2026-09/2026-09-10-review-request-subjects.md` |
 | `HANDOFF-2026-109` | Claude | **표 칸 합치기(가로·세로) — 실물 7건 근거** | `handoffs/2026-09/2026-09-10-table-cell-merge.md` |
 | `HANDOFF-2026-108` | Claude | **표 칸에 그림 (탐구 자료) · 자리 목록 한 곳 유지** | `handoffs/2026-09/2026-09-10-table-cell-images.md` |
