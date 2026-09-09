@@ -371,6 +371,18 @@ if (await exists("experiments/hwp-export/samples/choice-layout-truth.json")) {
     "개인정보 수집·이용 동의에는 보유기간과 거부 효과를 함께 알려야 합니다");
   assert.ok(!/function confirmLoginConsent\(/.test(index),
     "브라우저 confirm() 동의로 되돌아갔습니다 — 항목별 동의와 전문 링크가 사라집니다");
+
+  // 번역문은 법적 효력이 있는 원문처럼 보이면 안 된다. 제공 언어마다 AI 보조·오류 가능성·
+  // 한국어 원문 우선과 전문이 아닌 핵심 안내라는 한계를 해당 언어로 직접 알려야 한다.
+  for (const lang of ["en", "ja", "zh"]) {
+    assert.match(legal, new RegExp(`class="lang-panel lang-${lang}"`),
+      `법률정보 ${lang} 번역 패널이 없습니다`);
+  }
+  for (const marker of ["AI-assisted translation notice", "AI支援翻訳に関する注意", "AI辅助翻译提示",
+                        "Korean original controls", "韓国語原文が優先", "以韩文原文为准"])
+    assert.ok(legal.includes(marker), `번역의 한계·한국어 원문 우선 고지가 빠졌습니다: ${marker}`);
+  assert.match(legal, /type="radio" name="legal-language" id="lang-ko" checked/,
+    "법률정보의 기본 언어는 효력 기준인 한국어 원문이어야 합니다");
 }
 
 console.log("Commercial static checks passed");

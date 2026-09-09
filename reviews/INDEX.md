@@ -130,6 +130,7 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 
 | ID | 작성자 | 내용 | 파일 |
 | --- | --- | --- | --- |
+| `HANDOFF-2026-095` | Codex | **한국어 원문 + 영어·일본어·중국어 핵심 법률정보 선택과 AI 번역 고지** | `handoffs/2026-09/2026-09-09-legal-multilingual-reader-guide.md` |
 | `HANDOFF-2026-094` | Codex | **공식 법령·12개 서비스군 벤치마크 · 로그인/AI 동의 분리와 과장 고지 교정** | `handoffs/2026-09/2026-09-09-legal-benchmark-and-consent-corrections.md` |
 | `HANDOFF-2026-093` | Claude | **법정 기재사항 완성(유출통지·자동화된결정) · 항목별 동의 창과 증적** | `handoffs/2026-09/2026-09-09-legal-statutory-completion-and-consent.md` |
 | `HANDOFF-2026-092` | Claude | **법률 문서 구조 개편(요약·목차·개정 이력·인쇄) · 해지 조항 신설 · 푸터 회귀 수정** | `handoffs/2026-09/2026-09-09-legal-page-structure-and-footer.md` |

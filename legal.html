@@ -77,6 +77,35 @@ td{color:var(--text-secondary)}
 .draft{background:var(--warn-bg);border:1px solid var(--warn-bd);color:var(--warn-tx);
   border-radius:var(--radius-lg);padding:16px 18px;margin:22px 0;font-size:13.5px;line-height:1.75}
 .draft b{color:var(--warn-tx)}
+.lang-box{margin:20px 0 8px;padding:16px;background:var(--surface-1);border:1px solid var(--border);
+  border-radius:var(--radius-lg)}
+.lang-title{margin:0 0 10px;font-size:13px;font-weight:800;color:var(--text-primary)}
+.lang-input{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;
+  clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.lang-tabs{display:flex;gap:7px;flex-wrap:wrap}
+.lang-tab{display:inline-flex;align-items:center;min-height:40px;padding:7px 13px;border:1px solid var(--border);
+  border-radius:999px;color:var(--text-secondary);font-size:13px;font-weight:700;cursor:pointer;user-select:none}
+.lang-tab:hover{color:var(--text-primary);border-color:var(--text-tertiary)}
+#lang-ko:focus-visible~.lang-tabs label[for="lang-ko"],
+#lang-en:focus-visible~.lang-tabs label[for="lang-en"],
+#lang-ja:focus-visible~.lang-tabs label[for="lang-ja"],
+#lang-zh:focus-visible~.lang-tabs label[for="lang-zh"]{outline:3px solid var(--blue);outline-offset:2px}
+#lang-ko:checked~.lang-tabs label[for="lang-ko"],
+#lang-en:checked~.lang-tabs label[for="lang-en"],
+#lang-ja:checked~.lang-tabs label[for="lang-ja"],
+#lang-zh:checked~.lang-tabs label[for="lang-zh"]{background:var(--blue);border-color:var(--blue);color:#fff}
+.lang-panel{display:none;margin-top:16px;padding-top:15px;border-top:1px solid var(--border)}
+#lang-ko:checked~.lang-panels .lang-ko,
+#lang-en:checked~.lang-panels .lang-en,
+#lang-ja:checked~.lang-panels .lang-ja,
+#lang-zh:checked~.lang-panels .lang-zh{display:block}
+.translation-alert{margin:0 0 14px;padding:12px 14px;background:var(--warn-bg);border:1px solid var(--warn-bd);
+  border-radius:var(--radius-md);color:var(--warn-tx);font-size:12.5px;line-height:1.65}
+.lang-panel h2{margin:20px 0 6px;font-size:16px;scroll-margin-top:80px}
+.lang-panel h3{margin:16px 0 4px;font-size:14px}
+.lang-panel p,.lang-panel li{font-size:13.5px}
+.lang-panel .lang-meta{font-size:12px;color:var(--text-tertiary)}
+.lang-panel a{font-weight:700}
 footer{margin-top:56px;padding-top:22px;border-top:1px solid var(--border);
   font-size:12px;color:var(--text-tertiary);text-align:center}
 a{color:var(--blue-on-white-text)}
@@ -117,7 +146,7 @@ code{font-size:12.5px;background:var(--surface-2);border:1px solid var(--border)
    화면용 장치(sticky 상단 메뉴·목차)는 종이에서 자리만 먹는다. */
 @media print{
   body{background:#fff;color:#000;padding:0;font-size:11pt}
-  nav,.toc,.back,footer{display:none}
+  nav,.toc,.back,footer,.lang-tabs,.lang-title{display:none}
   .wrap{max-width:none}
   h1{page-break-before:always;font-size:18pt}
   h1#terms{page-break-before:avoid}
@@ -135,6 +164,120 @@ code{font-size:12.5px;background:var(--surface-2);border:1px solid var(--border)
   <a class="brand" href="index.html">PEDAGOGY</a>
   <a class="back" href="index.html">← 편집기로 돌아가기</a>
 </header>
+
+<section class="lang-box" aria-labelledby="languageTitle">
+  <div class="lang-title" id="languageTitle">언어 / Language / 言語 / 语言</div>
+  <input class="lang-input" type="radio" name="legal-language" id="lang-ko" checked>
+  <input class="lang-input" type="radio" name="legal-language" id="lang-en">
+  <input class="lang-input" type="radio" name="legal-language" id="lang-ja">
+  <input class="lang-input" type="radio" name="legal-language" id="lang-zh">
+  <div class="lang-tabs" role="group" aria-label="법률정보 언어 선택">
+    <label class="lang-tab" for="lang-ko" lang="ko">한국어 원문</label>
+    <label class="lang-tab" for="lang-en" lang="en">English</label>
+    <label class="lang-tab" for="lang-ja" lang="ja">日本語</label>
+    <label class="lang-tab" for="lang-zh" lang="zh-Hans">简体中文</label>
+  </div>
+
+  <div class="lang-panels">
+    <article class="lang-panel lang-ko" lang="ko">
+      <p><b>한국어가 공식 원문입니다.</b> 아래에서 이용약관과 개인정보처리방침 전문을 확인할 수 있습니다.</p>
+      <p class="lang-meta">번역 안내문 최종 검토일: 2026년 9월 9일</p>
+    </article>
+
+    <article class="lang-panel lang-en" lang="en">
+      <div class="translation-alert"><b>AI-assisted translation notice.</b> This reader-friendly guide was translated with
+        the assistance of AI and may contain errors, omissions, or differences in legal nuance. It is not legal advice and
+        does not replace the official Korean text. If this guide conflicts with the Korean Terms of Service or Privacy
+        Policy, the Korean original controls to the extent permitted by applicable law.</div>
+      <h2>Key Terms of Service</h2>
+      <ul>
+        <li>You retain all copyrights and other rights that you lawfully hold in content you enter, upload, or store.
+          Using PEDAGOGY does not give you rights in third-party materials.</li>
+        <li>The operator processes your content only to provide, secure, maintain, and support the service. Your private
+          content is not sold, published, or used for advertising without your prior consent.</li>
+        <li>You may export supported workbooks and exam papers as JSON or HWPX files. Export important work before deleting
+          your account; deletion cannot be undone.</li>
+        <li>The AI-assisted input feature produces an editable draft from a problem image. It may misread formulas, omit
+          symbols, or generate inaccurate content. You must independently review the final question, answer, and solution.</li>
+        <li>Do not upload personal information, confidential examination materials, or content that you are not legally
+          entitled to use. PEDAGOGY is not affiliated with KICE or any governmental education authority.</li>
+        <li>Account login and cloud synchronization are available only to users aged 14 or older. Younger users may use the
+          local mode without login or AI features.</li>
+      </ul>
+      <h2>Key Privacy Notice</h2>
+      <ul>
+        <li><b>Local mode:</b> problem-set content and attachments stay in your browser. Hosting, security, CDN, and Firebase
+          components may still process technical connection data such as IP address, request time, and device metadata.</li>
+        <li><b>Login and cloud mode:</b> Google account email, profile name, profile-photo URL, account identifier, user
+          content, and attachments are processed for authentication and cross-device synchronization, normally until
+          account deletion.</li>
+        <li><b>International processing:</b> Firebase Authentication is processed in the United States; Firestore is located
+          in Seoul, Republic of Korea (<code>asia-northeast3</code>). Cloud Storage/App Check location details remain subject
+          to operator verification. Refusing the required transfer means cloud login cannot be used, but local mode remains available.</li>
+        <li><b>Optional AI processing:</b> only when you start AI conversion, the selected image passes through Cloudflare to
+          Anthropic. Anthropic's commercial API ordinarily retains inputs and outputs for up to 30 days, subject to its
+          safety and legal exceptions. A separate notice is shown before transfer.</li>
+        <li>PEDAGOGY does not use your content for advertising or operator AI-model training and does not make solely
+          automated decisions that have legal or similarly significant effects on you.</li>
+        <li>You may access, correct, export, delete, or request suspension of processing through the editor or the contact
+          channel listed in the Korean original. Some short-lived quota records and legally required retention may survive
+          account deletion for the stated period.</li>
+      </ul>
+      <p class="lang-meta">This is a translated key-point guide, not a complete translation. Read the complete Korean text below.
+        Translation reviewed: September 9, 2026.</p>
+    </article>
+
+    <article class="lang-panel lang-ja" lang="ja">
+      <div class="translation-alert"><b>AI支援翻訳に関する注意。</b> この案内は、読みやすさを目的としてAIの支援を受けて翻訳したものであり、
+        誤訳、記載漏れ又は法的ニュアンスの相違が含まれる可能性があります。法律上の助言ではなく、韓国語の正式な原文に代わるものではありません。
+        本案内と韓国語の利用規約又は個人情報処理方針が抵触する場合、適用法令で認められる範囲において韓国語原文が優先します。</div>
+      <h2>利用規約の主要事項</h2>
+      <ul>
+        <li>利用者は、自らが適法に保有するコンテンツの著作権その他の権利を引き続き保有します。第三者の著作物に関する権利が新たに付与されるものではありません。</li>
+        <li>運営者は、サービスの提供、セキュリティ、保守及びサポートに必要な範囲でのみコンテンツを処理します。事前の同意なく非公開コンテンツを販売、公開又は広告利用しません。</li>
+        <li>対応している問題集及び試験問題はJSON又はHWPX形式で保存できます。アカウント削除は取り消せないため、重要な資料は事前にエクスポートしてください。</li>
+        <li>AI補助入力は問題画像を編集可能な下書きに変換します。数式の誤認識、記号の欠落又は不正確な生成があり得るため、最終的な問題文、正答及び解説は利用者が確認してください。</li>
+        <li>個人情報、機密の試験資料又は利用権限のないコンテンツをアップロードしないでください。本サービスは韓国教育課程評価院その他の政府教育機関と提携していません。</li>
+        <li>ログイン及びクラウド同期は満14歳以上の利用者に限ります。満14歳未満の方は、ログイン及びAI機能を使用せず、ローカルモードを利用できます。</li>
+      </ul>
+      <h2>個人情報処理方針の主要事項</h2>
+      <ul>
+        <li><b>ローカルモード：</b>問題集の内容及び添付画像はブラウザ内に保存されます。ただし、ホスティング、セキュリティ、CDN及びFirebaseは、IPアドレス、要求時刻、端末情報等の技術的接続情報を処理する場合があります。</li>
+        <li><b>ログイン・クラウドモード：</b>認証及び端末間同期のため、Googleアカウントのメールアドレス、プロフィール情報、UID、利用者コンテンツ及び添付画像を、原則としてアカウント削除時まで処理します。</li>
+        <li><b>国外移転：</b>Firebase Authenticationは米国で処理され、Firestoreは大韓民国ソウル（<code>asia-northeast3</code>）に所在します。Cloud Storage及びApp Checkの処理場所は運営者の確認後に確定します。必須の国外移転を拒否した場合、クラウドログインは利用できませんが、ローカルモードは利用できます。</li>
+        <li><b>任意のAI処理：</b>AI変換を開始した場合に限り、選択した画像がCloudflareを経由してAnthropicに送信されます。Anthropicの商用APIにおける入力・出力の通常の保存期間は最大30日ですが、安全上又は法令上の例外があります。送信前に別途案内します。</li>
+        <li>利用者コンテンツを広告又は運営者のAIモデル学習に使用せず、法的効果その他同程度の重大な影響を及ぼす完全自動化された意思決定を行いません。</li>
+        <li>利用者は、韓国語原文に記載された画面又は窓口を通じて、閲覧、訂正、エクスポート、削除及び処理停止を求めることができます。短期の利用量記録又は法令上の保存義務には例外があります。</li>
+      </ul>
+      <p class="lang-meta">これは主要事項の翻訳案内であり、全文翻訳ではありません。下記の韓国語原文をご確認ください。翻訳確認日：2026年9月9日。</p>
+    </article>
+
+    <article class="lang-panel lang-zh" lang="zh-Hans">
+      <div class="translation-alert"><b>AI辅助翻译提示。</b> 本指南旨在帮助阅读，并借助AI完成翻译，可能存在误译、遗漏或法律含义上的差异。
+        本指南不构成法律意见，也不能替代正式韩文原文。如本指南与韩文《使用条款》或《个人信息处理方针》不一致，
+        在适用法律允许的范围内，以韩文原文为准。</div>
+      <h2>使用条款要点</h2>
+      <ul>
+        <li>用户继续享有其对输入、上传或保存内容依法拥有的著作权及其他权利。使用PEDAGOGY不会使用户取得第三方材料的权利。</li>
+        <li>运营者仅在提供、保障、维护及支持服务所必要的范围内处理用户内容。未经事先同意，不会出售、公开非公开内容或将其用于广告。</li>
+        <li>用户可将支持的习题集和试卷导出为JSON或HWPX文件。账户删除无法撤销，请事先导出重要资料。</li>
+        <li>AI辅助输入功能会将题目图片转换为可编辑的草稿，可能出现公式识别错误、符号遗漏或不准确内容。用户应独立核对最终题目、答案及解析。</li>
+        <li>请勿上传个人信息、保密试题或无权使用的内容。本服务与韩国教育课程评价院及其他政府教育机构不存在隶属、合作或赞助关系。</li>
+        <li>登录及云端同步仅向年满14周岁的用户开放。未满14周岁的用户可在不登录且不使用AI功能的情况下使用本地模式。</li>
+      </ul>
+      <h2>个人信息处理方针要点</h2>
+      <ul>
+        <li><b>本地模式：</b>习题集内容和附件仅保存在浏览器中。但托管、安全、CDN及Firebase组件仍可能处理IP地址、请求时间和设备信息等技术连接数据。</li>
+        <li><b>登录及云端模式：</b>为进行身份验证和跨设备同步，会处理Google账户邮箱、个人资料、UID、用户内容及附件，原则上保存至账户删除时。</li>
+        <li><b>境外处理：</b>Firebase Authentication在美国处理；Firestore位于大韩民国首尔（<code>asia-northeast3</code>）。Cloud Storage及App Check的处理地点须待运营者确认。若拒绝必要的境外传输，将无法使用云端登录，但仍可使用本地模式。</li>
+        <li><b>可选AI处理：</b>仅当用户主动启动AI转换时，所选图片才会经Cloudflare传输至Anthropic。Anthropic商业API通常最多保存输入和输出30天，但可能存在安全政策及法律规定的例外。传输前会另行提示。</li>
+        <li>PEDAGOGY不会将用户内容用于广告或运营者的AI模型训练，也不会作出对用户产生法律效力或类似重大影响的完全自动化决定。</li>
+        <li>用户可通过韩文原文所列页面或联系渠道行使查阅、更正、导出、删除及停止处理等权利。短期配额记录及法律要求保存的数据可能例外。</li>
+      </ul>
+      <p class="lang-meta">本页仅为要点翻译指南，并非完整译文。请阅读下方完整韩文原文。翻译复核日期：2026年9月9日。</p>
+    </article>
+  </div>
+</section>
 
 <nav>
   <a href="#terms">이용약관</a>
