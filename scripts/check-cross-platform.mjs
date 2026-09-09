@@ -131,6 +131,27 @@ async function probes(page, vp, seen) {
   add("핵심 단추가 화면 안", off.length === 0,
       off.map(b => b.missing ? `${b.id}(없음)` : `${b.id}(${b.w}×${b.h} @${b.top}~${b.bottom})`).join(", "));
 
+  /* ⚠️ **상단 바 왼쪽 묶음이 붙어 있는가**(`REV-2026-063`).
+     `.topbar` 가 `justify-content:space-between` 이던 시절, 라이브러리에서 숨은
+     `#topActions` 가 `visibility:hidden` 으로 **702px 를 그대로 차지해** 남는 공간을 전부
+     먹었다. 그래서 브랜드·모의고사·AI문서가 붙어 보였다 — **보이지 않는 채움에 기댄
+     레이아웃**이었다. `display:none` 으로 바꾸자 그 채움이 사라져 나머지가 균등하게
+     벌어졌다(아이패드에서 브랜드 끝 145 → 모의고사 시작 **338**).
+     ⚠️ 검사 154건이 전부 초록불이었다 — 넘치지도 잘리지도 않고 **그냥 벌어졌을 뿐**이라
+     기존 판정(화면 안·넘침·터치 크기) 어디에도 안 걸렸다. 사람이 아이패드로 보고 알았다.
+     그래서 '붙어 있는가' 를 값으로 잰다. 줄바꿈될 때는 다른 줄로 갈 수 있으므로
+     **같은 줄일 때만** 본다. */
+  const brandGap = await page.evaluate(() => {
+    const br = document.getElementById("brandBtn"), mk = document.getElementById("mockModeBtn");
+    if (!br || !mk) return { missing: true };
+    const a = br.getBoundingClientRect(), b = mk.getBoundingClientRect();
+    return { sameRow: Math.abs(a.top - b.top) < 4, gap: Math.round(b.left - a.right) };
+  });
+  add("상단 바 왼쪽 묶음이 붙어 있다",
+      !brandGap.missing && (!brandGap.sameRow || brandGap.gap <= 40),
+      brandGap.missing ? "브랜드·모의고사 단추를 찾지 못했다"
+                       : `브랜드와 모의고사 사이 ${brandGap.gap}px (같은 줄=${brandGap.sameRow})`);
+
   /* ⚠️ 두 이벤트를 **따로** 본다. 함께 쏘면 하나가 죽어도 다른 하나가 가려 준다 —
      `pagehide` 를 새로 넣은 이유(iOS 사파리가 `beforeunload` 를 건너뛴다)가 통째로
      검사되지 않는다. 디바운스 저장이 먼저 끼어들지 않게 **타이머를 끄고** 잰다. */
@@ -296,6 +317,11 @@ const BREAKS = [
   { key: "상단 막대가 본문을 덮지 않는다", 이름: "상단 막대를 본문 위로 덮으면",
     run: p => p.evaluate(() => { const t = document.querySelector(".topbar");
       t.style.cssText += ";position:fixed;top:0;left:0;right:0;height:400px;z-index:9999"; }) },
+  /* ⚠️ `REV-2026-063` — 예전 판정으로는 이 고장이 **전부 초록불**이었다. */
+  { key: "상단 바 왼쪽 묶음이 붙어 있다", 이름: "상단 바를 다시 space-between 으로 되돌리면",
+    run: p => p.evaluate(() => { const t = document.querySelector(".topbar");
+      t.style.justifyContent = "space-between";
+      document.getElementById("themeBtn").style.setProperty("margin-left", "8px", "important"); }) },
   { key: "핵심 단추가 화면 안", 이름: "핵심 단추를 화면 밖(가로)으로 밀면",
     run: p => p.evaluate(() => { document.getElementById("printBtn").style.cssText += ";position:fixed;left:-500px"; }) },
   /* ⚠️ 아래 둘은 `REV-2026-025` 가 지적한 맹점이다 — 예전 판정은 둘 다 초록불이었다. */

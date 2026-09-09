@@ -254,6 +254,51 @@ try{
     context:passage.includes('psg-en')&&passage.includes('[16~17]')};
   });assert.deepEqual(got,{ns:'function',missing:[],leaked:[],escaped:true,context:true});await p.close();
  });
+/* ⚠️ **멈춘 클라우드 읽기가 화면을 영원히 붙잡으면 안 된다**(`REV-2026-064`).
+   Firestore 는 전송이 막히면 **거부하지 않고 계속 재시도**하므로, `await` 가 안 풀려
+   '문제집을 불러오는 중…' 이 그대로 남는다(아이패드 사파리에서 실제로 그랬고 새로고침
+   해야 떴다). 여기서는 `.get()` 이 **영영 안 끝나는** 약속을 돌려주게 하고, 그래도
+   로컬 데이터로 라이브러리가 그려지는지 본다.
+   ⚠️ 상한이 8초라 이 검사도 그만큼 걸린다 — 시간을 줄이려고 제품에 검사용 구멍을
+      내지 않는다. */
+ await test('a hung cloud read falls back to local data instead of spinning forever',async()=>{
+  const p=await app('index.html',{schema:1});
+  /* ⚠️ **검사 쪽에도 상한을 둔다.** 제품에 상한이 없으면 `loadSets()` 가 영영 안 끝나
+     `evaluate` 가 매달린다 — 그러면 검사가 빨간불이 아니라 **멈춘다**(CI 를 막을 뿐
+     아무것도 알려주지 않는다). 실제로 깨보기에서 그렇게 됐다. */
+  const got=await Promise.race([
+   p.evaluate(async()=>{
+   currentUser={uid:'test',displayName:'검사'};fbReady=true;authInitialized=true;
+   const messages=[];const realToast=toast;toast=(s,t)=>{messages.push(s);};
+   /* 절대 끝나지 않는 읽기 — 거부도 하지 않는다(그것이 실제 증상이다) */
+   const never=()=>new Promise(()=>{});
+   fbDb={collection:()=>({doc:()=>({get:never,collection:()=>({
+     doc:()=>({set:async()=>{}}), get:never, onSnapshot:()=>()=>{} })})}),
+     batch:()=>({set(){},commit:async()=>{}})};
+   try{ localStorage.setItem('PM_SETS_V7:test',JSON.stringify(
+     [{id:'local1',name:'이 기기 문제집',header:'',problems:[{id:'q1',blocks:[]}]}])); }catch{}
+   const t0=Date.now();
+   await loadSets();
+   showLibrary();
+   const names=[...document.querySelectorAll('.set-card h3')].map(e=>e.textContent);
+   toast=realToast;
+   return {걸린초:Math.round((Date.now()-t0)/1000), names,
+           느리다고알림:messages.some(m=>m.includes('느려요')),
+           /* ⚠️ `document.body.textContent` 로 보면 안 된다 — **`<script>` 안의 문자열까지
+              포함**해서 그 문구가 소스에 있는 것만으로 참이 된다(실제로 속았다).
+              보이는 자리인 문제집 격자만 본다. */
+           로딩화면남음:(document.getElementById('setGrid')||{}).textContent
+                        ?.includes('불러오는 중')===true};
+  }),
+   new Promise((_,rej)=>setTimeout(()=>rej(new Error(
+    '앱이 클라우드 읽기에서 멈췄다 — 상한이 없으면 로딩 화면이 영원히 남는다')),20000)),
+  ]);
+  assert.equal(got.로딩화면남음,false,'로딩 화면이 그대로 남았다: '+JSON.stringify(got));
+  assert.deepEqual(got.names,['이 기기 문제집'],JSON.stringify(got));
+  assert.equal(got.느리다고알림,true,'느리다는 안내가 없다: '+JSON.stringify(got));
+  assert.ok(got.걸린초<=12,'상한보다 오래 걸렸다: '+got.걸린초+'초');
+  await p.close();
+ });
  await test('classic scripts share lexical bindings without window properties',async()=>{
   const p=await browser.newPage();await p.setContent('<!doctype html>');
   await p.addScriptTag({content:'const reviewLexical=42;'});

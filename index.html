@@ -198,7 +198,13 @@ body{background:var(--bg);color:var(--text-primary);font-family:var(--ui-sans);f
 
 /* ── Topbar ── */
 .topbar{
-  display:flex;justify-content:space-between;align-items:center;
+  /* ⚠️ **`space-between` 을 쓰지 말 것 — 보이지 않는 채움에 기대게 된다**(`REV-2026-063`).
+     예전에는 `#topActions` 가 라이브러리에서도 `visibility:hidden` 으로 **702px 를 그대로
+     차지해** 남는 공간을 전부 먹었고, 그래서 브랜드·모의고사·AI문서가 붙어 보였다.
+     `display:none` 으로 바꾸자 그 채움이 사라져 `space-between` 이 나머지를 균등하게
+     벌렸다(아이패드에서 브랜드 끝 145 → 모의고사 시작 **338**). 왼쪽은 왼쪽에 모으고
+     오른쪽 묶음만 `margin-left:auto` 로 민다 — 숨은 요소가 있든 없든 같다. */
+  display:flex;justify-content:flex-start;align-items:center;
   padding:0 24px;height:60px;
   background:var(--bg);
   backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
@@ -218,6 +224,8 @@ body{background:var(--bg);color:var(--text-primary);font-family:var(--ui-sans);f
    JS 가 늦거나 아예 실패해도 **편집기 문맥이 생기기 전에는 드러나지 않아야 한다.**
    `setEditorActions(true)` 가 인라인 `display:flex` 로 덮어 켠다(id 규칙보다 인라인이 이긴다). */
 #topActions{display:none}
+/* 오른쪽 묶음(테마·로그인)의 시작. 이것 하나가 왼쪽/오른쪽을 가른다. */
+#themeBtn{margin-left:auto}
 .actions input[type="text"]{
   height:36px;background:var(--surface-2);border:1px solid var(--border);
   color:var(--text-primary);border-radius:var(--radius-md);
@@ -1063,7 +1071,10 @@ body.hide-answers .answer-block{display:none!important}
   .actions input[type="text"]{width:auto;flex:1 1 120px;min-width:90px}
   #authArea{margin-left:0!important}
   #mockModeBtn{margin-left:8px!important}
-  #themeBtn{margin-left:8px!important}
+  /* ⚠️ 데스크톱 규칙과 **같은 뜻**이어야 한다(`REV-2026-063`). 예전에는 `8px` 이라
+     여기서 `margin-left:auto` 를 덮어 버려, 좁은 화면에서만 오른쪽 묶음이 안 밀렸다 —
+     한 곳만 고쳐서 데스크톱만 맞고 아이패드는 틀린 상태가 됐다. */
+  #themeBtn{margin-left:auto!important}
 }
 
 @media (max-width:1023px){
@@ -1324,7 +1335,7 @@ input:focus-visible,textarea:focus-visible{outline:none}
     <input id="loadInput" type="file" accept="application/json" style="display:none">
   </div>
   <!-- 테마 전환 (시스템 / 밝게 / 어둡게) -->
-  <button id="themeBtn" class="theme-btn" style="margin-left:12px" title="테마"></button>
+  <button id="themeBtn" class="theme-btn" title="테마"></button>
 
   <!-- 로그인 영역 -->
   <div id="authArea" style="display:flex;align-items:center;gap:10px;margin-left:4px">
@@ -2504,12 +2515,30 @@ function touchSet(id){
   writeStamps(localStamps);
 }
 
+/* ⚠️ **클라우드 읽기는 영영 안 끝날 수 있다.** Firestore 는 전송이 막히면 **거부하지 않고
+   계속 재시도만** 한다 — 그래서 `await` 가 안 풀리고 '문제집을 불러오는 중…' 이 화면을
+   영원히 붙잡는다. 아이패드 사파리에서 실제로 그랬고, **새로고침해야** 떴다
+   (`REV-2026-064`).
+   ⚠️ 이건 기다림을 없애는 것이 아니라 **기다림이 화면을 잡지 못하게** 하는 것이다.
+   시간이 지나면 로컬 데이터로 **먼저 그리고**, `watchCloud()` 가 나중에 도착한 클라우드
+   내용을 채운다(그 경로가 이미 병합을 안전하게 한다).
+   ⚠️ **쓰기(`batch.commit()`)에는 걸지 않는다** — 중간에 버리면 이관이 어중간해지고,
+      그쪽은 '정리하고 있어요' 라고 진행을 이미 알린다. */
+const CLOUD_READ_MS=8000;
+function withTimeout(p, ms, label){
+  let t;
+  const limit=new Promise((_,rej)=>{ t=setTimeout(()=>{
+    const e=new Error(`${label}가 ${ms}ms 안에 끝나지 않았습니다`); e.timedOut=true; rej(e);
+  }, ms); });
+  return Promise.race([p, limit]).finally(()=>clearTimeout(t));
+}
+
 async function loadSets(){
   const session=sessionContext();
   if(currentUser){
     const owner=currentUser.uid;
     try{
-      const snap=await SETS_COL(owner).get();
+      const snap=await withTimeout(SETS_COL(owner).get(), CLOUD_READ_MS, "문제집 읽기");
       if(!sessionMatches(session)) return;
       const cloudEntries=snap.docs.map(d=>d.data()).filter(Boolean);
       /* ⚠️ 폴더 **이름 목록**은 문제집과 다른 문서에 있다 — 함께 읽어야 칩에 이름이 뜬다.
@@ -2518,7 +2547,7 @@ async function loadSets(){
 
       // ── 구버전(users/{uid}.sets 배열)에서 한 번만 이관 ──
       if(!cloudEntries.length){
-        const legacy=await fbDb.collection('users').doc(owner).get();
+        const legacy=await withTimeout(fbDb.collection('users').doc(owner).get(), CLOUD_READ_MS, "구버전 문서 읽기");
         if(!sessionMatches(session)) return;
         const arr=(legacy.exists && Array.isArray(legacy.data().sets))?legacy.data().sets:[];
         if(arr.length){
@@ -2556,7 +2585,9 @@ async function loadSets(){
     }catch(e){
       if(!sessionMatches(session)) return;
       console.warn('Firestore 로드 실패, 로컬 사용:', e);
-      toast("클라우드에 연결하지 못했어요 · 이 기기 데이터로 계속합니다","error");
+      toast(e && e.timedOut
+        ? "클라우드 응답이 느려요 · 이 기기 데이터로 먼저 보여드려요 · 연결되면 자동으로 채워집니다"
+        : "클라우드에 연결하지 못했어요 · 이 기기 데이터로 계속합니다","error");
     }
   }
   loadSetsLocal();

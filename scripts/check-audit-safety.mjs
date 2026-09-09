@@ -50,7 +50,16 @@ for(const aba of [false,true]) test('032: stale load discarded '+(aba?'A-B-A':'A
     const gate=new Promise(r=>release=r);const SETS_COL=()=>({get:()=>gate});
     const localSetsWorthMerging=x=>x,readLocalSets=()=>[],mergeSets=x=>x,shouldUseCloudResult=()=>true;
     const docToSet=x=>x,cloudSyncEntry=x=>x,writeLocalNow=()=>writes.push(currentUser.uid);
-    const isCloudSynced=()=>true,saveSets=()=>{},watchCloud=()=>{},toast=()=>{},loadSetsLocal=()=>{};`);
+    const isCloudSynced=()=>true,saveSets=()=>{},watchCloud=()=>{},toast=()=>{},loadSetsLocal=()=>{};
+    const loadLibraryPrefs=async()=>{};`);
+  /* ⚠️ **`loadSets` 가 부르는 것을 가짜로 넣지 말고 진짜를 함께 올린다.** `withTimeout` 을
+     빼먹었더니 vm 에서 ReferenceError → `catch` 가 삼키고 **대체 경로로 흘러** 이 검사가
+     엉뚱한 곳에서 터졌다(`REV-2026-064` 를 고치다 실제로 그랬다). 상한값도 소스에서
+     읽어 온다 — 여기에 숫자를 적어 두면 제품과 갈라진다. */
+  const cloudMs=/const CLOUD_READ_MS\s*=\s*(\d+)/.exec(src);
+  assert.ok(cloudMs,'index.html 에서 CLOUD_READ_MS 를 찾지 못했습니다');
+  vm.runInContext(`const CLOUD_READ_MS=${cloudMs[1]};`,c);
+  vm.runInContext(fn('withTimeout'),c);
   vm.runInContext(fn('loadSets'),c);const pending=vm.runInContext('loadSets()',c);
   vm.runInContext(`authEpoch+=${aba?2:1};currentUser={uid:'${aba?'A':'B'}'};
     release({docs:[{data:()=>({id:'A-only'})}]})`,c);
