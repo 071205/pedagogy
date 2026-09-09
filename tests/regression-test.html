@@ -341,9 +341,16 @@ async function runIndexTests(){
   });
 
   // ── 이모지 정리(최근 단계) ──
-  /* 전역 `모의고사` 버튼은 라이브러리 세그먼트로 옮겼다 — 검사도 그 자리로 옮긴다. */
-  await check(G, "모의고사 탭 텍스트에 이모지 없음", () =>
-    win.document.getElementById("tabMocks").textContent.trim() === "모의고사 라이브러리");
+  /* 전역 `모의고사` 버튼은 라이브러리 세그먼트로 옮겼고, 그 세그먼트는 다시 왼쪽 레일로
+     갔다(`HANDOFF-2026-097`). 자리는 옮겨도 **글자에 이모지가 없다**는 계약은 그대로다.
+     ⚠️ 글자를 통째로 비교하면 자리를 옮길 때마다 검사가 깨진다 — 보려는 것은 '이모지가
+     섞이지 않았는가' 이므로 그것을 본다. */
+  await check(G, "모의고사 탭 텍스트에 이모지 없음", () => {
+    const t = win.document.getElementById("tabMocks").textContent.trim();
+    const emoji = /\p{Extended_Pictographic}/u.test(t);
+    return { pass: t.startsWith("모의고사") && !emoji,
+             note: emoji ? "이모지가 섞였다: " + t : (t.startsWith("모의고사") ? undefined : "글자가 바뀌었다: " + t) };
+  });
 
   await check(G, "AI 프롬프트 버튼 텍스트에 이모지 없음", () =>
     win.document.getElementById("promptBtn").textContent.trim() === "AI 프롬프트");

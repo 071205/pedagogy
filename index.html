@@ -1206,10 +1206,19 @@ body.hide-answers .answer-block{display:none!important}
   /* ⚠️ **`align-self:start` 를 반드시 되돌린다.** 세로 레일에서는 그 값이 '위에 붙인다'
      는 뜻이지만, 눕힌 뒤 세로 flex 안에서는 **가로 축**을 뜻해 레일이 내용 폭(476px)까지
      커진다 — 그래서 `overflow-x:auto` 가 아무것도 못 가두고 페이지가 98px 넘쳤다.
-     실측으로 찾았다(계산된 폭을 재기 전에는 원인이 안 보였다). */
-  .lib-rail{position:static;align-self:stretch;width:100%;flex-direction:row;align-items:center;
-    gap:6px;max-height:none;
-    overflow-x:auto;overflow-y:hidden;padding-bottom:4px;-webkit-overflow-scrolling:touch}
+     실측으로 찾았다(계산된 폭을 재기 전에는 원인이 안 보였다).
+     ⚠️ **탐색을 본문 아래로 내린다**(`HANDOFF-2026-098` 3번). 화면에 고정해 콘텐츠를 덮지
+     않고 **문서의 일반 흐름 안**에 둔다 — 그래서 `env(safe-area-inset-*)` 가 필요 없고,
+     `viewport-fit=cover` 를 안 쓰기로 한 결정을 건드리지 않는다.
+     선택 상태는 `aria-selected` 로 그대로 전달되고 `#tabSets`·`#tabMocks`·`#library=` 계약도
+     그대로다(자리만 옮긴다). */
+  .lib-rail{position:static;align-self:stretch;width:100%;order:2;
+    flex-direction:row;align-items:center;gap:6px;max-height:none;
+    margin-top:14px;padding:10px 0 4px;border-top:1px solid var(--border);
+    overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch}
+  .lib-main{order:1;min-height:0}
+  .lib-shell{min-height:0}
+  .lib-rail .rail-foot{padding-top:0}
   .lib-tabs{flex-direction:row;flex:none}
   .lib-tab{width:auto;padding:0 12px}
   .folder-bar{flex-direction:row;flex:none;gap:6px}
@@ -1594,6 +1603,8 @@ input:focus-visible,textarea:focus-visible{outline:none}
     </div>
     <div id="mockGrid" class="lib-grid"></div>
   </div>
+  </div><!-- /.lib-main -->
+  </div><!-- /.lib-shell -->
   <footer class="lib-footer">
     <div class="lib-footer-links">
       <a href="legal.html#terms">이용약관</a>
@@ -1613,8 +1624,7 @@ input:focus-visible,textarea:focus-visible{outline:none}
       <span class="lib-footer-hancom">본 제품은 한글과컴퓨터의 한글 문서 파일(.hwp) 공개 문서를 참고하여 개발하였습니다.</span>
     </div>
   </footer>
-  </div><!-- /.lib-main -->
-  </div><!-- /.lib-shell -->
+
 </div>
 <script>document.getElementById('footerYear').textContent=new Date().getFullYear();</script>
 
