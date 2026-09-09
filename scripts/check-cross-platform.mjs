@@ -146,7 +146,11 @@ async function probes(page, vp, seen) {
     const br = document.getElementById("brandBtn"), mk = document.getElementById("mockModeBtn");
     if (!br || !mk) return { missing: true };
     const a = br.getBoundingClientRect(), b = mk.getBoundingClientRect();
-    return { sameRow: Math.abs(a.top - b.top) < 4, gap: Math.round(b.left - a.right) };
+    /* 버튼마다 높이가 달라도 세로로 절반 이상 겹치면 같은 줄이다. `top` 좌표 4px
+       같은 임계값은 브랜드를 시맨틱 button으로 바꿨을 때 정확히 4px 차가 나 헛돌았다. */
+    const verticalOverlap=Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top);
+    return { sameRow: verticalOverlap>Math.min(a.height,b.height)/2,
+             gap: Math.round(b.left - a.right) };
   });
   add("상단 바 왼쪽 묶음이 붙어 있다",
       !brandGap.missing && (!brandGap.sameRow || brandGap.gap <= 40),
@@ -183,6 +187,16 @@ async function probes(page, vp, seen) {
   }
 
   add("스크립트 오류 없음", seen.pageErrors.length === 0, seen.pageErrors.slice(0, 2).join(" | "));
+
+  const qFocus = await page.evaluate(() => {
+    const accepted=()=>document.activeElement?.classList.contains("q-open")||document.activeElement?.id==="metaHead";
+    const open=document.querySelector(".q-open"); if(!open) return { missing:"q-open" };
+    open.click(); const afterOpen=accepted();
+    const add=document.querySelector(".add-q"); if(!add) return { missing:"add-q", afterOpen };
+    add.click(); const afterAdd=accepted();
+    return {afterOpen,afterAdd,active:document.activeElement?.id||document.activeElement?.className||document.activeElement?.tagName};
+  });
+  add("문항 조작 뒤 키보드 포커스 유지", qFocus.afterOpen===true&&qFocus.afterAdd===true, JSON.stringify(qFocus));
 
   /* ── 터치 목표 ──
      ⚠️ **선택자를 CSS 에서 베껴 오면 안 된다.** 처음에 그렇게 했더니 CSS 와 검사가
@@ -321,6 +335,8 @@ const BREAKS = [
   /* ⚠️ `REV-2026-063` — 예전 판정으로는 이 고장이 **전부 초록불**이었다. */
   { key: "상단 바 왼쪽 묶음이 붙어 있다", 이름: "상단 바를 다시 space-between 으로 되돌리면",
     run: p => p.evaluate(() => { const t = document.querySelector(".topbar");
+      /* 이 결함의 원래 재현 조건은 편집기 동작이 숨은 라이브러리 화면이다. */
+      document.getElementById("topActions").style.display = "none";
       t.style.justifyContent = "space-between";
       document.getElementById("themeBtn").style.setProperty("margin-left", "8px", "important"); }) },
   { key: "핵심 단추가 화면 안", 이름: "핵심 단추를 화면 밖(가로)으로 밀면",
@@ -344,6 +360,8 @@ const BREAKS = [
     run: p => p.evaluate(() => { window.flushLocal = () => true; window.writeLocalNow = () => true; }) },
   { key: "스크립트 오류 없음", 이름: "스크립트 오류를 내면",
     run: p => p.evaluate(() => { setTimeout(() => { throw new Error("자기검사용 고의 오류"); }, 0); }) },
+  { key: "문항 조작 뒤 키보드 포커스 유지", 이름: "문항 포커스 복원을 끊으면",
+    run: p => p.evaluate(() => { window.focusQuestionControl = () => {}; }) },
 ];
 
 async function selfCheck(engine) {

@@ -49,6 +49,13 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 
 | ID | 심각도 | 요약 | 파일 |
 | --- | --- | --- | --- |
+| `REV-2026-072` | `P3` | 접근성 계약이 다수 라벨·동작 회귀를 놓친다 | `issues/2026-09/2026-09-09-tests-accessibility-contract-gaps.md` |
+| `REV-2026-071` | `P2` | 문항 열기·추가 뒤 키보드 포커스가 사라진다 | `issues/2026-09/2026-09-09-index-question-focus-loss.md` |
+| `REV-2026-070` | `P3` | 상단 바 자기검사가 높이가 다른 버튼을 다른 줄로 오인한다 | `issues/2026-09/2026-09-09-tests-topbar-row-detection.md` |
+| `REV-2026-069` | `P2` | 일반 토스트 상태가 화면낭독기에 전달되지 않는다 | `issues/2026-09/2026-09-09-index-toast-not-announced.md` |
+| `REV-2026-068` | `P2` | 편집기 입력과 아이콘 조작의 접근 가능한 이름이 빠졌다 | `issues/2026-09/2026-09-09-index-editor-controls-unlabeled.md` |
+| `REV-2026-067` | `P2` | PEDAGOGY 브랜드 탐색이 마우스로만 동작한다 | `issues/2026-09/2026-09-09-index-brand-mouse-only.md` |
+| `REV-2026-066` | `P2` | 반복 상단 조작을 건너뛸 키보드 경로가 없다 | `issues/2026-09/2026-09-09-index-missing-skip-link.md` |
 | `REV-2026-065` | `P2` | 아이패드 가로 화면에서 일부 편집 조작이 44px보다 작다 | `issues/2026-09/2026-09-09-index-ipad-landscape-touch-targets.md` |
 | `REV-2026-062` | `P3` | 모의고사 편집기가 상단 바 높이를 상수로 빼 화면이 잘린다 | `issues/2026-09/2026-09-09-mock-panes-fixed-height-subtraction.md` |
 | `REV-2026-064` | `P1` | 멈춘 클라우드 읽기가 '불러오는 중'을 영원히 붙잡음 | `issues/2026-09/2026-09-09-index-hung-cloud-read-blocks-library.md` |
@@ -118,6 +125,7 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 
 | ID | 작성자 | 내용 | 파일 |
 | --- | --- | --- | --- |
+| `HANDOFF-2026-088` | Codex | **편집기 접근성 디자인 점검 · 키보드 경로와 이름 보정** | `handoffs/2026-09/2026-09-09-editor-accessibility-design-audit.md` |
 | `HANDOFF-2026-086` | Claude | **아이패드 실사용 신고 두 건 수정** | `handoffs/2026-09/2026-09-09-ipad-report-fixes.md` |
 | `HANDOFF-2026-085` | Claude | **한컴 규격서 출처 고지를 UI·매뉴얼에** | `handoffs/2026-09/2026-09-09-hwp-spec-attribution-in-ui.md` |
 | `HANDOFF-2026-084` | Claude | **부팅 노출 수정 · 배포 기록 · 083 회신** | `handoffs/2026-09/2026-09-09-boot-flash-fix-and-deploy-record.md` |

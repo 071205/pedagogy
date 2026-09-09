@@ -215,7 +215,17 @@ body{background:var(--bg);color:var(--text-primary);font-family:var(--ui-sans);f
   font-family:'Adobe Caslon Pro Bold',serif!important;
   font-size:22px;letter-spacing:.5px;font-weight:700;
   color:var(--text-primary);cursor:pointer;user-select:none;
+  background:transparent;border:0;padding:0;height:auto;border-radius:0;
 }
+.brand:hover{background:transparent;border-color:transparent}
+.skip-link{
+  position:fixed;left:12px;top:10px;z-index:4000;
+  display:flex;align-items:center;min-height:44px;padding:10px 14px;
+  border-radius:10px;background:var(--blue);color:#fff;
+  font-weight:700;text-decoration:none;transform:translateY(calc(-100% - 16px));
+  transition:transform .13s ease;
+}
+.skip-link:focus-visible{transform:translateY(0);outline:3px solid #fff;outline-offset:2px}
 .actions{display:flex;gap:8px;align-items:center}
 /* ⚠️ **편집기 전용 상단 동작의 초기값은 숨김이다**(`REV-2026-061`).
    예전에는 마크업 초기값이 `display:flex` 라, 하단 인라인 스크립트가 클릭 핸들러를
@@ -406,6 +416,12 @@ label.btn input{display:none}
 }
 .q-item{align-items:center}
 .q-item:hover{background:var(--surface-2);border-color:var(--border)}
+.q-open{
+  flex:1;min-width:0;display:flex;align-items:center;gap:8px;
+  height:auto;padding:0;background:transparent;border:0;border-radius:var(--radius-sm);
+  text-align:left;white-space:normal;
+}
+.q-open:hover{background:transparent;border-color:transparent}
 /* 조작 버튼은 목록 폭을 차지하지 않도록 오른쪽에 겹쳐 띄우고,
    올렸을 때·선택됐을 때만 보인다. 뒤 글자가 비치지 않게 배경을 깔아 준다. */
 .q-item{position:relative}
@@ -459,6 +475,7 @@ label.btn input{display:none}
 .ai-dropzone{
   width:100%;box-sizing:border-box;cursor:pointer;
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  height:auto;
   padding:16px 14px;border-radius:14px;
   border:1.5px dashed color-mix(in srgb, var(--blue) 55%, var(--border));
   background:color-mix(in srgb, var(--blue) 7%, transparent);
@@ -490,6 +507,7 @@ label.btn input{display:none}
   display:flex;align-items:center;justify-content:center;gap:6px;
   border:1.5px dashed var(--border);background:transparent;
   border-radius:var(--radius-md);padding:10px;
+  width:100%;height:auto;
   font-size:13px;color:var(--text-tertiary);cursor:pointer;
   transition:.12s;margin-top:4px;
 }
@@ -1319,15 +1337,17 @@ input:focus-visible,textarea:focus-visible{outline:none}
 </head>
 <body>
 
+<a class="skip-link" href="#appMain">본문으로 건너뛰기</a>
+
 <!-- Topbar -->
 <div class="topbar">
-  <div class="brand" id="brandBtn">PEDAGOGY</div>
+  <button type="button" class="brand" id="brandBtn" aria-label="문제집 라이브러리로 이동">PEDAGOGY</button>
   <button id="mockModeBtn" class="btn" style="margin-left:14px" title="수능 모의고사 양식 시험지 편집기">모의고사</button>
   <a class="btn" href="document-editor.html" style="margin-left:-6px;text-decoration:none" title="AI 초안·검증·한글 HWPX 내보내기 베타">AI 문서 β</a>
   <div class="actions" id="topActions">
-    <button id="undoBtn" class="btn-ghost histbtn" title="실행취소 (Cmd/Ctrl+Z)" disabled><span class="icon icon-undo"></span></button>
-    <button id="redoBtn" class="btn-ghost histbtn" title="다시실행 (Cmd/Ctrl+Shift+Z)" disabled><span class="icon icon-redo"></span></button>
-    <input id="headerInput" type="text" placeholder="상단 문구 (좌상단 인쇄용)">
+    <button id="undoBtn" class="btn-ghost histbtn" title="실행취소 (Cmd/Ctrl+Z)" aria-label="실행취소" disabled><span class="icon icon-undo" aria-hidden="true"></span></button>
+    <button id="redoBtn" class="btn-ghost histbtn" title="다시실행 (Cmd/Ctrl+Shift+Z)" aria-label="다시실행" disabled><span class="icon icon-redo" aria-hidden="true"></span></button>
+    <input id="headerInput" type="text" aria-label="인쇄물 상단 문구" placeholder="상단 문구 (좌상단 인쇄용)" autocomplete="off">
     <button id="promptBtn" class="btn" title="AI 변환 프롬프트">AI 프롬프트</button>
     <button id="printBtn" class="btn-accent">인쇄</button>
     <button id="exportJsonBtn" class="btn">내보내기</button>
@@ -1337,7 +1357,7 @@ input:focus-visible,textarea:focus-visible{outline:none}
     <input id="loadInput" type="file" accept="application/json" style="display:none">
   </div>
   <!-- 테마 전환 (시스템 / 밝게 / 어둡게) -->
-  <button id="themeBtn" class="theme-btn" title="테마"></button>
+  <button id="themeBtn" class="theme-btn" title="테마" aria-label="테마 변경"></button>
 
   <!-- 로그인 영역 -->
   <div id="authArea" style="display:flex;align-items:center;gap:10px;margin-left:4px">
@@ -1360,7 +1380,7 @@ input:focus-visible,textarea:focus-visible{outline:none}
 <!-- Library -->
 <!-- 스크린리더가 본문으로 건너뛸 수 있게 세 뷰를 <main> 하나로 묶는다
      (라이트하우스: Document does not have a main landmark) -->
-<main id="appMain">
+<main id="appMain" tabindex="-1">
 <div id="libraryView">
   <div class="lib-header">
     <h2 style="margin:0">문제집 라이브러리</h2>
@@ -1373,7 +1393,7 @@ input:focus-visible,textarea:focus-visible{outline:none}
     </div>
   </div>
   <div class="lib-bar">
-    <div class="lib-search"><input id="setSearch" type="text" placeholder="문제집 검색"></div>
+    <div class="lib-search"><input id="setSearch" type="search" aria-label="문제집 검색" placeholder="문제집 검색…" autocomplete="off"></div>
     <div class="lib-tools">
       <div class="lib-menu-wrap">
         <button id="sortBtn" class="btn-ghost" aria-haspopup="true" aria-expanded="false">정렬</button>
@@ -1468,7 +1488,9 @@ function setTheme(v){
   const b=document.getElementById('themeBtn');
   if(b){
     b.innerHTML=THEME_ICON[v]||THEME_ICON.system;
-    b.title='테마: '+(THEMES.find(x=>x.v===v)||THEMES[0]).name;
+    const themeName=(THEMES.find(x=>x.v===v)||THEMES[0]).name;
+    b.title='테마: '+themeName;
+    b.setAttribute('aria-label','테마 변경 · 현재 '+themeName);
   }
 }
 document.addEventListener('DOMContentLoaded',()=>{
@@ -1564,7 +1586,7 @@ function setEditorActions(on){
     </div>
     <!-- 과목 — 이 문제집에서 쓸 블록만 메뉴에 띄운다.
          상단바는 이미 버튼이 많아(좁은 화면에서 줄바꿈된다) 문제집 머리에 둔다. -->
-    <select id="setSubject" class="subj-sel" title="이 문제집의 과목"></select>
+    <select id="setSubject" class="subj-sel" title="이 문제집의 과목" aria-label="문제집 과목"></select>
     <div id="qList" class="q-list"></div>
   </div>
 
@@ -1580,24 +1602,25 @@ function setEditorActions(on){
       <div style="display:flex;gap:8px">
         <div class="field-group" style="width:100px;flex-shrink:0">
           <div class="field-label">번호</div>
-          <input id="qNumLabel" type="text" class="field-input" placeholder="자동" title="비워두면 자동. 예: 1-1, A3">
+          <input id="qNumLabel" type="text" class="field-input" aria-label="문항 번호" placeholder="자동" title="비워두면 자동. 예: 1-1, A3" autocomplete="off">
         </div>
         <div class="field-group" style="flex:1">
           <div class="field-label">제목</div>
-          <input id="qTitle" type="text" class="field-input" placeholder="예) 기하, 타원">
+          <input id="qTitle" type="text" class="field-input" aria-label="문항 제목" placeholder="예) 기하, 타원" autocomplete="off">
         </div>
         <div class="field-group" style="flex:1">
           <div class="field-label">부제목</div>
-          <input id="qDesc" type="text" class="field-input" placeholder="선택 사항">
+          <input id="qDesc" type="text" class="field-input" aria-label="문항 부제목" placeholder="선택 사항" autocomplete="off">
         </div>
       </div>
       <!-- 정답 -->
       <div>
         <div class="field-label" style="margin-bottom:5px">정답</div>
         <div style="display:flex;gap:8px;align-items:flex-start">
-          <textarea id="qAnswer" placeholder="LaTeX 가능  예) $\frac{45}{2}$" rows="2"></textarea>
-          <label class="btn" style="cursor:pointer;white-space:nowrap;flex-shrink:0;align-self:flex-start">📎<input id="qAnswerImg" type="file" accept="image/*" style="display:none"></label>
-          <button id="qAnswerImgClear" class="btn-ghost" style="display:none;flex-shrink:0;align-self:flex-start" title="이미지 제거">✕</button>
+          <textarea id="qAnswer" aria-label="문항 정답" placeholder="LaTeX 가능  예) $\frac{45}{2}$" rows="2"></textarea>
+          <button id="qAnswerImgBtn" type="button" class="btn" aria-label="정답 이미지 넣기" style="cursor:pointer;white-space:nowrap;flex-shrink:0;align-self:flex-start">📎</button>
+          <input id="qAnswerImg" type="file" accept="image/*" style="display:none">
+          <button id="qAnswerImgClear" class="btn-ghost" aria-label="정답 이미지 제거" style="display:none;flex-shrink:0;align-self:flex-start" title="이미지 제거">✕</button>
         </div>
       </div>
       <!-- 묶음 — 이 문항부터 몇 문항이 안내(와 지문)를 함께 쓰는가.
@@ -1606,8 +1629,9 @@ function setEditorActions(on){
       <div>
         <div class="field-label" style="margin-bottom:5px">묶음</div>
         <div style="display:flex;gap:8px">
-          <select id="qGroupSpan" style="flex:0 0 150px"></select>
+          <select id="qGroupSpan" aria-label="함께 묶을 문항 수" style="flex:0 0 150px"></select>
           <input id="qGroupLead" type="text" class="field-input" style="flex:1"
+                 aria-label="문항 묶음 안내" autocomplete="off"
                  placeholder="지문이 없을 때 쓸 안내 — 예) 다음을 듣고, 물음에 답하시오.">
         </div>
         <div id="groupHint" style="font-size:11.5px;color:var(--text-tertiary);margin-top:5px"></div>
@@ -1629,17 +1653,17 @@ function setEditorActions(on){
 
     <div class="blockbar" style="gap:8px;margin-top:4px">
       <!-- 내용은 renderBlockTypeMenu() 가 과목에 맞게 채운다 -->
-      <select id="blockType" style="flex:1"></select>
+      <select id="blockType" aria-label="추가할 블록 종류" style="flex:1"></select>
       <button id="addBlockBtn" class="btn-primary">+ 블록 추가</button>
     </div>
     <div class="blockbar" style="margin-top:8px;padding:0">
-      <label id="aiDropZone" class="ai-dropzone">
-        <input id="aiImgInput" type="file" accept="image/*" style="display:none">
+      <button id="aiDropZone" type="button" class="ai-dropzone" aria-label="문제 사진으로 자동 생성">
         <span class="ai-dz-icon">🪄</span>
         <span class="ai-dz-main">사진으로 자동 생성</span>
         <span class="ai-dz-sub">문제 사진을 끌어다 놓거나 클릭해서 선택</span>
         <span class="ai-dz-sub">선택 시에만 AI 처리 사업자에게 전송됩니다 · 개인정보가 보이는 이미지는 올리지 마세요</span>
-      </label>
+      </button>
+      <input id="aiImgInput" type="file" accept="image/*" style="display:none">
     </div>
     <div id="aiGenStatus" style="display:none;margin-top:6px;font-size:12px;color:var(--text-secondary);text-align:center"></div>
   </div>
@@ -1709,7 +1733,7 @@ function setEditorActions(on){
         <div id="promptModalTitle" style="font-size:18px;font-weight:800;color:var(--text-primary);letter-spacing:-.02em">AI 변환 프롬프트</div>
         <div style="font-size:12px;color:var(--text-secondary);margin-top:3px">이미지와 함께 ChatGPT · Claude · Gemini에 붙여넣으세요</div>
       </div>
-      <button id="closePrompt" class="btn-ghost" style="width:36px;height:36px;padding:0;border-radius:50%;font-size:18px">✕</button>
+      <button id="closePrompt" class="btn-ghost" aria-label="AI 변환 프롬프트 닫기" style="width:36px;height:36px;padding:0;border-radius:50%;font-size:18px">✕</button>
     </div>
     <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-md);padding:16px;font-size:12px;line-height:1.75;color:var(--text-secondary);white-space:pre-wrap;overflow-y:auto;max-height:340px;font-family:'Pretendard Variable',Pretendard,monospace" id="promptText"></div>
     <div style="display:flex;gap:8px;justify-content:flex-end">
@@ -1763,7 +1787,7 @@ function setEditorActions(on){
         <div id="dataModalTitle" style="font-size:18px;font-weight:800;color:var(--text-primary);letter-spacing:-.02em">데이터 관리</div>
         <div id="dmWhose" style="font-size:12px;color:var(--text-secondary);margin-top:3px"></div>
       </div>
-      <button id="dmClose" class="btn-ghost" style="width:36px;height:36px;padding:0;border-radius:50%;font-size:18px;flex-shrink:0">✕</button>
+      <button id="dmClose" class="btn-ghost" aria-label="데이터 관리 닫기" style="width:36px;height:36px;padding:0;border-radius:50%;font-size:18px;flex-shrink:0">✕</button>
     </div>
 
     <!-- 되돌릴 수 있는 것 -->
@@ -1943,6 +1967,9 @@ function toast(msg, type=""){
   if(!host){ host=document.createElement("div"); host.id="toastHost"; document.body.append(host); }
   const t=document.createElement("div");
   t.className="toast"+(type?" toast--"+type:"");
+  t.setAttribute("role",type==="error"?"alert":"status");
+  t.setAttribute("aria-live",type==="error"?"assertive":"polite");
+  t.setAttribute("aria-atomic","true");
   t.textContent=msg;
   host.append(t);
   requestAnimationFrame(()=>t.classList.add("show"));
@@ -4316,6 +4343,14 @@ function qExcerpt(q){
           .replace(/\s+/g," ").trim().slice(0,28);
 }
 
+/* 문항 목록을 다시 그리면 눌렀던 버튼도 DOM에서 사라진다. 키보드 포커스가 body로
+   떨어지지 않게 새 목록의 같은 문항으로 돌리고, 모바일에서 목록이 숨으면 편집 머리로 보낸다. */
+function focusQuestionControl(id){
+  const btn=[...document.querySelectorAll(".q-open")].find(x=>x.dataset.qid===id);
+  if(btn&&btn.offsetParent!==null){ btn.focus(); return; }
+  const meta=$("#metaHead"); if(meta&&meta.offsetParent!==null) meta.focus();
+}
+
 function renderQList(){
   const list=$("#qList"); list.innerHTML="";
   const arr=activeProblems();
@@ -4333,7 +4368,10 @@ function renderQList(){
     col.append(name);
     const ex=qExcerpt(q);
     if(ex) col.append(el("div","excerpt",sanitize(ex)));
-    item.append(num,col);
+    const openBtn=el("button","q-open"); openBtn.type="button";
+    openBtn.dataset.qid=q.id;
+    openBtn.setAttribute("aria-label",`${String(num.textContent||"").trim()}번 문항 열기 · ${q.title||"제목 없음"}`);
+    openBtn.append(num,col); item.append(openBtn);
     /* 조작 버튼은 목록 폭을 잡아먹지 않게 오른쪽에 겹쳐 띄운다.
        (opacity 만 0 으로 두면 자리는 그대로 차지해 제목이 39px 까지 눌렸다) */
     const acts=el("div","q-actions");
@@ -4342,7 +4380,9 @@ function renderQList(){
       const dot=el("span","no-ans",""); dot.title="정답 없음"; col.append(dot);
     }
     if(orderMode){
-      const grip=el("button","iconbtn drag-handle",""); grip.append(el("span","icon icon-grip","")); acts.append(grip);
+      const grip=el("button","iconbtn drag-handle","");
+      grip.title="문항 순서 끌어서 바꾸기"; grip.setAttribute("aria-label","문항 순서 끌어서 바꾸기");
+      grip.append(el("span","icon icon-grip","")); acts.append(grip);
     }else{
       if(opts.showLink){
         const lb=el("button","iconbtn",""); lb.title="다음 문제와 묶기 (한 단에 2문제)"; lb.append(el("span","icon icon-link",""));
@@ -4379,7 +4419,8 @@ function renderQList(){
       acts.append(del);
     }
     item.append(acts);
-    item.onclick=()=>{ if(orderMode) return; currentQId=q.id; renderQList(); renderEditor(); renderPreview(); syncPairedChk(); };
+    openBtn.tabIndex=orderMode?-1:0;
+    openBtn.onclick=()=>{ if(orderMode) return; currentQId=q.id; renderQList(); renderEditor(); renderPreview(); syncPairedChk(); focusQuestionControl(q.id); };
     return item;
   };
 
@@ -4418,8 +4459,9 @@ function renderQList(){
     }
   }
 
-  const addBtn=el("div","add-q","+ 문항 추가");
-  addBtn.onclick=()=>{ const np=newProblem(); activeSet().problems.push(np); currentQId=np.id; saveSets(); renderQList(); renderEditor(); renderPreview(); syncPairedChk(); };
+  const addBtn=el("button","add-q","+ 문항 추가");
+  addBtn.type="button";
+  addBtn.onclick=()=>{ const np=newProblem(); activeSet().problems.push(np); currentQId=np.id; saveSets(); renderQList(); renderEditor(); renderPreview(); syncPairedChk(); focusQuestionControl(np.id); };
   list.append(addBtn);
 }
 
@@ -4574,6 +4616,7 @@ function renderEditor(){
   // 정답 이미지
   const imgClear=$("#qAnswerImgClear");
   imgClear.style.display=q.answerImg?"inline-block":"none";
+  $("#qAnswerImgBtn").onclick=()=>$("#qAnswerImg").click();
   $("#qAnswerImg").onchange=async (e)=>{
     const f=e.target.files[0]; if(!f) return;
     e.target.value="";
@@ -4700,6 +4743,7 @@ function renderEditor(){
         blk.data.parts=[{label:"",kind:"prose",text:"",source:"",notes:""}];
 
       const lead=el("input"); lead.type="text"; lead.className="field-input";
+      lead.setAttribute("aria-label","지문 안내");
       lead.placeholder="다음 글을 읽고 물음에 답하시오."; lead.value=blk.data.lead||"";
       lead.oninput=e=>{ blk.data.lead=e.target.value; renderPreview(); saveSets(); };
       const lw=el("div","row"); lw.append(el("div","label","안내"), lead); body.append(lw);
@@ -4726,11 +4770,13 @@ function renderEditor(){
         wrap.append(hd);
 
         const lab=el("input"); lab.type="text"; lab.className="field-input";
+        lab.setAttribute("aria-label",`지문 ${pi+1} 라벨`);
         lab.placeholder="비워 두면 없음 · 복합 지문이면 (가) (나)"; lab.value=pt.label||"";
         lab.oninput=e=>{ pt.label=e.target.value; renderPreview(); saveSets(); };
         const lr=el("div","row"); lr.append(el("div","label","라벨"), lab); wrap.append(lr);
 
         const ta=el("textarea"); ta.placeholder="지문 본문 · 한 줄에 (중략) 만 쓰면 가운데 정렬됩니다";
+        ta.setAttribute("aria-label",`지문 ${pi+1} 본문`);
         ta.value=pt.text||""; ta.style.minHeight="190px"; autoSizeTA(ta);
         wrap.append(ta);
         ta.addEventListener("input",e=>{ pt.text=e.target.value; autoSizeTA(ta); renderPreview(); saveSets(); });
@@ -4790,6 +4836,7 @@ function renderEditor(){
         kr.append(kSeg); wrap.append(kr);
 
         const src=el("input"); src.type="text"; src.className="field-input";
+        src.setAttribute("aria-label",`지문 ${pi+1} 출처`);
         src.placeholder="장석남, 「배를 밀며」 — 앞뒤 – 는 자동으로 붙습니다";
         src.value=pt.source||"";
         src.oninput=e=>{ pt.source=e.target.value; renderPreview(); saveSets(); };
@@ -4797,6 +4844,7 @@ function renderEditor(){
         sr.append(el("div","label","출처"), src); wrap.append(sr);
 
         const nt=el("textarea"); nt.placeholder="각주 — 한 줄에 하나씩 (앞의 * 는 자동)";
+        nt.setAttribute("aria-label",`지문 ${pi+1} 각주`);
         nt.value=pt.notes||""; nt.style.minHeight="52px";
         nt.addEventListener("input",e=>{ pt.notes=e.target.value; renderPreview(); saveSets(); });
         const nr=el("div","row"); nr.style.marginTop="6px";
@@ -4824,10 +4872,12 @@ function renderEditor(){
 
     if(blk.type==="bogi"){
       const lab=el("input"); lab.type="text"; lab.className="field-input";
+      lab.setAttribute("aria-label","보기 상자 라벨");
       lab.placeholder="보 기"; lab.value=blk.data.label||"";
       lab.oninput=e=>{ blk.data.label=e.target.value; renderPreview(); saveSets(); };
       const lw=el("div","row"); lw.append(el("div","label","라벨"), lab); body.append(lw);
       const ta=el("textarea"); ta.placeholder="<보기> 안에 들어갈 내용";
+      ta.setAttribute("aria-label","보기 상자 내용");
       ta.value=blk.data.text||""; autoSizeTA(ta);
       body.append(ta);
       ta.addEventListener('input',e=>{ blk.data.text=e.target.value; autoSizeTA(ta); renderPreview(); saveSets(); });
@@ -4853,6 +4903,7 @@ function renderEditor(){
         rows.forEach((r,ri)=>{
           for(let ci=0;ci<wide;ci++){
             const inp=el("input"); inp.type="text"; inp.className="field-input";
+            inp.setAttribute("aria-label",`보기 표 ${ri+1}행 ${ci+1}열`);
             inp.value=r[ci]||""; inp.placeholder=(blk.data.header!==false&&ri===0)?"머리글":"";
             inp.oninput=e=>{ while(r.length<wide) r.push(""); r[ci]=e.target.value; renderPreview(); saveSets(); };
             grid.append(inp);
@@ -4882,10 +4933,12 @@ function renderEditor(){
       blk.data.items.forEach((it,ii)=>{
         const row=el("div","row"); row.style.alignItems="flex-start";
         const who=el("input"); who.type="text"; who.className="field-input";
+        who.setAttribute("aria-label",`대화 ${ii+1} 말한이`);
         who.style.cssText="flex:0 0 92px;min-width:0"; who.placeholder="학생 1";
         who.value=it.who||"";
         who.oninput=e=>{ it.who=e.target.value; renderPreview(); saveSets(); };
         const ta=el("textarea"); ta.placeholder="말한 내용 · 비우면 답란(밑줄)"; ta.value=it.text||"";
+        ta.setAttribute("aria-label",`대화 ${ii+1} 내용`);
         ta.style.minHeight="46px"; autoSizeTA(ta);
         ta.addEventListener("input",e=>{ it.text=e.target.value; autoSizeTA(ta); renderPreview(); saveSets(); });
         const rm=el("button","iconbtn",""); rm.append(el("span","icon icon-trash",""));
@@ -4907,6 +4960,7 @@ function renderEditor(){
 
     if(blk.type==="notice"){
       const t=el("input"); t.type="text"; t.className="field-input";
+      t.setAttribute("aria-label","안내문 제목");
       t.placeholder="상자 맨 위 제목 (예: Luckwood Snow Festival)";
       t.value=blk.data.title||"";
       t.oninput=e=>{ blk.data.title=e.target.value; renderPreview(); saveSets(); };
@@ -4918,10 +4972,12 @@ function renderEditor(){
       blk.data.items.forEach((it,ii)=>{
         const row=el("div","row"); row.style.alignItems="flex-start";
         const sel=el("select"); sel.style.cssText="flex:0 0 92px";
+        sel.setAttribute("aria-label",`안내문 ${ii+1} 줄 종류`);
         NOTICE_KINDS.forEach(k=>{ const o=el("option",null,KIND_NAME[k]); o.value=k; sel.append(o); });
         sel.value=NOTICE_KINDS.includes(it.kind)?it.kind:"text";
         sel.onchange=e=>{ it.kind=e.target.value; renderPreview(); saveSets(); };
         const ta=el("textarea"); ta.placeholder="내용"; ta.value=it.text||"";
+        ta.setAttribute("aria-label",`안내문 ${ii+1} 줄 내용`);
         ta.style.minHeight="42px"; autoSizeTA(ta);
         ta.addEventListener("input",e=>{ it.text=e.target.value; autoSizeTA(ta); renderPreview(); saveSets(); });
         const rm=el("button","iconbtn",""); rm.append(el("span","icon icon-trash",""));
@@ -4940,6 +4996,7 @@ function renderEditor(){
     if(blk.type==="table"){
       /* 표 제목 — 표 **안** 맨 위에 칸을 합쳐 놓는다(실물 영어 10번의 `Plant Seed Kits`). */
       const tt=el("input"); tt.type="text"; tt.className="field-input";
+      tt.setAttribute("aria-label","표 제목");
       tt.placeholder="표 제목 (선택) — 예: Plant Seed Kits";
       tt.value=blk.data.title||"";
       tt.oninput=e=>{ blk.data.title=e.target.value; renderPreview(); saveSets(); };
@@ -4951,6 +5008,7 @@ function renderEditor(){
       blk.data.rows.forEach((r,ri)=>{
         for(let ci=0;ci<wide;ci++){
           const inp=el("input"); inp.type="text"; inp.className="field-input";
+          inp.setAttribute("aria-label",`표 ${ri+1}행 ${ci+1}열`);
           inp.value=r[ci]||"";
           inp.placeholder=(blk.data.header!==false&&ri===0)?"머리글":"";
           inp.oninput=e=>{ while(r.length<wide) r.push(""); r[ci]=e.target.value;
@@ -4982,6 +5040,7 @@ function renderEditor(){
 
     if(blk.type==="statement"||blk.type==="boxed"){
       const ta=el("textarea"); ta.placeholder= blk.type==="boxed"?"박스형 해설 (LaTeX)":"본문 (LaTeX)";
+      ta.setAttribute("aria-label",blk.type==="boxed"?"박스형 해설 본문":"문제 본문");
       ta.value=blk.data.text||""; autoSizeTA(ta);
       body.append(ta);
       ta.addEventListener('input',e=>{ blk.data.text=e.target.value; autoSizeTA(ta); renderPreview(); saveSets(); });
@@ -4990,6 +5049,7 @@ function renderEditor(){
     if(blk.type==="examples"){
       // 라벨을 채우면 ㄱㄴㄷ 가 <보 기> 상자 안에 들어간다 (국어 문법 문항 형식)
       const lab=el("input"); lab.type="text"; lab.className="field-input";
+      lab.setAttribute("aria-label","조건 상자 라벨");
       lab.placeholder="비워 두면 그냥 상자 · '보 기' 를 넣으면 <보기>";
       lab.value=blk.data.label||"";
       lab.oninput=e=>{ blk.data.label=e.target.value; renderPreview(); saveSets(); };
@@ -5014,7 +5074,9 @@ function renderEditor(){
         const labelText = blk.type==="conditions" ? condLabel(i) : (blk.type==="examples" ? `${HSMALL[i%HSMALL.length]}.` : circled(i+1));
         row.append(el("div","label",labelText));
         const inp=el("input"); inp.type="text"; inp.value=t; inp.placeholder= blk.type==="conditions"?"조건":"내용";
+        inp.setAttribute("aria-label",labelText+" 내용");
         const rm=el("button","iconbtn",""); rm.append(el("span","icon icon-trash",""));
+        rm.title=labelText+" 삭제"; rm.setAttribute("aria-label",labelText+" 삭제");
         rm.onclick=()=>{
           const gone=(blk.type==="choices" && blk.data.images) ? blk.data.images[i] : null;
           blk.data.items.splice(i,1);
@@ -5028,22 +5090,24 @@ function renderEditor(){
           /* 그림 붙이기 — 그림 블록과 같은 경로를 쓴다(로그인이면 Storage, 아니면 base64).
              ⚠️ 단추에 컬러 이모지를 쓰지 않는다 — 이 저장소가 예전에 전부 SVG 로 걷어냈고
                 회귀 검사가 그것을 본다. 붙인 뒤에는 아이콘 대신 **썸네일**을 보여 준다. */
-          const pick=el("label"); pick.style.cssText="cursor:pointer;display:flex;align-items:center";
+          const pick=el("button","iconbtn"); pick.type="button";
+          pick.style.cssText="cursor:pointer;display:flex;align-items:center";
           pick.title=has?"그림 바꾸기":"그림 넣기";
+          pick.setAttribute("aria-label",labelText+" "+(has?"그림 바꾸기":"그림 넣기"));
           if(has){
             const th=el("img","choice-thumb"); th.src=safeUrl(blk.data.images[i])||""; th.alt="";
             pick.append(th);
           }else{
-            pick.className="iconbtn"; pick.append(el("span","icon icon-image",""));
+            pick.append(el("span","icon icon-image",""));
           }
           const file=el("input"); file.type="file"; file.accept="image/*"; file.style.display="none";
-          pick.append(file);
+          pick.onclick=()=>file.click();
           file.onchange=e=>{
             const f=e.target.files?.[0]; if(!f) return;
             e.target.value="";
             putChoiceImage(blk,i,f);
           };
-          row.append(pick);
+          row.append(pick,file);
           if(has){
             const del=el("button","iconbtn","✕"); del.title="이 선지의 그림 빼기";
             del.onclick=()=>{ const gone=blk.data.images[i]; blk.data.images[i]="";
@@ -5078,6 +5142,7 @@ function renderEditor(){
     if(blk.type==="image"){
       const row=el("div","row");
       const file=el("input"); file.type="file"; file.accept="image/*";
+      file.setAttribute("aria-label","문항 이미지 선택");
       const hint=el("div","label","이미지");
       row.append(hint,file);
       file.onchange=async e=>{
@@ -5141,6 +5206,7 @@ function renderEditor(){
   // drag-drop 지원
   const dz=$("#aiDropZone");
   if(dz){
+    dz.onclick=()=>aiInput&&aiInput.click();
     const stop=(e)=>{ e.preventDefault(); e.stopPropagation(); };
     ["dragenter","dragover"].forEach(ev=>dz.addEventListener(ev,(e)=>{ stop(e); dz.classList.add("dragover"); }));
     ["dragleave","dragend"].forEach(ev=>dz.addEventListener(ev,(e)=>{ stop(e); dz.classList.remove("dragover"); }));
