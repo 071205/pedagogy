@@ -319,7 +319,9 @@ CDNs (KaTeX, SortableJS, Firebase compat SDK, Pretendard/KoPub webfonts).
   ⚠️ **그림은 Firestore 문서에 담지 않는다.** 편집기가 본체를 거쳐 Storage 로 올리고
   주소만 남긴다(`upload`/`uploaded` 메시지). 담으면 한 부가 1MiB 한도를 그냥 넘는다.
   한글 내보내기 직전에 편집기가 그 주소를 `fetch` 로 바이트화한다 — **버킷 CORS 설정이
-  필요하고**, 못 가져오면 조용히 자리표시로 내보내지 않고 말한다.
+  필요하고**(`docs/STORAGE-CORS.md` · `storage-cors.json` · 아직 안 걸었다), 못 가져오면
+  조용히 자리표시로 내보내지 않고 말한다. `<img>` 미리보기는 CORS 없이도 되므로
+  **화면은 멀쩡하고 내보내기만** 그림이 빠진다 — 같은 기기에서는 재현되지 않는다.
   ⚠️ **문서 크기는 글자 수가 아니라 UTF-8 바이트로 잰다**(`docBytes`). 한글은 3배라
   `.length` 로 재면 1.4MB 짜리가 한도를 통과한다(검사가 잡았다).
   ⚠️ **필드를 더하면 `firestore.rules` 의 `hasOnly` 와 tombstone 도 함께 고칠 것** —

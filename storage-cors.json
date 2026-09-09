@@ -1,0 +1,12 @@
+[
+  {
+    "origin": [
+      "https://071205.github.io",
+      "http://127.0.0.1:8787",
+      "http://localhost:8787"
+    ],
+    "method": ["GET"],
+    "responseHeader": ["Content-Type"],
+    "maxAgeSeconds": 3600
+  }
+]
