@@ -322,6 +322,19 @@ label.btn input{display:none}
 .lib-tab.on{background:var(--surface-1);border-color:var(--border);color:var(--text-primary);
   box-shadow:0 1px 3px rgba(0,0,0,.10)}
 @media (pointer: coarse){ .lib-tab{height:44px;padding:0 16px} }
+/* 로그인 동의 창 */
+.cs-all{display:flex;align-items:center;gap:10px;padding:12px 14px;border:1px solid var(--border);
+  border-radius:var(--radius-lg);background:var(--surface-2);font-weight:700;
+  color:var(--text-primary);font-size:14.5px;cursor:pointer}
+.cs-list{display:flex;flex-direction:column;gap:2px}
+.cs-row{display:flex;align-items:flex-start;gap:10px;padding:11px 14px;border-radius:var(--radius-md);
+  font-size:13.5px;color:var(--text-secondary);line-height:1.55;cursor:pointer}
+.cs-row:hover{background:var(--surface-2)}
+.cs-row b{color:var(--text-primary)}
+.cs-row a{color:var(--blue-on-white-text);font-size:12.5px}
+.cs-why{display:block;color:var(--text-tertiary);font-size:12px;margin-top:3px}
+.cs-all input,.cs-row input{width:18px;height:18px;flex:none;margin:2px 0 0;accent-color:var(--blue)}
+@media (pointer: coarse){ .cs-all input,.cs-row input{width:22px;height:22px} }
 .lib-actions{display:flex;gap:8px}
 /* 같은 이유 — `display:flex` 가 `[hidden]` 을 이긴다. 두 갈래 액션이 함께 보이면 안 된다. */
 .lib-actions[hidden]{display:none}
@@ -1875,6 +1888,49 @@ function setEditorActions(on){
 </div>
 
 <!-- 데이터 관리 모달 (백업 복구 · 삭제) -->
+<!-- ══ 로그인 동의 ══
+     ⚠️ **브라우저 `confirm()` 으로는 '동의를 받았다' 고 말하기 어렵다.** 약관규제법은
+        명시·설명 의무를, 개인정보 보호법은 **항목별 동의**와 그 증적을 요구한다.
+        한 줄짜리 확인창은 무엇에 동의했는지 가르지 못하고 전문을 보여 주지도 못한다.
+     ⚠️ 필수 항목이 **모두** 체크돼야 로그인 단추가 열린다(동의를 미리 체크해 두지 않는다 —
+        기본 체크는 '동의를 받았다' 로 보기 어렵다). -->
+<div id="consentModal" role="dialog" aria-modal="true" aria-labelledby="consentTitle" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:2100;align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--surface-1);border:1px solid var(--border);border-radius:24px;padding:26px;width:100%;max-width:520px;max-height:88vh;max-height:88dvh;overflow-y:auto;display:flex;flex-direction:column;gap:14px;box-shadow:0 24px 64px rgba(0,0,0,.6)">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+      <div>
+        <div id="consentTitle" style="font-size:18px;font-weight:800;color:var(--text-primary);letter-spacing:-.02em">로그인 전 동의</div>
+        <div style="font-size:12.5px;color:var(--text-secondary);margin-top:3px">로그인하면 문제집·모의고사를 계정에 저장하고 다른 기기에서도 이어서 쓸 수 있어요.</div>
+      </div>
+      <button id="consentClose" class="btn-ghost" aria-label="동의 창 닫기" style="width:36px;height:36px;padding:0;border-radius:50%;font-size:18px;flex-shrink:0">✕</button>
+    </div>
+
+    <label class="cs-all"><input type="checkbox" id="csAll"><span>아래 항목에 모두 동의합니다</span></label>
+
+    <div class="cs-list">
+      <label class="cs-row"><input type="checkbox" class="cs-req" id="csAge">
+        <span><b>[필수]</b> 만 14세 이상입니다.
+        <span class="cs-why">만 14세 미만은 법정대리인 동의 확인 절차가 없어 로그인할 수 없어요. 로그인 없이 쓰는 기능은 그대로 이용할 수 있습니다.</span></span></label>
+
+      <label class="cs-row"><input type="checkbox" class="cs-req" id="csTerms">
+        <span><b>[필수]</b> 이용약관에 동의합니다. <a href="legal.html#terms" target="_blank" rel="noopener">전문 보기</a>
+        <span class="cs-why">만든 자료의 권리는 이용자에게 있고, 언제든 내보내 가져갈 수 있습니다.</span></span></label>
+
+      <label class="cs-row"><input type="checkbox" class="cs-req" id="csPrivacy">
+        <span><b>[필수]</b> 개인정보 수집·이용에 동의합니다. <a href="legal.html#privacy" target="_blank" rel="noopener">전문 보기</a>
+        <span class="cs-why">구글 계정의 이메일·이름·프로필 사진과 이용자가 만든 자료를 저장합니다. 광고에 쓰지 않고 팔지 않습니다.</span></span></label>
+
+      <label class="cs-row"><input type="checkbox" class="cs-req" id="csAbroad">
+        <span><b>[필수]</b> 개인정보 처리위탁 및 국외 이전에 동의합니다. <a href="legal.html#thirdparty" target="_blank" rel="noopener">전문 보기</a>
+        <span class="cs-why">저장은 Google(미국), AI 사진 변환은 Cloudflare·Anthropic(미국)을 거칩니다. 동의하지 않으면 로그인 없이 이 기기에만 저장하는 방식으로 계속 쓸 수 있습니다.</span></span></label>
+    </div>
+
+    <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
+      <button id="consentCancel" class="btn-ghost">로그인 없이 계속</button>
+      <button id="consentOk" class="btn-accent" disabled>동의하고 구글 로그인</button>
+    </div>
+  </div>
+</div>
+
 <div id="dataModal" role="dialog" aria-modal="true" aria-labelledby="dataModalTitle" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:2000;align-items:center;justify-content:center;padding:20px">
   <div style="background:var(--surface-1);border:1px solid var(--border);border-radius:24px;padding:26px 26px 22px;width:100%;max-width:520px;max-height:88vh;max-height:88dvh;overflow-y:auto;display:flex;flex-direction:column;gap:16px;box-shadow:0 24px 64px rgba(0,0,0,.6)">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
@@ -3671,6 +3727,10 @@ async function deleteAccountEverything(){
        문서 삭제는 하위 컬렉션을 지우지 않는다). 따로 지운다. */
     try{ await PREFS_DOC(uid).delete(); }
     catch(e){ console.warn('폴더 설정 삭제 실패', e); }
+    /* 동의 증적도 개인정보다 — 계정을 지우면 함께 파기한다. */
+    try{ await fbDb.collection('users').doc(uid).collection('prefs').doc('consent').delete(); }
+    catch(e){ console.warn('동의 기록 삭제 실패', e); }
+    try{ localStorage.removeItem(consentKey(uid)); }catch(e){}
 
     try{ await fbDb.collection('users').doc(uid).delete(); }
     catch(e){
@@ -4006,6 +4066,7 @@ const activeQ=()=>activeProblems().find(q=>q.id===currentQId);
 
 /* ===== Library ===== */
 let setSearchTerm="";
+let pendingConsent=null;   /* 로그인 직전에 받은 동의 — onAuth 에서 uid 와 함께 남긴다 */
 /* ── 폴더 칩 줄 ───────────────────────────────────────────────────────────
    ⚠️ 왼쪽 사이드바로 두지 않는다 — 375px 에서 격자가 한 칸(`1fr`)이라 사이드바가
       화면 절반을 먹는다. */
@@ -7017,17 +7078,62 @@ async function updatePlanBadge(user){
 /* OAuth 창을 열기 전에 이용자가 실제로 약관·개인정보처리방침을 확인하고 진행하도록 한다.
    결제 출시 후에는 이 확인에 더해 서버가 정책 버전·동의 시각을 불변 감사 로그에 남겨야 한다
    (현재 클라이언트만으로는 법적 동의 이력을 신뢰성 있게 증명할 수 없다). */
-function confirmLoginConsent(){
-  return confirm("로그인하면 문제집을 클라우드에 저장·동기화할 수 있습니다.\n\n"
-    + "· 이용약관 및 개인정보처리방침을 확인했습니다.\n"
-    + "· 만 14세 이상입니다.\n"
-    + "· AI 사진 변환을 사용할 때에만 이미지는 Cloudflare·Anthropic에 전송됩니다.\n\n"
-    + "[확인]을 누르면 구글 로그인으로 계속합니다.");
+/* ── 로그인 동의 ──────────────────────────────────────────────────────────
+   ⚠️ **동의 버전을 코드에 박아 둔다.** 약관·방침이 바뀌면 이 값을 올리고, 저장해 둔
+      동의 기록과 달라지면 다시 받는다. 버전이 없으면 "무엇에 동의했는지" 를 말할 수 없다.
+   ⚠️ **`legal.html` 의 문서 버전과 같아야 한다** — `check:static` 이 대조한다. */
+const CONSENT_VERSION="v2026-09-09";
+const CONSENT_ITEMS=["age","terms","privacy","abroad"];
+function consentKey(uid){ return "PM_CONSENT_V1:"+(uid||"guest"); }
+
+/* 동의 증적. 계정 문서에 남기되 **실패해도 로그인을 막지 않는다** —
+   기록은 운영자의 의무이지 이용자를 세워 둘 이유가 아니다. 로컬 사본은 항상 남긴다. */
+function recordConsent(uid,record){
+  try{ localStorage.setItem(consentKey(uid),JSON.stringify(record)); }catch(e){}
+  if(!uid||!fbReady) return;
+  try{
+    fbDb.collection("users").doc(uid).collection("prefs").doc("consent")
+      .set(record).catch(e=>console.warn("동의 기록 저장 실패(무시):",e&&e.code));
+  }catch(e){ console.warn("동의 기록 저장 실패(무시):",e); }
+}
+
+/* 모달로 항목별 동의를 받는다. 동의하면 기록을 돌려주고, 아니면 null. */
+function askLoginConsent(){
+  const m=$("#consentModal"); if(!m) return Promise.resolve(null);
+  const boxes=CONSENT_ITEMS.map(k=>$("#cs"+k[0].toUpperCase()+k.slice(1)));
+  const all=$("#csAll"), ok=$("#consentOk");
+  boxes.forEach(b=>{ if(b) b.checked=false; });
+  if(all) all.checked=false;
+  const sync=()=>{ const done=boxes.every(b=>b&&b.checked);
+    if(ok) ok.disabled=!done; if(all) all.checked=done; };
+  sync();
+  return new Promise(resolve=>{
+    const close=(v)=>{
+      m.style.display="none";
+      document.removeEventListener("keydown",onKey);
+      resolve(v);
+    };
+    const onKey=e=>{ if(e.key==="Escape") close(null); };
+    boxes.forEach(b=>{ if(b) b.onchange=sync; });
+    if(all) all.onchange=()=>{ boxes.forEach(b=>{ if(b) b.checked=all.checked; }); sync(); };
+    $("#consentClose").onclick=()=>close(null);
+    $("#consentCancel").onclick=()=>close(null);
+    ok.onclick=()=>{
+      if(boxes.some(b=>!b||!b.checked)) return;
+      close({version:CONSENT_VERSION, agreedAt:Date.now(),
+             items:CONSENT_ITEMS.slice(), locale:(navigator.language||"")});
+    };
+    document.addEventListener("keydown",onKey);
+    m.style.display="flex";
+    setTimeout(()=>{ const f=$("#csAge"); if(f) f.focus(); },0);
+  });
 }
 
 $("#loginBtn").onclick=async ()=>{
   if(!fbReady){ toast("로그인 서버에 연결할 수 없어요 · 이 기기에만 저장됩니다","error"); return; }
-  if(!confirmLoginConsent()) return;
+  const consent=await askLoginConsent();
+  if(!consent) return;
+  pendingConsent=consent;                 /* 로그인 성공 뒤 uid 를 알면 기록한다 */
   const provider=new firebase.auth.GoogleAuthProvider();
   try{
     await fbAuth.signInWithPopup(provider);
@@ -7162,6 +7268,8 @@ const onAuth=async (user)=>{
   }else if(userChanged){
     // 이후 로그인/로그아웃/계정전환이 실제로 일어났을 때만 재로드
     // (토큰 갱신처럼 uid 그대로면 화면 안 건드림 → 작업 중 덮어쓰기 방지)
+    /* 로그인 직전에 받은 동의를 uid 와 함께 남긴다(항목·버전·시각). */
+    if(user && pendingConsent){ recordConsent(user.uid,pendingConsent); pendingConsent=null; }
     if(user) showLibraryLoading(user.displayName ? user.displayName+" 님의 문제집을 가져오고 있어요" : null);
     await loadSets();
     if(!sessionMatches(session)) return;

@@ -336,4 +336,37 @@ if (await exists("experiments/hwp-export/samples/choice-layout-truth.json")) {
     "tombstone 이 보내는 필드가 Rules 허용 목록과 다릅니다 — 삭제가 다른 기기에 퍼지지 않습니다");
 }
 
+// ── 법정 기재사항과 동의 버전 ──────────────────────────────────────────────
+// ⚠️ **빠짐은 표현의 문제가 아니라 사실의 문제다.** 개인정보처리방침의 법정 항목은
+//    하나라도 없으면 그 자체로 흠결이다(`docs/LEGAL-COMPLIANCE.md`). 사람이 문서를
+//    고치다 지우는 것을 막는다.
+{
+  const legal = await text("legal.html");
+  const REQUIRED = [
+    "수집하는 개인정보 항목", "처리 목적", "보유 및 이용 기간", "파기",
+    "위탁 및 국외 이전", "정보주체의 권리", "안전성 확보 조치",
+    "쿠키", "만 14세 미만", "개인정보 보호책임자", "권익침해 구제",
+    "개인정보처리방침의 변경", "유출", "자동화된 결정",
+  ];
+  const missing = REQUIRED.filter((k) => !legal.includes(k));
+  assert.deepEqual(missing, [],
+    `개인정보처리방침에서 법정 기재사항이 빠졌습니다: ${missing.join(", ")} — docs/LEGAL-COMPLIANCE.md 참고`);
+
+  // ⚠️ 약관을 고치고 동의 버전을 안 올리면 "무엇에 동의했는지" 를 말할 수 없다.
+  const docVer = legal.match(/버전 <code>(v[0-9-]+)<\/code>/);
+  assert.ok(docVer, "legal.html 에서 문서 버전을 찾지 못했습니다");
+  const appVer = index.match(/const CONSENT_VERSION="([^"]+)"/);
+  assert.ok(appVer, "index.html 에서 CONSENT_VERSION 을 찾지 못했습니다");
+  assert.equal(appVer[1], docVer[1],
+    `동의 버전(${appVer[1]})과 법률 문서 버전(${docVer[1]})이 다릅니다 — 약관을 고쳤으면 동의를 다시 받아야 합니다`);
+
+  // 항목별 동의 — 필수 넷을 다 받고 있는가(한 줄짜리 확인창으로 되돌아가지 않게)
+  for (const id of ["csAge", "csTerms", "csPrivacy", "csAbroad"]) {
+    assert.match(index, new RegExp(`id="${id}"`), `로그인 동의 항목 ${id} 가 없습니다`);
+  }
+  assert.match(index, /class="cs-req"/, "필수 동의 표시(cs-req)가 없습니다");
+  assert.ok(!/function confirmLoginConsent\(/.test(index),
+    "브라우저 confirm() 동의로 되돌아갔습니다 — 항목별 동의와 전문 링크가 사라집니다");
+}
+
 console.log("Commercial static checks passed");

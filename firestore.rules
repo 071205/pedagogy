@@ -9,6 +9,7 @@ rules_version = '2';
 //                                  deleted, updatedAt }
 //   users/{uid}/mocks/{mockId} → { id, name, round, elective, problems:[...],
 //                                  deleted, createdAt, updatedAt }
+//   users/{uid}/prefs/consent  → { version, agreedAt, items, locale }  (동의 증적)
 //
 // 예전에는 문제집 전체를 users/{uid} 문서 하나에 배열로 넣었다. 1MB 한도에
 // 걸리고, 다른 탭이 같은 순간에 저장하면 통째로 덮어써졌다. 지금은 문제집
@@ -134,6 +135,24 @@ service cloud.firestore {
                               && (!request.resource.data.deleted || isMockTombstone());
 
         // 계정 삭제는 실제 삭제를 쓴다(계정이 사라지므로 tombstone 이 필요 없다).
+        allow delete: if isOwner();
+      }
+
+      // ── 로그인 동의 증적 ──
+      // 무엇에·언제·어느 버전으로 동의했는지. 개인정보 보호법이 요구하는 동의 증적이다.
+      // ⚠️ 문서 **하나만** 허용한다(`prefs/{anything}` 으로 열면 임의 문서를 무제한 만든다).
+      match /prefs/consent {
+        allow read: if isOwner();
+        allow create, update: if isOwner()
+          && request.resource.data.keys().hasOnly(['version','agreedAt','items','locale'])
+          && request.resource.data.version is string
+          && request.resource.data.version.size() <= 40
+          && request.resource.data.agreedAt is number
+          && request.resource.data.items is list
+          && request.resource.data.items.size() <= 20
+          && request.resource.data.locale is string
+          && request.resource.data.locale.size() <= 20;
+        // 계정 삭제 시 함께 지운다.
         allow delete: if isOwner();
       }
 
