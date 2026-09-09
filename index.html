@@ -1150,6 +1150,8 @@ body.hide-answers .answer-block{display:none!important}
   .brand{display:inline-flex;align-items:center}
   .histbtn,.theme-btn,.sc-sw{width:44px;height:44px}
   .iconbtn{min-width:44px;min-height:44px}
+  .add-q{min-height:44px}
+  .pv-zoom button,#pvZFit{min-width:44px}
   .pane-tab{height:44px}
   /* ⚠️ **hover 가 없는 기기에는 hover 로만 나타나는 것이 '존재하지 않는다'.**
      블록 사이 '+' 는 평소 `opacity:0` 이라 손가락으로는 있는 줄도 모른다.
@@ -2572,8 +2574,9 @@ async function loadSets(){
 
       if(shouldUseCloudResult(cloudEntries, merged)){
         sets=merged;
-        await loadLibraryPrefs(session);
-        if(!sessionMatches(session)) return;
+        /* 폴더·정렬 설정은 편의 정보다. 이 읽기가 느리다고 문제집 본체를 다 읽은
+           화면까지 붙잡지 않는다 — 도착하면 applyLibraryPrefs()가 다시 그린다. */
+        void loadLibraryPrefs(session);
         cloudSynced=new Map(cloudEntries.filter(e=>!e.deleted)
           .map(e=>{ const s=docToSet(e); return s?[s.id,cloudSyncEntry(s,e.order)]:null; }).filter(Boolean));
         writeLocalNow();       // 클라우드에서 막 읽어 온 결과 — 즉시 확정
@@ -2591,8 +2594,8 @@ async function loadSets(){
     }
   }
   loadSetsLocal();
-  await loadLibraryPrefs(session);
-  if(!sessionMatches(session)) return;
+  /* 로컬 문제집을 먼저 보여 준다. 폴더 설정은 별도로 도착해도 안전하게 병합된다. */
+  void loadLibraryPrefs(session);
   // 클라우드가 비어 있던 새 계정도 구독은 걸어 둔다 — 다른 기기에서 만든
   // 문제집이 나중에 올라오면 이 탭에도 바로 반영되게.
   if(currentUser) watchCloud();
@@ -3271,16 +3274,22 @@ function applyLibraryPrefs(data){
 async function loadLibraryPrefs(session){
   if(!currentUser || !fbReady || !libraryCloudEnabled()) return;
   const owner=currentUser.uid;
+  /* get()이 멈춰도 나중에 연결이 돌아오면 폴더 이름을 받을 수 있도록 구독부터 건다. */
   try{
-    const snap=await PREFS_DOC(owner).get();
+    if(prefsUnsub) prefsUnsub();
+    prefsUnsub=PREFS_DOC(owner).onSnapshot(s=>{
+      if(!sessionMatches(session)) return;
+      if(s.exists) applyLibraryPrefs(s.data());
+      /* 시간 초과 뒤 첫 snapshot으로 돌아온 경우에도 A단계 소속을 이관한다. */
+      void migrateFoldersToCloud(session);
+    },e=>console.warn('폴더 구독 실패',e));
+  }catch(e){ console.warn('폴더 구독을 걸지 못했습니다',e); }
+  try{
+    const snap=await withTimeout(PREFS_DOC(owner).get(), CLOUD_READ_MS, "폴더 설정 읽기");
     if(!sessionMatches(session)) return;
     if(snap.exists) applyLibraryPrefs(snap.data());
     await migrateFoldersToCloud(session);
     if(!sessionMatches(session)) return;
-    if(prefsUnsub) prefsUnsub();
-    prefsUnsub=PREFS_DOC(owner).onSnapshot(s=>{
-      if(sessionMatches(session) && s.exists) applyLibraryPrefs(s.data());
-    },e=>console.warn('폴더 구독 실패',e));
   }catch(e){ console.warn('폴더 설정을 읽지 못했습니다(이 기기 것으로 계속합니다)', e); }
 }
 let prefsSaveTimer=null, libraryEditEpoch=0;

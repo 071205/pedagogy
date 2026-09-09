@@ -134,7 +134,8 @@
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%}
 body{background:var(--bg);color:var(--text-primary);font-family:var(--ui-sans);
-  font-size:13px;overflow:hidden;-webkit-font-smoothing:antialiased}
+  font-size:13px;overflow:hidden;-webkit-font-smoothing:antialiased;
+  display:flex;flex-direction:column}
 button,input,select,textarea{font:inherit;color:inherit}
 button{background:none;border:none;cursor:pointer}
 ::-webkit-scrollbar{width:10px;height:10px}
@@ -146,7 +147,7 @@ button{background:none;border:none;cursor:pointer}
 .topbar{display:flex;justify-content:space-between;align-items:center;
   padding:0 16px;height:60px;background:var(--bg);
   backdrop-filter:blur(20px);border-bottom:1px solid var(--border);z-index:100;
-  gap:12px;overflow:hidden}
+  gap:12px;overflow:hidden;flex:0 0 auto}
 /* 좁아지면 왼쪽(제목 입력)이 먼저 줄고, 오른쪽 버튼들은 가로 스크롤된다 */
 .tb-l{display:flex;align-items:center;gap:12px;min-width:0;flex:0 1 auto}
 .tb-l .inp{min-width:0}
@@ -195,7 +196,7 @@ body.embedded .brand-tag{margin-left:0}
 .mock-pane-tab svg{width:14px;height:14px;flex-shrink:0}
 .mock-pane-tab.on{background:var(--blue);border-color:transparent;color:#fff}
 
-.panes{display:flex;height:calc(100% - 60px)}
+.panes{display:flex;flex:1 1 auto;min-height:0}
 /* 미리보기 칸 = 고정 머리(범위 토글) + 스크롤 본문 */
 .preview-pane{flex:1 1 auto;min-width:320px;display:flex;flex-direction:column;
   overflow:hidden;position:relative}
@@ -492,7 +493,7 @@ body.embedded .brand-tag{margin-left:0}
 
   /* 3단(미리보기·문항편집·순서) — 위쪽 탭(.mock-pane-tabs)으로 전환 */
   .mock-pane-tabs{display:flex}
-  .panes{flex-direction:column;height:auto;min-height:calc(100% - 56px)}
+  .panes{flex-direction:column;flex:1 1 auto;min-height:0}
   .preview-pane,.editor,.outline{
     width:100%;min-width:0;flex:1 1 auto;display:none;border-left:none;
   }
@@ -587,13 +588,8 @@ body.embedded .brand-tag{margin-left:0}
      한컴 수식 규격서는 이 문장을 **유저인터페이스·매뉴얼·도움말·소스에 모두** 적으라고
      요구한다. 소스(`hwpx-engine.js`·`tex_to_hwp.py`)에만 있었고 화면에는 없었다.
      `check:static` 이 네 화면에 다 있는지 본다.
-     ⚠️ **이 화면만 `position:fixed` 다.** 이 앱은 `body{overflow:hidden}` 에
-     `.panes{height:calc(100% - 60px)}` 라 화면에 딱 맞춰 놓았고, 흐름에 푸터를 더하면
-     그만큼 **잘려서 보이지 않는다**(1280×800 에서 실측 25px 잘림 — 잘리는 고지는 조건을
-     못 지킨다). 자리를 차지하지 않게 띄우고 `pointer-events:none` 으로 조작을 막지 않는다.
-     ⚠️ 근본 원인은 그 `calc(100% - 60px)` 상수 빼기다(`REV-2026-028` 이 index.html 에서
-     걷어낸 바로 그 패턴인데 여기엔 남아 있다) — 별도 이슈다. -->
-<footer style="position:fixed;right:0;bottom:0;z-index:5;padding:3px 10px;font-size:10px;line-height:1.4;color:var(--text-tertiary);background:var(--bg);border-top-left-radius:6px;pointer-events:none">본 제품은 한글과컴퓨터의 한글 문서 파일(.hwp) 공개 문서를 참고하여 개발하였습니다.</footer>
+     body가 세로 flex이고 .panes가 남은 높이를 가지므로 고지도 흐름 안에서 항상 보인다. -->
+<footer style="flex:0 0 auto;align-self:stretch;padding:3px 10px;font-size:10px;line-height:1.4;text-align:right;color:var(--text-tertiary);background:var(--bg)">본 제품은 한글과컴퓨터의 한글 문서 파일(.hwp) 공개 문서를 참고하여 개발하였습니다.</footer>
 
 <div id="measure" style="position:absolute;visibility:hidden;left:-9999px;
   font-family:'Hamchorom',serif;font-size:11.04pt;white-space:nowrap"></div>

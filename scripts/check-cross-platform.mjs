@@ -29,6 +29,7 @@ const ENGINES = [["chromium", chromium], ["webkit", webkit], ["firefox", firefox
 const VIEWPORTS = [
   { name: "데스크톱", width: 1440, height: 900, touch: false },
   { name: "태블릿",   width: 768,  height: 1024, touch: true },
+  { name: "아이패드 가로", width: 1194, height: 834, touch: true },
   { name: "휴대폰",   width: 375,  height: 812,  touch: true },
 ];
 
@@ -434,7 +435,7 @@ async function runFontIntent(engineName, engine) {
  * ⚠️ 모의고사는 iframe 이라 특히 나쁘다 — 바깥을 스크롤하면 iframe 위쪽이 고정 상단
  *    바 밑으로 들어간다.
  */
-const FIT_VIEWPORTS = [[375, 812], [768, 1024], [1024, 768]];
+const FIT_VIEWPORTS = [[375, 812], [768, 1024], [1024, 768], [1194, 834]];
 
 async function runViewportFit(engineName, engine) {
   const b = await engine.launch();
@@ -460,6 +461,25 @@ async function runViewportFit(engineName, engine) {
         say(r.bar + r.view <= r.vh + 2, `${where} — 상단 바 + ${label} 이 한 화면에 든다`,
             `상단 바 ${r.bar} + ${label} ${r.view} = ${r.bar + r.view} > 창 ${r.vh}`);
       }
+
+      /* 모의고사 편집기도 같은 계약을 지킨다. 서버 안내처럼 높이가 가변인 형제와
+         출처 고지가 있어도 .panes가 남은 공간만 가져야 한다(`REV-2026-062`). */
+      await page.goto(`${base}/mock-exam-editor.html?xplat=${Date.now()}`, { waitUntil: "domcontentloaded", timeout: 30000 });
+      await page.waitForFunction(() => document.querySelector(".panes"), null, { timeout: 20000 });
+      const mock = await page.evaluate(() => {
+        const note=document.getElementById("serverNote"); if(note) note.hidden=false;
+        const bar=document.querySelector(".topbar"), panes=document.querySelector(".panes"),
+              footer=document.querySelector("body>footer");
+        const br=bar?.getBoundingClientRect(), pr=panes?.getBoundingClientRect(),
+              fr=footer?.getBoundingClientRect(), nr=note?.getBoundingClientRect();
+        return {missing:!br||!pr||!fr, overflow:document.documentElement.scrollHeight-window.innerHeight,
+                panesHeight:Math.round(pr?.height||0), topGap:Math.round((pr?.top||0)-(nr?.bottom||br?.bottom||0)),
+                bottomGap:Math.round((fr?.top||0)-(pr?.bottom||0)),
+                footerBottom:Math.round(fr?.bottom||0),vh:window.innerHeight};
+      });
+      say(!mock.missing && mock.overflow<=2 && mock.panesHeight>0 && mock.topGap>=-2 &&
+          mock.bottomGap>=-2 && mock.footerBottom<=mock.vh+2,
+          `${where} — 모의고사 가변 머리·본문·고지가 한 화면에 든다`, JSON.stringify(mock));
     } catch (e) {
       bad(`${where} — 확인하지 못했다`, String(e).split("\n")[0].slice(0, 140));
     } finally { await ctx.close(); }

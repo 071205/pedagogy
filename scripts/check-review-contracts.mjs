@@ -299,6 +299,31 @@ try{
   assert.ok(got.걸린초<=12,'상한보다 오래 걸렸다: '+got.걸린초+'초');
   await p.close();
  });
+ await test('a hung folder preferences read does not hold an already loaded library',async()=>{
+  const p=await app('index.html',{schema:1});
+  const got=await Promise.race([
+   p.evaluate(async()=>{
+    currentUser={uid:'test',displayName:'검사'};fbReady=true;authInitialized=true;
+    const never=()=>new Promise(()=>{});
+    const set={id:'cloud1',name:'클라우드 문제집',header:'',problems:[{id:'q1',blocks:[]}],
+               order:0,updatedAt:1,deleted:false};
+    const prefs={get:never,onSnapshot:()=>()=>{}};
+    fbDb={collection:()=>({doc:()=>({
+      get:async()=>({exists:false,data:()=>({})}),
+      collection:name=>name==='sets'
+        ? {get:async()=>({docs:[{data:()=>set}]}),onSnapshot:()=>()=>{},doc:()=>({set:async()=>{}})}
+        : {doc:()=>prefs}
+    })}),batch:()=>({set(){},commit:async()=>{}})};
+    const t0=Date.now();await loadSets();showLibrary();
+    return {ms:Date.now()-t0,names:[...document.querySelectorAll('.set-card h3')].map(e=>e.textContent)};
+   }),
+   new Promise((_,rej)=>setTimeout(()=>rej(new Error(
+    '폴더 설정 읽기가 이미 읽은 문제집 화면을 붙잡았다')),3000)),
+  ]);
+  assert.deepEqual(got.names,['클라우드 문제집'],JSON.stringify(got));
+  assert.ok(got.ms<2000,'문제집을 보여 주기까지 너무 오래 걸렸다: '+got.ms+'ms');
+  await p.close();
+ });
  await test('classic scripts share lexical bindings without window properties',async()=>{
   const p=await browser.newPage();await p.setContent('<!doctype html>');
   await p.addScriptTag({content:'const reviewLexical=42;'});

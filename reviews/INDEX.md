@@ -4,9 +4,7 @@
 
 ## 열린 이슈
 
-| ID | 심각도 | 요약 | 파일 |
-| --- | --- | --- | --- |
-| `REV-2026-062` | `P3` | 모의고사 편집기가 상단 바 높이를 상수로 빼 화면이 잘린다 | `issues/2026-09/2026-09-09-mock-panes-fixed-height-subtraction.md` |
+현재 열린 이슈 없음.
 
 독립 보안·안정성·효율성 분석과 수정 설계: [종합 보고서](audits/2026-09-08/REPORT.md).
 이번 9건은 `ae5740e`에서 재현 후 HANDOFF-2026-067로 수정·안전 회귀를 남겼다.
@@ -41,16 +39,18 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 
 검토 완료(조건부): [HANDOFF-2026-082](handoffs/2026-09/2026-09-09-review-fixes-applied.md)은 [HANDOFF-2026-083](handoffs/2026-09/2026-09-09-claude-post081-independent-review.md)에서 독립 검토했다. `REV-2026-059`·`060` 수정은 유효하지만 초기 부팅 구간 누락 `REV-2026-061`을 열었다. 이후 정리·URL·Rules 배포 커밋도 함께 검토했고, 배포 승인·handoff 누락을 Claude에게 지적했다.
 
-검토 대기: [HANDOFF-2026-084](handoffs/2026-09/2026-09-09-boot-flash-fix-and-deploy-record.md) — `REV-2026-061` 수정 · **운영 배포 기록**(SHA-256·롤백 순서 포함) · 배포 승인에 대한 사실 정정 · 정적 검사 범위 과장 정정.
+검토 완료: [HANDOFF-2026-084](handoffs/2026-09/2026-09-09-boot-flash-fix-and-deploy-record.md) — `REV-2026-061` 수정 · **운영 배포 기록**(SHA-256·롤백 순서 포함) · 배포 승인에 대한 사실 정정 · 정적 검사 범위 과장 정정. `HANDOFF-2026-087`에서 코드·기록을 재확인했다.
 
-검토 대기: [HANDOFF-2026-085](handoffs/2026-09/2026-09-09-hwp-spec-attribution-in-ui.md) — 한컴 규격서 출처 고지를 UI 세 곳·매뉴얼에 넣고 `check:static` 이 여섯 곳을 지키게 했다(라이선스 조건 이행).
+검토 완료: [HANDOFF-2026-085](handoffs/2026-09/2026-09-09-hwp-spec-attribution-in-ui.md) — 한컴 규격서 출처 고지를 UI 세 곳·매뉴얼에 넣고 `check:static` 이 여섯 곳을 지키게 했다. `HANDOFF-2026-087`에서 위치·정적 검사를 재확인하고 모의고사 고지를 흐름 안으로 옮겼다.
 
-검토 대기: [HANDOFF-2026-086](handoffs/2026-09/2026-09-09-ipad-report-fixes.md) — **아이패드 실사용 신고 2건**(상단 바 벌어짐 · 로딩 화면이 안 풀림). 검사 154건이 전부 초록불이던 상태에서 사람이 찾았다.
+검토 완료(보완): [HANDOFF-2026-086](handoffs/2026-09/2026-09-09-ipad-report-fixes.md) — **아이패드 실사용 신고 2건**(상단 바 벌어짐 · 로딩 화면이 안 풀림). `HANDOFF-2026-087`에서 상단 바 수정은 승인했고, 폴더 설정 읽기에 남은 무한 대기 경로를 보완했다.
 
 ## 최근 해결
 
 | ID | 심각도 | 요약 | 파일 |
 | --- | --- | --- | --- |
+| `REV-2026-065` | `P2` | 아이패드 가로 화면에서 일부 편집 조작이 44px보다 작다 | `issues/2026-09/2026-09-09-index-ipad-landscape-touch-targets.md` |
+| `REV-2026-062` | `P3` | 모의고사 편집기가 상단 바 높이를 상수로 빼 화면이 잘린다 | `issues/2026-09/2026-09-09-mock-panes-fixed-height-subtraction.md` |
 | `REV-2026-064` | `P1` | 멈춘 클라우드 읽기가 '불러오는 중'을 영원히 붙잡음 | `issues/2026-09/2026-09-09-index-hung-cloud-read-blocks-library.md` |
 | `REV-2026-063` | `P2` | 상단 바가 보이지 않는 채움 요소에 기대 벌어짐 | `issues/2026-09/2026-09-09-index-topbar-spread-without-filler.md` |
 | `REV-2026-061` | `P2` | 초기 부팅 중 편집기 전용 상단 동작이 노출·실행됨 | `issues/2026-09/2026-09-09-index-editor-actions-initial-flash.md` |
