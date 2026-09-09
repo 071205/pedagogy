@@ -1,0 +1,187 @@
+{
+  "name": "[기준] 탐구 자료표",
+  "header": "리팩터링 기준 샘플 · 탐구(표 그림·칸 합치기·화학식)",
+  "subject": "inquiry",
+  "lineColor": "navy",
+  "problems": [
+    {
+      "title": "자료 해석",
+      "desc": "",
+      "answer": "③",
+      "span": "col",
+      "blocks": [
+        {
+          "type": "statement",
+          "data": {
+            "text": "다음은 세 수용액 $\\mathrm{X}$, $\\mathrm{Y}$, $\\mathrm{Z}$ 에 대한 자료이다."
+          }
+        },
+        {
+          "type": "table",
+          "data": {
+            "header": true,
+            "title": "혼합 수용액 자료",
+            "rows": [
+              [
+                "구분",
+                "(가)",
+                "(나)",
+                "(다)"
+              ],
+              [
+                "모형",
+                "",
+                "",
+                ""
+              ],
+              [
+                "부피(mL)",
+                "10",
+                "20",
+                "30"
+              ],
+              [
+                "이온 수 비",
+                "같음",
+                "",
+                ""
+              ]
+            ],
+            "images": [
+              [
+                "",
+                "",
+                "",
+                ""
+              ],
+              [
+                "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACwAAAAaCAIAAABDxSnmAAAALUlEQVR4nO3OMQ0AAAgDMGRzIwK9uGBPkwpo9WxcxQcSEhISEhISEhISEhIPDuZo+9tfKz3dAAAAAElFTkSuQmCC",
+                "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACwAAAAaCAIAAABDxSnmAAAALUlEQVR4nO3OQQ0AAAgEIGObxDhms4X3YSMAtdNxFR9ISEhISEhISEhISEg8OPOjCBnHuWzMAAAAAElFTkSuQmCC",
+                "",
+                ""
+              ],
+              [
+                "",
+                "",
+                "",
+                ""
+              ],
+              [
+                "",
+                "",
+                "",
+                ""
+              ]
+            ],
+            "spans": [
+              [
+                [
+                  1,
+                  1
+                ],
+                [
+                  1,
+                  1
+                ],
+                [
+                  1,
+                  1
+                ],
+                [
+                  1,
+                  1
+                ]
+              ],
+              [
+                [
+                  1,
+                  1
+                ],
+                [
+                  1,
+                  1
+                ],
+                [
+                  2,
+                  1
+                ],
+                [
+                  1,
+                  1
+                ]
+              ],
+              [
+                [
+                  1,
+                  2
+                ],
+                [
+                  1,
+                  1
+                ],
+                [
+                  1,
+                  1
+                ],
+                [
+                  1,
+                  1
+                ]
+              ],
+              [
+                [
+                  1,
+                  1
+                ],
+                [
+                  3,
+                  1
+                ],
+                [
+                  1,
+                  1
+                ],
+                [
+                  1,
+                  1
+                ]
+              ]
+            ],
+            "small": false
+          }
+        },
+        {
+          "type": "boxed",
+          "data": {
+            "text": "반응식: $\\ce{2H2 + O2 -> 2H2O}$ · 이온: $\\mathrm{XO}_4^{2-}$ · $25^\\circ\\mathrm{C}$",
+            "small": true
+          }
+        },
+        {
+          "type": "examples",
+          "data": {
+            "label": "보 기",
+            "items": [
+              "$\\mathrm{X}$ 는 3주기 원소이다.",
+              "(가)의 부피는 (나)보다 작다.",
+              "$\\mathrm{H_2O}(l)$ 이 생성된다."
+            ]
+          }
+        },
+        {
+          "type": "choices",
+          "data": {
+            "layout": "horizontal",
+            "items": [
+              "ㄱ",
+              "ㄴ",
+              "ㄱ, ㄴ",
+              "ㄱ, ㄷ",
+              "ㄴ, ㄷ"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

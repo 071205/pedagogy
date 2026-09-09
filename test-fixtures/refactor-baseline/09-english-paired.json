@@ -1,0 +1,52 @@
+{
+  "name": "[기준] 영어 짝 선지",
+  "header": "리팩터링 기준 샘플 · 짝 선지 (A)(B)(C)",
+  "subject": "english",
+  "lineColor": "navy",
+  "problems": [
+    {
+      "title": "어휘",
+      "desc": "",
+      "answer": "②",
+      "span": "col",
+      "blocks": [
+        {
+          "type": "statement",
+          "data": {
+            "text": "(A), (B), (C)의 각 네모 안에서 문맥에 맞는 낱말로 가장 적절한 것은?"
+          }
+        },
+        {
+          "type": "passage",
+          "data": {
+            "boxed": false,
+            "lead": "",
+            "parts": [
+              {
+                "label": "",
+                "kind": "prose",
+                "text": "There were several reasons for this (A)[[hesitancy / consistency]]. Radio absorbed the majority of state resources. Poor (B)[[distribution / description]] combined with minimal offerings provided little incentive. Elites in particular were (C)[[optimistic / skeptical]] of television.",
+                "source": "",
+                "notes": []
+              }
+            ]
+          }
+        },
+        {
+          "type": "choices",
+          "data": {
+            "layout": "paired",
+            "pairs": 3,
+            "items": [
+              "hesitancy|distribution|optimistic",
+              "hesitancy|distribution|skeptical",
+              "hesitancy|description|optimistic",
+              "consistency|description|optimistic",
+              "consistency|distribution|skeptical"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

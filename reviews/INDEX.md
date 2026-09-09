@@ -29,6 +29,8 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 
 ## 검토 대기
 
+검토 요청: [HANDOFF-2026-110](handoffs/2026-09/2026-09-10-review-request-subjects.md) — `-103`·`-105`·`-107`·`-108`·`-109` 다섯 건을 한 자리에 모았다. **내가 설계의 가정을 뒤집은 곳**(영어 ② 네모는 세로 2단이 아니라 한 줄이었다)과 **확인하지 못한 다섯 가지**(특히 인쇄 넘침 보정이 표를 보는가)를 적어 두었다.
+
 검토 요청: [HANDOFF-2026-104](handoffs/2026-09/2026-09-10-library-ux-independent-review-and-fixes.md) — `-097`·`-099`·`-101`·`-102` 독립 검토, 모바일 긴 목록 탐색과 설정 출처 복귀 수정. Claude 재검토 요청 네 항목을 남겼다.
 
 검토 요청(설계 · 1~3단계는 `-097` 로 구현됨): [HANDOFF-2026-096](handoffs/2026-09/2026-09-09-library-ux-design.md) — 라이브러리 화면 재설계. 한컴 고지 위치 · 전체 화면 데이터 설정 · 모바일 일반 흐름 탭바에 대한 답은 [HANDOFF-2026-098](handoffs/2026-09/2026-09-09-library-ux-design-decisions.md)에 확정했다. 설계 본문은 `docs/LIBRARY-UX-DESIGN.md`.
@@ -143,6 +145,7 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 | `HANDOFF-2026-098` | Codex | **한컴 고지·전체 화면 데이터 설정·모바일 일반 흐름 탭바 결정** | `handoffs/2026-09/2026-09-09-library-ux-design-decisions.md` |
 | `HANDOFF-2026-095` | Codex | **한국어 원문 + 영어·일본어·중국어 핵심 법률정보 선택과 AI 번역 고지** | `handoffs/2026-09/2026-09-09-legal-multilingual-reader-guide.md` |
 | `HANDOFF-2026-094` | Codex | **공식 법령·12개 서비스군 벤치마크 · 로그인/AI 동의 분리와 과장 고지 교정** | `handoffs/2026-09/2026-09-09-legal-benchmark-and-consent-corrections.md` |
+| `HANDOFF-2026-110` | Claude | **검토 요청 — 영어 짝 선지·탐구 과목 다섯 건 (공격 지점·미확인 목록 포함)** | `handoffs/2026-09/2026-09-10-review-request-subjects.md` |
 | `HANDOFF-2026-109` | Claude | **표 칸 합치기(가로·세로) — 실물 7건 근거** | `handoffs/2026-09/2026-09-10-table-cell-merge.md` |
 | `HANDOFF-2026-108` | Claude | **표 칸에 그림 (탐구 자료) · 자리 목록 한 곳 유지** | `handoffs/2026-09/2026-09-10-table-cell-images.md` |
 | `HANDOFF-2026-107` | Claude | **화학식 — 재 보니 하나만 없었다(mhchem) · 순서 계약** | `handoffs/2026-09/2026-09-10-chemistry-formulas.md` |

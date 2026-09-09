@@ -18,6 +18,11 @@ const fixtures = [
   ["05-english-order.json", "english-order-print"],
   ["06-english-notice.json", "english-notice-print"],
   ["07-math-image-choices.json", "math-image-choices-print"],
+  /* ⚠️ 과목별 조판 규칙이 하나씩 걸려 있다 — 지우지 말 것.
+     08: 탐구(표 0.87em · 칸 안 그림 · 칸 합치기 가로2/세로2 · '작게' 상자 · 화학식 \ce)
+     09: 영어 짝 선지((A)(B)(C) 머리글 · `……` 이음 · 네모 `[[a / b]]`) */
+  ["08-inquiry-table.json", "inquiry-table-print"],
+  ["09-english-paired.json", "english-paired-print"],
 ];
 const fixtureDir = join(root, "test-fixtures", "refactor-baseline");
 /* ── 기준 시각본은 **만든 운영체제별로** 둔다 ────────────────────────────────
