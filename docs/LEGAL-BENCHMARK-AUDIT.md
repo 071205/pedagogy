@@ -43,6 +43,7 @@
 | Firebase | [개인정보·보안 안내](https://firebase.google.com/support/privacy/)는 Authentication은 미국, Firestore·Storage 등은 선택 위치 또는 글로벌 처리일 수 있다고 구분 | 모든 Firebase 자료를 단순히 “Google(미국)”이라고 한 동의 문구 삭제 |
 | Firebase | [Firestore 위치 문서](https://firebase.google.com/docs/firestore/enterprise/locations)는 프로젝트별 선택 위치가 고정되며 콘솔이나 CLI로 확인해야 한다고 안내 | 읽기 전용 CLI로 실제 `asia-northeast3`(서울)을 확인해 반영하고 Storage 위치는 별도 확인 대상으로 남김 |
 | GitHub Pages | [공식 설명](https://docs.github.com/en/pages/getting-started-with-github-pages/what-is-github-pages)은 방문자 IP를 보안 목적으로 기록한다고 밝힘 | “비로그인 시 개인정보를 전혀 받지 않는다”는 요약을 접속 정보 예외와 일치시킴 |
+| Cloudflare | [개인정보처리방침](https://www.cloudflare.com/privacypolicy/)은 고객 사이트 최종 이용자의 IP·라우팅·트래픽 정보를 처리할 수 있고, 고객이 자기 서비스의 적법한 고지를 책임진다고 구분 | AI 중계·이용량 기록의 실제 계약과 위치를 PEDAGOGY가 직접 확인해야 하므로 공급자 일반 정책만으로 국가·기간을 추정하지 않음 |
 | Notion | [AI 보안·개인정보](https://www.notion.com/help/notion-ai-security-practices)는 AI 처리 단계, 하위 처리자, 암호화, 학습 여부, 보존기간을 기능 문서에서 별도로 설명 | 일반 로그인 동의와 AI 실행 고지를 분리하는 구조 유지 |
 | Notion | [AI 안전 원칙](https://www.notion.com/help/ai-safety)은 기본 학습 미사용과 자동 의사결정 용도가 아님을 기능 범위로 한정 | 실제 Anthropic 상용 API 정책 범위 안에서만 학습 미사용·보조 기능을 고지 |
 | Canva | [AI 제품 약관](https://www.canva.com/policies/ai-product-terms/)은 입력 권리, 출력 비유일성, 제3자 라이선스, 오류 검토, 기술 파트너 전송을 한곳에 모음 | 기존 AI 특칙의 검토 의무·제3자 권리 예외 유지; 무조건적 출력 소유 표현은 피함 |
