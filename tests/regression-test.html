@@ -786,6 +786,28 @@ async function runIndexTests(){
              note: `선지 base64 ${found}개 · 자리 ${slots.length}개 · 되쓰기 ${writable}` };
   });
 
+  /* ⚠️ **표 칸 그림도 같은 자리 목록을 거쳐야 한다.** 안 거치면 `releaseImage()` 가
+     남이 쓰는 파일을 지우고(`REV-2026-019`) base64 가 Firestore 1MB 한도를 넘긴다
+     (`REV-2026-020`). 같은 사고를 세 번째로 내지 않으려고 관계를 검사한다.
+     실물 근거: 화학Ⅰ의 그림 20개 중 **17개가 표 칸 안**에 있다. */
+  await check(G, "표 칸 그림이 자리 목록·감지·정리에 함께 잡힌다", () => {
+    const png = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+    const t = win.normBlock({type:"table", data:{rows:[["(가)","(나)"],["아세트산","뷰테인"]],
+                                                images:[[png,""],["",""]]}});
+    const slots = win.blockImageSlots(t);
+    const html  = win.blockHTML(t, {subject:"inquiry"});
+    // 나쁜 주소는 정규화가 버린다 — 가져온 .json 을 믿지 않는다
+    const evil = win.normBlock({type:"table", data:{rows:[["a"]],
+                                images:[["javascript:alert(1)"]]}});
+    // rows 는 **문자열 배열 그대로**여야 한다(객체로 바꾸면 내용을 훑는 곳이 터진다)
+    const shape = JSON.stringify(t.data.rows)==='[["(가)","(나)"],["아세트산","뷰테인"]]';
+    return { pass: slots.length===4 && win.blockDataUrls(t).length===1
+                   && /tcell-img/.test(html) && html.includes("아세트산")
+                   && evil.data.images[0][0]==="" && shape,
+             note: `자리 ${slots.length}개 · base64 ${win.blockDataUrls(t).length} · `
+                 + `그림태그 ${/tcell-img/.test(html)} · 모양유지 ${shape}` };
+  });
+
   await check(G, "선지 그림도 고아 파일 정리 대상이다", () => {
     /* ⚠️ 정리 코드가 `image` 블록만 알고 있으면, 선지 그림은 지워도 Storage 원본이
        영영 남는다(CLAUDE.md 가 경고한 자리). 주소를 세는 곳은 한 곳이어야 한다. */

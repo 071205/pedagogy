@@ -24,7 +24,15 @@ const checks = [
   [/who\.setAttribute\("aria-label",`대화 \$\{ii\+1\} 말한이`\)/, "동적 대화 입력 이름"],
   [/inp\.setAttribute\("aria-label",labelText\+" 내용"\)/, "동적 선지 입력 이름"],
   [/rm\.setAttribute\("aria-label",labelText\+" 삭제"\)/, "동적 선지 삭제 이름"],
-  [/const pick=el\("button","iconbtn"\); pick\.type="button"/, "키보드 선지 이미지 선택"],
+  /* ⚠️ 같은 코드 모양이 둘이 되면 계약이 **무엇을 가리키는지 모호해진다** — 자기검사가
+     그것을 잡았다(표 칸 그림 단추를 더하자 "선지" 계약이 둘 다 맞았다).
+     각각을 **자기 맥락으로** 고정한다. */
+  [/const pick=el\("button","iconbtn"\); pick\.type="button";\n\s*pick\.style\.cssText="cursor:pointer/,
+   "키보드 선지 이미지 선택"],
+  [/pick\.setAttribute\("aria-label",`표 \$\{ri\+1\}행 \$\{ci\+1\}열 그림/,
+   "키보드 표 칸 이미지 선택"],
+  [/del\.setAttribute\("aria-label",`표 \$\{ri\+1\}행 \$\{ci\+1\}열 그림 빼기`\)/,
+   "표 칸 이미지 빼기 이름"],
   [/const openBtn=el\("button","q-open"\)/, "키보드로 여는 문항 목록"],
   [/const addBtn=el\("button","add-q","\+ 문항 추가"\)/, "키보드로 추가하는 문항"],
   [/focusQuestionControl\(q\.id\)/, "문항 열기 뒤 포커스 복원"],

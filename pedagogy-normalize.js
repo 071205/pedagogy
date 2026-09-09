@@ -181,8 +181,18 @@ function normBlock(b, opts={}){
   if(type==="table"){
     const rows=(Array.isArray(d.rows)?d.rows:[]).slice(0,lossless?undefined:30).map(r=>
       (Array.isArray(r)?r:[]).slice(0,lossless?undefined:10).map(cell=>text(cell,300)));
-    return {type,data:{rows:rows.length?rows:[["",""],["",""]], header:d.header!==false,
-                       title:text(d.title,120), small:!!d.small}};
+    /* ⚠️ **그림은 `rows` 와 같은 모양의 별도 배열**이다(`images[r][c]`).
+       `rows` 를 객체 배열로 바꾸지 않는다 — 내용을 훑는 곳(`blockExcerpt`·`setHasContent`)이
+       전부 문자열을 가정하고, 대화문 `items` 가 객체라서 겪은 사고가 그대로 재현된다.
+       실물 근거: 화학Ⅰ의 그림 20개 중 **17개가 표 칸 안**에 있다(2×2 그림+라벨,
+       5×5 자료표 안 그림 등). ⚠️ 두 배열은 **늘 함께 움직인다** — 한쪽만 splice 하면
+       그림이 옆 칸으로 옮겨간다. */
+    const imgs=(Array.isArray(d.images)?d.images:[]).slice(0,rows.length).map((r,i)=>
+      (Array.isArray(r)?r:[]).slice(0,(rows[i]||[]).length).map(u=>safeUrl(u)));
+    const finalRows=rows.length?rows:[["",""],["",""]];
+    while(imgs.length<finalRows.length) imgs.push([]);
+    return {type,data:{rows:finalRows, header:d.header!==false,
+                       title:text(d.title,120), small:!!d.small, images:imgs}};
   }
   if(type==="conditions"||type==="examples")
     return {type,data:{items:(Array.isArray(d.items)?d.items:[]).slice(0,lossless?undefined:20).map(t=>text(t)),

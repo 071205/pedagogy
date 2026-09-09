@@ -915,6 +915,11 @@ body.col-resizing{cursor:col-resize;user-select:none}
   display:inline-block;line-height:1.35;margin:0 .12em}
 /* 라벨 + 네모는 한 덩어리다 — 줄 끝에서 갈라지면 (A) 만 앞줄에 남는다. */
 .preview .wbox-set{white-space:nowrap}
+/* 표 칸 안의 그림 (실물 화학Ⅰ: 그림 20개 중 17개가 표 칸 안에 있다).
+   ⚠️ 칸 폭을 넘지 않게 `max-width:100%` 를 반드시 둔다 — 넘치면 표가 통째로 밀려
+      단 밖으로 나간다. 글과 함께 오는 칸이 있어 그림은 **블록**으로 놓고 가운데 정렬한다. */
+.preview .tcell-img{display:block;max-width:100%;height:auto;margin:0 auto 2px}
+
 /* ── 탐구 조판 (실물에서 잰 값 · `HANDOFF-2026-104`) ──────────────────────
    본문·발문·<보기>·선지는 국어와 같은 11.5pt 다. 다른 것은 **자료 표**뿐이다 —
    화학Ⅰ 4×4 자료 표 9.5~10.0pt · 사회·문화 자료 9.5pt. 큰 쪽을 기본으로 둔다. */
@@ -1140,6 +1145,11 @@ body.col-resizing{cursor:col-resize;user-select:none}
   display:inline-block;line-height:1.35;margin:0 .12em}
 /* 화면(.preview)과 같은 규칙 — 한쪽만 고치면 미리보기와 인쇄가 갈라진다. */
 .pq .wbox-set{white-space:nowrap}
+/* 표 칸 안의 그림 — 인쇄 (미리보기와 같은 규칙 · 실물 화학Ⅰ: 그림 20개 중 17개가 표 칸 안에 있다).
+   ⚠️ 칸 폭을 넘지 않게 `max-width:100%` 를 반드시 둔다 — 넘치면 표가 통째로 밀려
+      단 밖으로 나간다. 글과 함께 오는 칸이 있어 그림은 **블록**으로 놓고 가운데 정렬한다. */
+.pq .tcell-img{display:block;max-width:100%;height:auto;margin:0 auto 2px}
+
 /* ── 탐구 조판 — 인쇄 (위와 같은 값을 유지할 것) ──────────────────────
    본문·발문·<보기>·선지는 국어와 같은 11.5pt 다. 다른 것은 **자료 표**뿐이다 —
    화학Ⅰ 4×4 자료 표 9.5~10.0pt · 사회·문화 자료 9.5pt. 큰 쪽을 기본으로 둔다. */
@@ -1524,6 +1534,9 @@ input:focus-visible,textarea:focus-visible{outline:none}
 .lib-grid.picking .set-card{padding-left:42px}
 .set-card .card-folder,.set-card .card-when{font-size:12px;color:var(--text-tertiary);margin-top:2px}
 .empty-state .es-actions{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:14px}
+/* 표 편집 칸 — 글칸 + 그림 단추가 한 칸에 들어간다(실물이 둘을 함께 둔다) */
+.tcell-ed{display:flex;align-items:center;gap:3px;min-width:0}
+.tcell-ed .field-input{min-width:0;flex:1}
 
 /* ── 빈 상태 ── */
 .empty-state{
@@ -3394,6 +3407,12 @@ function blockImageSlots(blk){
   if(blk.type==="image") out.push({get:()=>d.dataUrl, set:v=>{d.dataUrl=v;}});
   if(blk.type==="choices" && Array.isArray(d.images))
     d.images.forEach((_,i)=>out.push({get:()=>d.images[i], set:v=>{d.images[i]=v;}}));
+  /* ⚠️ 표 칸 그림도 **여기를 거쳐야 한다.** 안 거치면 수집·이관·정리가 이 그림을 몰라
+     `releaseImage()` 가 남이 쓰는 파일을 지우고(`REV-2026-019`) base64 가 Firestore
+     1MB 한도를 넘긴다(`REV-2026-020`). 같은 사고를 세 번째로 내지 말 것. */
+  if(blk.type==="table" && Array.isArray(d.images))
+    d.images.forEach((row,r)=>{ if(Array.isArray(row)) row.forEach((_,c)=>
+      out.push({get:()=>d.images[r][c], set:v=>{d.images[r][c]=v;}})); });
   return out;
 }
 /* 이 블록이 품고 있는 Storage 그림 주소 전부 */
@@ -5602,6 +5621,36 @@ function convertBlock(blk,to){
 /* 선지 한 자리에 그림을 붙인다 — **파일 선택과 붙여넣기가 같은 길을 쓴다.**
    ⚠️ 베껴 두면 갈라진다(이 저장소의 반복된 실패 ③). 크기 검사·즉시 미리보기·
       Storage 업로드·배치 전환·옛 그림 정리가 전부 여기 한 곳에 있다. */
+/* 표 칸에 그림 넣기 — `putChoiceImage()` 와 **같은 안전 규칙**을 쓴다.
+   ⚠️ 올리는 동안 사용자가 블록 종류를 바꿨을 수 있다. 그러면 `blk.data` 가 갈린 뒤라
+      여기 쓰면 엉뚱한 블록에 `images` 가 생기고, 방금 올린 파일은 아무 데도 안 붙은 채
+      Storage 에 남는다. 확인하고 쓰되 **안 붙었으면 되돌린다**. */
+async function putTableImage(blk, r, c, f){
+  if(!f || !blk || blk.type!=="table") return false;
+  if(uploadTooBig(f)) return false;
+  if(!Array.isArray(blk.data.images)) blk.data.images=[];
+  while(blk.data.images.length<blk.data.rows.length) blk.data.images.push([]);
+  const row=blk.data.images[r]; if(!Array.isArray(blk.data.images[r])) blk.data.images[r]=[];
+  const prev=blk.data.images[r][c];
+  try{
+    blk.data.images[r][c]=await fileToDataURL(f); renderPreview();   // 올라가기 전에 먼저 보여 준다
+    const stored=await storeImageFile(f);
+    if(blk.type!=="table" || !Array.isArray(blk.data.images) || !Array.isArray(blk.data.images[r])){
+      if(isStorageUrl(stored)) releaseImage(stored,{attached:false});
+      return false;
+    }
+    blk.data.images[r][c]=stored;
+    if(prev && isStorageUrl(prev) && !blockImageUrls(blk).includes(prev)) releaseImage(prev);
+    renderEditor(); renderPreview(); saveSets();
+    return true;
+  }catch(e){
+    console.warn("표 칸 그림 넣기 실패:", e);
+    blk.data.images[r][c]=prev||"";
+    renderEditor(); renderPreview();
+    toast("그림을 넣지 못했어요","error");
+    return false;
+  }
+}
 async function putChoiceImage(blk, i, f){
   if(!f || !blk || blk.type!=="choices") return false;
   if(uploadTooBig(f)) return false;
@@ -6125,19 +6174,50 @@ function renderEditor(){
       const grid=el("div","ktbl-ed");
       grid.style.gridTemplateColumns=`repeat(${wide}, minmax(0,1fr)) 28px`;
       blk.data.rows.forEach((r,ri)=>{
+        if(!Array.isArray(blk.data.images)) blk.data.images=[];
+        while(blk.data.images.length<blk.data.rows.length) blk.data.images.push([]);
+        const imgRow=blk.data.images[ri];
         for(let ci=0;ci<wide;ci++){
+          const cell=el("div","tcell-ed");
           const inp=el("input"); inp.type="text"; inp.className="field-input";
           inp.setAttribute("aria-label",`표 ${ri+1}행 ${ci+1}열`);
           inp.value=r[ci]||"";
           inp.placeholder=(blk.data.header!==false&&ri===0)?"머리글":"";
           inp.oninput=e=>{ while(r.length<wide) r.push(""); r[ci]=e.target.value;
             renderPreview(); saveSets(); };
-          grid.append(inp);
+          /* 칸마다 그림 — 실물이 그림과 라벨을 한 칸에 함께 두므로 글칸을 없애지 않는다.
+             ⚠️ 키보드로도 눌러야 하므로 `<label for>` 가 아니라 **진짜 button** 이다
+                (`REV-2026-068` 과 같은 이유). */
+          const pick=el("button","iconbtn"); pick.type="button";
+          pick.setAttribute("aria-label",`표 ${ri+1}행 ${ci+1}열 그림 ${imgRow[ci]?"바꾸기":"넣기"}`);
+          pick.title=imgRow[ci]?"그림 바꾸기":"그림 넣기";
+          pick.append(el("span","icon icon-image",""));
+          if(imgRow[ci]) pick.classList.add("btn-primary");
+          const file=el("input"); file.type="file"; file.accept="image/*"; file.style.display="none";
+          pick.onclick=()=>file.click();
+          file.onchange=e=>{ const f=e.target.files&&e.target.files[0]; if(!f) return;
+            e.target.value=""; putTableImage(blk,ri,ci,f); };
+          cell.append(inp,pick,file);
+          if(imgRow[ci]){
+            const del=el("button","iconbtn","✕"); del.type="button";
+            del.title="이 칸의 그림 빼기";
+            del.setAttribute("aria-label",`표 ${ri+1}행 ${ci+1}열 그림 빼기`);
+            del.onclick=()=>{ const gone=imgRow[ci]; imgRow[ci]="";
+              renderEditor(); renderPreview(); saveSets();
+              if(isStorageUrl(gone) && !blockImageUrls(blk).includes(gone)) releaseImage(gone); };
+            cell.append(del);
+          }
+          grid.append(cell);
         }
         const rm=el("button","iconbtn",""); rm.append(el("span","icon icon-trash",""));
         rm.title="이 행 삭제";
-        rm.onclick=()=>{ blk.data.rows.splice(ri,1);
-          if(!blk.data.rows.length) blk.data.rows=[["",""]];
+        rm.onclick=()=>{
+          /* ⚠️ **두 배열을 함께 움직인다.** 한쪽만 splice 하면 그림이 옆 행으로 옮겨간다
+             (선지 그림에서 이미 겪은 사고와 같은 모양이다). */
+          const gone=(blk.data.images[ri]||[]).filter(Boolean);
+          blk.data.rows.splice(ri,1); blk.data.images.splice(ri,1);
+          if(!blk.data.rows.length){ blk.data.rows=[["",""]]; blk.data.images=[[]]; }
+          gone.forEach(u=>{ if(!blockImageUrls(blk).includes(u)) releaseImage(u); });
           renderEditor(); renderPreview(); saveSets(); };
         grid.append(rm);
       });
@@ -6145,7 +6225,9 @@ function renderEditor(){
 
       const bar=el("div","row"); bar.style.marginTop="8px";
       const addR=el("button","btn","+ 행");
-      addR.onclick=()=>{ blk.data.rows.push(new Array(wide).fill("")); renderEditor(); renderPreview(); saveSets(); };
+      addR.onclick=()=>{ blk.data.rows.push(new Array(wide).fill(""));
+        if(!Array.isArray(blk.data.images)) blk.data.images=[];
+        blk.data.images.push([]); renderEditor(); renderPreview(); saveSets(); };
       const addC=el("button","btn","+ 열");
       addC.onclick=()=>{ blk.data.rows.forEach(r=>{ while(r.length<wide) r.push(""); r.push(""); });
         renderEditor(); renderPreview(); saveSets(); };

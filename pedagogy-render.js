@@ -272,11 +272,18 @@ function proseHTML(raw, lead){
 /* 독립 표와 <보기> 안 표가 같은 안전한 텍스트·칸 수 보정을 공유한다. */
 function tableHTML(data, cls){
   const rows=(data&&data.rows)||[];
+  const imgs=(data&&data.images)||[];
   const wide=Math.max(0,...rows.map(r=>r.length));
   const body=rows.map((r,i)=>{
     const tag=(data.header!==false && i===0) ? "th" : "td";
     const cells=[];
-    for(let j=0;j<wide;j++) cells.push(`<${tag}>${processText(r[j]||"")}</${tag}>`);
+    for(let j=0;j<wide;j++){
+      /* ⚠️ 실물은 그림과 글이 **한 칸 안에** 함께 오는 경우가 있다(2×2 그림 + 아래 라벨,
+         5×5 자료표 안 그림). 둘 중 하나만 그리면 라벨이나 그림이 사라진다. */
+      const src=safeUrl(imgs[i] && imgs[i][j]);
+      const txt=processText(r[j]||"");
+      cells.push(`<${tag}>${src?`<img class="tcell-img" src="${src}" alt="">`:""}${txt}</${tag}>`);
+    }
     return `<tr>${cells.join("")}</tr>`;
   }).join("");
   if(!body) return "";
