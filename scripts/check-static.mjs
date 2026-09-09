@@ -97,6 +97,21 @@ for (const [name, src] of [["index.html", index], ["mock-exam-editor.html", mock
     `${name} 에 한컴 규격서 출처 고지가 없습니다 — 저작권 조항이 UI·매뉴얼·도움말·소스에 `
     + `**모두** 요구합니다(docs/HWP-SPEC.md). 문구: "${HWP_NOTICE}"`);
 }
+/* ⚠️ **어딘가에 문자열이 있다** 로는 부족하다 — 화면에 안 보이는 주석에 들어 있어도
+   통과한다. `index.html` 은 고지를 푸터에서 `설정 → 정보` 로 옮겼으므로(`-098` 3번)
+   **그 자리를 실제로** 본다. 개수를 줄이지 않고 위치를 더 좁힌 것이다. */
+{
+  const about = index.match(/<section id="stPanAbout"[\s\S]*?<\/section>/);
+  assert.ok(about, "index.html 에서 설정의 '정보' 갈래를 찾지 못했습니다");
+  assert.ok(about[0].includes(HWP_NOTICE),
+    "한컴 규격서 고지가 `설정 → 정보` 안에 없습니다 — 자리를 옮겼다면 이 대조도 함께 옮기세요");
+  /* ⚠️ 그 화면에 **닿을 수 있어야** 고지한 것이다. 라이브러리(레일)와 편집기(상단) 양쪽에
+     입구가 있어야 하고, 돌아갈 길도 있어야 한다 — 그것이 이동의 전제였다. */
+  for (const id of ["settingsBtn", "editorSettingsBtn", "stTabAbout", "settingsBack"]) {
+    assert.match(index, new RegExp(`id="${id}"`),
+      `설정 화면 입구/복귀 요소 ${id} 가 없습니다 — 닿을 수 없는 곳의 고지는 고지가 아닙니다`);
+  }
+}
 
 assert.match(worker, /async alarm\(\)/, "AI quota는 자동 파기 alarm이 필요합니다");
 assert.match(worker, /QUOTA_RETENTION_MS/, "AI quota 보존 기간 상수가 필요합니다");

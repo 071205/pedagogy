@@ -248,6 +248,10 @@ environment 를 공유한다. namespace 는 의존성을 **보이게** 하려는
 - ~~규격서 저작권이 요구하는 출처 고지~~ → **2026-09-09 완료.** UI 세 화면(`index` ·
   `mock-exam-editor` · `document-editor`)과 매뉴얼(`legal.html`)에 넣었고,
   `check:static` 이 **여섯 곳**(그 넷 + `hwpx-engine.js` + `tex_to_hwp.py`)을 지킨다.
+  ⚠️ `index.html` 의 고지는 푸터가 아니라 **`설정 → 정보`** 에 있다. 검사는 그 **자리까지**
+  본다(주석에 들어 있어도 통과하면 안 된다) — 그리고 **닿을 수 있는지**도 본다
+  (`settingsBtn`·`editorSettingsBtn`·`stTabAbout`·`settingsBack`).
+  **닿을 수 없는 곳의 고지는 고지가 아니다.**
 
 **이 프로젝트에서 반복된 실패 방식** — 새로 만들기 전에 한 번 읽을 것:
 1. **검사가 다 초록불인데 결과물이 틀렸다.** 한글이 파일을 못 여는 것, 수식이 글자로

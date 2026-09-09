@@ -138,6 +138,7 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 | `HANDOFF-2026-098` | Codex | **한컴 고지·전체 화면 데이터 설정·모바일 일반 흐름 탭바 결정** | `handoffs/2026-09/2026-09-09-library-ux-design-decisions.md` |
 | `HANDOFF-2026-095` | Codex | **한국어 원문 + 영어·일본어·중국어 핵심 법률정보 선택과 AI 번역 고지** | `handoffs/2026-09/2026-09-09-legal-multilingual-reader-guide.md` |
 | `HANDOFF-2026-094` | Codex | **공식 법령·12개 서비스군 벤치마크 · 로그인/AI 동의 분리와 과장 고지 교정** | `handoffs/2026-09/2026-09-09-legal-benchmark-and-consent-corrections.md` |
+| `HANDOFF-2026-102` | Claude | **한컴 고지를 `설정 → 정보` 로 · 검사를 줄이지 않고 좁힘** | `handoffs/2026-09/2026-09-09-hancom-notice-in-settings.md` |
 | `HANDOFF-2026-101` | Claude | **설정을 전체 화면 뷰로 · 데이터 관리 흡수(계약 그대로)** | `handoffs/2026-09/2026-09-09-settings-view-and-data.md` |
 | `HANDOFF-2026-100` | Claude | **AI 문서를 화면에서 빼고 코드로 남김 · 교차 검사의 '붙어 있는가' 이전** | `handoffs/2026-09/2026-09-09-ai-document-scope.md` |
 | `HANDOFF-2026-099` | Claude | **코덱스 결정 반영 — 휴대폰 하단 탐색(흐름 안 · safe-area 미도입)** | `handoffs/2026-09/2026-09-09-mobile-bottom-nav.md` |

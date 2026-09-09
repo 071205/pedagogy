@@ -1508,6 +1508,11 @@ input:focus-visible,textarea:focus-visible{outline:none}
     <span id="saveStatus" style="font-size:12px;color:var(--text-tertiary);min-width:54px;white-space:nowrap"></span>
     <button id="loadBtn" class="btn">불러오기</button>
     <input id="loadInput" type="file" accept="application/json" style="display:none">
+    <!-- ⚠️ 편집기에서도 설정에 닿아야 한다. 한컴 규격서 고지를 `설정 → 정보` 로 옮기는
+         전제 조건이다(`HANDOFF-2026-098` 3번: "모든 편집기에서 키보드와 터치로 항상
+         접근 가능하고 뒤로 돌아갈 경로가 생긴 뒤에만"). 라이브러리를 거쳐 두 번 누르는
+         길만 있으면 '항상' 이 아니다. -->
+    <button id="editorSettingsBtn" class="btn" title="설정" aria-label="설정">설정</button>
   </div>
   <!-- 테마 전환 (시스템 / 밝게 / 어둡게) -->
   <button id="themeBtn" class="theme-btn" title="테마" aria-label="테마 변경"></button>
@@ -1620,12 +1625,10 @@ input:focus-visible,textarea:focus-visible{outline:none}
          쪽이 진짜인지 흐려진다. 푸터 높이도 실측 116→60px 로 줄었다. -->
     <div class="lib-footer-legal">
       <span>© <span id="footerYear"></span> PEDAGOGY</span>
-      <!-- ⚠️ **저작권 조항이 요구하는 문구다 — 지우지 말 것**(`docs/HWP-SPEC.md` §배포 조건).
-           한컴 수식 규격서는 이 문장을 **유저인터페이스·매뉴얼·도움말·소스에 모두** 적으라고
-           요구한다. `check:static` 이 여섯 곳을 대조한다.
-           ⚠️ 자리를 옮기는 것(설정 화면 등)은 조항 해석이 걸려 검토를 받기로 했다
-           (`docs/LIBRARY-UX-DESIGN.md` §3.1) — 그때까지 여기 그대로 둔다. -->
-      <span class="lib-footer-hancom">본 제품은 한글과컴퓨터의 한글 문서 파일(.hwp) 공개 문서를 참고하여 개발하였습니다.</span>
+      <!-- ⚠️ 한컴 규격서 고지는 **`설정 → 정보` 로 옮겼다**(`HANDOFF-2026-098` 3번).
+           문구는 한 글자도 줄이지 않았고, `check:static` 이 **그 새 자리를 실제로** 본다.
+           여기서 뺀 이유는 푸터를 두 줄로 줄이기 위해서다 — 지운 것이 아니다. -->
+      <a href="#settings/about">정보 · 라이선스</a>
     </div>
   </footer>
 
@@ -4091,6 +4094,7 @@ function openSettings(){
 $("#settingsBtn").onclick=()=>showSettings("screen");
 $("#dataMgmtBtn").onclick=()=>showSettings("data");
 $("#settingsBack").onclick=()=>showLibrary();
+$("#editorSettingsBtn").onclick=()=>showSettings("screen");
 /* 설정 갈래 전환. ⚠️ `hidden` 만으로는 `.dm-sec` 의 display 가 이길 수 있어
    `.st-panes .dm-sec[hidden]{display:none}` 짝을 CSS 에 함께 두었다. */
 (function wireSettingsTabs(){
