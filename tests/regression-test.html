@@ -808,6 +808,26 @@ async function runIndexTests(){
                  + `그림태그 ${/tcell-img/.test(html)} · 모양유지 ${shape}` };
   });
 
+  /* ⚠️ **덮인 칸을 건너뛰지 않으면 표가 어긋난다** — 합친 만큼 뒤 칸이 오른쪽으로 밀린다.
+     실물 자료표에 합치기가 7건 있다(화학Ⅰ 5×5 가 가로2·세로3 을 함께 쓴다). */
+  await check(G, "표 칸 합치기가 덮인 칸을 건너뛴다", () => {
+    const t = win.normBlock({type:"table", data:{
+      rows:[["혼합","(가)","(나)","(다)"],["부피","10","20","30"],["이온","a","b","c"]],
+      spans:[[[1,1],[3,1],[1,1],[1,1]],[[1,2],[1,1],[1,1],[1,1]],[[1,1],[1,1],[1,1],[1,1]]]}});
+    const html = win.blockHTML(t, {subject:"inquiry"});
+    const d = win.document.createElement("div"); d.innerHTML = html;
+    const rows = [...d.querySelector("table").rows];
+    // 각 행의 colspan 합이 열 수(4)를 넘으면 덮인 칸을 안 건너뛴 것이다
+    const sums = rows.map(tr => [...tr.cells].reduce((n,c)=>n+c.colSpan,0));
+    // 이상값이 표를 망가뜨리지 않는다 — 가져온 .json 을 믿지 않는다
+    const evil = win.normBlock({type:"table", data:{rows:[["a","b"],["c","d"]],
+                                spans:[[[999,999],[1,1]],[[1,1],[1,1]]]}});
+    const clamped = evil.data.spans[0][0][0] <= 20 && evil.data.spans[0][0][1] <= 30;
+    return { pass: /colspan="3"/.test(html) && /rowspan="2"/.test(html)
+                   && sums.every(n => n <= 4) && clamped,
+             note: `행별 colspan 합 ${JSON.stringify(sums)} · 이상값 조임 ${clamped}` };
+  });
+
   await check(G, "선지 그림도 고아 파일 정리 대상이다", () => {
     /* ⚠️ 정리 코드가 `image` 블록만 알고 있으면, 선지 그림은 지워도 Storage 원본이
        영영 남는다(CLAUDE.md 가 경고한 자리). 주소를 세는 곳은 한 곳이어야 한다. */

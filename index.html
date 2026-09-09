@@ -1537,6 +1537,8 @@ input:focus-visible,textarea:focus-visible{outline:none}
 /* 표 편집 칸 — 글칸 + 그림 단추가 한 칸에 들어간다(실물이 둘을 함께 둔다) */
 .tcell-ed{display:flex;align-items:center;gap:3px;min-width:0}
 .tcell-ed .field-input{min-width:0;flex:1}
+/* 합치기 숫자칸 — 켰을 때만 보인다. 좁게 두어 글칸을 많이 뺏지 않는다. */
+.tcell-ed .tcell-span{flex:none;width:38px;padding-left:5px;padding-right:2px;text-align:center}
 
 /* ── 빈 상태 ── */
 .empty-state{
@@ -5830,6 +5832,18 @@ function renderEditor(){
     /* ⚠️ '작게' 는 실물에서 왔다 — 탐구는 자료를 줄여 담는다(사회·문화 자료 상자 9.5pt ·
        신문 자료 안 8.0pt). 그런데 화학Ⅰ 자료 상자는 11.5pt 라 **과목으로 강제하면 하나는
        틀린다.** 그래서 블록마다 사용자가 정한다. */
+    if(blk.type==="table"){
+      /* 칸 합치기는 **켤 때만** 칸마다 숫자칸이 생긴다. 늘 보이면 평범한 표를 만들 때
+         칸이 좁아지고 손이 많이 간다. 실물에서도 자료표 7건에만 쓰였다. */
+      const lab=el("label",null,"");
+      lab.style.cssText="display:flex;align-items:center;gap:5px;font-size:12px;"
+        +"color:var(--text-secondary);white-space:nowrap;cursor:pointer";
+      const cb=el("input"); cb.type="checkbox"; cb.checked=!!blk._mergeOn;
+      cb.setAttribute("aria-label","칸 합치기 조작 보이기");
+      cb.onchange=()=>{ blk._mergeOn=cb.checked; renderEditor(); };
+      lab.append(cb, el("span",null,"칸 합치기"));
+      head.append(lab);
+    }
     if(blk.type==="boxed"||blk.type==="table"){
       const lab=el("label",null,"");
       lab.style.cssText="display:flex;align-items:center;gap:5px;font-size:12px;"
@@ -6198,6 +6212,26 @@ function renderEditor(){
           file.onchange=e=>{ const f=e.target.files&&e.target.files[0]; if(!f) return;
             e.target.value=""; putTableImage(blk,ri,ci,f); };
           cell.append(inp,pick,file);
+          if(blk._mergeOn){
+            if(!Array.isArray(blk.data.spans)) blk.data.spans=[];
+            while(blk.data.spans.length<blk.data.rows.length) blk.data.spans.push([]);
+            const spRow=blk.data.spans[ri];
+            const num=(idx,label,max)=>{
+              const n=el("input"); n.type="number"; n.min="1"; n.max=String(max);
+              n.className="field-input tcell-span";
+              n.setAttribute("aria-label",`표 ${ri+1}행 ${ci+1}열 ${label} 합치기`);
+              n.title=label+" 합치기";
+              n.value=String((spRow[ci]&&spRow[ci][idx])||1);
+              n.oninput=e=>{
+                while(spRow.length<wide) spRow.push([1,1]);
+                if(!Array.isArray(spRow[ci])) spRow[ci]=[1,1];
+                spRow[ci][idx]=Math.max(1,Math.floor(+e.target.value||1));
+                renderPreview(); saveSets();
+              };
+              return n;
+            };
+            cell.append(num(0,"가로",wide), num(1,"세로",blk.data.rows.length));
+          }
           if(imgRow[ci]){
             const del=el("button","iconbtn","✕"); del.type="button";
             del.title="이 칸의 그림 빼기";
@@ -6216,7 +6250,8 @@ function renderEditor(){
              (선지 그림에서 이미 겪은 사고와 같은 모양이다). */
           const gone=(blk.data.images[ri]||[]).filter(Boolean);
           blk.data.rows.splice(ri,1); blk.data.images.splice(ri,1);
-          if(!blk.data.rows.length){ blk.data.rows=[["",""]]; blk.data.images=[[]]; }
+          if(Array.isArray(blk.data.spans)) blk.data.spans.splice(ri,1);
+          if(!blk.data.rows.length){ blk.data.rows=[["",""]]; blk.data.images=[[]]; blk.data.spans=[[]]; }
           gone.forEach(u=>{ if(!blockImageUrls(blk).includes(u)) releaseImage(u); });
           renderEditor(); renderPreview(); saveSets(); };
         grid.append(rm);
@@ -6227,7 +6262,9 @@ function renderEditor(){
       const addR=el("button","btn","+ 행");
       addR.onclick=()=>{ blk.data.rows.push(new Array(wide).fill(""));
         if(!Array.isArray(blk.data.images)) blk.data.images=[];
-        blk.data.images.push([]); renderEditor(); renderPreview(); saveSets(); };
+        if(!Array.isArray(blk.data.spans)) blk.data.spans=[];
+        blk.data.images.push([]); blk.data.spans.push([]);   /* 세 배열이 함께 움직인다 */
+        renderEditor(); renderPreview(); saveSets(); };
       const addC=el("button","btn","+ 열");
       addC.onclick=()=>{ blk.data.rows.forEach(r=>{ while(r.length<wide) r.push(""); r.push(""); });
         renderEditor(); renderPreview(); saveSets(); };

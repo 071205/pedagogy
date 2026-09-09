@@ -274,15 +274,26 @@ function tableHTML(data, cls){
   const rows=(data&&data.rows)||[];
   const imgs=(data&&data.images)||[];
   const wide=Math.max(0,...rows.map(r=>r.length));
+  /* 칸 합치기 — 실물 자료표가 쓴다(화학Ⅰ 5×5 가 가로2·세로3, 영어 안내표가 세로3).
+     ⚠️ **덮인 칸은 건너뛴다.** 안 건너뛰면 합친 만큼 칸이 오른쪽으로 밀려 표가 어긋난다.
+        어디가 덮였는지 아는 곳은 이 `taken` 하나여야 한다 — 두 곳에서 세면 갈라진다. */
+  const spans=(data&&data.spans)||[];
+  const taken={};
   const body=rows.map((r,i)=>{
     const tag=(data.header!==false && i===0) ? "th" : "td";
     const cells=[];
     for(let j=0;j<wide;j++){
+      if(taken[i+","+j]) continue;                     // 위/왼쪽 칸이 이미 먹었다
+      const sp=(spans[i]&&spans[i][j])||[1,1];
+      const cs=Math.max(1,Math.min(+sp[0]||1, wide-j));
+      const rs=Math.max(1,Math.min(+sp[1]||1, rows.length-i));
+      for(let a=0;a<rs;a++) for(let b=0;b<cs;b++) if(a||b) taken[(i+a)+","+(j+b)]=1;
       /* ⚠️ 실물은 그림과 글이 **한 칸 안에** 함께 오는 경우가 있다(2×2 그림 + 아래 라벨,
          5×5 자료표 안 그림). 둘 중 하나만 그리면 라벨이나 그림이 사라진다. */
       const src=safeUrl(imgs[i] && imgs[i][j]);
       const txt=processText(r[j]||"");
-      cells.push(`<${tag}>${src?`<img class="tcell-img" src="${src}" alt="">`:""}${txt}</${tag}>`);
+      const attr=(cs>1?` colspan="${cs}"`:"")+(rs>1?` rowspan="${rs}"`:"");
+      cells.push(`<${tag}${attr}>${src?`<img class="tcell-img" src="${src}" alt="">`:""}${txt}</${tag}>`);
     }
     return `<tr>${cells.join("")}</tr>`;
   }).join("");

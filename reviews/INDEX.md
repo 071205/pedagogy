@@ -143,6 +143,7 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 | `HANDOFF-2026-098` | Codex | **한컴 고지·전체 화면 데이터 설정·모바일 일반 흐름 탭바 결정** | `handoffs/2026-09/2026-09-09-library-ux-design-decisions.md` |
 | `HANDOFF-2026-095` | Codex | **한국어 원문 + 영어·일본어·중국어 핵심 법률정보 선택과 AI 번역 고지** | `handoffs/2026-09/2026-09-09-legal-multilingual-reader-guide.md` |
 | `HANDOFF-2026-094` | Codex | **공식 법령·12개 서비스군 벤치마크 · 로그인/AI 동의 분리와 과장 고지 교정** | `handoffs/2026-09/2026-09-09-legal-benchmark-and-consent-corrections.md` |
+| `HANDOFF-2026-109` | Claude | **표 칸 합치기(가로·세로) — 실물 7건 근거** | `handoffs/2026-09/2026-09-10-table-cell-merge.md` |
 | `HANDOFF-2026-108` | Claude | **표 칸에 그림 (탐구 자료) · 자리 목록 한 곳 유지** | `handoffs/2026-09/2026-09-10-table-cell-images.md` |
 | `HANDOFF-2026-107` | Claude | **화학식 — 재 보니 하나만 없었다(mhchem) · 순서 계약** | `handoffs/2026-09/2026-09-10-chemistry-formulas.md` |
 | `HANDOFF-2026-106` | Claude | **코덱스 `-104` 독립 검토 4건 확인 · 아이콘 재발에 정리 지점** | `handoffs/2026-09/2026-09-10-codex-review-verified.md` |

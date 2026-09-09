@@ -191,8 +191,19 @@ function normBlock(b, opts={}){
       (Array.isArray(r)?r:[]).slice(0,(rows[i]||[]).length).map(u=>safeUrl(u)));
     const finalRows=rows.length?rows:[["",""],["",""]];
     while(imgs.length<finalRows.length) imgs.push([]);
+    /* 칸 합치기 — `spans[r][c] = [가로, 세로]`. 실물 자료표에 **7건** 있다(화학Ⅰ 5×5 가
+       가로2·세로3 을 함께 쓰고, 영어 안내표가 세로3 을 쓴다).
+       ⚠️ 값은 반드시 **정수로 조인다** — 가져온 `.json` 의 큰 값 하나가 표를 통째로
+          망가뜨린다(렌더는 겹친 칸을 건너뛰므로 나머지 칸이 사라진다). */
+    const spans=(Array.isArray(d.spans)?d.spans:[]).slice(0,finalRows.length).map((r,i)=>
+      (Array.isArray(r)?r:[]).slice(0,(finalRows[i]||[]).length).map(v=>{
+        const cs=Math.max(1,Math.min(20,Math.floor(+(Array.isArray(v)?v[0]:1))||1));
+        const rs=Math.max(1,Math.min(30,Math.floor(+(Array.isArray(v)?v[1]:1))||1));
+        return [cs,rs];
+      }));
+    while(spans.length<finalRows.length) spans.push([]);
     return {type,data:{rows:finalRows, header:d.header!==false,
-                       title:text(d.title,120), small:!!d.small, images:imgs}};
+                       title:text(d.title,120), small:!!d.small, images:imgs, spans:spans}};
   }
   if(type==="conditions"||type==="examples")
     return {type,data:{items:(Array.isArray(d.items)?d.items:[]).slice(0,lossless?undefined:20).map(t=>text(t)),
