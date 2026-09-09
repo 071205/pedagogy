@@ -211,6 +211,13 @@ body{background:var(--bg);color:var(--text-primary);font-family:var(--ui-sans);f
   color:var(--text-primary);cursor:pointer;user-select:none;
 }
 .actions{display:flex;gap:8px;align-items:center}
+/* ⚠️ **편집기 전용 상단 동작의 초기값은 숨김이다**(`REV-2026-061`).
+   예전에는 마크업 초기값이 `display:flex` 라, 하단 인라인 스크립트가 클릭 핸들러를
+   등록한 뒤부터 `showLibrary()` 가 불릴 때까지의 **부팅 구간에 버튼이 보이고 눌렸다**
+   (defer SDK 가 느리면 그 창이 길어진다 — 인쇄·내보내기 모달이 실제로 열렸다).
+   JS 가 늦거나 아예 실패해도 **편집기 문맥이 생기기 전에는 드러나지 않아야 한다.**
+   `setEditorActions(true)` 가 인라인 `display:flex` 로 덮어 켠다(id 규칙보다 인라인이 이긴다). */
+#topActions{display:none}
 .actions input[type="text"]{
   height:36px;background:var(--surface-2);border:1px solid var(--border);
   color:var(--text-primary);border-radius:var(--radius-md);

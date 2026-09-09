@@ -6,7 +6,6 @@
 
 | ID | 심각도 | 요약 | 파일 |
 | --- | --- | --- | --- |
-| `REV-2026-061` | `P2` | 초기 부팅 중 편집기 전용 상단 동작이 노출·실행됨 | `issues/2026-09/2026-09-09-index-editor-actions-initial-flash.md` |
 
 독립 보안·안정성·효율성 분석과 수정 설계: [종합 보고서](audits/2026-09-08/REPORT.md).
 이번 9건은 `ae5740e`에서 재현 후 HANDOFF-2026-067로 수정·안전 회귀를 남겼다.
@@ -41,10 +40,13 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 
 검토 완료(조건부): [HANDOFF-2026-082](handoffs/2026-09/2026-09-09-review-fixes-applied.md)은 [HANDOFF-2026-083](handoffs/2026-09/2026-09-09-claude-post081-independent-review.md)에서 독립 검토했다. `REV-2026-059`·`060` 수정은 유효하지만 초기 부팅 구간 누락 `REV-2026-061`을 열었다. 이후 정리·URL·Rules 배포 커밋도 함께 검토했고, 배포 승인·handoff 누락을 Claude에게 지적했다.
 
+검토 대기: [HANDOFF-2026-084](handoffs/2026-09/2026-09-09-boot-flash-fix-and-deploy-record.md) — `REV-2026-061` 수정 · **운영 배포 기록**(SHA-256·롤백 순서 포함) · 배포 승인에 대한 사실 정정 · 정적 검사 범위 과장 정정.
+
 ## 최근 해결
 
 | ID | 심각도 | 요약 | 파일 |
 | --- | --- | --- | --- |
+| `REV-2026-061` | `P2` | 초기 부팅 중 편집기 전용 상단 동작이 노출·실행됨 | `issues/2026-09/2026-09-09-index-editor-actions-initial-flash.md` |
 | `REV-2026-059` | `P2` | 라이브러리에서 편집기 전용 상단 동작이 노출·실행됨 | `issues/2026-09/2026-09-09-index-library-editor-actions-visible.md` |
 | `REV-2026-060` | `P3` | 인쇄 단계 검사가 측정 뒤 초기화하는 순서를 통과시킴 | `issues/2026-09/2026-09-09-tests-print-stage-order-gap.md` |
 | `REV-2026-052` | `P3` | 정규화 VM 검사가 표준 URL 없이 허용 URL 경로를 놓침 | `issues/2026-09/2026-09-08-tests-normalize-vm-missing-url.md` |
@@ -109,6 +111,7 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 
 | ID | 작성자 | 내용 | 파일 |
 | --- | --- | --- | --- |
+| `HANDOFF-2026-084` | Claude | **부팅 노출 수정 · 배포 기록 · 083 회신** | `handoffs/2026-09/2026-09-09-boot-flash-fix-and-deploy-record.md` |
 | `HANDOFF-2026-083` | Codex | Claude 후속 6커밋 독립 검토 · 초기 노출 수정 및 배포 절차 코멘트 | `handoffs/2026-09/2026-09-09-claude-post081-independent-review.md` |
 | `HANDOFF-2026-082` | Claude | **검토 지적 2건 수정 (059·060)** | `handoffs/2026-09/2026-09-09-review-fixes-applied.md` |
 | `HANDOFF-2026-081` | Codex | Claude 최신 변경 독립 검토 · 재현 2건 수정 설계 | `handoffs/2026-09/2026-09-09-claude-latest-design-review.md` |

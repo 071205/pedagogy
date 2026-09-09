@@ -62,6 +62,10 @@ assert.doesNotMatch(index, /await purgeAiUsage\(/, "일반 사용자에게 비�
      transition:background-color .13s → 숨긴 직후 hidden
      전이 없음                        → 숨긴 직후 hidden
 
+   ⚠️ **이건 보조망이다.** 여기서 잡는 것은 **직접 대입(`.style.visibility =`)뿐**이고,
+      `cssText`·`setProperty`·CSS 클래스 같은 우회는 못 잡는다. 그런 우회를 쫓아 정규식을
+      늘려 가지 말 것 — **실제 보장은 브라우저 회귀**(`test:library-ui` 의
+      `editor-only top actions …` 둘)가 한다. 이 검사는 가장 흔한 실수를 값싸게 막을 뿐이다.
    ⚠️ **`transition` 쪽을 고치지 않고 이 짝을 막는다.** 목록 없는 shorthand 가 세 화면에
       23곳이라 전부 다시 쓰면 시각 동작이 통째로 바뀐다 — 위험 대비 이득이 나쁘다.
       함정은 `all` 단독으로는 안 터지고 **`visibility` 로 숨길 때만** 터지므로, 그 짝을
@@ -71,7 +75,7 @@ assert.doesNotMatch(index, /await purgeAiUsage\(/, "일반 사용자에게 비�
 for (const [name, src] of [["index.html", index], ["mock-exam-editor.html", mock],
                            ["document-editor.html", documentEditor]]) {
   assert.doesNotMatch(src, /\.style\.visibility\s*=/,
-    `${name} 에서 \`.style.visibility\` 로 숨기고 있습니다 — \`display\` 로 바꾸세요. `
+    `${name} 에서 \`.style.visibility\` 직접 대입이 있습니다 — \`display\` 로 바꾸세요. `
     + "목록 없는 `transition` shorthand 가 `all` 이라 약 130ms 동안 요소가 보이고 눌립니다"
     + "(REV-2026-059).");
 }

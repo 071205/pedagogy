@@ -117,9 +117,16 @@ flex 이고 본문이 `flex:1` 로 남는 만큼 가진다 — **빼는 값이 �
 열렸다. ⚠️ **계산 스타일을 재면 부모는 `hidden` 인데 자식만 `visible` 이라, CSS 규칙을
 전수 조사해도 원인이 안 보인다**(규칙이 아니라 전이가 원인이다 — 실측으로만 찾았다).
 `display` 는 즉시 반영된다. 상단 동작은 `setEditorActions(on)` 한 곳이 가른다.
-⚠️ **그 검사는 시간이 아니라 자리로 판정한다** — `getBoundingClientRect().width` 가
+⚠️ **초기값도 숨김이어야 한다**(`REV-2026-061`). 마크업 초기값이 `display:flex` 면, 핸들러가
+등록된 뒤부터 `showLibrary()` 가 처음 불릴 때까지의 **부팅 구간에 버튼이 보이고 눌린다**
+(defer SDK 가 느리면 그 창이 길어진다). `#topActions{display:none}` 을 CSS 에 두고
+`setEditorActions(true)` 만 인라인으로 켠다 — JS 가 늦거나 실패해도 안 드러난다.
+⚠️ **판정은 시간이 아니라 자리로 한다** — `getBoundingClientRect().width` 가
 `visibility:hidden` 이면 그대로이고 `display:none` 이면 0 이다. 130ms 창을 시간으로 재면
 깜빡이는 검사가 된다.
+⚠️ **실제 보장은 브라우저 회귀(`test:library-ui`)가 한다.** `check:static` 쪽은 **직접
+대입(`.style.visibility =`)만 잡는 보조망**이다 — "visibility 숨김을 전부 막는다" 가 아니고,
+우회 문법을 쫓아 정규식을 늘려 갈 것도 아니다.
 ⚠️ 속성 목록 없는 `transition` 은 세 화면에 **23곳**이다(index 16 · 모의고사 7).
 **그걸 다시 쓰지 않았다** — 전부 시각 동작이 바뀌어 위험 대비 이득이 나쁘다. 대신
 **짝을 금지한다**: `check:static` 이 세 화면에서 `.style.visibility = …` 를 막는다

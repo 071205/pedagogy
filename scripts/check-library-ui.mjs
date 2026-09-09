@@ -155,5 +155,38 @@ try{
     await p.evaluate(()=>showEditor('a'));
     assert.ok((await box()).w>0,'편집기로 돌아오면 다시 보여야 한다');
   });
+  /* ⚠️ **부팅 구간도 봐야 한다**(`REV-2026-061`). 위 검사는 앱이 다 뜬 뒤 `showLibrary()` 를
+     직접 부르므로, 하단 인라인 스크립트가 핸들러를 등록한 뒤부터 `showLibrary()` 가 처음
+     불릴 때까지의 창을 못 본다 — defer SDK 가 느리면 그 창에 편집기 단추가 보이고 **눌렸다**.
+     그래서 SDK 응답을 늦춘 채, `showLibrary` 는 이미 있고 `DOMContentLoaded` 는 아직인
+     시점에서 잰다. 판정은 위와 같은 **자리 기반**이다(시간에 안 흔들린다). */
+  await (async()=>{
+    const name='editor-only top actions stay hidden during a slow boot';
+    const p=await browser.newPage({viewport:{width:375,height:812},locale:'ko-KR'});
+    try{
+      await p.route('**/*',async r=>{
+        const u=new URL(r.request().url());
+        if(u.pathname.endsWith('/firebase-app-compat.js')){ await new Promise(x=>setTimeout(x,1500)); return r.continue(); }
+        return (u.origin===base||u.hostname==='www.gstatic.com'||u.hostname==='cdn.jsdelivr.net')?r.continue():r.abort();
+      });
+      await p.goto(base+'/index.html',{waitUntil:'commit'});
+      /* 인라인 스크립트가 돌아 핸들러는 등록됐는데 **부팅은 아직인** 순간.
+         ⚠️ `document.readyState==='loading'` 으로 잡으면 안 된다 — 실측해 보니 파싱이
+            끝나자마자 `interactive` 가 되고 `loading` 에 머물지 않아 이 창과 겹치지 않는다.
+            늦춘 SDK 가 아직 안 온 것(`window.firebase===undefined`)이 정확한 표지다. */
+      await p.waitForFunction(()=>typeof showLibrary==='function' && typeof window.firebase==='undefined',
+        null,{timeout:10000});
+      const got=await p.evaluate(()=>{
+        const b=document.getElementById('printBtn');
+        return {w:Math.round(b.getBoundingClientRect().width), shown:!!b.offsetParent,
+                ready:document.readyState, booted:typeof window.firebase};
+      });
+      assert.deepEqual({w:got.w,shown:got.shown},{w:0,shown:false},
+        '부팅 중 편집기 동작이 노출됨: '+JSON.stringify(got));
+      assert.equal(await p.locator('#printBtn').isVisible(),false,'부팅 중 인쇄 단추를 누를 수 있다');
+      console.log('PASS',name);
+    }catch(e){failures.push(name);console.error('FAIL',name,e.message);}
+    finally{await p.close();}
+  })();
   assert.deepEqual(failures,[]);
 }finally{await browser?.close();server.kill();}
