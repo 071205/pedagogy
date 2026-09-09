@@ -230,5 +230,24 @@ try{
     }catch(e){failures.push(name);console.error('FAIL',name,e.message);}
     finally{await p.close();}
   })();
+  /* ⚠️ **삭제가 끝나면 '왔던 곳' 이 아니라 라이브러리로 가야 한다.**
+     설정이 출처를 기억하게 되면서(`HANDOFF-2026-104`) 이 안전 동작이 조용히 뒤집힐 수
+     있다 — 방금 문제집을 전부 지웠는데 그 편집기로 돌아가면 없는 것을 편집하게 된다.
+     ⚠️ **진짜 삭제 함수는 부르지 않는다**(로그인한 프로필로 돌려도 안전해야 한다).
+        성공한 척하는 대역을 끼우고 **어디로 가는지만** 본다. */
+  await check('데이터 삭제가 끝나면 출처 편집기가 아니라 라이브러리로 간다',async p=>{
+    await p.evaluate(()=>{ showEditor('a'); showSettings('data');
+      window.__realDel=deleteAllSets; deleteAllSets=async()=>{};
+      document.querySelector('#dmWipeConfirm').value='삭제'; dmSyncButtons(); });
+    p.once('dialog',d=>d.accept());
+    await p.locator('#dmWipeBtn').click();
+    await p.waitForFunction(()=>getComputedStyle(document.getElementById('libraryView')).display!=='none',
+      null,{timeout:5000});
+    const got=await p.evaluate(()=>{ deleteAllSets=window.__realDel;
+      return {ed:getComputedStyle(document.getElementById('editorView')).display,
+              st:getComputedStyle(document.getElementById('settingsView')).display}; });
+    assert.deepEqual(got,{ed:'none',st:'none'},'삭제 뒤 편집기/설정이 남아 있다: '+JSON.stringify(got));
+  });
+
   assert.deepEqual(failures,[]);
 }finally{await browser?.close();server.kill();}
