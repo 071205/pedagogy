@@ -334,6 +334,14 @@ label.btn input{display:none}
    세로 공간을 채우려고 '행 높이까지' 늘려서 카드가 위아래로 길어진다(푸터를
    넣으면서 생긴 회귀). align-content:start 로 행은 제 높이를 지키게 하고,
    남는 공간은 그리드 아래쪽 여백으로만 남긴다. */
+/* ⚠️ **푸터를 화면 아래에 붙이는 사슬이다 — 끊지 말 것.**
+   `#libraryView`(세로 flex) → 패널(`flex:1`) → 그리드(`flex:1`) → 푸터.
+   탭 패널을 넣으면서 그리드가 패널 안으로 들어갔는데 패널에 `flex:1` 을 안 주어,
+   푸터가 카드 바로 밑에 딱 붙어 올라왔다(내가 만든 회귀다). 패널도 사슬에 넣는다.
+   ⚠️ `display:flex` 는 브라우저 기본 `[hidden]{display:none}` 을 이기므로 짝을 함께 둔다 —
+      안 두면 두 라이브러리가 **동시에** 보인다. */
+#setsPanel,#mocksPanel{display:flex;flex-direction:column;flex:1;min-height:0}
+#setsPanel[hidden],#mocksPanel[hidden]{display:none}
 .lib-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;
   flex:1;align-content:start}
 .lib-footer{margin-top:32px;padding-top:20px;border-top:1px solid var(--border);

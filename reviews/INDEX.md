@@ -129,6 +129,7 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 
 | ID | 작성자 | 내용 | 파일 |
 | --- | --- | --- | --- |
+| `HANDOFF-2026-092` | Claude | **법률 문서 구조 개편(요약·목차·개정 이력·인쇄) · 해지 조항 신설 · 푸터 회귀 수정** | `handoffs/2026-09/2026-09-09-legal-page-structure-and-footer.md` |
 | `HANDOFF-2026-090` | Claude | **모의고사 라이브러리 구현 + 클라우드 동기화(문서별·tombstone·병합·파기)** | `handoffs/2026-09/2026-09-09-mock-library-implementation.md` |
 | `HANDOFF-2026-089` | Codex | **라이브러리 액션·폴더 배치 정돈과 다중 모의고사 라이브러리 설계** | `handoffs/2026-09/2026-09-09-library-header-and-mock-library-plan.md` |
 | `HANDOFF-2026-088` | Codex | **편집기 접근성 디자인 점검 · 키보드 경로와 이름 보정** | `handoffs/2026-09/2026-09-09-editor-accessibility-design-audit.md` |
