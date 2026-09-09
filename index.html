@@ -905,6 +905,15 @@ body.col-resizing{cursor:col-resize;user-select:none}
   display:inline-block;line-height:1.35;margin:0 .12em}
 /* 라벨 + 네모는 한 덩어리다 — 줄 끝에서 갈라지면 (A) 만 앞줄에 남는다. */
 .preview .wbox-set{white-space:nowrap}
+/* ── 탐구 조판 (실물에서 잰 값 · `HANDOFF-2026-104`) ──────────────────────
+   본문·발문·<보기>·선지는 국어와 같은 11.5pt 다. 다른 것은 **자료 표**뿐이다 —
+   화학Ⅰ 4×4 자료 표 9.5~10.0pt · 사회·문화 자료 9.5pt. 큰 쪽을 기본으로 둔다. */
+.preview .ktbl.tbl-inq{font-size:.87em}
+/* '작게' — 실물은 자료를 **줄여 담는다**(사회·문화 자료 상자 9.5pt, 신문 자료 안에는
+   8.0pt 도 있다). 반면 화학Ⅰ 자료 상자는 11.5pt 라 **과목으로 강제하면 하나는 틀린다.**
+   그래서 블록마다 사용자가 정한다. */
+.preview .blk-small{font-size:.83em}
+
 /* ── 짝 선지 (열 머리글 + `……`) ─────────────────────────────────────────
    실물에서 잰 것: 2025 수능 40번 표 폭 **108.09mm** (2단 시험지 한 단이 111mm 이므로
    거의 단 전체다) · 머리글 `(A) (B)` · 이음말 `……`.
@@ -1121,6 +1130,15 @@ body.col-resizing{cursor:col-resize;user-select:none}
   display:inline-block;line-height:1.35;margin:0 .12em}
 /* 화면(.preview)과 같은 규칙 — 한쪽만 고치면 미리보기와 인쇄가 갈라진다. */
 .pq .wbox-set{white-space:nowrap}
+/* ── 탐구 조판 — 인쇄 (위와 같은 값을 유지할 것) ──────────────────────
+   본문·발문·<보기>·선지는 국어와 같은 11.5pt 다. 다른 것은 **자료 표**뿐이다 —
+   화학Ⅰ 4×4 자료 표 9.5~10.0pt · 사회·문화 자료 9.5pt. 큰 쪽을 기본으로 둔다. */
+.pq .ktbl.tbl-inq{font-size:.87em}
+/* '작게' — 실물은 자료를 **줄여 담는다**(사회·문화 자료 상자 9.5pt, 신문 자료 안에는
+   8.0pt 도 있다). 반면 화학Ⅰ 자료 상자는 11.5pt 라 **과목으로 강제하면 하나는 틀린다.**
+   그래서 블록마다 사용자가 정한다. */
+.pq .blk-small{font-size:.83em}
+
 /* ── 짝 선지 — 인쇄 (위와 같은 규칙을 유지할 것) ─────────────────────────────────────────
    실물에서 잰 것: 2025 수능 40번 표 폭 **108.09mm** (2단 시험지 한 단이 111mm 이므로
    거의 단 전체다) · 머리글 `(A) (B)` · 이음말 `……`.
@@ -1240,25 +1258,32 @@ body.hide-answers .answer-block{display:none!important}
      는 뜻이지만, 눕힌 뒤 세로 flex 안에서는 **가로 축**을 뜻해 레일이 내용 폭(476px)까지
      커진다 — 그래서 `overflow-x:auto` 가 아무것도 못 가두고 페이지가 98px 넘쳤다.
      실측으로 찾았다(계산된 폭을 재기 전에는 원인이 안 보였다).
-     ⚠️ **탐색을 본문 아래로 내린다**(`HANDOFF-2026-098` 3번). 화면에 고정해 콘텐츠를 덮지
-     않고 **문서의 일반 흐름 안**에 둔다 — 그래서 `env(safe-area-inset-*)` 가 필요 없고,
-     `viewport-fit=cover` 를 안 쓰기로 한 결정을 건드리지 않는다.
-     선택 상태는 `aria-selected` 로 그대로 전달되고 `#tabSets`·`#tabMocks`·`#library=` 계약도
-     그대로다(자리만 옮긴다). */
-  .lib-rail{position:static;align-self:stretch;width:100%;order:2;
+     ⚠️ 처음에는 탐색을 본문 **아래**로 옮겼지만, 문제집 14권·375×812 실측에서 y=1798로
+     밀려 첫 화면에서 완전히 사라졌다(`REV-2026-076`). DOM은 탐색→본문인데 CSS order만
+     뒤집어 키보드 포커스도 화면 아래를 먼저 갔다가 검색으로 역주행했다.
+     → 모바일에서도 DOM과 같은 순서로 둔다. 한 줄 가로 스크롤이라 화면을 덮지 않고
+       `viewport-fit=cover`나 safe-area 보정도 필요 없다. */
+  .lib-rail{position:static;align-self:stretch;width:100%;order:1;
     flex-direction:row;align-items:center;gap:6px;max-height:none;
-    margin-top:14px;padding:10px 0 4px;border-top:1px solid var(--border);
+    margin:0 0 12px;padding:0 0 10px;border-bottom:1px solid var(--border);
     overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch}
-  .lib-main{order:1;min-height:0}
+  .lib-main{order:2;min-height:0}
   .lib-shell{min-height:0}
   .lib-rail .rail-foot{padding-top:0}
   .lib-tabs{flex-direction:row;flex:none}
   .lib-tab{width:auto;padding:0 12px}
-  .folder-bar{flex-direction:row;flex:none;gap:6px}
+  /* 아래쪽의 기본 `.folder-bar{flex-direction:column}` 규칙보다 구체적으로 써야 한다.
+     그렇지 않으면 모바일에서도 폴더 셋이 세로 100px을 차지한다. */
+  .lib-rail .folder-bar{flex-direction:row;flex:none;gap:6px;width:auto}
   .folder-bar-label{display:none}
-  .folder-bar .folder-chip{width:auto;padding:0 12px}
+  .lib-rail .folder-bar>.folder-chip{width:auto;padding:0 12px}
+  .lib-rail .folder-bar .folder-group{width:auto;grid-template-columns:minmax(72px,auto) 30px}
+  /* 폴더가 많아도 설정은 가로 스크롤 끝으로 밀리지 않게 오른쪽에 남긴다.
+     데이터 관리는 이제 설정 안의 갈래라 모바일에서 중복 바로가기를 숨겨 폭을 아낀다. */
   .rail-foot{flex-direction:row;margin:0;padding:0 0 0 6px;border:none;
-    border-left:1px solid var(--border);gap:2px;flex:none}
+    border-left:1px solid var(--border);gap:2px;flex:none;position:sticky;right:0;z-index:2;
+    background:var(--bg);box-shadow:-10px 0 10px var(--bg)}
+  #dataMgmtBtn{display:none}
   .lib-title{font-size:19px}
 
   /* 에디터 3단(미리보기·편집·문항목록) — 아이패드 세로(768px)조차
@@ -1521,6 +1546,7 @@ input:focus-visible,textarea:focus-visible{outline:none}
   <button type="button" class="brand" id="brandBtn" aria-label="문제집 라이브러리로 이동">PEDAGOGY</button>
   <!-- 모의고사 편집기에서 라이브러리로 돌아가는 길. 그 화면에서만 보인다. -->
   <button type="button" id="mockBackBtn" class="btn" style="margin-left:14px" hidden>← 라이브러리</button>
+  <button type="button" id="mockSettingsBtn" class="btn" hidden>설정</button>
   <!-- ⚠️ **여기에 'AI 문서' 링크를 다시 넣지 말 것.** 예전에 있었지만 뺐다 —
        이 제품의 의의는 *문제집·모의고사를 만들어 한글로 뽑는 것* 인데, 범용 문서 작성
        도구가 같은 자리에 있으면 '이게 무슨 프로그램인가' 가 흐려진다.
@@ -1760,6 +1786,7 @@ function setEditorActions(on){
 (function(){
   var V=document.getElementById('mockView'),
       BACK=document.getElementById('mockBackBtn'),
+      SETTINGS=document.getElementById('mockSettingsBtn'),
       FB=document.getElementById('mockFallback');
   if(!V) return;
   function hideOthers(){
@@ -1790,21 +1817,25 @@ function setEditorActions(on){
   window.__mockShow=function(){
     hideOthers(); V.style.display='block';
     if(BACK) BACK.hidden=false;
+    if(SETTINGS) SETTINGS.hidden=false;
     return frame();
   };
   window.__mockFrame=function(){ return V.querySelector('iframe'); };
   window.__mockOpen=function(){ return V.style.display==='block'; };
   /* 본체가 다른 뷰로 전환할 때 되돌리기 위해 노출 */
-  window.__mockClose=function(){ if(BACK) BACK.hidden=true; };
+  window.__mockClose=function(){ if(BACK) BACK.hidden=true; if(SETTINGS) SETTINGS.hidden=true; };
   if(BACK) BACK.onclick=function(){
-    V.style.display='none'; BACK.hidden=true;
+    V.style.display='none'; BACK.hidden=true; if(SETTINGS) SETTINGS.hidden=true;
     if(typeof window.showLibrary==='function'){ window.showLibrary('mocks'); return; }
     var l=document.getElementById('libraryView'); if(l) l.style.display='flex';
+  };
+  if(SETTINGS) SETTINGS.onclick=function(){
+    if(typeof window.showSettings==='function') window.showSettings('screen');
   };
   /* 본체가 라이브러리/편집기로 전환할 때 이 뷰도 확실히 닫는다 */
   var brand=document.getElementById('brandBtn');
   if(brand) brand.addEventListener('click', function(){
-    V.style.display='none'; if(BACK) BACK.hidden=true; });
+    V.style.display='none'; if(BACK) BACK.hidden=true; if(SETTINGS) SETTINGS.hidden=true; });
 })();
 </script>
 
@@ -4123,7 +4154,7 @@ function openSettings(){
 }
 $("#settingsBtn").onclick=()=>showSettings("screen");
 $("#dataMgmtBtn").onclick=()=>showSettings("data");
-$("#settingsBack").onclick=()=>showLibrary();
+$("#settingsBack").onclick=returnFromSettings;
 $("#editorSettingsBtn").onclick=()=>showSettings("screen");
 /* 설정 갈래 전환. ⚠️ `hidden` 만으로는 `.dm-sec` 의 display 가 이길 수 있어
    `.st-panes .dm-sec[hidden]{display:none}` 짝을 CSS 에 함께 두었다. */
@@ -4534,17 +4565,52 @@ function renderLibrary(){
    ⚠️ 삭제 계약은 **그대로 옮겼다** — `wiping` 가드·확인 문구·재인증·삭제 순서는
       기존 코드가 돈다. 여기서는 화면만 갈아 끼운다. */
 const SETTINGS_TABS=["screen","account","data","about"];
+let settingsReturn=null;
+function rememberSettingsSource(){
+  if($("#settingsView").style.display!=="none") return;
+  if($("#editorView").style.display!=="none" && currentSetId){
+    settingsReturn={view:"editor",id:currentSetId,hash:location.hash||""}; return;
+  }
+  if($("#mockView").style.display!=="none" && mockOpenId){
+    settingsReturn={view:"mock",id:mockOpenId,hash:location.hash||"#library=mocks"}; return;
+  }
+  if($("#libraryView").style.display!=="none"){
+    settingsReturn={view:"library",tab:libraryTab}; return;
+  }
+  settingsReturn=null;
+}
+function returnFromSettings(){
+  const back=settingsReturn; settingsReturn=null;
+  if(back?.view==="editor" && sets.some(s=>s.id===back.id)){
+    showEditor(back.id);
+    try{ history.replaceState(null,"",location.pathname+location.search+(back.hash||"")); }catch(e){}
+    return;
+  }
+  if(back?.view==="mock" && MockStore.findMock(mocks,back.id)){
+    openMock(back.id);
+    try{ history.replaceState(null,"",location.pathname+location.search+(back.hash||"#library=mocks")); }catch(e){}
+    return;
+  }
+  showLibrary(back?.view==="library"&&back.tab==="mocks"?"mocks":"sets");
+}
 function showSettings(tab){
   const t=SETTINGS_TABS.indexOf(tab)>=0?tab:"screen";
+  rememberSettingsSource();
   $("#libraryView").style.display="none"; $("#editorView").style.display="none";
   $("#mockView").style.display="none"; if(window.__mockClose) window.__mockClose();
-  setEditorActions(false); rememberSet(null);
+  /* 설정은 편집을 끝내는 화면이 아니다. 마지막 문제집/모의고사 위치를 지우지 않는다. */
+  setEditorActions(false);
   $("#settingsView").style.display="flex";
   openSettings();                      /* 값 채우기(테마·언어·계정·데이터) */
   const btn=$("#stTab"+t[0].toUpperCase()+t.slice(1));
   if(btn) btn.click();          /* 갈래 전환이 주소도 함께 옮긴다 */
   else writeSettingsHash(t);
-  const h=$("#settingsBack"); if(h) h.focus();
+  const h=$("#settingsBack");
+  if(h){
+    h.textContent=settingsReturn?.view==="editor"?"← 문제집 편집기"
+      :settingsReturn?.view==="mock"?"← 모의고사 편집기":"← 라이브러리";
+    h.focus();
+  }
 }
 function writeSettingsHash(t){
   try{ history.replaceState(null,"",location.pathname+location.search+"#settings/"+t); }catch(e){}
@@ -5702,6 +5768,19 @@ function renderEditor(){
     };
     head.append(handle,type);
 
+    /* ⚠️ '작게' 는 실물에서 왔다 — 탐구는 자료를 줄여 담는다(사회·문화 자료 상자 9.5pt ·
+       신문 자료 안 8.0pt). 그런데 화학Ⅰ 자료 상자는 11.5pt 라 **과목으로 강제하면 하나는
+       틀린다.** 그래서 블록마다 사용자가 정한다. */
+    if(blk.type==="boxed"||blk.type==="table"){
+      const lab=el("label",null,"");
+      lab.style.cssText="display:flex;align-items:center;gap:5px;font-size:12px;"
+        +"color:var(--text-secondary);white-space:nowrap;cursor:pointer";
+      const cb=el("input"); cb.type="checkbox"; cb.checked=!!blk.data.small;
+      cb.setAttribute("aria-label","자료 글자 작게");
+      cb.onchange=()=>{ blk.data.small=cb.checked; renderPreview(); saveSets(); };
+      lab.append(cb, el("span",null,"작게"));
+      head.append(lab);
+    }
     if(blk.type==="choices"){
       if(!CHOICE_LAYOUTS.includes(blk.data.layout)) blk.data.layout="horizontal";
       const ctrl=el("div",null,"");

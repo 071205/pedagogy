@@ -46,6 +46,48 @@ try{
     await p.locator('#folderNameInput').fill('한도 초과');await p.locator('#folderSaveBtn').click();
     assert.equal(await p.evaluate(()=>libMeta.folders.length),200);
   });
+  await check('mobile navigation stays visible before a long library and follows DOM focus order',async p=>{
+    await p.evaluate(()=>{
+      sets=Array.from({length:14},(_,i)=>normSet({id:'long-'+i,name:'검토 문제집 '+(i+1),problems:[{}]},{keepId:true}));
+      libMeta=normLibMeta({folders:[],folderBySetId:{}});renderLibrary();showLibrary('sets');
+    });
+    const layout=await p.evaluate(()=>{
+      const nav=document.querySelector('.lib-rail').getBoundingClientRect();
+      const main=document.querySelector('.lib-main').getBoundingClientRect();
+      const tab=document.getElementById('tabSets'), search=document.getElementById('setSearch');
+      return {navTop:Math.round(nav.top),navBottom:Math.round(nav.bottom),mainTop:Math.round(main.top),
+        viewport:innerHeight,domBefore:!!(tab.compareDocumentPosition(search)&Node.DOCUMENT_POSITION_FOLLOWING)};
+    });
+    assert.ok(layout.navTop>=0&&layout.navBottom<=layout.viewport,'탐색이 첫 화면 밖: '+JSON.stringify(layout));
+    assert.ok(layout.navBottom<=layout.mainTop,'화면에서 탐색 뒤에 본문이 오지 않음: '+JSON.stringify(layout));
+    assert.equal(layout.domBefore,true,'DOM 포커스 순서가 시각 순서와 다름: '+JSON.stringify(layout));
+  });
+  await check('settings returns to its library or editor source and mock editor exposes settings',async p=>{
+    await p.evaluate(()=>setLibraryTab('mocks'));
+    await p.locator('#settingsBtn').click();
+    await p.locator('#settingsBack').click();
+    assert.equal(await p.evaluate(()=>libraryTab),'mocks');
+    assert.equal(await p.locator('#mocksPanel').isVisible(),true);
+
+    await p.evaluate(()=>showEditor('a'));
+    await p.locator('#editorSettingsBtn').click();
+    assert.equal(await p.locator('#settingsBack').textContent(),'← 문제집 편집기');
+    assert.equal(await p.evaluate(()=>readLastSet()),'a');
+    await p.locator('#settingsBack').click();
+    assert.equal(await p.locator('#editorView').isVisible(),true);
+    assert.equal(await p.evaluate(()=>currentSetId),'a');
+
+    await p.evaluate(()=>{
+      const m=MockStore.newMock({name:'설정 복귀 검사',round:'설정 복귀 검사'});
+      mocks=[m];mocksLoaded=true;openMock(m.id);
+    });
+    assert.equal(await p.locator('#mockSettingsBtn').isVisible(),true);
+    await p.locator('#mockSettingsBtn').click();
+    assert.equal(await p.locator('#settingsBack').textContent(),'← 모의고사 편집기');
+    await p.locator('#settingsBack').click();
+    assert.equal(await p.locator('#mockView').isVisible(),true);
+    assert.equal(await p.evaluate(()=>MockStore.findMock(mocks,mockOpenId)?.name),'설정 복귀 검사');
+  });
   for(const schema of [0,1]) await check(`folder rename/delete are visible and preserve sets (schema ${schema})`,async p=>{
     await p.evaluate(schema=>{window.PEDAGOGY_PUBLIC_CONFIG={...window.PEDAGOGY_PUBLIC_CONFIG,libraryCloudSchema:schema};if(schema)sets.forEach(s=>s.folderId=libMeta.folderBySetId[s.id]);renderLibrary();},schema);
     assert.equal(await p.getByRole('button',{name:'수학 폴더 관리',exact:true}).count(),1);

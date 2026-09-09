@@ -6,6 +6,7 @@
 
 | ID | 심각도 | 요약 | 파일 |
 | --- | --- | --- | --- |
+| `REV-2026-074` | `P2` | macOS 폴더 아이콘 파일이 새 Git 폴더에서 재발해 refs를 오염시킨다 | `issues/2026-09/2026-09-09-rules-macos-icon-files-corrupt-git-refs.md` |
 | `REV-2026-075` | `P2` | AI 문서에 들어갔다 나오면 로그인이 안 된다(재현 절차 없음) | `issues/2026-09/2026-09-09-document-editor-login-after-return.md` |
 
 독립 보안·안정성·효율성 분석과 수정 설계: [종합 보고서](audits/2026-09-08/REPORT.md).
@@ -27,6 +28,8 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 `-049`(발문 별행 수식 탭·왼쪽 정렬) · `-050`(범용성 설계) · `-051`(설계 독립 검토) · `-052`(검토 반영) · `-053`(1단계 연기 검사) · `-054`(2단계 인앱·pagehide).
 
 ## 검토 대기
+
+검토 요청: [HANDOFF-2026-104](handoffs/2026-09/2026-09-10-library-ux-independent-review-and-fixes.md) — `-097`·`-099`·`-101`·`-102` 독립 검토, 모바일 긴 목록 탐색과 설정 출처 복귀 수정. Claude 재검토 요청 네 항목을 남겼다.
 
 검토 요청(설계 · 1~3단계는 `-097` 로 구현됨): [HANDOFF-2026-096](handoffs/2026-09/2026-09-09-library-ux-design.md) — 라이브러리 화면 재설계. 한컴 고지 위치 · 전체 화면 데이터 설정 · 모바일 일반 흐름 탭바에 대한 답은 [HANDOFF-2026-098](handoffs/2026-09/2026-09-09-library-ux-design-decisions.md)에 확정했다. 설계 본문은 `docs/LIBRARY-UX-DESIGN.md`.
 
@@ -56,6 +59,8 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 
 | ID | 심각도 | 요약 | 파일 |
 | --- | --- | --- | --- |
+| `REV-2026-077` | `P2` | 설정이 출처 화면을 잊고 모의고사 편집기에는 진입점이 없다 | `issues/2026-09/2026-09-10-index-settings-forgets-source-view.md` |
+| `REV-2026-076` | `P2` | 모바일 탐색이 긴 라이브러리 뒤로 밀리고 포커스 순서가 역전된다 | `issues/2026-09/2026-09-10-index-mobile-navigation-after-long-library.md` |
 | `REV-2026-074` | `P2` | macOS 폴더 아이콘 파일이 Git refs를 오염시킨다 | `issues/2026-09/2026-09-09-rules-macos-icon-files-corrupt-git-refs.md` |
 | `REV-2026-073` | `P2` | 로그인 국외이전 동의가 선택적 AI를 묶고 미확인 사실을 단정한다 | `issues/2026-09/2026-09-09-login-consent-bundles-ai-and-overstates-facts.md` |
 | `REV-2026-072` | `P3` | 접근성 계약이 다수 라벨·동작 회귀를 놓친다 | `issues/2026-09/2026-09-09-tests-accessibility-contract-gaps.md` |
@@ -134,6 +139,7 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 
 | ID | 작성자 | 내용 | 파일 |
 | --- | --- | --- | --- |
+| `HANDOFF-2026-104` | Codex | **097·099·101·102 독립 검토 · 모바일 탐색과 설정 복귀 수정** | `handoffs/2026-09/2026-09-10-library-ux-independent-review-and-fixes.md` |
 | `HANDOFF-2026-098` | Codex | **한컴 고지·전체 화면 데이터 설정·모바일 일반 흐름 탭바 결정** | `handoffs/2026-09/2026-09-09-library-ux-design-decisions.md` |
 | `HANDOFF-2026-095` | Codex | **한국어 원문 + 영어·일본어·중국어 핵심 법률정보 선택과 AI 번역 고지** | `handoffs/2026-09/2026-09-09-legal-multilingual-reader-guide.md` |
 | `HANDOFF-2026-094` | Codex | **공식 법령·12개 서비스군 벤치마크 · 로그인/AI 동의 분리와 과장 고지 교정** | `handoffs/2026-09/2026-09-09-legal-benchmark-and-consent-corrections.md` |

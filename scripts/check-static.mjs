@@ -107,7 +107,7 @@ for (const [name, src] of [["index.html", index], ["mock-exam-editor.html", mock
     "한컴 규격서 고지가 `설정 → 정보` 안에 없습니다 — 자리를 옮겼다면 이 대조도 함께 옮기세요");
   /* ⚠️ 그 화면에 **닿을 수 있어야** 고지한 것이다. 라이브러리(레일)와 편집기(상단) 양쪽에
      입구가 있어야 하고, 돌아갈 길도 있어야 한다 — 그것이 이동의 전제였다. */
-  for (const id of ["settingsBtn", "editorSettingsBtn", "stTabAbout", "settingsBack"]) {
+  for (const id of ["settingsBtn", "editorSettingsBtn", "mockSettingsBtn", "stTabAbout", "settingsBack"]) {
     assert.match(index, new RegExp(`id="${id}"`),
       `설정 화면 입구/복귀 요소 ${id} 가 없습니다 — 닿을 수 없는 곳의 고지는 고지가 아닙니다`);
   }
