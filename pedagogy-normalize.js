@@ -104,7 +104,12 @@ function normBlock(b, opts={}){
   const type=BLOCK_TYPES.includes(b.type)?b.type:null;
   if(!type) return null;
   const d=(b.data&&typeof b.data==="object")?b.data:{};
-  if(type==="statement"||type==="boxed") return {type,data:{text:text(d.text)}};
+  if(type==="statement") return {type,data:{text:text(d.text)}};
+  /* ⚠️ `small` 은 **실물에서 온 것**이다(`HANDOFF-2026-104`). 탐구 실물은 제시문·자료를
+     줄여 담는다 — 사회·문화의 자료 상자가 **9.5pt**(본문 11.5pt), 신문 자료 안에는
+     8.0pt 도 섞여 있다. 반면 화학Ⅰ의 자료 상자는 **11.5pt** 로 본문과 같다.
+     **하나로 정할 수 없어서 사용자가 정한다** — 과목으로 강제하면 둘 중 하나는 틀린다. */
+  if(type==="boxed") return {type,data:{text:text(d.text), small:!!d.small}};
   /* 지문 — 국어·영어처럼 글 하나를 여러 문항이 함께 쓰는 형식.
      lead 는 "다음 글을 읽고 물음에 답하시오." 같은 안내문이다. 본문(text)은
      지문이라 길 수 있어 상한을 넉넉히 둔다(다른 텍스트 블록은 str 기본 상한). */
@@ -177,7 +182,7 @@ function normBlock(b, opts={}){
     const rows=(Array.isArray(d.rows)?d.rows:[]).slice(0,lossless?undefined:30).map(r=>
       (Array.isArray(r)?r:[]).slice(0,lossless?undefined:10).map(cell=>text(cell,300)));
     return {type,data:{rows:rows.length?rows:[["",""],["",""]], header:d.header!==false,
-                       title:text(d.title,120)}};
+                       title:text(d.title,120), small:!!d.small}};
   }
   if(type==="conditions"||type==="examples")
     return {type,data:{items:(Array.isArray(d.items)?d.items:[]).slice(0,lossless?undefined:20).map(t=>text(t)),

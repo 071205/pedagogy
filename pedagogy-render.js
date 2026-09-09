@@ -270,7 +270,7 @@ function proseHTML(raw, lead){
 }
 
 /* 독립 표와 <보기> 안 표가 같은 안전한 텍스트·칸 수 보정을 공유한다. */
-function tableHTML(data){
+function tableHTML(data, cls){
   const rows=(data&&data.rows)||[];
   const wide=Math.max(0,...rows.map(r=>r.length));
   const body=rows.map((r,i)=>{
@@ -287,7 +287,7 @@ function tableHTML(data){
         제목이 반 칸쯤 왼쪽으로 오는 차이뿐이고, 지어낸 규칙을 두는 것보다 낫다. */
   const title=str(data&&data.title,120);
   const cap = title ? `<tr><th class="ktbl-title" colspan="${wide}">${sanitize(title)}</th></tr>` : "";
-  return `<table class="ktbl">${cap}${body}</table>`;
+  return `<table class="ktbl${cls?" "+cls:""}">${cap}${body}</table>`;
 }
 
 /* 지문 없는 묶음의 안내 줄.
@@ -329,7 +329,13 @@ function blockHTML(blk, ctx){
     return `<div class="dlg${english?" dlg-en":""}">${rows}</div>`;
   }
   if(blk.type==="table"){
-    return tableHTML(blk.data);
+    /* ⚠️ **탐구의 데이터 표는 본문보다 작다** — 실물에서 잰 값: 화학Ⅰ 4×4 자료 표
+       9.5~10.0pt · 사회·문화 자료 9.5pt(본문은 둘 다 11.5pt). 국어(10.5pt)·영어(11.5pt)
+       와 다르므로 **과목으로 가른다**. 큰 쪽(10.0pt=0.87em)을 기본으로 두고, 더 줄이는
+       것은 사용자의 '작게' 와 인쇄 넘침 보정에 맡긴다 — 범위를 하나로 지어내지 않는다. */
+    const cls=[ctx&&ctx.subject==="inquiry" ? "tbl-inq" : "",
+               blk.data.small ? "blk-small" : ""].filter(Boolean).join(" ");
+    return tableHTML(blk.data, cls);
   }
   if(blk.type==="notice"){
     const d=blk.data||{};
@@ -394,7 +400,7 @@ function blockHTML(blk, ctx){
            `<div class="bogi-body">${processText(d.text)}${tableHTML(d)}</div></div>`;
   }
   if(blk.type==="statement") return `<div>${processText(blk.data.text)}</div>`;
-  if(blk.type==="boxed") return `<div class="boxed">${processText(blk.data.text)}</div>`;
+  if(blk.type==="boxed") return `<div class="boxed${blk.data.small?" blk-small":""}">${processText(blk.data.text)}</div>`;
   if(blk.type==="conditions"){
     const items=(blk.data.items||[]).map((t,i)=>`<div class="cond-item"><span class="cond-label">${condLabel(i)}</span><span class="cond-text">${processText(t)}</span></div>`).join("");
     return `<div class="boxed">${items}</div>`;
