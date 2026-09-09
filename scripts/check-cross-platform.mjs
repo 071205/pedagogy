@@ -143,7 +143,11 @@ async function probes(page, vp, seen) {
      그래서 '붙어 있는가' 를 값으로 잰다. 줄바꿈될 때는 다른 줄로 갈 수 있으므로
      **같은 줄일 때만** 본다. */
   const brandGap = await page.evaluate(() => {
-    const br = document.getElementById("brandBtn"), mk = document.getElementById("mockModeBtn");
+    /* ⚠️ 예전에는 `#mockModeBtn` 과의 간격을 쟀다. 그 전역 버튼은 라이브러리 세그먼트로
+       옮겨 사라졌으므로, 지금 상단 바 왼쪽 묶음의 짝은 브랜드와 'AI 문서 β' 다.
+       재는 것(붙어 있는가)은 그대로다 — `REV-2026-063` 이 그 회귀였다. */
+    const br = document.getElementById("brandBtn");
+    const mk = document.querySelector('.topbar a[href="document-editor.html"]');
     if (!br || !mk) return { missing: true };
     const a = br.getBoundingClientRect(), b = mk.getBoundingClientRect();
     /* 버튼마다 높이가 달라도 세로로 절반 이상 겹치면 같은 줄이다. `top` 좌표 4px
@@ -154,8 +158,8 @@ async function probes(page, vp, seen) {
   });
   add("상단 바 왼쪽 묶음이 붙어 있다",
       !brandGap.missing && (!brandGap.sameRow || brandGap.gap <= 40),
-      brandGap.missing ? "브랜드·모의고사 단추를 찾지 못했다"
-                       : `브랜드와 모의고사 사이 ${brandGap.gap}px (같은 줄=${brandGap.sameRow})`);
+      brandGap.missing ? "브랜드·AI 문서 링크를 찾지 못했다"
+                       : `브랜드와 AI 문서 사이 ${brandGap.gap}px (같은 줄=${brandGap.sameRow})`);
 
   /* ⚠️ 두 이벤트를 **따로** 본다. 함께 쏘면 하나가 죽어도 다른 하나가 가려 준다 —
      `pagehide` 를 새로 넣은 이유(iOS 사파리가 `beforeunload` 를 건너뛴다)가 통째로
@@ -464,8 +468,16 @@ async function runViewportFit(engineName, engine) {
     try {
       await page.goto(`${base}/index.html?xplat=${Date.now()}`, { waitUntil: "domcontentloaded", timeout: 30000 });
       await page.waitForFunction(() => typeof window.normSet === "function", null, { timeout: 20000 });
-      for (const [btn, view, label] of [[null, "#libraryView", "라이브러리"], ["#mockModeBtn", "#mockView", "모의고사"]]) {
-        if (btn) { await page.click(btn); await page.waitForTimeout(900); }
+      /* ⚠️ 모의고사는 이제 **라이브러리 카드로** 연다(전역 버튼이 없어졌다). 새 카드를
+         하나 만들어 실제 진입 경로 그대로 들어간다 — 화면이 뜨는지까지 함께 본다. */
+      for (const [btn, view, label] of [[null, "#libraryView", "라이브러리"], ["mock", "#mockView", "모의고사"]]) {
+        if (btn === "mock") {
+          await page.click("#tabMocks");
+          await page.click("#newMockBtn");
+          await page.waitForFunction(() => document.querySelector("#mockView iframe") &&
+            getComputedStyle(document.getElementById("mockView")).display !== "none", null, { timeout: 20000 });
+          await page.waitForTimeout(900);
+        }
         const r = await page.evaluate((sel) => {
           const bar = document.querySelector(".topbar"), v = document.querySelector(sel);
           if (!bar || !v) return null;

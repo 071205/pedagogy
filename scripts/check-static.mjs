@@ -290,4 +290,50 @@ if (await exists("experiments/hwp-export/samples/choice-layout-truth.json")) {
   }
 }
 
+// ── 모의고사 라이브러리 저장 계층이 실제로 배달되는가 ──────────────────────
+// ⚠️ 새 모듈은 **세 곳**을 함께 고쳐야 산다 — `index.html` 의 `<script src>`,
+//    `serve.py` 의 `STATIC`, 그리고 이 대조. 빼먹으면 각각 정의되지 않은 이름 ·
+//    404 · **조용한 통과**가 된다(구조 분리에서 이미 겪은 방식이다).
+{
+  const serve = await text("serve.py");
+  assert.match(index, /<script src="mock-library-store\.js"><\/script>/,
+    "index.html 이 mock-library-store.js 를 불러오지 않습니다 — 모의고사 라이브러리가 죽습니다");
+  assert.match(serve, /"\/mock-library-store\.js":/,
+    "serve.py 의 STATIC 에 mock-library-store.js 가 없습니다 — 로컬에서 404 로 죽습니다");
+  // ⚠️ **`postMessage` 를 `'*'` 로 보내지 말 것.** 남이 iframe 으로 끼우면 시험지 내용이
+  //    그대로 넘어간다. 같은 출처로 보내고, 출처가 없는 `file://` 에서만 `'*'` 로 떨어진다.
+  const mockDoc = await text("mock-exam-editor.html");
+  for (const [src, where] of [[index, "index.html"], [mockDoc, "mock-exam-editor.html"]]) {
+    /* ⚠️ 인자 하나를 통째로 잡는 정규식(`[^)]*`)은 `Object.assign(...)` 의 `)` 를 못 넘어
+       **아무것도 안 잡는다**(실제로 고장을 심었는데 통과했다). 줄 단위로 본다. */
+    const bad = src.split("\n").filter((l) => /\.postMessage\s*\(/.test(l) && /,\s*['"]\*['"]\s*\)/.test(l));
+    assert.deepEqual(bad, [],
+      `${where} 가 postMessage 를 '*' 로 보냅니다 — 남의 페이지가 시험지 내용을 받습니다`);
+    assert.match(src, /location\.origin\s*&&\s*location\.origin\s*!==\s*"?'?null'?"?\s*\)\s*\?\s*location\.origin\s*:\s*["']\*["']/,
+      `${where} 에 같은 출처 targetOrigin 규칙이 없습니다`);
+  }
+}
+
+// ── 모의고사 클라우드 문서 모양 ↔ Rules 화이트리스트 ───────────────────────
+// ⚠️ **필드를 하나 더하면 두 곳을 함께 고쳐야 한다.** `firestore.rules` 의
+//    `hasOnly([...])` 에 없는 필드를 보내면 저장이 통째로 '권한 오류' 로 실패한다 —
+//    문제집에서 이미 겪은 사고이고, 화면에는 "저장 실패" 한 줄만 뜬다.
+{
+  const rules = await text("firestore.rules");
+  const body = index.match(/function mockToDoc\(e\)\{[\s\S]*?\n\}/);
+  assert.ok(body, "index.html 에서 mockToDoc() 을 찾지 못했습니다");
+  const sent = [...body[0].matchAll(/([A-Za-z][A-Za-z0-9_]*)\s*:/g)].map((m) => m[1]);
+  const block = rules.match(/function hasMockShape\(\)[\s\S]*?hasOnly\(\s*\[([^\]]*)\]/);
+  assert.ok(block, "firestore.rules 에서 hasMockShape() 의 hasOnly 목록을 찾지 못했습니다");
+  const allowed = [...block[1].matchAll(/'([^']+)'/g)].map((m) => m[1]);
+  assert.deepEqual([...new Set(sent)].sort(), [...new Set(allowed)].sort(),
+    "모의고사 클라우드 문서 필드와 firestore.rules 의 허용 목록이 다릅니다 — 저장이 권한 오류로 실패합니다");
+  // tombstone 도 같은 화이트리스트를 지나므로 필드가 빠지면 삭제가 거부된다.
+  const tomb = index.match(/await MOCKS_COL\(owner\)\.doc\(String\(removed\.id\)\)\.set\(\{([\s\S]*?)\}\);/);
+  assert.ok(tomb, "index.html 에서 모의고사 tombstone 쓰기를 찾지 못했습니다");
+  const tombKeys = [...tomb[1].matchAll(/([A-Za-z][A-Za-z0-9_]*)\s*:/g)].map((m) => m[1]);
+  assert.deepEqual([...new Set(tombKeys)].sort(), [...new Set(allowed)].sort(),
+    "tombstone 이 보내는 필드가 Rules 허용 목록과 다릅니다 — 삭제가 다른 기기에 퍼지지 않습니다");
+}
+
 console.log("Commercial static checks passed");

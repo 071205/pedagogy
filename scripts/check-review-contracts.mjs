@@ -183,6 +183,23 @@ try{
     옮기기 전 이 여덟은 최상위 `function` 선언이라 `window` 속성이었고 회귀 검사
     80여 곳이 `win.normBlock(...)` 으로 부른다. 반대로 `uid`·`sanitize`·`str`·
     `normOrder` 는 `const` 였으므로 **올라가면 안 된다** — 표면을 넓히는 것도 회귀다. */
+ /* ⚠️ **모의고사 라이브러리 저장 계층도 `file://` 에서 살아 있어야 한다.**
+    "파일을 그대로 열어 쓴다" 가 이 저장소의 전제라 ESM 을 쓰지 않았고, 이 검사가 그
+    결정을 지킨다. 모의고사 탭은 `file://` 에서도 그려져야 한다(카드 저장은 그 브라우저의
+    localStorage 를 쓴다 — 편집기 iframe 은 출처가 달라 postMessage 로만 이어진다). */
+ await test('mock library store loads and renders from file://',async()=>{
+  const p=await app('index.html',{fileMode:true,schema:0});
+  const got=await p.evaluate(()=>{
+   const S=window.MockLibraryStore;
+   if(!S) return {store:'missing'};
+   mocks=[S.normMock({name:'파일 모의고사',problems:[{id:'p1'}]})];mocksLoaded=true;
+   setLibraryTab('mocks');
+   return {store:typeof S.normMock,
+           panel:!document.getElementById('mocksPanel').hidden,
+           cards:[...document.querySelectorAll('#mockGrid .set-card h3')].map(h=>h.textContent)};
+  });
+  assert.deepEqual(got,{store:'function',panel:true,cards:['파일 모의고사']});await p.close();
+ });
  await test('moving normalization keeps the exact window surface',async()=>{
   const p=await app('index.html',{schema:0});const got=await p.evaluate(()=>({
    up:['safeUrl','normSubject','normSheetColor','normBlock','normProblem','normSet',

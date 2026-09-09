@@ -106,6 +106,29 @@ try {
   await assertSucceeds(setDoc(doc(aliceDb,"users","alice","sets","legacy-no-folder"),
     {...oldSet,deleted:true,name:"",header:"",problems:[]}));
 
+  // ── 모의고사 문서 ── 문제집과 같은 계약(id 일치 · 화이트리스트 · tombstone).
+  const validMock = (id, over = {}) => ({
+    id, name: "6월 대비", round: "6월 대비", elective: "미적분",
+    problems: [{ id: "p1" }], deleted: false, createdAt: 1, updatedAt: 1, ...over });
+  const mock = (db, id, who = "alice") => doc(db, "users", who, "mocks", id);
+  await assertSucceeds(setDoc(mock(aliceDb, "mock-1"), validMock("mock-1")));
+  await assertSucceeds(getDoc(mock(aliceDb, "mock-1")));
+  await assertFails(getDoc(mock(bobDb, "mock-1")), "남의 모의고사를 읽을 수 없어야 한다");
+  await assertFails(setDoc(mock(bobDb, "mock-2"), validMock("mock-2")), "남의 모의고사를 쓸 수 없어야 한다");
+  await assertFails(setDoc(mock(guestDb, "mock-3"), validMock("mock-3")), "로그인 없이 쓸 수 없어야 한다");
+  await assertFails(setDoc(mock(aliceDb, "wrong-id"), validMock("mock-1")),
+    "문서 id 와 내부 id 가 어긋나면 병합이 꼬인다");
+  await assertFails(setDoc(mock(aliceDb, "extra"), validMock("extra", { nickname: "x" })),
+    "모르는 필드는 거부돼야 한다");
+  await assertFails(setDoc(mock(aliceDb, "many"),
+    validMock("many", { problems: Array.from({ length: 61 }, (_, i) => ({ id: "p" + i })) })),
+    "편집기 슬롯 상한(60)을 넘을 수 없어야 한다");
+  await assertFails(setDoc(mock(aliceDb, "bad-tombstone"),
+    validMock("bad-tombstone", { deleted: true })), "내용이 남은 tombstone 은 거부돼야 한다");
+  await assertSucceeds(setDoc(mock(aliceDb, "tombstone"),
+    validMock("tombstone", { deleted: true, name: "", round: "", problems: [] })));
+  await assertSucceeds(deleteDoc(mock(aliceDb, "mock-1")));   // 계정 삭제 경로
+
   // 폴더 **이름 목록**은 별도 문서 하나다. 문제집에 이름을 박으면 이름 하나 바꿀 때
   // 문제집을 전부 다시 써야 한다.
   const prefs = (db, who = "alice") => doc(db, "users", who, "prefs", "library");

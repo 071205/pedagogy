@@ -184,6 +184,9 @@ button{background:none;border:none;cursor:pointer}
 /* PEDAGOGY 본체 안(iframe)에서는 위쪽 상단바에 이미 로고가 있으므로 중복을 없앤다 */
 body.embedded .brand{display:none}
 body.embedded .brand-tag{margin-left:0}
+/* 자동 저장 상태 — 본체 안에서만 쓴다. 실패는 색으로만 가르지 않고 글로도 말한다. */
+.host-status{font-size:12px;color:var(--muted,#8b93a7);white-space:nowrap;align-self:center}
+.host-status.bad{color:#e5534b;font-weight:700}
 
 
 /* 좁은 화면 전용 탭 전환 바 — 데스크톱(≥1024px)에서는 항상 숨김.
@@ -538,6 +541,9 @@ body.embedded .brand-tag{margin-left:0}
     </select>
   </div>
   <div class="tb-r">
+    <!-- 본체 라이브러리 안에서 편집할 때만 보이는 자동 저장 상태.
+         ⚠️ `role="status"` 로 두어 화면낭독기에도 결과가 전달돼야 한다(설계 3단계). -->
+    <span id="hostStatus" class="host-status" role="status" aria-live="polite" hidden></span>
     <button class="btn" id="draftBtn" style="display:none" title="저장하지 않고 종료된 작업을 되살립니다">↩︎ 임시저장 복구</button>
     <button class="btn" id="saveBtn">저장</button>
     <label class="btn" for="loadInput" style="cursor:pointer">불러오기</label>
@@ -1280,7 +1286,7 @@ function renderEditor(){
          ⚠️ 파일명은 그대로 둔다 — Typst 실시간 미리보기는 여전히 `work/` 안 파일을
             쓰고, 데이터 URL 로는 그릴 수 없다. 둘은 쓰임이 다르다. */
       const pickRow=elx('div','row-in'); pickRow.style.alignItems='center';
-      const pick=elx('label','btn', blk.data.data?'그림 바꾸기':'그림 넣기');
+      const pick=elx('label','btn', (blk.data.data||blk.data.url)?'그림 바꾸기':'그림 넣기');
       pick.style.cursor='pointer';
       const file=elx('input'); file.type='file'; file.accept='image/png,image/jpeg';
       file.style.display='none';
@@ -1290,20 +1296,26 @@ function renderEditor(){
         if(f.size>MAX_FIG_BYTES){ toast('그림이 너무 커요 · 2MB 이하로 줄여 주세요','error'); return; }
         try{
           blk.data.data=await fileToDataUrl(f);
+          blk.data.url='';
           if(!blk.data.src) blk.data.src=f.name.replace(/["\\]/g,'');
           edChanged(p,true);
+          /* 로그인 상태면 곧바로 클라우드로 옮긴다 — 그래야 다른 기기에서도 보이고
+             이 브라우저의 저장 공간도 먹지 않는다. 실패하면 데이터 URL 그대로 둔다. */
+          void uploadFigure(blk,p);
         }catch(err){ console.warn(err); toast('그림을 읽지 못했어요','error'); }
       };
       pick.append(file); pickRow.append(pick);
-      if(blk.data.data){
-        const th=elx('img'); th.src=blk.data.data; th.alt='';
+      if(blk.data.data||blk.data.url){
+        const th=elx('img'); th.src=blk.data.data||blk.data.url; th.alt='';
         th.style.cssText='height:34px;width:auto;border-radius:4px;margin-left:8px';
         const rm=elx('button','btn','빼기');
-        rm.onclick=()=>{ blk.data.data=''; edChanged(p,true); };
+        rm.onclick=()=>{ blk.data.data=''; blk.data.url=''; edChanged(p,true); };
         pickRow.append(th, rm);
       }
       body.append(pickRow);
-      body.append(elx('div','hint', blk.data.data
+      body.append(elx('div','hint', blk.data.url
+        ? '그림을 계정에 저장했어요 — 다른 기기에서도 보이고 한글 내보내기에 서버가 필요 없어요.'
+        : blk.data.data
         ? '그림을 이 문서에 담았어요 — 한글 내보내기에 서버가 필요 없어요.'
         : '파일명만 적으면 한글 내보내기에 로컬 서버가 필요해요. '
           +'실시간 미리보기는 serve.py 옆 work/ 폴더의 파일을 씁니다.'));
@@ -2245,6 +2257,7 @@ async function toHwpx(){
        떨어진다 — 그쪽이 여전히 동작하는 대비책이다(AI 문서 편집기와 같은 모양).
        ⚠️ 라이브러리가 없거나(CDN 차단·낡은 브라우저) `CompressionStream` 이 없으면
           아예 시도하지 않는다. 편의 기능 하나가 본체를 멈추면 안 된다. */
+    await resolveFigureBytes();      /* 주소만 있는 그림을 바이트로 — 조판기는 주소를 모른다 */
     const payload=hwpxPayload();
     if(window.PedagogyExam&&window.PedagogyExamTemplate&&window.CompressionStream
        /* ⚠️ **이름이 있는 그림은 서버만 읽을 수 있다.** 편집기의 `src` 는 `work/` 안
@@ -2309,8 +2322,15 @@ function normBlockM(b,S){
   const okData=/^data:image\/(png|jpeg);base64,[A-Za-z0-9+/=]+$/.test(raw)
                && raw.length-raw.indexOf(',')-1<=4*Math.ceil(MAX_FIG_BYTES/3)
                && (()=>{try{return atob(raw.split(',')[1]).length<=MAX_FIG_BYTES;}catch{return false;}})() ? raw : '';
+  /* ⚠️ **클라우드에 올라간 그림은 주소로만 들고 있는다.** base64 를 문서에 담아 두면
+     시험지 하나가 Firestore 1MB 한도를 그냥 넘고, 이 브라우저의 localStorage 도 넘친다.
+     ⚠️ 주소는 화이트리스트로 막는다 — 가져온 `.json` 은 신뢰하지 않는다.
+        (`javascript:` 같은 것이 `<img src>` 로 들어가면 안 된다) */
+  const rawUrl=typeof d.url==='string'?d.url:'';
+  const okUrl=/^https:\/\/(firebasestorage\.googleapis\.com|storage\.googleapis\.com)\//.test(rawUrl)
+              && rawUrl.length<=2000 ? rawUrl : '';
   return {type:'image',data:{width:Math.max(0,Math.min(110,+d.width||0)),
-                             src:S(d.src,'').replace(/["\\]/g,''), data:okData}};
+                             src:S(d.src,'').replace(/["\\]/g,''), data:okData, url:okUrl}};
 }
 
 function sanitize(base,p){
@@ -2362,6 +2382,151 @@ function currentData(){
   return {v:1,round:$('#round').value,elective:$('#elective').value,problems:state.problems};
 }
 
+/* ── 본체 라이브러리와의 계약 (`docs/MOCK-LIBRARY-DESIGN.md` 3단계) ──────────
+   본체(`index.html`) 안에 iframe 으로 들어가면 **저장은 본체가 한다.** 이 문서는
+   자기 상태를 postMessage 로 올려 보내고, 본체가 `mock-library-store.js` 로 쓴다.
+   ⚠️ **왜 iframe 안에서 직접 localStorage 를 쓰지 않나** — 쓰는 곳이 둘이면 같은
+      항목을 서로 덮어쓴다(문제집에서 겪은 다중 탭 사고와 같은 모양이다). 쓰는 곳은
+      하나여야 한다. 게다가 `file://` 에서는 iframe 이 서로 다른 출처라 본체가 이
+      문서의 저장소를 볼 수 없다 — postMessage 는 그때도 된다.
+   ⚠️ **`targetOrigin` 을 `'*'` 로 고정하지 말 것.** 이 문서는 누구나 iframe 으로
+      끼울 수 있고(메타 CSP 로는 `frame-ancestors` 를 걸 수 없다), `'*'` 로 보내면
+      남의 페이지가 사용자의 시험지 내용을 그대로 받는다. 같은 출처로만 보낸다 —
+      `file://` 은 출처가 `null` 이라 그때만 `'*'` 로 떨어진다(사용자가 자기 파일을
+      직접 연 경우다).
+   ⚠️ 받을 때는 **보낸 창이 내 부모인지**로 가른다. 출처 문자열보다 확실하고
+      `file://`(`null` 출처)에서도 옳게 판정한다. */
+const MOCK_NS='pedagogy-mock';
+const HOST_TARGET=(location.origin && location.origin!=='null')?location.origin:'*';
+let hostEmbedded=false, hostMockId='', hostSaveTimer=null;
+function inFrame(){ try{ return window.self!==window.top; }catch(e){ return true; } }
+function postHost(msg){
+  if(!hostEmbedded) return;
+  try{ window.parent.postMessage(Object.assign({ns:MOCK_NS},msg),HOST_TARGET); }catch(e){}
+}
+/* 저장 상태는 눈과 화면낭독기 양쪽에 알린다(설계 3단계). */
+function setHostStatus(text,tone){
+  const b=$('#hostStatus'); if(!b) return;
+  b.hidden=!hostEmbedded||!text;
+  b.textContent=text||'';
+  b.className='host-status'+(tone?' '+tone:'');
+  /* ⚠️ **지금 어느 카드를 들고 있는지 밖에서 보이게 한다.** 글만 보면 앞 카드의
+     '저장됨' 과 새 카드의 '저장됨' 을 가를 수 없어, 아직 안 바뀐 편집기에 입력이
+     들어가 **앞 카드에 저장된다**(회귀 검사를 만들다 실제로 그 순서가 났다). */
+  if(hostMockId) b.setAttribute('data-mock-id',hostMockId); else b.removeAttribute('data-mock-id');
+}
+/* 문항 30~60개를 통째로 실어 보내므로 타이핑마다 보내지 않는다(임시저장과 같은 1초).
+   ⚠️ 그 1초가 그대로 손실 창이다 — 탭이 숨거나 닫히려 하면 **즉시** 보낸다. */
+function hostSave(now){
+  if(!hostEmbedded||!hostMockId) return false;
+  clearTimeout(hostSaveTimer);
+  const send=()=>{ setHostStatus('저장 중…'); postHost({type:'save',id:hostMockId,data:currentData()}); };
+  if(now) send(); else hostSaveTimer=setTimeout(send,1000);
+  return true;
+}
+/* 새 모의고사(문항이 아직 없는 카드)는 표본 문항 없이 빈 시험지로 시작한다.
+   ⚠️ 파일 맨 위 `seed()` 의 예시 문항을 물려주면 **모든 새 카드가 같은 내용**으로 생긴다. */
+function resetProblems(){
+  state.problems=Array.from({length:30},(_,i)=>blank(i+1));
+  state.sel=state.problems[0].id;
+}
+function hostLoad(id,data){
+  /* ⚠️ **앞 카드의 대기 중 저장을 먼저 흘려보낸다.** 카드를 빠르게 바꿔 열면 1초
+     디바운스가 아직 안 끝났고, 그냥 타이머를 지우면 **마지막 몇 초 작업이 사라진다.**
+     (본체는 '이미 있는 카드' 면 받으므로 앞 카드 id 로 보내도 옳게 들어간다) */
+  if(hostMockId && hostMockId!==String(id||'') && DIRTY) hostSave(true);
+  hostMockId=String(id||'');
+  clearTimeout(hostSaveTimer);
+  if(data && Array.isArray(data.problems) && data.problems.length){ applyData(data); }
+  else{
+    if(data && data.round) $('#round').value=data.round;
+    if(data && data.elective) $('#elective').value=data.elective;
+    resetProblems(); renderPreview(); renderEditor(); renderOutline();
+  }
+  DIRTY=false;
+  setHostStatus('저장됨');
+  void migrateFiguresToCloud();     /* 이 기기에만 담아 둔 그림을 계정으로 */
+  /* 방금 만든 카드는 아직 내용이 없다 — 바로 한 번 올려 두어야 새로고침해도 남는다. */
+  if(!(data && Array.isArray(data.problems) && data.problems.length)) hostSave(true);
+}
+/* ── 그림을 계정으로 올린다 (본체를 거쳐서) ─────────────────────────────────
+   ⚠️ **이 문서에는 Firebase 가 없다.** 본체만 로그인 상태와 SDK 를 안다. 그래서
+      바이트를 본체로 보내고 본체가 Storage 에 올린 뒤 주소만 돌려준다.
+   ⚠️ **실패하면 데이터 URL 을 그대로 둔다** — 올리지 못했다고 그림을 잃으면 안 된다.
+      다만 그 상태로는 다른 기기에서 안 보이므로 조용히 넘어가지 않는다. */
+let hostCanUpload=false, figReq=0;
+const figWaiting=new Map();
+function uploadFigure(blk,p){
+  if(!hostEmbedded||!hostCanUpload) return Promise.resolve(false);
+  const raw=blk&&blk.data&&blk.data.data;
+  if(!raw) return Promise.resolve(false);
+  const id=++figReq;
+  return new Promise(resolve=>{
+    figWaiting.set(id,{blk,p,resolve});
+    postHost({type:'upload',reqId:id,name:(blk.data.src||'figure.png'),data:raw});
+    setTimeout(()=>{ if(figWaiting.delete(id)) resolve(false); },30000);
+  });
+}
+/* 예전에 이 기기에만 담아 둔 그림을 계정으로 옮긴다(로그인 뒤 처음 열 때).
+   ⚠️ 한 장이라도 옮겼으면 저장까지 해야 한다 — 안 그러면 다음에 또 올린다. */
+async function migrateFiguresToCloud(){
+  if(!hostCanUpload) return;
+  let moved=0;
+  for(const p of state.problems)
+    for(const b of (p.blocks||[]))
+      if(b.type==='image' && b.data && b.data.data && !b.data.url)
+        if(await uploadFigure(b,p)) moved++;
+  if(moved){ renderEditor(); hostSave(true); }
+}
+/* 한글 내보내기는 **바이트**가 필요하다. 주소만 있는 그림을 받아 온다.
+   ⚠️ 조판기(`hwpx-exam.js`·`mock_to_hwpx.py`)에는 주소 개념을 넣지 않았다 — 사본 둘이
+      갈라지기 때문이다. 그래서 **여기서** 바이트로 바꿔 놓고 넘긴다.
+   ⚠️ 가져오지 못하면 조용히 자리표시로 내보내지 않고 **말한다.** */
+async function resolveFigureBytes(){
+  const need=[];
+  for(const p of state.problems)
+    for(const b of (p.blocks||[]))
+      if(b.type==='image' && b.data && b.data.url && !b.data.data) need.push(b);
+  if(!need.length) return true;
+  let failed=0;
+  for(const b of need){
+    try{
+      const r=await fetch(b.data.url);
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      const blob=await r.blob();
+      if(blob.size>MAX_FIG_BYTES) throw new Error('그림이 너무 큽니다');
+      b.data.data=await new Promise((res,rej)=>{
+        const fr=new FileReader(); fr.onload=()=>res(String(fr.result));
+        fr.onerror=()=>rej(fr.error); fr.readAsDataURL(blob);
+      });
+    }catch(err){ console.warn('그림을 가져오지 못했습니다', b.data.url, err); failed++; }
+  }
+  if(failed) toast(`그림 ${failed}장을 가져오지 못해 자리표시로 나갑니다 · 인터넷 연결을 확인해 주세요`,'error');
+  return failed===0;
+}
+
+window.addEventListener('message',e=>{
+  if(!hostEmbedded) return;
+  if(e.source!==window.parent) return;                 /* 부모가 보낸 것만 받는다 */
+  const m=e.data;
+  if(!m || typeof m!=='object' || m.ns!==MOCK_NS) return;
+  if(m.type==='uploaded'){
+    const w=figWaiting.get(m.reqId); if(!w) return;
+    figWaiting.delete(m.reqId);
+    if(m.url){ w.blk.data.url=m.url; w.blk.data.data=''; }
+    else if(m.error) toast('그림을 계정에 올리지 못해 이 기기에만 담았어요 · 다른 기기에서는 안 보입니다','error');
+    w.resolve(!!m.url);
+    return;
+  }
+  if(m.type==='load'){ hostCanUpload=!!m.canUpload; hostLoad(m.id,m.data); return; }
+  if(m.type==='saved'){
+    if(m.id!==hostMockId) return;
+    setHostStatus(m.ok?'저장됨':'저장 실패 · 저장 버튼으로 .json 을 받아 두세요', m.ok?'':'bad');
+    if(!m.ok) toast('모의고사를 저장하지 못했어요 · 저장 공간이 가득 찼을 수 있습니다. 저장 버튼으로 .json 을 받아 두세요','error');
+    return;
+  }
+});
+
 /* 임시저장 실패는 한 번만 알린다 — 1초마다 도는 함수라 매번 띄우면 화면이 덮인다 */
 let draftWarned=false;
 function warnDraftOnce(){
@@ -2381,11 +2546,16 @@ function saveDraft(){
   }
 }
 
-/* 편집이 멈춘 뒤 1초 후 임시저장 — 타이핑마다 직렬화하지 않는다 */
+/* 편집이 멈춘 뒤 1초 후 임시저장 — 타이핑마다 직렬화하지 않는다.
+   ⚠️ 본체 안에서는 임시본이 아니라 **그 카드 자체**를 저장한다(위 계약). */
 let draftTimer=null;
-function scheduleDraft(){ clearTimeout(draftTimer); draftTimer=setTimeout(saveDraft,1000); }
+function scheduleDraft(){
+  if(hostSave(false)) return;
+  clearTimeout(draftTimer); draftTimer=setTimeout(saveDraft,1000);
+}
 
 function clearDraft(){
+  if(hostEmbedded) return;   /* 본체 안에서는 구형 임시본을 건드리지 않는다(이전 원본이다) */
   try{ localStorage.removeItem(DRAFT_KEY); }catch(e){ console.error(e); }
 }
 
@@ -2471,7 +2641,17 @@ document.addEventListener('keydown',e=>{
 /* 저장 안 한 채로 닫으려 하면 경고 + localStorage 임시저장 */
 document.addEventListener('input',()=>{DIRTY=true;scheduleDraft();});
 window.addEventListener('beforeunload',e=>{
-  if(DIRTY){ saveDraft(); e.preventDefault(); e.returnValue=''; }
+  if(!DIRTY) return;
+  /* 본체 안에서는 자동 저장이 있으므로 막지 않는다 — 대신 **지금 즉시** 올려 보낸다.
+     (본체에도 자체 종료 경고가 있어 여기서 또 막으면 경고가 두 번 뜬다) */
+  if(hostSave(true)) return;
+  saveDraft(); e.preventDefault(); e.returnValue='';
+});
+/* ⚠️ 1초 디바운스가 손실 창이다 — 탭을 숨기거나 떠날 때는 기다리지 않고 보낸다.
+   `beforeunload` 는 모바일에서 안 도는 경우가 있어 둘을 함께 둔다. */
+window.addEventListener('pagehide',()=>{ if(DIRTY) hostSave(true); });
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='hidden' && DIRTY) hostSave(true);
 });
 $('#loadInput').onchange=e=>{
   const f=e.target.files[0];if(!f)return;
@@ -2492,12 +2672,15 @@ async function boot(){
   pvUserZoomed=false;
   // PEDAGOGY 본체 안에 iframe 으로 들어간 경우 — 위쪽에 이미 같은 로고가 있으므로
   // 이 문서의 로고는 숨긴다(상단 로고가 두 개로 보이던 문제).
-  try{ if(window.self!==window.top) document.body.classList.add('embedded'); }
-  catch(e){ document.body.classList.add('embedded'); }   // 교차 출처면 iframe 으로 본다
+  hostEmbedded=inFrame();
+  if(hostEmbedded) document.body.classList.add('embedded');
 
   renderPreview();renderEditor();renderOutline();
 
-  offerDraftRestore();          // 저장 없이 끝난 직전 작업이 있으면 복구 제안
+  /* 본체 안에서는 **본체가 어느 카드를 편집할지 정한다** — 여기서 구형 임시본을 복구하면
+     그 카드의 내용을 남의 것으로 덮는다. 구형 임시본은 본체가 라이브러리로 한 번 옮긴다. */
+  if(hostEmbedded){ setHostStatus('불러오는 중…'); postHost({type:'ready'}); }
+  else offerDraftRestore();     // 저장 없이 끝난 직전 작업이 있으면 복구 제안
   $('#liveBtn').onclick=async()=>{
     if(LIVE.on)return setLive(false);
     if(await pingServer()){ injectServerWebfonts(); setLive(true); }

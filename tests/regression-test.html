@@ -341,8 +341,9 @@ async function runIndexTests(){
   });
 
   // ── 이모지 정리(최근 단계) ──
-  await check(G, "모의고사 버튼 텍스트에 이모지 없음", () =>
-    win.document.getElementById("mockModeBtn").textContent.trim() === "모의고사");
+  /* 전역 `모의고사` 버튼은 라이브러리 세그먼트로 옮겼다 — 검사도 그 자리로 옮긴다. */
+  await check(G, "모의고사 탭 텍스트에 이모지 없음", () =>
+    win.document.getElementById("tabMocks").textContent.trim() === "모의고사 라이브러리");
 
   await check(G, "AI 프롬프트 버튼 텍스트에 이모지 없음", () =>
     win.document.getElementById("promptBtn").textContent.trim() === "AI 프롬프트");
@@ -440,7 +441,7 @@ async function runIndexTests(){
 
   await check(G, "공개 문구에 기관명('평가원')을 쓰지 않는다", () => {
     const desc = win.document.querySelector('meta[name="description"]');
-    const btn  = win.document.getElementById("mockModeBtn");
+    const btn  = win.document.getElementById("tabMocks");
     const bad = (desc && desc.content.includes("평가원")) ||
                 (btn && (btn.title||"").includes("평가원"));
     return { pass: !bad, note: bad ? "검색결과·툴팁에 기관명이 남아 있음" : undefined };

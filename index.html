@@ -255,6 +255,11 @@ button{
 }
 button:hover{background:var(--surface-hover);border-color:#35353F}
 button:active{transform:scale(.98)}
+/* ⚠️ **`button{display:inline-flex}` 는 브라우저 기본 `[hidden]{display:none}` 을 이긴다.**
+   `hidden` 을 붙였는데 단추가 그대로 보이고 **눌린다** — 아래 `.select-bar[hidden]` 과
+   같은 함정이고, 모의고사 라이브러리를 붙이면서 `#mockBackBtn` 이 실제로 그랬다.
+   개별 단추마다 예외를 늘리지 말고 여기서 한 번에 막는다. */
+button[hidden]{display:none!important}
 .btn{background:transparent;border-color:transparent;color:var(--text-secondary)}
 .btn:hover{background:var(--surface-2);border-color:var(--border);color:var(--text-primary)}
 .btn-primary{background:var(--blue-on-white-text);border-color:transparent;color:#fff}
@@ -299,9 +304,32 @@ label.btn input{display:none}
    #libraryView 는 JS 에서도 "flex" 로 켜야 한다(showLibrary()/showLibraryLoading() 등,
    inline style 가 이 규칙보다 우선하므로 여기만 고치면 무시된다). */
 #libraryView{padding:32px;display:flex;flex-direction:column}
-.lib-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:28px}
+.lib-header{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:28px}
 .lib-header h2{margin:0;font-size:24px;font-weight:700;color:var(--text-primary)}
+/* 눈에는 안 보이지만 화면낭독기에는 남는 제목 — 세그먼트가 제목 자리를 대신하면서
+   문서에 h2 가 사라지는 것을 막는다. `display:none` 은 낭독기에서도 사라지므로 안 된다. */
+.sr-only{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;
+  clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap;border:0}
+/* 라이브러리 종류 전환 (문제집 | 모의고사) */
+.lib-tabs{display:flex;gap:4px;padding:4px;border-radius:var(--radius-lg);background:var(--surface-2,var(--surface-1))}
+.lib-tab{
+  height:36px;padding:0 14px;border:1px solid transparent;border-radius:12px;
+  background:transparent;color:var(--text-secondary);
+  font-size:15px;font-weight:700;cursor:pointer;white-space:nowrap;
+}
+/* 밝은 테마에서는 흰 알약이 회색 트레이 위에 놓이는 것만으로는 대비가 약하다 —
+   골랐다는 신호를 그림자로 한 번 더 준다(액션 단추와 같은 처리). */
+.lib-tab.on{background:var(--surface-1);border-color:var(--border);color:var(--text-primary);
+  box-shadow:0 1px 3px rgba(0,0,0,.10)}
+@media (pointer: coarse){ .lib-tab{height:44px;padding:0 16px} }
 .lib-actions{display:flex;gap:8px}
+/* 같은 이유 — `display:flex` 가 `[hidden]` 을 이긴다. 두 갈래 액션이 함께 보이면 안 된다. */
+.lib-actions[hidden]{display:none}
+.lib-actions button{
+  height:40px;padding:0 16px;border-radius:var(--radius-lg);
+  box-shadow:0 1px 0 rgba(255,255,255,.04);
+}
+.lib-actions .btn-accent{box-shadow:0 5px 14px rgba(49,130,246,.18)}
 /* flex:1 은 푸터를 화면 아래에 붙이려고 준 것인데, 그것만 두면 그리드가 남는
    세로 공간을 채우려고 '행 높이까지' 늘려서 카드가 위아래로 길어진다(푸터를
    넣으면서 생긴 회귀). align-content:start 로 행은 제 높이를 지키게 하고,
@@ -1104,6 +1132,8 @@ body.hide-answers .answer-block{display:none!important}
   /* 버튼이 넷(새 문제집·전체 내보내기·가져오기·데이터 관리)이라 좁은 폭에서는
      한 줄에 안 들어간다 — 줄바꿈을 허용하지 않으면 가로로 밀려 넘친다. */
   .lib-actions{flex-wrap:wrap}
+  /* 검색·정렬은 첫 줄, 개수가 가변적인 폴더는 그 아래 넓은 줄을 쓴다. */
+  .lib-bar .folder-bar{order:3;flex-basis:100%;margin-top:2px;padding:8px 10px}
   /* 이 폭에서는 상단바가 줄바꿈돼 높이가 늘어난다(실측 139px, 기본 규칙은 60px
      가정). 그 차이만큼 min-height 가 과대평가돼 문제집이 적을 때도 푸터가
      화면 아래로 밀려 스크롤이 필요했다(실측 79px). 상단바 높이는 로그인
@@ -1262,7 +1292,7 @@ input:focus-visible,textarea:focus-visible{outline:none}
 /* ── 검색 줄 · 폴더 칩 · 선택 막대 ──────────────────────────────────────
    ⚠️ 한 줄(`lib-bar`)에 검색칸과 단추 셋을 넣되 **줄바꿈을 허용한다.** 375px 에서
       줄바꿈이 없으면 단추가 화면 밖으로 밀려난다(`REV-2026-026` 이 그 사고였다). */
-.lib-bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:4px}
+.lib-bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:20px}
 /* ⚠️ 좁은 화면에서 **한 줄에 들어가도록** 검색칸이 더 줄게 둔다(1 1 120px).
    200px 로 두면 375px 에서 두 줄이 되어 라이브러리가 96px 높아지고, 상단 바까지 더하면
    화면 밖으로 11px 밀린다(실측). `flex-wrap` 은 그대로 두어 더 좁으면 접히게 한다. */
@@ -1271,7 +1301,16 @@ input:focus-visible,textarea:focus-visible{outline:none}
 .lib-menu-wrap{position:relative}
 .lib-menu{right:0;left:auto;top:calc(100% + 4px)}
 #sortBtn{max-width:116px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.folder-bar{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.folder-bar{
+  display:flex;flex:1 1 320px;flex-wrap:wrap;align-items:center;gap:8px;
+  min-width:0;margin:0;padding:6px 8px;
+  border:1px solid var(--border-subtle);border-radius:var(--radius-lg);
+  background:var(--surface-1);
+}
+.folder-bar-label{
+  flex:none;margin-right:4px;color:var(--text-tertiary);
+  font-size:12px;font-weight:700;letter-spacing:.02em;
+}
 .folder-chip{
   display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 12px;
   border:1px solid var(--border);border-radius:999px;background:var(--surface-1);
@@ -1311,7 +1350,8 @@ input:focus-visible,textarea:focus-visible{outline:none}
   position:absolute;top:12px;left:12px;width:20px;height:20px;margin:0;cursor:pointer;accent-color:var(--blue);
 }
 .lib-grid.picking .set-card{padding-left:42px}
-.set-card .card-folder{font-size:12px;color:var(--text-tertiary);margin-top:2px}
+.set-card .card-folder,.set-card .card-when{font-size:12px;color:var(--text-tertiary);margin-top:2px}
+.empty-state .es-actions{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:14px}
 
 /* ── 빈 상태 ── */
 .empty-state{
@@ -1342,8 +1382,11 @@ input:focus-visible,textarea:focus-visible{outline:none}
 <!-- Topbar -->
 <div class="topbar">
   <button type="button" class="brand" id="brandBtn" aria-label="문제집 라이브러리로 이동">PEDAGOGY</button>
-  <button id="mockModeBtn" class="btn" style="margin-left:14px" title="수능 모의고사 양식 시험지 편집기">모의고사</button>
-  <a class="btn" href="document-editor.html" style="margin-left:-6px;text-decoration:none" title="AI 초안·검증·한글 HWPX 내보내기 베타">AI 문서 β</a>
+  <!-- 모의고사 편집기에서 라이브러리로 돌아가는 길. 그 화면에서만 보인다. -->
+  <button type="button" id="mockBackBtn" class="btn" style="margin-left:14px" hidden>← 라이브러리</button>
+  <!-- ⚠️ 예전에 여기 있던 `모의고사` 버튼은 라이브러리 세그먼트로 옮겼다.
+       ('AI 문서 β' 는 두 라이브러리와 성격이 다른 별도 도구라 상단에 남는다) -->
+  <a class="btn" href="document-editor.html" style="margin-left:14px;text-decoration:none" title="AI 초안·검증·한글 HWPX 내보내기 베타">AI 문서 β</a>
   <div class="actions" id="topActions">
     <button id="undoBtn" class="btn-ghost histbtn" title="실행취소 (Cmd/Ctrl+Z)" aria-label="실행취소" disabled><span class="icon icon-undo" aria-hidden="true"></span></button>
     <button id="redoBtn" class="btn-ghost histbtn" title="다시실행 (Cmd/Ctrl+Shift+Z)" aria-label="다시실행" disabled><span class="icon icon-redo" aria-hidden="true"></span></button>
@@ -1383,17 +1426,35 @@ input:focus-visible,textarea:focus-visible{outline:none}
 <main id="appMain" tabindex="-1">
 <div id="libraryView">
   <div class="lib-header">
-    <h2 style="margin:0">문제집 라이브러리</h2>
-    <div class="lib-actions">
+    <!-- ⚠️ 제목 자리를 세그먼트 전환으로 바꿨다(`docs/MOCK-LIBRARY-DESIGN.md`).
+         상단 바의 `모의고사` 버튼은 이 전환으로 대체돼 사라졌다 — 상단 바가 이미
+         좁은 화면에서 줄바꿈될 만큼 붐볐고, 모의고사도 '라이브러리에 든 자료' 이지
+         전역 모드가 아니기 때문이다. -->
+    <h2 class="sr-only">라이브러리</h2>
+    <div class="lib-tabs" role="tablist" aria-label="라이브러리 종류">
+      <button type="button" id="tabSets" class="lib-tab on" role="tab"
+              aria-selected="true" aria-controls="setsPanel">문제집 라이브러리</button>
+      <button type="button" id="tabMocks" class="lib-tab" role="tab" tabindex="-1"
+              aria-selected="false" aria-controls="mocksPanel"
+              title="수능 모의고사 양식 시험지 편집기">모의고사 라이브러리</button>
+    </div>
+    <div class="lib-actions" id="setsActions">
       <button id="newSetBtn" class="btn-accent">+ 새 문제집</button>
       <button id="exportAllBtn">전체 내보내기</button>
       <button id="importAllBtn">가져오기</button>
       <button id="dataMgmtBtn" title="백업 복구 · 데이터 삭제">데이터 관리</button>
       <input id="importAllInput" type="file" accept="application/json" style="display:none">
     </div>
+    <div class="lib-actions" id="mocksActions" hidden>
+      <button id="newMockBtn" class="btn-accent">+ 새 모의고사</button>
+      <button id="importMockBtn">가져오기</button>
+      <input id="importMockInput" type="file" accept="application/json" style="display:none">
+    </div>
   </div>
+  <div id="setsPanel" role="tabpanel" aria-labelledby="tabSets">
   <div class="lib-bar">
     <div class="lib-search"><input id="setSearch" type="search" aria-label="문제집 검색" placeholder="문제집 검색…" autocomplete="off"></div>
+    <div id="folderBar" class="folder-bar"></div>
     <div class="lib-tools">
       <div class="lib-menu-wrap">
         <button id="sortBtn" class="btn-ghost" aria-haspopup="true" aria-expanded="false">정렬</button>
@@ -1403,7 +1464,6 @@ input:focus-visible,textarea:focus-visible{outline:none}
       <button id="settingsBtn" class="btn-ghost" title="설정">설정</button>
     </div>
   </div>
-  <div id="folderBar" class="folder-bar"></div>
   <div id="selectBar" class="select-bar" hidden>
     <span id="selectCount" aria-live="polite">0개 선택</span>
     <div class="select-actions">
@@ -1414,6 +1474,23 @@ input:focus-visible,textarea:focus-visible{outline:none}
     </div>
   </div>
   <div id="setGrid" class="lib-grid"></div>
+  </div><!-- /#setsPanel -->
+
+  <!-- 모의고사 라이브러리 — 문제집과 **다른 저장소**를 쓴다(`mock-library-store.js`).
+       스키마·출력 엔진·이미지 수명이 달라 한 배열에 섞으면 정규화·병합·삭제 계약까지
+       불필요하게 묶인다. 지금은 이 기기 안에만 저장한다(클라우드는 별도 단계). -->
+  <div id="mocksPanel" role="tabpanel" aria-labelledby="tabMocks" hidden>
+    <div class="lib-bar">
+      <div class="lib-search"><input id="mockSearch" type="search" aria-label="모의고사 검색" placeholder="모의고사 검색…" autocomplete="off"></div>
+      <div class="lib-tools">
+        <div class="lib-menu-wrap">
+          <button id="mockSortBtn" class="btn-ghost" aria-haspopup="true" aria-expanded="false">정렬</button>
+          <div id="mockSortMenu" class="menu lib-menu" role="menu"></div>
+        </div>
+      </div>
+    </div>
+    <div id="mockGrid" class="lib-grid"></div>
+  </div>
   <footer class="lib-footer">
     <div class="lib-footer-links">
       <a href="legal.html#terms">이용약관</a>
@@ -1526,42 +1603,52 @@ function setEditorActions(on){
    편집기 자체는 iframe(별도 문서)이라 전역 변수·CSS·저장소가 서로 섞이지 않는다. */
 (function(){
   var V=document.getElementById('mockView'),
-      B=document.getElementById('mockModeBtn'),
+      BACK=document.getElementById('mockBackBtn'),
       FB=document.getElementById('mockFallback');
-  if(!V||!B) return;
+  if(!V) return;
   function hideOthers(){
     ['libraryView','editorView'].forEach(function(id){
       var e=document.getElementById(id); if(e) e.style.display='none';
     });
     setEditorActions(false);
   }
-  function open(){
-    hideOthers(); V.style.display='block'; B.classList.add('on'); B.textContent='← PEDAGOGY';
-    if(!V.querySelector('iframe')){
-      var fr=document.createElement('iframe');
-      fr.id='mockFrame'; fr.title='모의고사 편집기'; fr.src='mock-exam-editor.html';
-      fr.onerror=function(){ fr.remove(); FB.hidden=false; };
-      fr.onload=function(){
-        try{ var d=fr.contentDocument;
-             if(d && !d.querySelector('#stage')){ fr.remove(); FB.hidden=false; return; } }
-        catch(e){}   /* 교차 출처면 검사 불가 — 정상으로 본다 */
-        if(typeof paintTheme==='function') paintTheme(themeCur);   // 현재 테마 물려주기
-      };
-      V.appendChild(fr);
-    }
+  /* iframe 은 **한 번만** 만든다 — 카드를 바꿔 열 때마다 새로 만들면 편집기가 매번
+     다시 부팅되고(수백 ms) 그 사이 저장 계약이 끊긴다. 어느 카드를 편집할지는
+     postMessage 로 바꿔 준다(`docs/MOCK-LIBRARY-DESIGN.md` 3단계). */
+  function frame(){
+    var fr=V.querySelector('iframe');
+    if(fr) return fr;
+    fr=document.createElement('iframe');
+    fr.id='mockFrame'; fr.title='모의고사 편집기'; fr.src='mock-exam-editor.html';
+    fr.onerror=function(){ fr.remove(); FB.hidden=false; };
+    fr.onload=function(){
+      try{ var d=fr.contentDocument;
+           if(d && !d.querySelector('#stage')){ fr.remove(); FB.hidden=false; return; } }
+      catch(e){}   /* 교차 출처면 검사 불가 — 정상으로 본다 */
+      if(typeof paintTheme==='function') paintTheme(themeCur);   // 현재 테마 물려주기
+    };
+    V.appendChild(fr);
+    return fr;
   }
-  function back(){
-    V.style.display='none'; B.classList.remove('on'); B.textContent='모의고사';
-    if(typeof window.showLibrary==='function'){ window.showLibrary(); return; }
+  /* 본체 스크립트(라이브러리)가 부른다. 반환값은 iframe — 메시지는 그쪽이 보낸다. */
+  window.__mockShow=function(){
+    hideOthers(); V.style.display='block';
+    if(BACK) BACK.hidden=false;
+    return frame();
+  };
+  window.__mockFrame=function(){ return V.querySelector('iframe'); };
+  window.__mockOpen=function(){ return V.style.display==='block'; };
+  /* 본체가 다른 뷰로 전환할 때 되돌리기 위해 노출 */
+  window.__mockClose=function(){ if(BACK) BACK.hidden=true; };
+  if(BACK) BACK.onclick=function(){
+    V.style.display='none'; BACK.hidden=true;
+    if(typeof window.showLibrary==='function'){ window.showLibrary('mocks'); return; }
     var l=document.getElementById('libraryView'); if(l) l.style.display='flex';
-  }
-  B.onclick=function(){ V.style.display==='block'?back():open(); };
-  /* 본체가 다른 뷰로 전환할 때 버튼 상태를 되돌리기 위해 노출 */
-  window.__mockClose=function(){ B.classList.remove('on'); B.textContent='모의고사'; };
+  };
   /* 본체가 라이브러리/편집기로 전환할 때 이 뷰도 확실히 닫는다 */
   var brand=document.getElementById('brandBtn');
   if(brand) brand.addEventListener('click', function(){
-    V.style.display='none'; B.classList.remove('on'); B.textContent='모의고사'; });
+    V.style.display='none'; if(BACK) BACK.hidden=true; });
 })();
 </script>
 
@@ -1866,6 +1953,7 @@ function setEditorActions(on){
 <script src="pedagogy-normalize.js"></script>
 <script src="pedagogy-render.js"></script>
 <script src="pedagogy-print.js"></script>
+<script src="mock-library-store.js"></script>
 <script>
 /* ===== Utils ===== */
 const $=s=>document.querySelector(s);
@@ -3151,7 +3239,7 @@ const UI_LOCALES=[
 const UI_STRINGS={
   en:{
     "lib.search":"Search sets", "lib.sort":"Sort", "lib.select":"Select",
-    "lib.settings":"Settings", "lib.all":"All", "lib.noFolder":"No folder",
+    "lib.settings":"Settings", "lib.folder":"Folders", "lib.all":"All", "lib.noFolder":"No folder",
     "lib.newFolder":"+ New folder", "lib.unknownFolder":"Unknown folder",
     "lib.selectAll":"Select all", "lib.moveTo":"Move to folder", "lib.selected":"{n} selected",
     "lib.export":"Export", "lib.delete":"Delete", "lib.done":"Done",
@@ -3374,6 +3462,24 @@ function accountLocalKeys(){
   return { sets:setsKey(), backup:backupKey(), lastQ:lastQKey(),
            stamps:stampsKey(), lastSet:lastSetKey(), libMeta:libMetaKey() };
 }
+/* ⚠️ 모의고사 키는 **일부러 위 목록에 넣지 않았다.** '모든 문제집 삭제' 는 이름 그대로
+   문제집만 지운다 — 모의고사는 다른 라이브러리이므로 함께 지우면 놀란다.
+   계정 삭제에서만 이 목록을 함께 지운다. */
+function mockLocalKeys(owner){
+  const k=MockStore.keysFor(owner||mockOwner());
+  return { mocks:k.list, mockLast:k.last, mockMigrated:k.migrated, mockSort:"PM_MOCK_SORT_V1:"+(owner||mockOwner()) };
+}
+/* 계정 삭제용 — 모의고사 문서를 실제로 지운다(계정이 사라지므로 tombstone 불필요). */
+async function wipeCloudMocks(uid){
+  const snap=await MOCKS_COL(uid).get();
+  const ids=snap.docs.map(d=>d.id);
+  for(let off=0; off<ids.length; off+=400){
+    const batch=fbDb.batch();
+    ids.slice(off,off+400).forEach(id=>batch.delete(MOCKS_COL(uid).doc(id)));
+    await batch.commit();
+  }
+  return ids.length;
+}
 
 function readBackupInfo(){
   try{
@@ -3530,7 +3636,9 @@ async function deleteAccountEverything(){
 
   wiping=true;
   clearTimeout(saveTimer); clearTimeout(localTimer);
+  clearTimeout(mockCloudTimer); mockCloudTimer=null;
   if(setsUnsub){ setsUnsub(); setsUnsub=null; }
+  if(mocksUnsub){ mocksUnsub(); mocksUnsub=null; }   /* 안 끊으면 우리가 쓰는 tombstone 을 도로 읽는다 */
 
   try{
     // 비용 카운터는 클라이언트에서 지우지 않는다(최대 48시간 자동 만료).
@@ -3545,6 +3653,12 @@ async function deleteAccountEverything(){
     const ids=await cloudSetDocIds(uid,{includeTombstones:true});
     await wipeCloudSets(uid, ids, {realDelete:true});   // 계정이 사라지므로 tombstone 불필요
 
+    /* ⚠️ **모의고사도 파기 대상이다.** 개인정보 파기는 나중에 붙이는 기능이 아니다 —
+       이 줄이 없으면 계정을 지워도 `users/{uid}/mocks/*` 가 그대로 남는다.
+       (그림은 `users/{uid}/images` 를 쓰므로 위 이미지 정리에 이미 포함된다) */
+    dmSetBusy('모의고사를 지우는 중…');
+    await wipeCloudMocks(uid);
+
     /* ⚠️ 폴더 설정은 하위 문서라 부모를 지워도 **함께 사라지지 않는다**(Firestore 규칙:
        문서 삭제는 하위 컬렉션을 지우지 않는다). 따로 지운다. */
     try{ await PREFS_DOC(uid).delete(); }
@@ -3558,6 +3672,9 @@ async function deleteAccountEverything(){
 
     // ⑥ 로컬 — 백업까지 전부
     clearLocalKeys(keys,{keepBackup:false});
+    clearLocalKeys(mockLocalKeys(uid),{keepBackup:false});
+    mocks=[]; mocksLoaded=false; mockOpenId="";
+    mockCloudSynced.clear(); mockDeletedIds.clear();
     localDirty=false; pendingLocalByOwner.delete(keys.sets);
     sets=[]; cloudSynced.clear(); deletedIds.clear();
     localStamps={}; lastQIdBySet={};
@@ -3887,6 +4004,7 @@ let setSearchTerm="";
 function renderFolderBar(){
   const bar=$("#folderBar"); if(!bar) return;
   bar.innerHTML="";
+  bar.append(el("span","folder-bar-label",t("lib.folder","폴더")));
   if(libMeta.syncPending && currentUser && libraryCloudEnabled()){
     const retry=el("button","folder-chip","폴더 동기화 재시도");
     retry.onclick=()=>{retry.disabled=true;void retryLibrarySync();};bar.append(retry);
@@ -4148,9 +4266,13 @@ function renderLibrary(){
     grid.append(card);
   });
 }
-function showLibrary(){ $("#libraryView").style.display="flex"; $("#editorView").style.display="none";
+/* `tab` 은 '어느 라이브러리로 돌아가는가'. 기본은 문제집 — 로고(brandBtn)의 이름표가
+   '문제집 라이브러리로 이동' 이므로 그 약속을 지킨다. 모의고사에서 나올 때만 'mocks'. */
+function showLibrary(tab){ $("#libraryView").style.display="flex"; $("#editorView").style.display="none";
   $("#mockView").style.display="none"; if(window.__mockClose) window.__mockClose();
-  setEditorActions(false); rememberSet(null); renderLibrary(); }
+  setEditorActions(false); rememberSet(null);
+  try{ MockStore.writeLastMock(mockOwner(),"",sessionStorage); }catch(e){}
+  setLibraryTab(tab==="mocks"?"mocks":"sets"); }
 
 /* 클라우드에서 문제집을 가져오는 동안 보여 줄 화면.
    예전에는 이 상태가 없어서, 로그인 직후 불러오는 몇 초 동안 '아직 문제집이
@@ -4212,6 +4334,599 @@ $("#importAllInput").onchange=e=>{ const f=e.target.files?.[0]; if(!f) return;
   if(added){ saveSets(); renderLibrary(); toast(`문제집 ${added}개를 추가했어요`,"success"); reportNormDropped(); }
   else toast("문제집 형식이 올바르지 않아요","error");
 }catch{ toast("JSON을 읽을 수 없어요","error"); } }; r.readAsText(f); e.target.value=""; };
+
+/* ═══ 모의고사 라이브러리 ═══════════════════════════════════════════════════
+   설계: `docs/MOCK-LIBRARY-DESIGN.md` (HANDOFF-2026-089) · 저장: `mock-library-store.js`.
+   ⚠️ **문제집 `sets` 와 섞지 않는다.** 스키마·출력 엔진·이미지 수명·저장 정책이 달라
+      한 배열에 넣으면 정규화·클라우드 병합·삭제 계약까지 결합된다.
+   ⚠️ **지금은 이 기기 안에만 저장한다.** 클라우드 동기화는 문제집과 같은 tombstone·
+      계정 전환 가드·충돌 병합을 갖춘 뒤 별도 단계로 켠다 — 화면만 먼저 만들면
+      사용자가 계정에 안전하게 들어 있다고 오해한다.
+   ⚠️ **문항 속을 여기서 정규화하지 않는다.** 그 화이트리스트는 모의고사 편집기의
+      `sanitize(blank(n),p)` 한 곳에만 있다(사본을 만들면 갈라진다). 그래서 이 화면은
+      문항을 그리지 않고 개수만 센다. */
+const MockStore=window.MockLibraryStore;
+const MOCK_NS="pedagogy-mock";
+/* ⚠️ `'*'` 로 보내지 말 것 — 이 문서를 남이 iframe 으로 끼웠을 때 시험지 내용이
+   그대로 넘어간다. 같은 출처로만 보내고, 출처가 없는 `file://` 에서만 `'*'` 다. */
+const MOCK_TARGET=(location.origin&&location.origin!=="null")?location.origin:"*";
+const MOCK_SORTS=[{v:"updated",name:"최근 수정순"},{v:"created",name:"만든 순"},{v:"name",name:"이름순"}];
+let mocks=[], mocksLoaded=false, mockSearchTerm="", mockSort="updated";
+let mockOpenId="", mockFrameReady=false, mockWriteWarned=false, mockMigrateAsked=false;
+let libraryTab="sets";
+
+function mockOwner(){ return (currentUser&&currentUser.uid)||"guest"; }
+/* 새 로컬 키도 반드시 계정별이다 — 공용 키로 두면 계정을 바꿨을 때 값이 샌다. */
+function mockSortKey(){ return "PM_MOCK_SORT_V1:"+mockOwner(); }
+function readMockSort(){
+  try{ const v=localStorage.getItem(mockSortKey()); return MockStore.SORTS.indexOf(v)>=0?v:"updated"; }
+  catch(e){ return "updated"; }
+}
+function loadMocks(){
+  const r=MockStore.readMocks(mockOwner());
+  mocks=r.list; mocksLoaded=true; mockSort=readMockSort();
+  if(!r.ok) toast(r.corrupt?"저장된 모의고사를 읽지 못했어요 · 손상된 것 같습니다"
+                           :"이 브라우저가 저장소를 막고 있어 모의고사를 읽지 못했어요","error");
+  /* 로컬을 **먼저** 보여 주고 계정 것을 뒤에 합친다 — 네트워크를 기다리며 빈 화면을
+     띄우지 않는다(로그인 직후 '자료가 사라졌다' 고 오해하던 그 문제와 같은 이유). */
+  if(mockCloudReady()){ void loadMocksFromCloud(); watchMocks(); }
+}
+/* ⚠️ 저장 실패를 조용히 넘기면 사용자는 안전망이 있다고 믿은 채 계속 작업한다.
+   한 번은 반드시 알리고, 대안(.json 내보내기)을 함께 말한다. */
+function persistMocks(){
+  const w=MockStore.writeMocks(mockOwner(),mocks);
+  if(!w.ok && !mockWriteWarned){
+    mockWriteWarned=true;
+    toast("모의고사를 이 기기에 저장하지 못했어요 · 저장 공간이 가득 찼을 수 있습니다. 카드 메뉴의 ‘내보내기’ 로 .json 을 받아 두세요","error");
+  }
+  if(w.ok) mockWriteWarned=false;
+  scheduleMockCloud();       /* 계정에도 올린다 (플래그가 0 이면 아무 일도 안 한다) */
+  return w.ok;
+}
+function mockPayload(e){ return {v:1,round:e.round,elective:e.elective,problems:e.problems}; }
+
+/* ── 구형 임시본(`MOCK_DRAFT_V1`) 이전 ──
+   ⚠️ 원본 키는 지우지 않는다(한 릴리스 보존). 취소·실패 때는 내려받을 길을 남긴다. */
+function legacyMockDraft(){
+  let raw=null;
+  try{ raw=localStorage.getItem(MockStore.LEGACY_KEY); }catch(e){ return null; }
+  if(!raw) return null;
+  try{ const d=JSON.parse(raw); return (d&&Array.isArray(d.problems)&&d.problems.length)?d:null; }
+  catch(e){ return null; }
+}
+function legacyMockPending(){
+  if(mocks.length) return null;
+  try{ if(localStorage.getItem(MockStore.keysFor(mockOwner()).migrated)) return null; }catch(e){ return null; }
+  return legacyMockDraft();
+}
+function downloadLegacyMock(){
+  const d=legacyMockDraft();
+  if(!d){ toast("예전 임시저장이 없어요","error"); return; }
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([JSON.stringify(d,null,1)],{type:"application/json"}));
+  a.download="예전_모의고사_임시저장.json"; a.click();
+}
+function offerMockMigration(){
+  if(mockMigrateAsked) return;
+  if(!legacyMockPending()) return;
+  mockMigrateAsked=true;
+  if(!confirm("예전 방식으로 저장된 모의고사 작업이 하나 있어요.\n모의고사 라이브러리로 가져올까요?\n\n(가져오지 않아도 원본은 지우지 않습니다)")){
+    toast("원본은 그대로 뒀어요 · 아래 ‘예전 임시저장 내려받기’ 로 파일로도 받을 수 있어요");
+    return;
+  }
+  const r=MockStore.migrateLegacyDraft(mockOwner());
+  if(r.status==="done"||r.status==="unmarked"){
+    mocks=MockStore.readMocks(mockOwner()).list;
+    toast("예전 작업을 ‘복구된 모의고사’ 로 가져왔어요","success");
+  }else{
+    toast("가져오지 못했어요 · ‘예전 임시저장 내려받기’ 로 파일을 받아 두세요","error");
+  }
+}
+
+/* ── 편집기(iframe)와의 계약 ── */
+function postMock(msg){
+  const fr=window.__mockFrame&&window.__mockFrame();
+  if(!fr||!fr.contentWindow) return false;
+  try{ fr.contentWindow.postMessage(Object.assign({ns:MOCK_NS},msg),MOCK_TARGET); return true; }
+  catch(e){ return false; }
+}
+function sendMockLoad(id){
+  const e=MockStore.findMock(mocks,id);
+  /* `canUpload` 로 편집기에 '그림을 계정에 올릴 수 있는 상태인가' 를 알린다 —
+     편집기에는 Firebase 가 없어 스스로 판단할 수 없다. */
+  if(e) postMock({type:"load",id:id,data:mockPayload(e),canUpload:!!(currentUser&&fbReady)});
+}
+
+/* 편집기가 보낸 그림 바이트를 Storage 로 올리고 주소만 돌려준다.
+   ⚠️ **문제집 그림과 같은 폴더(`users/{uid}/images`)를 쓴다.** 계정 삭제의
+      `wipeStorageImages()` 가 그 폴더를 통째로 훑으므로 파기 경로가 자동으로 맞는다.
+   ⚠️ 그림 갈래를 바꾸지 않는다 — 도형·그래프라 JPEG 로 다시 누르면 선이 뭉갠다.
+      `dataUrlToJpegBlob` 를 쓰지 않고 원본 바이트를 그대로 올린다. */
+async function handleMockUpload(reqId,name,dataUrl){
+  const reply=(url,error)=>postMock({type:"uploaded",reqId:reqId,url:url||"",error:error||""});
+  if(!currentUser||!fbReady) return reply("","offline");
+  if(!isDataUrl(dataUrl)) return reply("","bad-data");
+  try{
+    const blob=dataUrlToBlob(dataUrl);
+    if(!blob) throw new Error("그림을 읽지 못했습니다");
+    if(blob.size>MAX_UPLOAD_BYTES) throw new Error("그림이 너무 큽니다");
+    const url=await uploadBlobToStorage(blob,String(name||"figure.png").slice(0,80));
+    reply(url,"");
+  }catch(e){
+    console.warn("모의고사 그림 업로드 실패:",e);
+    reply("",String(e&&e.message||e));
+  }
+}
+/* ⚠️ **열려 있는 카드만 받지 않는다.** 카드를 빠르게 바꿔 열면 앞 카드의 저장이
+   뒤늦게 도착하는데, 그것을 버리면 마지막 몇 초 작업이 사라진다. 대신 **이미 있는
+   카드에 대해서만** 쓴다 — 삭제된 카드를 저장이 되살리지 못하게. */
+function handleMockSave(id,data){
+  const prev=MockStore.findMock(mocks,id);
+  if(!prev) return;
+  const next=MockStore.normMock({id:id,round:data&&data.round,name:(data&&data.round)||prev.name,
+    elective:data&&data.elective,problems:data&&data.problems,
+    createdAt:prev.createdAt,updatedAt:Date.now()},{keepId:true});
+  mocks=MockStore.upsertMock(mocks,next);
+  const ok=persistMocks();
+  postMock({type:"saved",id:id,ok:ok});
+}
+window.addEventListener("message",e=>{
+  const fr=window.__mockFrame&&window.__mockFrame();
+  if(!fr||e.source!==fr.contentWindow) return;      /* 내 iframe 이 보낸 것만 받는다 */
+  const m=e.data;
+  if(!m||typeof m!=="object"||m.ns!==MOCK_NS) return;
+  if(m.type==="ready"){ mockFrameReady=true; if(mockOpenId) sendMockLoad(mockOpenId); return; }
+  if(m.type==="save"){ handleMockSave(String(m.id||""),m.data); return; }
+  if(m.type==="upload"){ void handleMockUpload(m.reqId,m.name,m.data); return; }
+});
+
+/* ⚠️ **1초 디바운스가 손실 창이다.** 탭을 닫으면 편집기가 보낸 postMessage 가 우리
+   차례까지 못 오고 그대로 죽을 수 있다. 같은 출처면 마지막 순간에 **직접 읽어** 쓴다
+   (쓰는 곳은 여전히 여기 하나다 — 읽기만 당겨온다).
+   `file://` 처럼 출처가 다르면 읽을 수 없어 조용히 건너뛴다. */
+function flushOpenMock(){
+  if(!mockOpenId) return;
+  try{
+    const fr=window.__mockFrame&&window.__mockFrame();
+    const w=fr&&fr.contentWindow;
+    if(!w||typeof w.currentData!=="function") return;
+    handleMockSave(mockOpenId,w.currentData());
+  }catch(e){}
+}
+window.addEventListener("pagehide",flushOpenMock);
+window.addEventListener("beforeunload",flushOpenMock);
+
+/* ── 클라우드 동기화 (모의고사) ────────────────────────────────────────────
+   ⚠️ **문제집과 같은 계약을 그대로 쓴다.** 새 모델을 만들지 않았다 —
+      `users/{uid}/mocks/{mockId}` **한 부 = 한 문서** · tombstone 으로 삭제 ·
+      `updatedAt` 로 병합 · `onSnapshot` 으로 다른 기기 반영.
+      배열 하나에 몰면 1MB 한도와 다중 탭 덮어쓰기를 다시 겪는다(이미 값을 치렀다).
+   ⚠️ **단계 플래그로 가린다.** `service-config.js` 의 `mockCloudSchema` 가 0 이면
+      로컬에만 저장한다. **Rules 를 먼저 배포하고 1 로 올릴 것** — 순서를 뒤집으면
+      로그인 사용자의 저장이 전부 '권한 오류' 로 실패한다(이 저장소가 겪은 사고다).
+   ⚠️ **그림은 문서에 담지 않는다.** 편집기가 `upload` 로 올려 주소만 남긴다.
+      담아 두면 시험지 한 부가 1MB 한도를 그냥 넘는다. */
+const MOCKS_COL = uidStr => fbDb.collection('users').doc(uidStr).collection('mocks');
+/* Firestore 문서 한도는 1MiB 다. 여유를 두고 자른다 — 넘으면 그 한 부만 건너뛰고
+   **말한다**(조용히 빠지면 사용자는 계정에 있다고 믿는다). */
+const MOCK_DOC_MAX=900*1024;
+/* ⚠️ **글자 수가 아니라 바이트로 잰다.** `JSON.stringify(...).length` 는 UTF-16 코드
+   단위라 한글이 실제의 1/3 로 세어진다 — 처음에 그렇게 썼다가 **1.4MB 짜리 문서가
+   한도를 통과**했고(검사가 잡았다) Firestore 에서만 터졌을 것이다. */
+function docBytes(doc){
+  const json=JSON.stringify(doc);
+  try{ return new TextEncoder().encode(json).length; }
+  catch(e){ return json.length*3; }        /* TextEncoder 가 없으면 넉넉히 잡는다 */
+}
+const mockCloudSynced=new Map();     // id → 마지막으로 올린 내용 지문
+const mockDeletedIds=new Map();      // id → 지운 시각 (tombstone)
+let mocksUnsub=null, mockCloudQueue=Promise.resolve(), mockCloudTimer=null, mockCloudWarned=false;
+
+function mockCloudEnabled(){
+  return Number(window.PEDAGOGY_PUBLIC_CONFIG&&window.PEDAGOGY_PUBLIC_CONFIG.mockCloudSchema||0)>=1;
+}
+function mockCloudReady(){ return mockCloudEnabled() && !!currentUser && fbReady && !wiping; }
+
+/* ⚠️ 필드를 더하면 `firestore.rules` 의 `hasOnly([...])` 에도 넣어야 한다.
+   안 넣으면 저장이 통째로 '권한 오류' 로 실패한다. */
+function mockToDoc(e){
+  return { id:String(e.id), name:String(e.name||""), round:String(e.round||""),
+           elective:String(e.elective||""), problems:e.problems||[], deleted:false,
+           createdAt:Number(e.createdAt)||Date.now(), updatedAt:Number(e.updatedAt)||Date.now() };
+}
+/* 클라우드도 신뢰 경계다 — 내 데이터라도 한 번 정규화해서 들인다. */
+function docToMock(d){
+  if(!d || d.deleted) return null;
+  return MockStore.normMock({id:d.id,name:d.name,round:d.round,elective:d.elective,
+    problems:d.problems,createdAt:d.createdAt,updatedAt:d.updatedAt},{keepId:true});
+}
+/* 올릴 필요가 있는지 보는 지문. `updatedAt` 은 뺀다 — 내용이 같은데 시각만 달라
+   다시 올리면 다른 기기의 구독이 의미 없이 깨어난다. */
+function mockJSON(e){ const d=mockToDoc(e); d.updatedAt=0; return JSON.stringify(d); }
+
+function mergeMocks(cloudDocs, localList){
+  const out=new Map();
+  for(const d of cloudDocs){
+    if(!d || !d.id) continue;
+    if(d.deleted){ mockDeletedIds.set(d.id, Number(d.updatedAt)||Date.now()); continue; }
+    const e=docToMock(d);
+    if(e){ out.set(e.id,e); mockCloudSynced.set(e.id, mockJSON(e)); }
+  }
+  for(const l of (localList||[])){
+    if(!l || !l.id) continue;
+    const tomb=mockDeletedIds.get(l.id);
+    /* 다른 기기에서 지운 것을 이 기기의 오래된 사본이 되살리면 안 된다. */
+    if(tomb && tomb>=(Number(l.updatedAt)||0)) continue;
+    const cur=out.get(l.id);
+    if(!cur){ out.set(l.id,l); continue; }
+    if((Number(l.updatedAt)||0)>(Number(cur.updatedAt)||0)) out.set(l.id,l);
+  }
+  return [...out.values()];
+}
+
+function mockCloudWarnOnce(msg){
+  if(mockCloudWarned) return;
+  mockCloudWarned=true; toast(msg,"error");
+}
+function scheduleMockCloud(){
+  if(!mockCloudReady()) return;
+  clearTimeout(mockCloudTimer);
+  mockCloudTimer=setTimeout(()=>{ void flushMocksToCloud(); },800);
+}
+function flushMocksToCloud(){
+  if(!mockCloudReady()) return Promise.resolve();
+  const owner=currentUser.uid, session=sessionContext();
+  const task=mockCloudQueue.catch(()=>{}).then(async()=>{
+    if(!sessionMatches(session) || wiping) return;
+    const dirty=mocks.filter(e=>mockCloudSynced.get(e.id)!==mockJSON(e));
+    if(!dirty.length) return true;
+    const ready=[], tooBig=[];
+    for(const e of dirty){
+      const doc=mockToDoc(e);
+      (docBytes(doc)>MOCK_DOC_MAX?tooBig:ready).push({e,doc});
+    }
+    if(tooBig.length)
+      toast(`모의고사 ${tooBig.length}부가 너무 커서 계정에 올리지 못했어요 · 그림을 줄이거나 문항을 나눠 주세요 (이 기기에는 저장돼 있습니다)`,"error");
+    try{
+      for(let off=0; off<ready.length; off+=400){
+        if(!sessionMatches(session) || wiping) return;
+        const batch=fbDb.batch();
+        ready.slice(off,off+400).forEach(({e,doc})=>batch.set(MOCKS_COL(owner).doc(String(e.id)),doc));
+        await batch.commit();
+      }
+      if(!sessionMatches(session)) return;
+      ready.forEach(({e})=>mockCloudSynced.set(e.id, mockJSON(e)));
+      mockCloudWarned=false;
+      return true;
+    }catch(err){
+      console.error("모의고사 클라우드 저장 실패:",err);
+      const es=String(err&&err.message||err);
+      if(/permission|insufficient|PERMISSION/i.test(es))
+        mockCloudWarnOnce("모의고사를 계정에 저장할 권한이 없어요 · Firestore 규칙을 배포했는지 확인해 주세요");
+      else
+        mockCloudWarnOnce("모의고사를 계정에 저장하지 못했어요 · 이 기기에는 저장돼 있습니다");
+      return false;
+    }
+  });
+  mockCloudQueue=task; return task;
+}
+
+async function loadMocksFromCloud(){
+  if(!mockCloudReady()) return;
+  const owner=currentUser.uid, session=sessionContext();
+  let snap;
+  try{ snap=await MOCKS_COL(owner).get(); }
+  catch(e){
+    console.warn("모의고사 클라우드 읽기 실패:",e);
+    mockCloudWarnOnce("계정에 저장된 모의고사를 불러오지 못했어요 · 이 기기의 자료만 보입니다");
+    return;
+  }
+  if(!sessionMatches(session)) return;      /* 읽는 사이 계정이 바뀌었다 */
+  const cloud=[]; snap.forEach(doc=>{ const d=doc.data(); if(d&&d.id) cloud.push(d); });
+  mocks=mergeMocks(cloud,mocks);
+  persistMocks();
+  if(!$("#mocksPanel").hidden) renderMockLibrary();
+  void flushMocksToCloud();                 /* 이 기기에만 있던 것을 올린다 */
+}
+
+function watchMocks(){
+  if(mocksUnsub){ mocksUnsub(); mocksUnsub=null; }
+  if(!mockCloudReady()) return;
+  const session=sessionContext();
+  try{
+    mocksUnsub=MOCKS_COL(currentUser.uid).onSnapshot(snap=>{
+      if(!sessionMatches(session)) return;
+      let changed=false, warnedOpen=false;
+      snap.docChanges().forEach(ch=>{
+        const d=ch.doc.data(); if(!d||!d.id) return;
+        const i=mocks.findIndex(m=>m.id===d.id);
+        if(d.deleted){
+          mockDeletedIds.set(d.id, Number(d.updatedAt)||Date.now());
+          if(i>=0 && (Number(mocks[i].updatedAt)||0)<=(Number(d.updatedAt)||0)){
+            mocks.splice(i,1); mockCloudSynced.delete(d.id); changed=true;
+          }
+          return;
+        }
+        const incoming=docToMock(d); if(!incoming) return;
+        if(i>=0 && mockJSON(mocks[i])===mockJSON(incoming)){
+          mockCloudSynced.set(d.id, mockJSON(incoming)); return;   /* 내가 방금 올린 것 */
+        }
+        /* ⚠️ 지금 편집 중인 카드는 **덮지 않는다.** 편집기 상태가 더 최신이고,
+           덮으면 사용자가 치고 있던 내용이 사라진다. 대신 한 번 알린다. */
+        if(i>=0 && (Number(mocks[i].updatedAt)||0)>=(Number(d.updatedAt)||0)) return;
+        if(d.id===mockOpenId){
+          if(!warnedOpen){ warnedOpen=true;
+            toast("다른 기기에서 이 모의고사가 바뀌었어요 · 지금 편집 중인 내용이 우선합니다","error"); }
+          return;
+        }
+        if(i>=0) mocks[i]=incoming; else mocks.push(incoming);
+        mockCloudSynced.set(d.id, mockJSON(incoming));
+        changed=true;
+      });
+      if(changed){
+        persistMocks();
+        if(!$("#mocksPanel").hidden) renderMockLibrary();
+      }
+    },err=>{
+      console.warn("모의고사 구독 실패:",err);
+      mockCloudWarnOnce("다른 기기의 모의고사 변경을 실시간으로 받지 못해요 · 새로고침하면 최신 내용이 보입니다");
+    });
+  }catch(e){ console.warn("모의고사 구독 등록 실패:",e); }
+}
+
+/* 삭제는 tombstone 이다 — 그냥 지우면 다른 기기의 오래된 사본이 다음 접속에 되살린다. */
+function deleteMockEverywhere(removed){
+  if(!removed) return Promise.resolve();
+  const at=Date.now();
+  mockDeletedIds.set(removed.id, at);
+  if(!mockCloudReady()) return Promise.resolve();
+  const owner=currentUser.uid, session=sessionContext();
+  const task=mockCloudQueue.catch(()=>{}).then(async()=>{
+    if(!sessionMatches(session) || wiping) return;
+    await MOCKS_COL(owner).doc(String(removed.id)).set({
+      id:String(removed.id), name:"", round:"", elective:"", problems:[],
+      deleted:true, createdAt:Number(removed.createdAt)||at, updatedAt:at });
+    if(!sessionMatches(session)) return;
+    mockCloudSynced.delete(removed.id);
+  });
+  mockCloudQueue=task; return task;
+}
+
+function openMock(id){
+  const e=MockStore.findMock(mocks,id);
+  if(!e){ toast("그 모의고사를 찾지 못했어요","error"); renderMockLibrary(); return; }
+  if(!window.__mockShow){ toast("모의고사 편집기를 열지 못했어요","error"); return; }
+  currentSetId=null; rememberSet(null);
+  window.__mockShow();
+  mockOpenId=id;
+  /* ⚠️ **sessionStorage 다**(문제집의 `rememberSet()` 과 같은 이유). 원하는 동작이
+     '새로고침은 이어서, 탭 닫았다 들어오면 라이브러리' 인데 그 경계가 정확히
+     sessionStorage 의 수명이다. localStorage 로 두면 며칠 뒤에도 편집기로 떨어진다. */
+  MockStore.writeLastMock(mockOwner(),id,sessionStorage);
+  /* 편집기가 아직 부팅 중이면 그쪽이 `ready` 를 보낼 때 다시 보낸다(그때 자리가 없으면
+     첫 카드가 빈 채로 열린다 — 실제로 놓치기 쉬운 경합이다). */
+  if(mockFrameReady) sendMockLoad(id);
+}
+
+function visibleMocks(){
+  const term=mockSearchTerm.trim().toLowerCase();
+  const list=term?mocks.filter(e=>(e.name||"").toLowerCase().includes(term)):mocks;
+  return MockStore.sortMocks(list,mockSort);
+}
+function renderMockLibrary(){
+  const grid=$("#mockGrid"); if(!grid) return;
+  grid.innerHTML="";
+  const sort=MOCK_SORTS.find(o=>o.v===mockSort)||MOCK_SORTS[0];
+  $("#mockSortBtn").textContent=sort.name;
+  $("#mockSortBtn").title="정렬: "+sort.name;
+  const term=mockSearchTerm.trim();
+  const list=visibleMocks();
+  if(!list.length){
+    const es=el("div","empty-state");
+    es.append(el("div","es-title", term?"검색 결과가 없어요":"아직 모의고사가 없어요"));
+    es.append(el("div","es-sub", term?`'${term}'와(과) 일치하는 모의고사가 없어요`
+                                     :"‘+ 새 모의고사’ 로 시작하거나 기존 .json 을 가져오세요"));
+    if(!term){
+      const row=el("div","es-actions");
+      const mk=el("button","btn-accent","새 모의고사 만들기"); mk.onclick=newMock;
+      const imp=el("button",null,"기존 JSON 가져오기"); imp.onclick=()=>$("#importMockInput").click();
+      row.append(mk,imp);
+      /* 이전을 취소했거나 실패했으면 파일로 꺼낼 길을 여기 남긴다(설계 4번). */
+      if(legacyMockPending()){
+        const dl=el("button",null,"예전 임시저장 내려받기"); dl.onclick=downloadLegacyMock;
+        row.append(dl);
+      }
+      es.append(row);
+    }
+    grid.append(es);
+    return;
+  }
+  list.forEach(e=>{
+    const card=el("div","set-card");
+    const title=el("h3",null,e.name||"제목 없음");
+    const count=el("p","count",`${e.problems.length||0} 문항`);
+    count.append(document.createTextNode(" "), el("span","set-subj", e.elective));
+    card.append(title,count);
+    card.append(el("div","card-when", new Date(e.updatedAt||0).toLocaleDateString("ko-KR")+" 수정"));
+
+    const dots=el("button","dotbtn","⋮");
+    dots.setAttribute("aria-label",(e.name||"제목 없음")+" 모의고사 메뉴");
+    card.append(dots);
+    const menu=el("div","menu");
+    const bRename=el("button",null,"이름 변경");
+    const bDup=el("button",null,"복제");
+    const bExp=el("button",null,"내보내기");
+    const bDel=el("button","danger","삭제");
+    menu.append(bRename,bDup,bExp,bDel); card.append(menu);
+    const closeMenu=()=>{ menu.style.display="none"; card.classList.remove("menu-open"); };
+    dots.onclick=ev=>{
+      ev.stopPropagation();
+      const opening=menu.style.display!=="block";
+      document.querySelectorAll(".set-card.menu-open").forEach(c=>{
+        if(c!==card){ c.classList.remove("menu-open"); const m=c.querySelector(".menu"); if(m) m.style.display="none"; }
+      });
+      if(opening){ menu.style.display="block"; card.classList.add("menu-open");
+                   document.addEventListener("click",closeMenu,{once:true}); }
+      else closeMenu();
+    };
+    /* 이름은 시험지 제목(`round`)과 한 값이다 — 둘을 따로 두면 카드와 시험지 머리가
+       서로 다른 이름을 말하게 된다. */
+    bRename.onclick=ev=>{
+      ev.stopPropagation(); closeMenu();
+      title.contentEditable="true"; title.style.borderBottom="1px dashed #3a3f52";
+      const sel=window.getSelection(), range=document.createRange();
+      range.selectNodeContents(title); sel.removeAllRanges(); sel.addRange(range); title.focus();
+      const finish=()=>{
+        title.contentEditable="false"; title.style.borderBottom="none";
+        const name=(title.innerText.trim()||"제목 없음").slice(0,MockStore.NAME_MAX);
+        e.name=name; e.round=name; e.updatedAt=Date.now();
+        mocks=MockStore.upsertMock(mocks,e); persistMocks(); renderMockLibrary();
+      };
+      title.onblur=finish;
+      title.onkeydown=k=>{ if(k.key==="Enter"){ k.preventDefault(); title.blur(); } };
+    };
+    bDup.onclick=ev=>{
+      ev.stopPropagation(); closeMenu();
+      const cp=MockStore.duplicateMock(e);
+      if(!cp) return;
+      mocks=MockStore.upsertMock(mocks,cp);
+      if(!MockStore.findMock(mocks,cp.id)){ toast(`모의고사는 ${MockStore.MAX_ENTRIES}개까지 둘 수 있어요`,"error"); return; }
+      persistMocks(); renderMockLibrary(); toast("모의고사를 복제했어요","success");
+    };
+    bExp.onclick=ev=>{
+      ev.stopPropagation(); closeMenu();
+      const blob=new Blob([JSON.stringify(mockPayload(e),null,1)],{type:"application/json"});
+      const a=document.createElement("a");
+      a.href=URL.createObjectURL(blob); a.download=(e.name||"모의고사").replace(/\s+/g,"_")+".json"; a.click();
+    };
+    bDel.onclick=async ev=>{
+      ev.stopPropagation(); closeMenu();
+      if(!confirm(`'${e.name||"제목 없음"}' 모의고사를 삭제할까요?\n\n되돌릴 수 없습니다.`)) return;
+      const removed=e, session=sessionContext();
+      mocks=MockStore.removeMock(mocks,e.id);
+      if(mockOpenId===e.id) mockOpenId="";
+      persistMocks(); renderMockLibrary();
+      /* ⚠️ 원격 삭제 실패를 삼키면 다른 기기에서 되살아난다 — 되돌리고 말한다. */
+      try{ await deleteMockEverywhere(removed); if(sessionMatches(session)) toast("모의고사를 삭제했어요"); }
+      catch(err){
+        console.error("모의고사 원격 삭제 실패:",err);
+        if(!sessionMatches(session)) return;
+        if(!MockStore.findMock(mocks,removed.id)) mocks=MockStore.upsertMock(mocks,removed);
+        mockDeletedIds.delete(removed.id);
+        persistMocks(); renderMockLibrary();
+        toast("삭제 실패 · 다시 시도해 주세요","error");
+      }
+    };
+    card.onclick=()=>{ if(title.isContentEditable) return; openMock(e.id); };
+    grid.append(card);
+  });
+}
+
+function newMock(){
+  if(!mocksLoaded) loadMocks();
+  const e=MockStore.newMock({name:"새 모의고사",round:"새 모의고사"});
+  mocks=MockStore.upsertMock(mocks,e);
+  if(!MockStore.findMock(mocks,e.id)){ toast(`모의고사는 ${MockStore.MAX_ENTRIES}개까지 둘 수 있어요`,"error"); return; }
+  mockSearchTerm=""; if($("#mockSearch")) $("#mockSearch").value="";
+  persistMocks();
+  openMock(e.id);
+}
+
+/* ── 라이브러리 종류 전환 ──
+   ⚠️ 선택 상태를 주소에 남겨 새로고침해도 보던 자리로 돌아온다. `pushState` 로 두면
+      탭을 누를 때마다 뒤로가기 기록이 쌓여, 뒤로가기가 앱을 못 벗어난다. */
+function writeLibraryTabHash(){
+  try{
+    const want=libraryTab==="mocks"?"#library=mocks":"";
+    if((location.hash||"")===want) return;
+    history.replaceState(null,"",location.pathname+location.search+want);
+  }catch(e){}
+}
+function readLibraryTabHash(){ return /(^|[#&])library=mocks\b/.test(location.hash||"")?"mocks":"sets"; }
+function setLibraryTab(tab){
+  libraryTab=(tab==="mocks")?"mocks":"sets";
+  const isM=libraryTab==="mocks";
+  const ts=$("#tabSets"), tm=$("#tabMocks");
+  if(ts&&tm){
+    ts.classList.toggle("on",!isM); tm.classList.toggle("on",isM);
+    ts.setAttribute("aria-selected",String(!isM)); tm.setAttribute("aria-selected",String(isM));
+    ts.tabIndex=isM?-1:0; tm.tabIndex=isM?0:-1;
+  }
+  const sp=$("#setsPanel"), mp=$("#mocksPanel"), sa=$("#setsActions"), ma=$("#mocksActions");
+  if(sp) sp.hidden=isM; if(mp) mp.hidden=!isM;
+  if(sa) sa.hidden=isM; if(ma) ma.hidden=!isM;
+  if(isM){
+    if(!mocksLoaded) loadMocks();
+    offerMockMigration();
+    renderMockLibrary();
+  }else renderLibrary();
+  writeLibraryTabHash();
+}
+(function wireLibraryTabs(){
+  const ts=$("#tabSets"), tm=$("#tabMocks");
+  if(!ts||!tm) return;
+  ts.onclick=()=>setLibraryTab("sets");
+  tm.onclick=()=>setLibraryTab("mocks");
+  /* 탭 목록은 좌우 화살표로도 옮겨야 한다(WAI-ARIA tablist). */
+  [ts,tm].forEach(b=>b.addEventListener("keydown",ev=>{
+    if(ev.key!=="ArrowLeft"&&ev.key!=="ArrowRight"&&ev.key!=="Home"&&ev.key!=="End") return;
+    ev.preventDefault();
+    const next=(ev.key==="ArrowRight"||ev.key==="End")?tm:ts;
+    setLibraryTab(next===tm?"mocks":"sets"); next.focus();
+  }));
+  window.addEventListener("hashchange",()=>{
+    const want=readLibraryTabHash();
+    if(want!==libraryTab && $("#libraryView").style.display!=="none") setLibraryTab(want);
+  });
+  const ms=$("#mockSearch");
+  if(ms) ms.oninput=ev=>{ mockSearchTerm=ev.target.value||""; renderMockLibrary(); };
+  const nb=$("#newMockBtn"); if(nb) nb.onclick=newMock;
+  const ib=$("#importMockBtn"); if(ib) ib.onclick=()=>$("#importMockInput").click();
+  const mi=$("#importMockInput");
+  if(mi) mi.onchange=ev=>{
+    const f=ev.target.files&&ev.target.files[0]; if(!f) return;
+    if(importTooBig(f)){ ev.target.value=""; return; }
+    const r=new FileReader();
+    r.onload=()=>{
+      try{
+        const data=JSON.parse(r.result);
+        const incoming=Array.isArray(data)?data:[data];
+        let added=0;
+        incoming.forEach(d=>{
+          const e=MockStore.normMock(d);            /* 가져온 파일의 id 는 쓰지 않는다 */
+          if(!e||!e.problems.length) return;
+          const before=mocks.length;
+          mocks=MockStore.upsertMock(mocks,e);
+          if(mocks.length>before) added++;
+        });
+        if(added){ persistMocks(); renderMockLibrary(); toast(`모의고사 ${added}개를 추가했어요`,"success"); }
+        else toast("불러올 모의고사가 없어요 · 모의고사 편집기가 저장한 .json 인지 확인해 주세요","error");
+      }catch(err){ toast("JSON을 읽을 수 없어요","error"); }
+    };
+    r.readAsText(f); ev.target.value="";
+  };
+})();
+/* 정렬 메뉴 — 문제집 쪽과 같은 모양으로 그린다. */
+(function wireMockSort(){
+  const btn=$("#mockSortBtn"), menu=$("#mockSortMenu");
+  if(!btn||!menu) return;
+  const close=()=>{ menu.style.display="none"; btn.setAttribute("aria-expanded","false"); };
+  MOCK_SORTS.forEach(o=>{
+    const b=el("button",null,o.name); b.setAttribute("role","menuitem");
+    b.onclick=ev=>{ ev.stopPropagation(); mockSort=o.v;
+      try{ localStorage.setItem(mockSortKey(),o.v); }catch(e){}
+      close(); renderMockLibrary(); };
+    menu.append(b);
+  });
+  btn.onclick=ev=>{
+    ev.stopPropagation();
+    const opening=menu.style.display!=="block";
+    if(opening){ menu.style.display="block"; btn.setAttribute("aria-expanded","true");
+                 document.addEventListener("click",close,{once:true}); }
+    else close();
+  };
+  document.addEventListener("keydown",ev=>{ if(ev.key==="Escape"&&menu.style.display==="block") close(); });
+})();
 
 /* ===== Editor ===== */
 function showEditor(setId){
@@ -6370,8 +7085,14 @@ async function bootLibrary(){
      (라이브러리에서 나갔으면 rememberSet(null) 로 지워져 있어 여기로 안 들어온다)
      그 사이 다른 기기에서 지워졌을 수 있으니 실제로 있는지 확인하고 연다. */
   const back=readLastSet();
+  const tab=readLibraryTabHash();
+  /* ⚠️ `showLibrary()` 가 이 값을 지우므로 **부르기 전에** 읽는다. */
+  const backMock=(tab==="mocks")?MockStore.readLastMock(mockOwner(),sessionStorage):"";
   if(back && sets.some(s=>s.id===back)) showEditor(back);
-  else showLibrary();
+  else{
+    showLibrary(tab);                       /* 새로고침해도 보던 라이브러리로 */
+    if(backMock && MockStore.findMock(mocks,backMock)) openMock(backMock);
+  }
 }
 
 const onAuth=async (user)=>{
@@ -6389,6 +7110,12 @@ const onAuth=async (user)=>{
     clearTimeout(prefsSaveTimer);
     cloudSynced.clear(); deletedIds.clear();
     sets=[]; currentSetId=null; currentQId=null;
+    /* ⚠️ 모의고사도 계정별 저장소다 — 갈아 끼우지 않으면 앞 계정 자료가 새 계정 화면에 남는다.
+       구독·지문·tombstone 까지 함께 버려야 앞 계정의 문서가 새 계정으로 올라가지 않는다. */
+    if(mocksUnsub){ mocksUnsub(); mocksUnsub=null; }
+    clearTimeout(mockCloudTimer); mockCloudTimer=null;
+    mocks=[]; mocksLoaded=false; mockOpenId=""; mockMigrateAsked=false; mockWriteWarned=false;
+    mockCloudSynced.clear(); mockDeletedIds.clear(); mockCloudWarned=false;
   }
   const changedOwner=(currentUser?.uid||null)!==(user?.uid||null);
   currentUser=user;

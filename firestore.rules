@@ -7,6 +7,8 @@ rules_version = '2';
 //   users/{uid}                → { migratedAt }  · 예전 { sets:[...] } 문서도 남아 있음
 //   users/{uid}/sets/{setId}   → { id, name, header, problems:[...], order,
 //                                  deleted, updatedAt }
+//   users/{uid}/mocks/{mockId} → { id, name, round, elective, problems:[...],
+//                                  deleted, createdAt, updatedAt }
 //
 // 예전에는 문제집 전체를 users/{uid} 문서 하나에 배열로 넣었다. 1MB 한도에
 // 걸리고, 다른 탭이 같은 순간에 저장하면 통째로 덮어써졌다. 지금은 문제집
@@ -94,6 +96,47 @@ service cloud.firestore {
         allow delete: if isOwner();
       }
 
+      // ── 모의고사 문서 ──
+      // 한 부 = 한 문서. 문제집과 같은 계약(문서 id == data.id · tombstone · updatedAt).
+      // ⚠️ 그림은 여기 담기지 않는다 — Storage 에 올리고 주소만 문항 안에 남는다.
+      //    담으면 시험지 한 부가 Firestore 1MiB 한도를 그냥 넘는다.
+      match /mocks/{mockId} {
+        allow read: if isOwner();
+
+        function hasMockShape() {
+          return request.resource.data.keys().hasOnly(
+                   ['id','name','round','elective','problems',
+                    'deleted','createdAt','updatedAt'])
+              && request.resource.data.id == mockId
+              && request.resource.data.name is string
+              && request.resource.data.name.size() <= 160
+              && request.resource.data.round is string
+              && request.resource.data.round.size() <= 160
+              && request.resource.data.elective is string
+              && request.resource.data.elective.size() <= 40
+              && request.resource.data.problems is list
+              // 편집기의 슬롯 상한은 60이다. 그보다 크게 두면 비용만 열어 준다.
+              && request.resource.data.problems.size() <= 60
+              && request.resource.data.deleted is bool
+              && request.resource.data.createdAt is number
+              && request.resource.data.updatedAt is number;
+        }
+
+        function isMockTombstone() {
+          return request.resource.data.deleted == true
+              && request.resource.data.name == ''
+              && request.resource.data.round == ''
+              && request.resource.data.problems.size() == 0;
+        }
+
+        allow create, update: if isOwner()
+                              && hasMockShape()
+                              && (!request.resource.data.deleted || isMockTombstone());
+
+        // 계정 삭제는 실제 삭제를 쓴다(계정이 사라지므로 tombstone 이 필요 없다).
+        allow delete: if isOwner();
+      }
+
       // ── 라이브러리 설정(폴더 이름 목록) ──
       // ⚠️ 이 문서 **하나만** 허용한다. `prefs/{anything}` 으로 열면 로그인한 사용자가
       //    임의 문서를 무제한 만들 수 있다.
@@ -112,7 +155,7 @@ service cloud.firestore {
       // 참고: Firestore 규칙은 OR 로 합쳐진다 — 여러 match 가 걸리면 그중
       // 하나라도 허용하면 허용이다. 따라서 여기에 `if false` 인 포괄 match 를
       // 두어도 위 sets 규칙을 취소하지 못하고, 의도만 흐려진다. 그래서 두지 않는다.
-      // sets 외의 하위 컬렉션은 규칙이 없으므로 기본값(거부)이 적용된다.
+      // 위에 적은 sets · mocks · prefs/library 말고는 규칙이 없으므로 기본값(거부)이다.
     }
 
     // 그 밖의 모든 경로는 차단.

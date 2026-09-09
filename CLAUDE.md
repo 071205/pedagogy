@@ -11,6 +11,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 |---|---|
 | **문제집 편집기**(`index.html`) | 안정. **지금 하는 일 = 영어 과목**(아래). 상용 준비는 `docs/COMMERCIAL-LAUNCH.md` |
 | **모의고사 → 한글**(`mock_to_hwpx.py`) | 동작. 30문항·선택과목 검증 완료. **실물 조판 6단계 완료** |
+| **모의고사 라이브러리**(`mock-library-store.js`) | 동작. 여러 부를 카드로 관리 + 클라우드 동기화(**Rules 배포 뒤 `mockCloudSchema`=1**). 설계는 `docs/MOCK-LIBRARY-DESIGN.md` |
 | **범용 문서 → 한글**(`document_to_hwpx.py`) | 베타. 블록 11종. 실물 한글로 확인 완료. **브라우저만으로도 된다**(아래) |
 
 ### ▶ 다음에 할 일 — 영어 과목
@@ -288,9 +289,47 @@ CDNs (KaTeX, SortableJS, Firebase compat SDK, Pretendard/KoPub webfonts).
   `test:review-contracts`가 HTTP·`file://` 로딩과 표면을 함께 확인한다.
 - [`mock-exam-editor.html`](mock-exam-editor.html) — 모의고사(mock CSAT exam) editor, embedded
   into `index.html` via an `<iframe>` (see the mock-mode IIFE around line 583 of
-  `index.html`). Intentionally isolated: separate global scope, separate storage (`.json`
-  file export/import instead of Firestore), separate document — so a failure in one doesn't
-  break the other.
+  `index.html`). Intentionally isolated: separate global scope, separate document — so a
+  failure in one doesn't break the other.
+- [`mock-library-store.js`](mock-library-store.js) — **모의고사 라이브러리 저장 계층**
+  (`docs/MOCK-LIBRARY-DESIGN.md`). 모의고사를 **여러 부** 두고 라이브러리 카드로 연다.
+  ⚠️ **상단 바의 전역 `모의고사` 버튼은 없어졌다** — 라이브러리 제목 자리의 세그먼트
+  (`#tabSets` · `#tabMocks`)가 그 자리다. 선택은 `#library=mocks` 해시에 남아 새로고침을
+  넘긴다. 옛 버튼을 되살리지 말 것(검사 넷이 새 자리를 본다).
+  ⚠️ **쓰는 곳은 본체 하나다.** iframe 은 `postMessage` 로 자기 상태를 올려 보내고
+  (`{ns:'pedagogy-mock'}`), 본체가 `mock-library-store.js` 로 쓴다. iframe 안에서 직접
+  `localStorage` 를 쓰면 같은 항목을 서로 덮어쓴다(문제집 다중 탭 사고와 같은 모양).
+  `file://` 에서는 iframe 이 **다른 출처**라 직접 접근 자체가 안 된다 — postMessage 는 된다.
+  ⚠️ **`targetOrigin` 을 `'*'` 로 두지 말 것.** 이 문서는 누구나 iframe 으로 끼울 수 있어
+  (`frame-ancestors` 는 메타 CSP 로 못 건다) `'*'` 면 남의 페이지가 시험지 내용을 받는다.
+  같은 출처로만 보내고 출처가 없는 `file://` 에서만 `'*'` 다 — `check:static` 이 지킨다.
+  ⚠️ **문항 속을 이 계층에서 정규화하지 않는다.** 그 화이트리스트는 편집기의
+  `sanitize(blank(n),p)` **한 곳**이다(옮겨 적으면 갈라진다). 그래서 라이브러리는 문항을
+  그리지 않고 개수만 센다 — 문항을 그리는 경로를 새로 만들면 그 전제가 깨진다.
+  ⚠️ **구형 임시본(`MOCK_DRAFT_V1`)을 지우지 않는다.** 카드 하나로 옮기고 **원본은 한
+  릴리스 보존**한다. 이전은 마커와 '목록이 비어 있을 때만' **두 조건**으로 멱등이다 —
+  한쪽만 두면 마커 저장이 막힌 브라우저에서 카드가 매번 하나씩 늘어난다.
+  ⚠️ **단독으로 연 `mock-exam-editor.html` 은 예전 그대로 임시본 하나를 쓴다.** 거기엔
+  라이브러리 화면이 없어 임시본을 없애면 크래시 안전망만 사라진다.
+  ⚠️ **클라우드 동기화는 문제집과 같은 계약이다** — `users/{uid}/mocks/{mockId}` 한 부 =
+  한 문서 · tombstone 삭제 · `updatedAt` 병합 · `onSnapshot`. 새 모델을 만들지 말 것.
+  ⚠️ **`service-config.js` 의 `mockCloudSchema` 는 지금 0(로컬 전용)이다.**
+  `firestore.rules` 를 **먼저 배포하고** 1 로 올린다 — 순서를 뒤집으면 로그인 사용자의
+  모의고사 저장이 전부 '권한 오류' 로 실패한다.
+  ⚠️ **그림은 Firestore 문서에 담지 않는다.** 편집기가 본체를 거쳐 Storage 로 올리고
+  주소만 남긴다(`upload`/`uploaded` 메시지). 담으면 한 부가 1MiB 한도를 그냥 넘는다.
+  한글 내보내기 직전에 편집기가 그 주소를 `fetch` 로 바이트화한다 — **버킷 CORS 설정이
+  필요하고**, 못 가져오면 조용히 자리표시로 내보내지 않고 말한다.
+  ⚠️ **문서 크기는 글자 수가 아니라 UTF-8 바이트로 잰다**(`docBytes`). 한글은 3배라
+  `.length` 로 재면 1.4MB 짜리가 한도를 통과한다(검사가 잡았다).
+  ⚠️ **필드를 더하면 `firestore.rules` 의 `hasOnly` 와 tombstone 도 함께 고칠 것** —
+  `check:static` 이 `mockToDoc`·tombstone·Rules 세 곳을 대조한다.
+  ⚠️ **삭제에 Undo 가 없다**(문제집 Undo 는 `sets` 스냅샷 위에 서 있다). 확인창이 그렇게 말한다.
+  ⚠️ **`button{display:inline-flex}` 가 브라우저 기본 `[hidden]{display:none}` 을 이긴다** —
+  `hidden` 을 붙였는데 단추가 **보이고 눌렸다**(`#mockBackBtn` 이 실제로 그랬다).
+  지금은 `button[hidden]{display:none!important}` 이 한 번에 막는다. 개별 예외를 늘리지 말 것.
+  검사: `npm run test:mock-library`(저장 계층 · 자기검사 포함) ·
+  `npm run test:mock-library-ui`(실제 브라우저 · 고장 주입 4개).
 - [`serve.py`](serve.py) — optional local Python dev server that compiles the mock editor's
   generated Typst source to PNG page previews with the real exam font/layout, so the
   in-browser approximate preview can be swapped for a pixel-accurate one.

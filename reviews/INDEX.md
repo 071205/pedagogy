@@ -43,6 +43,8 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 
 검토 완료: [HANDOFF-2026-085](handoffs/2026-09/2026-09-09-hwp-spec-attribution-in-ui.md) — 한컴 규격서 출처 고지를 UI 세 곳·매뉴얼에 넣고 `check:static` 이 여섯 곳을 지키게 했다. `HANDOFF-2026-087`에서 위치·정적 검사를 재확인하고 모의고사 고지를 흐름 안으로 옮겼다.
 
+검토 대기: [HANDOFF-2026-090](handoffs/2026-09/2026-09-09-mock-library-implementation.md) — `HANDOFF-2026-089` 의 설계대로 다중 모의고사를 구현했다. 저장 계층과 실패 주입 검사를 먼저 만들었고, 그 검사가 제품 결함 넷(빈 id 충돌 · `[hidden]` 을 이기는 `display` · 카드 전환 시 대기 저장 소실 · 헛돌던 정적 검사)을 잡았다. 이어서 **클라우드 동기화**까지 했다(문제집과 같은 계약 · 그림은 Storage · 계정 삭제 포함). ⚠️ `mockCloudSchema` 는 **0** 으로 나간다 — `firestore.rules` 를 배포한 뒤 1 로 올릴 것. 삭제 Undo 와 Storage 버킷 CORS 는 남았다.
+
 검토 완료(보완): [HANDOFF-2026-086](handoffs/2026-09/2026-09-09-ipad-report-fixes.md) — **아이패드 실사용 신고 2건**(상단 바 벌어짐 · 로딩 화면이 안 풀림). `HANDOFF-2026-087`에서 상단 바 수정은 승인했고, 폴더 설정 읽기에 남은 무한 대기 경로를 보완했다.
 
 ## 최근 해결
@@ -125,6 +127,8 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 
 | ID | 작성자 | 내용 | 파일 |
 | --- | --- | --- | --- |
+| `HANDOFF-2026-090` | Claude | **모의고사 라이브러리 구현 + 클라우드 동기화(문서별·tombstone·병합·파기)** | `handoffs/2026-09/2026-09-09-mock-library-implementation.md` |
+| `HANDOFF-2026-089` | Codex | **라이브러리 액션·폴더 배치 정돈과 다중 모의고사 라이브러리 설계** | `handoffs/2026-09/2026-09-09-library-header-and-mock-library-plan.md` |
 | `HANDOFF-2026-088` | Codex | **편집기 접근성 디자인 점검 · 키보드 경로와 이름 보정** | `handoffs/2026-09/2026-09-09-editor-accessibility-design-audit.md` |
 | `HANDOFF-2026-086` | Claude | **아이패드 실사용 신고 두 건 수정** | `handoffs/2026-09/2026-09-09-ipad-report-fixes.md` |
 | `HANDOFF-2026-085` | Claude | **한컴 규격서 출처 고지를 UI·매뉴얼에** | `handoffs/2026-09/2026-09-09-hwp-spec-attribution-in-ui.md` |
