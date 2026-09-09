@@ -27,7 +27,7 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 
 ## 검토 대기
 
-검토 요청(설계): [HANDOFF-2026-094](handoffs/2026-09/2026-09-09-library-ux-design.md) — 라이브러리 화면 재설계. **구현 전이고 코덱스에게 묻는 셋**이 있다(한컴 고지 위치 · 설정을 모달/전체화면 · 모바일 레일과 safe-area). 설계 본문은 `docs/LIBRARY-UX-DESIGN.md`.
+검토 요청(설계 · 1~3단계는 `-097` 로 구현됨): [HANDOFF-2026-096](handoffs/2026-09/2026-09-09-library-ux-design.md) — 라이브러리 화면 재설계. **구현 전이고 코덱스에게 묻는 셋**이 있다(한컴 고지 위치 · 설정을 모달/전체화면 · 모바일 레일과 safe-area). 설계 본문은 `docs/LIBRARY-UX-DESIGN.md`.
 
 검토 완료: HANDOFF-2026-071은 [HANDOFF-2026-073](handoffs/2026-09/2026-09-08-library-hwpx-independent-review.md)에서 조건부 승인했다. 구조 분리는 **세 단계 모두 완료**했다(`-075` 정규화 · `-077` 렌더 · `-079` 인쇄).
 
@@ -55,6 +55,7 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 
 | ID | 심각도 | 요약 | 파일 |
 | --- | --- | --- | --- |
+| `REV-2026-074` | `P2` | macOS 폴더 아이콘 파일이 Git refs를 오염시킨다 | `issues/2026-09/2026-09-09-rules-macos-icon-files-corrupt-git-refs.md` |
 | `REV-2026-073` | `P2` | 로그인 국외이전 동의가 선택적 AI를 묶고 미확인 사실을 단정한다 | `issues/2026-09/2026-09-09-login-consent-bundles-ai-and-overstates-facts.md` |
 | `REV-2026-072` | `P3` | 접근성 계약이 다수 라벨·동작 회귀를 놓친다 | `issues/2026-09/2026-09-09-tests-accessibility-contract-gaps.md` |
 | `REV-2026-071` | `P2` | 문항 열기·추가 뒤 키보드 포커스가 사라진다 | `issues/2026-09/2026-09-09-index-question-focus-loss.md` |
@@ -134,7 +135,8 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 | --- | --- | --- | --- |
 | `HANDOFF-2026-095` | Codex | **한국어 원문 + 영어·일본어·중국어 핵심 법률정보 선택과 AI 번역 고지** | `handoffs/2026-09/2026-09-09-legal-multilingual-reader-guide.md` |
 | `HANDOFF-2026-094` | Codex | **공식 법령·12개 서비스군 벤치마크 · 로그인/AI 동의 분리와 과장 고지 교정** | `handoffs/2026-09/2026-09-09-legal-benchmark-and-consent-corrections.md` |
-| `HANDOFF-2026-094` | Claude | **라이브러리 화면 재설계 설계안 — 실측·왼쪽 레일·푸터 축약·설정 화면 (검토 요청)** | `handoffs/2026-09/2026-09-09-library-ux-design.md` |
+| `HANDOFF-2026-097` | Claude | **왼쪽 레일·푸터 축약·설정 좌측 갈래 · 코덱스 이슈 처리** | `handoffs/2026-09/2026-09-09-library-rail-and-settings.md` |
+| `HANDOFF-2026-096` | Claude | **라이브러리 화면 재설계 설계안 — 실측·왼쪽 레일·푸터 축약·설정 화면 (검토 요청)** | `handoffs/2026-09/2026-09-09-library-ux-design.md` |
 | `HANDOFF-2026-093` | Claude | **법정 기재사항 완성(유출통지·자동화된결정) · 항목별 동의 창과 증적** | `handoffs/2026-09/2026-09-09-legal-statutory-completion-and-consent.md` |
 | `HANDOFF-2026-092` | Claude | **법률 문서 구조 개편(요약·목차·개정 이력·인쇄) · 해지 조항 신설 · 푸터 회귀 수정** | `handoffs/2026-09/2026-09-09-legal-page-structure-and-footer.md` |
 | `HANDOFF-2026-090` | Claude | **모의고사 라이브러리 구현 + 클라우드 동기화(문서별·tombstone·병합·파기)** | `handoffs/2026-09/2026-09-09-mock-library-implementation.md` |

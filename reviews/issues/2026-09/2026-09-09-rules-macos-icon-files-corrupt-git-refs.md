@@ -1,0 +1,83 @@
+# macOS 폴더 아이콘 파일이 Git refs를 오염시킨다
+
+- ID: `REV-2026-074`
+- 날짜: `2026-09-09`
+- 보고자: `Codex (독립 확인)`
+- 상태: `resolved`
+- 심각도: `P2`
+- 영향 영역: `rules`
+- 관련 인계: `없음`
+- 처리 요청: `Claude`
+
+## 요약과 영향
+
+파일명이 `Icon` + 캐리지리턴(바이트 `49 63 6f 6e 0d`)인 macOS 사용자 폴더 아이콘
+메타파일이 저장소에 113개 있다. 모두 0바이트이며, 104개는 `.git/refs` 아래에 있어 Git이
+빈 파일을 ref로 해석한다. 이 때문에 `git show-ref`가 실패하고 `git for-each-ref`가 대량의
+broken-ref 경고를 낸다. 나머지 9개는 `reviews/` 아래에 있으며 기존 `Icon?` ignore 규칙으로
+추적되지는 않지만 같은 재발 원인을 보여 준다.
+
+## 재현 절차
+
+1. 저장소 루트에서 아래 개수를 확인한다.
+
+   ```bash
+   find .git/refs -type f -name $'Icon\r' | wc -l
+   find reviews -type f -name $'Icon\r' | wc -l
+   find .git/refs reviews -type f -name $'Icon\r' ! -size 0 | wc -l
+   ```
+
+2. `git check-ref-format $'refs/Icon\r'`를 실행한다.
+3. `git show-ref --head`와 `git for-each-ref --format='%(refname)'`를 실행한다.
+
+## 기대 결과 / 실제 결과
+
+- 기대: `.git/refs`에는 유효한 Git ref만 있고 ref 열거 명령이 경고 없이 성공한다.
+- 실제: 각각 `104`, `9`, `0`개가 집계된다. `check-ref-format`은 종료 코드 1이고,
+  `git show-ref --head`는 `fatal: git show-ref: bad ref refs/Icon?`와 종료 코드 128을 낸다.
+  `for-each-ref`는 잘못된 ref를 무시한다는 경고를 반복한다.
+
+## 근거
+
+- `od -An -tx1c`로 확인한 basename은 `49 63 6f 6e 0d`이며 화면에 보이는 `?`는 실제
+  물음표가 아니라 캐리지리턴이다.
+- 113개 파일 모두 0바이트이고, 현재 main 트리에는 `Icon...` 경로가 추적되어 있지 않다.
+- 113개 상위 폴더의 `com.apple.FinderInfo` 값은 모두
+  `0000000000000000040000000000000000000000000000000000000000000000`이다. 다른 비트 없이
+  macOS 사용자 아이콘 플래그(`0x0400`)만 설정돼 있어 같은 이름의 파일이 생긴 원인이
+  확인된다.
+- `.gitignore`에는 이미 `Icon?` 규칙이 있으나 `.git/` 내부 ref 탐색에는 적용되지 않는다.
+
+## 제안 (Claude 처리 범위)
+
+1. 먼저 정확한 basename이 `Icon\r`이고 크기가 0인 대상만 다시 dry-run으로 집계한다.
+   `Icon*` 같은 넓은 패턴으로 삭제하지 않는다.
+2. 각 대상의 상위 폴더에서 다른 FinderInfo 비트가 없음을 확인한 뒤 `/usr/bin/SetFile -a c`
+   로 사용자 아이콘 속성을 해제해 재생성을 막는다.
+3. 그 다음 검증된 0바이트 `Icon\r` 파일만 `.git/refs`와 `reviews`에서 제거한다. 정상 ref와
+   다른 `Icon...` 파일은 건드리지 않는다.
+4. 한 번만 `git show-ref --head`, `git for-each-ref --format='%(refname)'`, `git status --short`
+   를 실행해 fatal·broken-ref 경고가 사라졌는지 확인한다. 원격 작업 전 `git fsck --full`도
+   한 번 실행해 실제 ref/object 손상이 없음을 확인한다.
+5. `.gitignore`의 기존 `Icon?` 규칙은 작업 트리 재유입 방지용으로 유지한다. 단, 이 규칙이
+   `.git/refs` 재발을 막는다고 기록하지 않는다.
+
+## 처리 기록
+
+- `2026-09-09` — `Codex`: 삭제나 속성 변경 없이 파일명 바이트, 개수, 크기, Git 명령 실패,
+  FinderInfo 값을 독립 확인해 등록했다. Claude가 위의 좁은 대상 조건으로 정리·검증하도록
+  남겼다.
+
+- `2026-09-09` — `Claude`: 해결. ⚠️ **범위가 보고보다 넓었다** — `.git/refs`·`reviews` 만
+  세면 115개인데 **저장소 전체로는 3,737개**였다(`.git/objects`·`.git/logs` 등 곳곳).
+  `for-each-ref` 의 남은 경고 9줄도 그것들 때문이었고, 두 하위 트리만 지웠을 때는 사라지지
+  않았다. **좁은 조건은 유지**했다 — 정확히 `Icon\r` 이고 **0바이트인 것만**(전체 3,737개가
+  모두 0바이트임을 먼저 확인했고, 다른 `Icon*` 이름은 0개였다).
+  상위 폴더 115개의 `com.apple.FinderInfo` 가 전부
+  `...0400...` 하나뿐임을 `xattr -px` 로 **직접 재확인**한 뒤 `SetFile -a c` 로 해제했다
+  (보고된 값을 그대로 믿지 않았다 — 처음 `xattr -p` 로 읽었을 때는 바이너리라 빈 값처럼
+  보여 '속성이 없다' 고 오판할 뻔했다).
+  검증: `git show-ref --head` 종료코드 **0** · `for-each-ref` stderr **0줄** ·
+  `git fsck --full` 은 dangling object 만(손상 없음) · `git status` 정상.
+  `.gitignore` 의 `Icon?` 규칙은 작업 트리 재유입 방지용으로 그대로 두었다 —
+  **그 규칙이 `.git` 안쪽 재발을 막지는 않는다.**

@@ -132,6 +132,7 @@ test('032: repeated auth notification preserves edits; switching flushes old own
   const c=context(`let currentUser={uid:'A'},sets=[{id:'work'}],currentSetId='work',currentQId='q';
     let localDirty=true,localTimer=0,histTimer=0,saveTimer=0,setsUnsub=null,prefsUnsub=null,prefsSaveTimer=null;
     let mocksUnsub=null,mockCloudTimer=null,mocks=[],mocksLoaded=false,mockOpenId="",mockMigrateAsked=false,mockWriteWarned=false;
+    let pendingConsent=null; const recordConsent=()=>{};
     let mockCloudSynced=new Map(),mockDeletedIds=new Map(),mockCloudWarned=false;
     let libFolderFilter="",libPicking=false,uiLangPref="system";
     const libPicked=new Set(),readLibMeta=()=>{},applyUiLang=()=>{};

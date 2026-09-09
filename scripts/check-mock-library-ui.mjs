@@ -18,8 +18,8 @@ let browser;const failures=[];
 /* ⚠️ **늘 통과하는 검사는 없느니만 못하다.** `MOCK_UI_RED=1` 은 제품에 고장 넷을 심어
    대응하는 항목이 실제로 빨간불이 되는지 본다. 항목을 더하면 여기에도 고장을 더할 것. */
 const BREAKS=[
-  // 두 갈래의 액션이 함께 보인다 (`display:flex` 가 `[hidden]` 을 이기던 결함)
-  ['if(sa) sa.hidden=isM;','if(sa) sa.hidden=false;'],
+  // 두 라이브러리가 함께 보인다 (액션 줄은 이제 각 패널 안에 있다)
+  ['if(sp) sp.hidden=isM; if(mp) mp.hidden=!isM;','if(sp) sp.hidden=false; if(mp) mp.hidden=false;'],
   // 자동 저장을 받지 않는다 — 편집 내용이 카드에 안 남는다
   ['if(m.type==="save"){ handleMockSave(String(m.id||""),m.data); return; }','if(m.type==="save"){ return; }'],
   // 계정 구분이 사라진다 — 앞 계정 자료가 새 계정 화면에 남는다
