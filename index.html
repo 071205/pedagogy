@@ -193,7 +193,10 @@ html,body{height:100%;margin:0}
 body{display:flex;flex-direction:column;min-height:100vh;min-height:100dvh}
 .topbar{flex:0 0 auto}
 #appMain{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
-#libraryView,#editorView,#mockView{flex:1 1 auto;min-height:0}
+#libraryView,#editorView,#mockView,#settingsView{flex:1 1 auto;min-height:0}
+/* ⚠️ 설정은 네 번째 뷰다. 초기값은 숨김 — 부팅 중에 잠깐 보이면 안 된다(`REV-2026-061`). */
+#settingsView{display:none;flex-direction:column;padding:32px;overflow-y:auto}
+.st-shell{max-width:840px;width:100%}
 body{background:var(--bg);color:var(--text-primary);font-family:var(--ui-sans);font-size:14px;line-height:1.5}
 
 /* ── Topbar ── */
@@ -1727,7 +1730,7 @@ function setEditorActions(on){
       FB=document.getElementById('mockFallback');
   if(!V) return;
   function hideOthers(){
-    ['libraryView','editorView'].forEach(function(id){
+    ['libraryView','editorView','settingsView'].forEach(function(id){
       var e=document.getElementById(id); if(e) e.style.display='none';
     });
     setEditorActions(false);
@@ -1901,6 +1904,113 @@ function setEditorActions(on){
 </div>
 
 <!-- Print container -->
+
+<!-- ══ 설정 (전체 화면) ══
+     ⚠️ 모달이 아니라 **네 번째 뷰**다(`HANDOFF-2026-098` 2번). 이유는 셋 —
+     ① 데이터 관리처럼 되돌릴 수 없는 조작에는 **돌아갈 자리**가 있어야 하고,
+     ② `#settings/data` 로 **딥링크**가 되어야 하며,
+     ③ 모달 안의 모달(설정 → 데이터 관리)은 포커스 가둠이 두 겹이 되어 벗어나기 어렵다.
+     ⚠️ **데이터 관리 화면을 다시 쓰지 않았다 — 그대로 옮겼다.** `wiping` 가드,
+     확인 문구, 재인증, 삭제 순서(재인증 → 이미지 → 문제집 → 모의고사 → 사용자 문서 →
+     Auth)는 전부 기존 코드가 그대로 돈다. id 를 하나도 안 바꾼 이유가 그것이다. -->
+<div id="settingsView">
+  <div class="lib-header">
+    <h2 class="sr-only">설정</h2>
+    <div class="lib-title">설정</div>
+    <div class="lib-actions">
+      <button type="button" id="settingsBack" class="btn">← 라이브러리</button>
+    </div>
+  </div>
+  <div class="st-shell">
+<div class="st-body">
+      <div class="st-nav" role="tablist" aria-label="설정 갈래">
+        <button type="button" class="st-tab on" role="tab" id="stTabScreen"
+                aria-selected="true" aria-controls="stPanScreen">화면</button>
+        <button type="button" class="st-tab" role="tab" id="stTabAccount" tabindex="-1"
+                aria-selected="false" aria-controls="stPanAccount">계정</button>
+        <button type="button" class="st-tab" role="tab" id="stTabData" tabindex="-1"
+                aria-selected="false" aria-controls="stPanData">데이터</button>
+        <button type="button" class="st-tab" role="tab" id="stTabAbout" tabindex="-1"
+                aria-selected="false" aria-controls="stPanAbout">정보</button>
+      </div>
+      <div class="st-panes">
+        <section id="stPanScreen" role="tabpanel" aria-labelledby="stTabScreen" class="dm-sec">
+          <h4>화면</h4>
+          <label class="dm-row"><span>테마</span>
+            <select id="setTheme"></select></label>
+          <label class="dm-row"><span>언어</span>
+            <select id="setLang"></select></label>
+          <p class="dm-note">언어는 <b>화면 글</b>만 바꿉니다 — 문제집 내용과 인쇄물은 그대로예요.</p>
+        </section>
+        <section id="stPanAccount" role="tabpanel" aria-labelledby="stTabAccount" class="dm-sec" hidden>
+          <h4>계정</h4>
+          <div id="setAccount" class="dm-note">로그인하지 않았어요</div>
+          <h4 style="margin-top:14px">구독</h4>
+          <div id="setPlan" class="dm-note"></div>
+          <p class="dm-note">플랜 변경은 아직 이 화면에서 할 수 없어요. 문의해 주시면 도와드릴게요.</p>
+        </section>
+        <section id="stPanData" role="tabpanel" aria-labelledby="stTabData" class="dm-sec" hidden>
+          <h4>데이터 관리</h4>
+          <div id="dmWhose" style="font-size:12px;color:var(--text-secondary);margin-top:3px"></div>
+    <!-- 되돌릴 수 있는 것 -->
+    <div class="dm-sec">
+      <h4>백업에서 되돌리기</h4>
+      <p id="dmBackupInfo">확인 중…</p>
+      <div class="dm-row">
+        <button id="dmRestoreBtn" class="btn" style="height:38px" disabled>되돌리기</button>
+      </div>
+      <div class="dm-note">되돌리기 직전 상태도 백업으로 바꿔 두므로, 잘못 눌렀으면 한 번 더 눌러 원래대로 돌아올 수 있어요.</div>
+    </div>
+
+    <!-- 되돌릴 수 없는 것 -->
+    <div>
+      <div class="dm-danger-title">⚠ 위험 구역</div>
+      <div class="dm-danger" style="display:flex;flex-direction:column;gap:12px;border:1px solid var(--danger);border-radius:var(--radius-lg);padding:12px">
+
+        <div class="dm-sec">
+          <h4>모든 문제집 삭제</h4>
+          <p>이 계정의 문제집을 전부 지웁니다. <b style="color:var(--text-primary)">계정은 그대로 둡니다.</b>
+             되돌리기용 사본이 이 기기에 남아 위 '되돌리기'로 복구할 수 있어요.
+             <b style="color:var(--text-primary)">첨부 이미지는 복구를 위해 보존되며 저장 용량을 사용합니다. 계정 영구 삭제 때 함께 지웁니다.</b></p>
+          <div class="dm-row">
+            <input id="dmWipeConfirm" type="text" placeholder="삭제" autocomplete="off" aria-label="확인 문구 입력">
+            <button id="dmWipeBtn" class="btn-danger" disabled>모든 문제집 삭제</button>
+          </div>
+          <!-- '왼쪽 칸' 같은 위치 표현은 쓰지 않는다 — 좁은 화면에서는 입력칸이
+               버튼 위로 줄바꿈돼 위치가 달라진다. -->
+          <div class="dm-note">확인을 위해 <b style="color:var(--text-secondary)">삭제</b> 라고 입력하세요.</div>
+        </div>
+
+        <div class="dm-sec" id="dmAccountSec">
+          <h4>계정 삭제</h4>
+          <p>문제집·이미지·설정을 모두 지우고 이 계정을 없앱니다.
+             <b style="color:var(--danger)">되돌릴 수 없습니다.</b>
+             먼저 '전체 내보내기'로 파일을 받아 두세요.</p>
+          <div class="dm-row">
+            <input id="dmDelConfirm" type="text" placeholder="" autocomplete="off" aria-label="확인 문구 입력">
+            <button id="dmDelBtn" class="btn-danger" disabled>계정 삭제</button>
+          </div>
+          <div class="dm-note" id="dmDelHint"></div>
+        </div>
+
+      </div>
+    </div>
+
+    <div id="dmBusy" style="display:none;font-size:12.5px;color:var(--text-secondary);text-align:center"></div>
+  
+        </section>
+        <section id="stPanAbout" role="tabpanel" aria-labelledby="stTabAbout" class="dm-sec" hidden>
+          <h4>정보</h4>
+          <p class="dm-note">PEDAGOGY · 문제집 · 모의고사 · 한글(HWPX) 내보내기</p>
+          <p class="dm-note"><a href="legal.html#terms" target="_blank" rel="noopener">이용약관</a>
+            · <a href="legal.html#privacy" target="_blank" rel="noopener">개인정보처리방침</a>
+            · <a href="legal.html#oss" target="_blank" rel="noopener">오픈소스 라이선스</a></p>
+          <p class="dm-note">본 제품은 한글과컴퓨터의 한글 문서 파일(.hwp) 공개 문서를 참고하여 개발하였습니다.</p>
+        </section>
+      </div>
+    </div>
+  </div>
+</div>
 </main>
 <div id="printDoc"></div>
 
@@ -1953,61 +2063,7 @@ function setEditorActions(on){
 <!-- 설정 모달 — 흩어져 있던 것을 한 곳으로 모은다(새로 만드는 것보다 모으는 것이 먼저다).
      ⚠️ 구독은 **보여 주기까지만** 한다. 실제 권한은 Worker 가 검증하는 서명된 claim 이고
         이 저장소에는 결제 흐름이 없다 — 결제되는 것처럼 보이는 화면을 만들지 않는다. -->
-<div id="settingsModal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:2000;align-items:center;justify-content:center;padding:20px">
-  <div style="background:var(--surface-1);border:1px solid var(--border);border-radius:24px;padding:26px 26px 22px;width:100%;max-width:520px;max-height:88vh;max-height:88dvh;overflow-y:auto;display:flex;flex-direction:column;gap:16px;box-shadow:0 24px 64px rgba(0,0,0,.6)">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
-      <div id="settingsTitle" style="font-size:18px;font-weight:800;color:var(--text-primary);letter-spacing:-.02em">설정</div>
-      <button id="settingsClose" class="btn-ghost" style="width:36px;height:36px;padding:0;border-radius:50%;font-size:18px;flex-shrink:0" aria-label="닫기">✕</button>
-    </div>
-    <!-- ⚠️ 왼쪽 갈래 + 오른쪽 내용. 예전에는 네 절이 세로로 쌓여 있어 항목이 늘수록
-         스크롤만 길어졌다. 갈래는 `role="tablist"`, 내용은 `role="tabpanel"` 이다. -->
-    <div class="st-body">
-      <div class="st-nav" role="tablist" aria-label="설정 갈래">
-        <button type="button" class="st-tab on" role="tab" id="stTabScreen"
-                aria-selected="true" aria-controls="stPanScreen">화면</button>
-        <button type="button" class="st-tab" role="tab" id="stTabAccount" tabindex="-1"
-                aria-selected="false" aria-controls="stPanAccount">계정</button>
-        <button type="button" class="st-tab" role="tab" id="stTabData" tabindex="-1"
-                aria-selected="false" aria-controls="stPanData">데이터</button>
-        <button type="button" class="st-tab" role="tab" id="stTabAbout" tabindex="-1"
-                aria-selected="false" aria-controls="stPanAbout">정보</button>
-      </div>
-      <div class="st-panes">
-        <section id="stPanScreen" role="tabpanel" aria-labelledby="stTabScreen" class="dm-sec">
-          <h4>화면</h4>
-          <label class="dm-row"><span>테마</span>
-            <select id="setTheme"></select></label>
-          <label class="dm-row"><span>언어</span>
-            <select id="setLang"></select></label>
-          <p class="dm-note">언어는 <b>화면 글</b>만 바꿉니다 — 문제집 내용과 인쇄물은 그대로예요.</p>
-        </section>
-        <section id="stPanAccount" role="tabpanel" aria-labelledby="stTabAccount" class="dm-sec" hidden>
-          <h4>계정</h4>
-          <div id="setAccount" class="dm-note">로그인하지 않았어요</div>
-          <h4 style="margin-top:14px">구독</h4>
-          <div id="setPlan" class="dm-note"></div>
-          <p class="dm-note">플랜 변경은 아직 이 화면에서 할 수 없어요. 문의해 주시면 도와드릴게요.</p>
-        </section>
-        <section id="stPanData" role="tabpanel" aria-labelledby="stTabData" class="dm-sec" hidden>
-          <h4>데이터</h4>
-          <p class="dm-note">백업 되돌리기 · 모든 문제집 삭제 · 계정 삭제</p>
-          <!-- ⚠️ **데이터 관리를 여기로 옮겨 넣지 않았다.** 그 화면은 `wiping` 가드와
-               계정 삭제 순서(재인증 → 이미지 → 문제집 → 모의고사 → 사용자 문서 → Auth)를
-               안고 있고, 옮기는 것은 '옮기기 + 고치기' 다. 여기서는 **열어 준다.** -->
-          <button id="setDataBtn">데이터 관리 열기</button>
-        </section>
-        <section id="stPanAbout" role="tabpanel" aria-labelledby="stTabAbout" class="dm-sec" hidden>
-          <h4>정보</h4>
-          <p class="dm-note">PEDAGOGY · 문제집 · 모의고사 · 한글(HWPX) 내보내기</p>
-          <p class="dm-note"><a href="legal.html#terms" target="_blank" rel="noopener">이용약관</a>
-            · <a href="legal.html#privacy" target="_blank" rel="noopener">개인정보처리방침</a>
-            · <a href="legal.html#oss" target="_blank" rel="noopener">오픈소스 라이선스</a></p>
-          <p class="dm-note">본 제품은 한글과컴퓨터의 한글 문서 파일(.hwp) 공개 문서를 참고하여 개발하였습니다.</p>
-        </section>
-      </div>
-    </div>
-  </div>
-</div>
+
 
 <!-- 데이터 관리 모달 (백업 복구 · 삭제) -->
 <!-- ══ 로그인 동의 ══
@@ -2053,63 +2109,7 @@ function setEditorActions(on){
   </div>
 </div>
 
-<div id="dataModal" role="dialog" aria-modal="true" aria-labelledby="dataModalTitle" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:2000;align-items:center;justify-content:center;padding:20px">
-  <div style="background:var(--surface-1);border:1px solid var(--border);border-radius:24px;padding:26px 26px 22px;width:100%;max-width:520px;max-height:88vh;max-height:88dvh;overflow-y:auto;display:flex;flex-direction:column;gap:16px;box-shadow:0 24px 64px rgba(0,0,0,.6)">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
-      <div>
-        <div id="dataModalTitle" style="font-size:18px;font-weight:800;color:var(--text-primary);letter-spacing:-.02em">데이터 관리</div>
-        <div id="dmWhose" style="font-size:12px;color:var(--text-secondary);margin-top:3px"></div>
-      </div>
-      <button id="dmClose" class="btn-ghost" aria-label="데이터 관리 닫기" style="width:36px;height:36px;padding:0;border-radius:50%;font-size:18px;flex-shrink:0">✕</button>
-    </div>
 
-    <!-- 되돌릴 수 있는 것 -->
-    <div class="dm-sec">
-      <h4>백업에서 되돌리기</h4>
-      <p id="dmBackupInfo">확인 중…</p>
-      <div class="dm-row">
-        <button id="dmRestoreBtn" class="btn" style="height:38px" disabled>되돌리기</button>
-      </div>
-      <div class="dm-note">되돌리기 직전 상태도 백업으로 바꿔 두므로, 잘못 눌렀으면 한 번 더 눌러 원래대로 돌아올 수 있어요.</div>
-    </div>
-
-    <!-- 되돌릴 수 없는 것 -->
-    <div>
-      <div class="dm-danger-title">⚠ 위험 구역</div>
-      <div class="dm-danger" style="display:flex;flex-direction:column;gap:12px;border:1px solid var(--danger);border-radius:var(--radius-lg);padding:12px">
-
-        <div class="dm-sec">
-          <h4>모든 문제집 삭제</h4>
-          <p>이 계정의 문제집을 전부 지웁니다. <b style="color:var(--text-primary)">계정은 그대로 둡니다.</b>
-             되돌리기용 사본이 이 기기에 남아 위 '되돌리기'로 복구할 수 있어요.
-             <b style="color:var(--text-primary)">첨부 이미지는 복구를 위해 보존되며 저장 용량을 사용합니다. 계정 영구 삭제 때 함께 지웁니다.</b></p>
-          <div class="dm-row">
-            <input id="dmWipeConfirm" type="text" placeholder="삭제" autocomplete="off" aria-label="확인 문구 입력">
-            <button id="dmWipeBtn" class="btn-danger" disabled>모든 문제집 삭제</button>
-          </div>
-          <!-- '왼쪽 칸' 같은 위치 표현은 쓰지 않는다 — 좁은 화면에서는 입력칸이
-               버튼 위로 줄바꿈돼 위치가 달라진다. -->
-          <div class="dm-note">확인을 위해 <b style="color:var(--text-secondary)">삭제</b> 라고 입력하세요.</div>
-        </div>
-
-        <div class="dm-sec" id="dmAccountSec">
-          <h4>계정 삭제</h4>
-          <p>문제집·이미지·설정을 모두 지우고 이 계정을 없앱니다.
-             <b style="color:var(--danger)">되돌릴 수 없습니다.</b>
-             먼저 '전체 내보내기'로 파일을 받아 두세요.</p>
-          <div class="dm-row">
-            <input id="dmDelConfirm" type="text" placeholder="" autocomplete="off" aria-label="확인 문구 입력">
-            <button id="dmDelBtn" class="btn-danger" disabled>계정 삭제</button>
-          </div>
-          <div class="dm-note" id="dmDelHint"></div>
-        </div>
-
-      </div>
-    </div>
-
-    <div id="dmBusy" style="display:none;font-size:12.5px;color:var(--text-secondary);text-align:center"></div>
-  </div>
-</div>
 
 <dialog id="folderDialog" class="library-dialog" aria-labelledby="folderDialogTitle">
   <form id="folderForm">
@@ -3911,7 +3911,10 @@ function restoreFromBackup(){
 }
 
 /* ── 데이터 관리 모달 ── */
-const dataModal=$("#dataModal");
+/* ⚠️ 이름은 그대로 두되 **가리키는 것은 설정의 '데이터' 갈래**다. 모달이 아니라 뷰가
+   됐지만 `dmSetBusy()` 가 이 범위 안 단추만 잠그는 동작은 그대로여야 한다 —
+   범위를 넓히면 삭제 중에 설정 전체가 잠긴다. */
+const dataModal=$("#stPanData");
 const DM_WIPE_PHRASE="삭제";
 
 function dmSetBusy(msg){
@@ -3931,7 +3934,8 @@ function dmSyncButtons(){
   $("#dmDelBtn").disabled = !need || ($("#dmDelConfirm").value.trim() !== need);
 }
 
-function openDataModal(){
+/* 데이터 갈래를 열 때마다 최신 상태로 채운다(모달이던 시절의 openDataModal 그대로). */
+function prepDataPane(){
   const b=readBackupInfo();
   $("#dmWhose").textContent = currentUser
     ? (currentUser.email || currentUser.displayName || "로그인됨")
@@ -3955,7 +3959,6 @@ function openDataModal(){
 
   $("#dmWipeConfirm").value=""; $("#dmDelConfirm").value="";
   dmSetBusy("");
-  openModal(dataModal);
 }
 
 /* ── 라이브러리 단추들 ──────────────────────────────────────────────────── */
@@ -4083,16 +4086,22 @@ function openSettings(){
     try{ localStorage.setItem(langKey(),uiLangPref); }catch(e){ console.warn("언어 설정 저장 실패", e); }
     applyUiLang(); renderLibrary();
   };
-  openModal($("#settingsModal"));
+  prepDataPane();
 }
-$("#settingsBtn").onclick=openSettings;
-$("#settingsClose").onclick=()=>closeModal($("#settingsModal"));
+$("#settingsBtn").onclick=()=>showSettings("screen");
+$("#dataMgmtBtn").onclick=()=>showSettings("data");
+$("#settingsBack").onclick=()=>showLibrary();
 /* 설정 갈래 전환. ⚠️ `hidden` 만으로는 `.dm-sec` 의 display 가 이길 수 있어
    `.st-panes .dm-sec[hidden]{display:none}` 짝을 CSS 에 함께 두었다. */
 (function wireSettingsTabs(){
   const tabs=[...document.querySelectorAll(".st-tab")];
   if(!tabs.length) return;
-  const show=(t)=>{
+  const show=(t,quiet)=>{
+    /* ⚠️ 주소도 함께 옮긴다 — 안 그러면 `#settings/data` 를 복사해도 '화면' 갈래가 열린다. */
+    if(!quiet && typeof writeSettingsHash==="function"){
+      const key=(t.id||"").replace(/^stTab/,"").toLowerCase();
+      if(key) writeSettingsHash(key);
+    }
     tabs.forEach(x=>{
       const on=x===t;
       x.classList.toggle("on",on);
@@ -4113,11 +4122,7 @@ $("#settingsClose").onclick=()=>closeModal($("#settingsModal"));
     });
   });
 })();
-$("#setDataBtn").onclick=()=>{ closeModal($("#settingsModal")); openDataModal(); };
 
-$("#dataMgmtBtn").onclick=openDataModal;
-$("#dmClose").onclick=()=>closeModal(dataModal);
-dataModal.addEventListener("click",e=>{ if(e.target===dataModal) closeModal(dataModal); });
 $("#dmWipeConfirm").oninput=dmSyncButtons;
 $("#dmDelConfirm").oninput=dmSyncButtons;
 
@@ -4125,7 +4130,7 @@ $("#dmRestoreBtn").onclick=()=>{
   const b=readBackupInfo(); if(!b) return;
   if(!confirm(`${new Date(b.t).toLocaleString("ko-KR")} 시점(문제집 ${b.sets.length}권)으로 되돌릴까요?\n\n지금 내용은 백업으로 바뀌므로, 되돌린 뒤 한 번 더 누르면 원래대로 돌아옵니다.`)) return;
   if(restoreFromBackup()){
-    closeModal(dataModal);
+    showLibrary();
     toast("백업으로 되돌렸어요");
   }else{
     toast("되돌릴 백업이 없어요","error");
@@ -4137,7 +4142,7 @@ $("#dmWipeBtn").onclick=async ()=>{
   if(!confirm("이 계정의 문제집을 모두 지웁니다.\n\n· 계정은 그대로 둡니다\n· 되돌리기용 백업이 이 기기에 남습니다\n· 첨부 이미지는 복구를 위해 보존되며 저장 용량을 사용합니다\n\n계속할까요?")) return;
   try{
     await deleteAllSets();
-    closeModal(dataModal);
+    showLibrary();
   }catch(e){
     console.error("전체 삭제 실패:", e);
     toast((e&&e.message)||"삭제하지 못했어요","error");
@@ -4152,7 +4157,7 @@ $("#dmDelBtn").onclick=async ()=>{
   if(!confirm("계정과 모든 데이터를 영구히 삭제합니다.\n\n되돌릴 수 없습니다. 필요한 파일은 '전체 내보내기'로 미리 받아 두셨나요?\n\n계속하려면 확인을 누르세요.")) return;
   try{
     const r=await deleteAccountEverything();
-    closeModal(dataModal);
+    showLibrary();
     alert(r.imagesFailed>0
       ? "계정을 삭제했습니다. (이미지 일부는 지우지 못했지만 접근할 수 없는 상태입니다)"
       : "계정과 작업 자료를 삭제했습니다. 남용 방지용 AI 이용량 기록은 최초 기록부터 최대 48시간 후 자동 삭제됩니다.");
@@ -4489,7 +4494,34 @@ function renderLibrary(){
 }
 /* `tab` 은 '어느 라이브러리로 돌아가는가'. 기본은 문제집 — 로고(brandBtn)의 이름표가
    '문제집 라이브러리로 이동' 이므로 그 약속을 지킨다. 모의고사에서 나올 때만 'mocks'. */
-function showLibrary(tab){ $("#libraryView").style.display="flex"; $("#editorView").style.display="none";
+/* ── 설정 화면 ─────────────────────────────────────────────────────────────
+   ⚠️ 모달이 아니라 뷰다. `#settings/data` 로 **주소를 직접 열어도** 그 갈래가 열리고,
+      `← 라이브러리` 로 돌아갈 자리가 있다(`HANDOFF-2026-098` 2번).
+   ⚠️ 삭제 계약은 **그대로 옮겼다** — `wiping` 가드·확인 문구·재인증·삭제 순서는
+      기존 코드가 돈다. 여기서는 화면만 갈아 끼운다. */
+const SETTINGS_TABS=["screen","account","data","about"];
+function showSettings(tab){
+  const t=SETTINGS_TABS.indexOf(tab)>=0?tab:"screen";
+  $("#libraryView").style.display="none"; $("#editorView").style.display="none";
+  $("#mockView").style.display="none"; if(window.__mockClose) window.__mockClose();
+  setEditorActions(false); rememberSet(null);
+  $("#settingsView").style.display="flex";
+  openSettings();                      /* 값 채우기(테마·언어·계정·데이터) */
+  const btn=$("#stTab"+t[0].toUpperCase()+t.slice(1));
+  if(btn) btn.click();          /* 갈래 전환이 주소도 함께 옮긴다 */
+  else writeSettingsHash(t);
+  const h=$("#settingsBack"); if(h) h.focus();
+}
+function writeSettingsHash(t){
+  try{ history.replaceState(null,"",location.pathname+location.search+"#settings/"+t); }catch(e){}
+}
+function readSettingsHash(){
+  const m=/(^|[#&])settings(?:\/([a-z]+))?/.exec(location.hash||"");
+  return m ? (SETTINGS_TABS.indexOf(m[2])>=0?m[2]:"screen") : "";
+}
+
+function showLibrary(tab){ $("#settingsView").style.display="none";
+  $("#libraryView").style.display="flex"; $("#editorView").style.display="none";
   $("#mockView").style.display="none"; if(window.__mockClose) window.__mockClose();
   setEditorActions(false); rememberSet(null);
   try{ MockStore.writeLastMock(mockOwner(),"",sessionStorage); }catch(e){}
@@ -4501,6 +4533,7 @@ function showLibrary(tab){ $("#libraryView").style.display="flex"; $("#editorVie
    옮기느라 더 오래 걸려서, 사용자는 데이터가 사라진 줄 알고 새로고침을 하게 된다.
    (실제로는 잘 불러오고 있었다) */
 function showLibraryLoading(sub){
+  $("#settingsView").style.display="none";
   $("#libraryView").style.display="flex"; $("#editorView").style.display="none";
   $("#mockView").style.display="none"; if(window.__mockClose) window.__mockClose();
   setEditorActions(false);
@@ -5099,7 +5132,12 @@ function setLibraryTab(tab){
     const next=(ev.key==="ArrowRight"||ev.key==="End")?tm:ts;
     setLibraryTab(next===tm?"mocks":"sets"); next.focus();
   }));
+  /* ⚠️ **같은 문서에서 주소만 바꾸는 경우**도 받아야 한다. 주소를 붙여넣어도 새로고침이
+     일어나지 않으므로 부팅 경로만으로는 안 열린다(딥링크를 만들며 실제로 겪었다). */
   window.addEventListener("hashchange",()=>{
+    const st=readSettingsHash();
+    if(st){ showSettings(st); return; }
+    if($("#settingsView").style.display!=="none"){ showLibrary(readLibraryTabHash()); return; }
     const want=readLibraryTabHash();
     if(want!==libraryTab && $("#libraryView").style.display!=="none") setLibraryTab(want);
   });
@@ -5176,7 +5214,7 @@ function showEditor(setId){
   const remembered=lastQIdBySet[setId];
   currentQId=(remembered && s.problems.some(p=>p.id===remembered)) ? remembered : s.problems[0].id;
 
-  $("#libraryView").style.display="none";
+  $("#libraryView").style.display="none"; $("#settingsView").style.display="none";
   $("#mockView").style.display="none"; if(window.__mockClose) window.__mockClose();
   $("#editorView").style.display="flex";
   setEditorActions(true);
@@ -7355,6 +7393,10 @@ async function bootLibrary(){
   /* 마지막에 편집기에 있었으면 그 문제집으로 돌아간다.
      (라이브러리에서 나갔으면 rememberSet(null) 로 지워져 있어 여기로 안 들어온다)
      그 사이 다른 기기에서 지워졌을 수 있으니 실제로 있는지 확인하고 연다. */
+  /* ⚠️ 설정 딥링크가 **문제집 복원보다 먼저**다 — 주소로 설정을 열었는데 편집기가
+     뜨면 그 주소가 거짓말이 된다. */
+  const st=readSettingsHash();
+  if(st){ showSettings(st); return; }
   const back=readLastSet();
   const tab=readLibraryTabHash();
   /* ⚠️ `showLibrary()` 가 이 값을 지우므로 **부르기 전에** 읽는다. */
