@@ -53,6 +53,7 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 
 | ID | 심각도 | 요약 | 파일 |
 | --- | --- | --- | --- |
+| `REV-2026-073` | `P2` | 로그인 국외이전 동의가 선택적 AI를 묶고 미확인 사실을 단정한다 | `issues/2026-09/2026-09-09-login-consent-bundles-ai-and-overstates-facts.md` |
 | `REV-2026-072` | `P3` | 접근성 계약이 다수 라벨·동작 회귀를 놓친다 | `issues/2026-09/2026-09-09-tests-accessibility-contract-gaps.md` |
 | `REV-2026-071` | `P2` | 문항 열기·추가 뒤 키보드 포커스가 사라진다 | `issues/2026-09/2026-09-09-index-question-focus-loss.md` |
 | `REV-2026-070` | `P3` | 상단 바 자기검사가 높이가 다른 버튼을 다른 줄로 오인한다 | `issues/2026-09/2026-09-09-tests-topbar-row-detection.md` |
@@ -129,6 +130,7 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 
 | ID | 작성자 | 내용 | 파일 |
 | --- | --- | --- | --- |
+| `HANDOFF-2026-094` | Codex | **공식 법령·12개 서비스군 벤치마크 · 로그인/AI 동의 분리와 과장 고지 교정** | `handoffs/2026-09/2026-09-09-legal-benchmark-and-consent-corrections.md` |
 | `HANDOFF-2026-093` | Claude | **법정 기재사항 완성(유출통지·자동화된결정) · 항목별 동의 창과 증적** | `handoffs/2026-09/2026-09-09-legal-statutory-completion-and-consent.md` |
 | `HANDOFF-2026-092` | Claude | **법률 문서 구조 개편(요약·목차·개정 이력·인쇄) · 해지 조항 신설 · 푸터 회귀 수정** | `handoffs/2026-09/2026-09-09-legal-page-structure-and-footer.md` |
 | `HANDOFF-2026-090` | Claude | **모의고사 라이브러리 구현 + 클라우드 동기화(문서별·tombstone·병합·파기)** | `handoffs/2026-09/2026-09-09-mock-library-implementation.md` |

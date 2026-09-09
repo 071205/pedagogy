@@ -365,6 +365,10 @@ if (await exists("experiments/hwp-export/samples/choice-layout-truth.json")) {
     assert.match(index, new RegExp(`id="${id}"`), `로그인 동의 항목 ${id} 가 없습니다`);
   }
   assert.match(index, /class="cs-req"/, "필수 동의 표시(cs-req)가 없습니다");
+  assert.doesNotMatch(index, /id="csAbroad"[\s\S]{0,700}AI 사진 변환은/,
+    "로그인 국외이전 동의에 선택적 AI 전송을 묶으면 안 됩니다 — AI 실행 시 별도로 고지합니다");
+  assert.match(index, /csPrivacy[\s\S]{0,700}계정 삭제 시까지[\s\S]{0,400}동의하지 않아도/,
+    "개인정보 수집·이용 동의에는 보유기간과 거부 효과를 함께 알려야 합니다");
   assert.ok(!/function confirmLoginConsent\(/.test(index),
     "브라우저 confirm() 동의로 되돌아갔습니다 — 항목별 동의와 전문 링크가 사라집니다");
 }
