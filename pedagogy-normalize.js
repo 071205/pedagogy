@@ -84,7 +84,15 @@ const PASSAGE_KINDS=["prose","verse"];
      2열  5·19·31·36번               · 세로  22·23·24·26·33·34·35번 (영어 선지 대부분)
    예전에는 5열(horizontal)과 세로뿐이라, 2·3열 문항은 만들 수 없었다. */
 const SET_NAME_MAX=160;   // ↔ firestore.rules 의 name.size()
-const CHOICE_LAYOUTS=["horizontal","cols3","cols2","vertical"];
+/* ⚠️ `paired` 는 **열 머리글이 있는 짝 선지**다(영어 어법·낱말·요약문).
+   실물 근거: 2025 수능 40번(4×8 표 · 폭 108.09mm · `(A) (B)` 머리글 · `……` 이음 ·
+   한 행에 선지 둘) · 2009 수능 어법/낱말((A)(B)(C) 세 짝).
+   ⚠️ `cols2` 와 다르다 — `cols2` 는 선지 다섯을 두 열로 접는 것이고, `paired` 는
+      **선지 하나가 여러 칸**이다. */
+const CHOICE_LAYOUTS=["horizontal","cols3","cols2","vertical","paired"];
+/* 짝 선지의 열 머리글. 실물은 (A)(B) 또는 (A)(B)(C) 뿐이라 그 둘만 받는다 —
+   임의 문자열을 받으면 가져온 .json 이 화면에 아무 글이나 넣는다. */
+const PAIR_HEADS={2:["(A)","(B)"],3:["(A)","(B)","(C)"]};
 const IMG_SIZES=["full","large","medium","small"];
 const str=(v,max=20000)=>typeof v==="string"?v.slice(0,max):"";
 
@@ -191,7 +199,9 @@ function normBlock(b, opts={}){
     }
     while(items.length<images.length) items.push("");
     return {type,data:{items, images,
-                       layout:CHOICE_LAYOUTS.includes(d.layout)?d.layout:"horizontal"}};
+                       layout:CHOICE_LAYOUTS.includes(d.layout)?d.layout:"horizontal",
+                       /* 짝의 개수(2 또는 3). 없으면 2 — 실물에 그 둘뿐이다. */
+                       pairs:(+d.pairs===3?3:2)}};
   }
   // image — safeUrl 을 통과하지 못하는 주소는 아예 버린다.
   // 예전에는 이때 아무 말 없이 이미지가 사라져서, 남이 준 문제집을 가져오면
@@ -321,7 +331,7 @@ global.PedagogyNormalize = Object.freeze({
      사본을 들고 있게 되어 `resetNormDropped()` 뒤에도 옛 값을 본다. */
   droppedImages: () => normDropped.images,
   BLOCK_TYPES, SUBJECTS, SUBJECT_DEFAULT, PASSAGE_KINDS, NOTICE_KINDS,
-  CHOICE_LAYOUTS, IMG_SIZES, SET_NAME_MAX, SHEET_COLORS, SHEET_COLOR_DEFAULT, LIB_SORTS,
+  CHOICE_LAYOUTS, PAIR_HEADS, IMG_SIZES, SET_NAME_MAX, SHEET_COLORS, SHEET_COLOR_DEFAULT, LIB_SORTS,
 });
 
 })(typeof window!=="undefined" ? window : globalThis);

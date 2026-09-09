@@ -11,7 +11,7 @@
 const normalize=global.PedagogyNormalize;
 if(!normalize)
   throw new Error("pedagogy-normalize.js 를 먼저 불러와야 합니다");
-const {sanitize, safeUrl, str, NOTICE_KINDS, CHOICE_LAYOUTS}=normalize;
+const {sanitize, safeUrl, str, NOTICE_KINDS, CHOICE_LAYOUTS, PAIR_HEADS}=normalize;
 
 const HANGULS=["가","나","다","라","마","바","사","아","자","차","카","타","파","하"];
 const HSMALL=["ㄱ","ㄴ","ㄷ","ㄹ","ㅁ","ㅂ","ㅅ","ㅇ","ㅈ","ㅊ","ㅋ","ㅌ","ㅍ","ㅎ"];
@@ -409,6 +409,33 @@ function blockHTML(blk, ctx){
   if(blk.type==="choices"){
     const layout = CHOICE_LAYOUTS.includes(blk.data.layout) ? blk.data.layout : "horizontal";
     const imgs=blk.data.images||[];
+    /* ── 짝 선지 (열 머리글 + `……` 이음) ─────────────────────────────────────
+       영어 어법·낱말·요약문의 형식이다. 실물에서 잰 것 —
+       2025 수능 40번: 4×8 표 · 폭 **108.09mm** · `(A) (B)` 머리글이 **두 번**(한 행에
+       선지 둘) · 이음말 `……`. 2009 수능 어법/낱말: `(A)(B)(C)` 세 짝.
+       ⚠️ **`cols2` 와 다르다** — `cols2` 는 선지 다섯을 두 열로 접는 것이고, 이건
+          **선지 하나가 여러 칸**이다. 배치를 하나로 합치려다 둘 다 틀리게 하지 말 것.
+       ⚠️ **이음말 `……` 는 렌더가 붙인다** — 출처의 `–`, 각주의 `*`, 안내문의 `∙` 과
+          같은 규칙이다. 입력에 넣게 하면 사람마다 `...`·`…`·`……` 로 갈린다.
+       ⚠️ 사용자는 칸을 `|` 로 가른다. `/` 는 낱말 안(`hesitancy / consistency`)에 쓰이므로
+          가름표로 쓸 수 없다. */
+    if(layout==="paired"){
+      const n = (+blk.data.pairs===3) ? 3 : 2;
+      const heads = PAIR_HEADS[n];
+      const head = `<div class="pair-row pair-head">`
+        + `<span class="label"></span>`
+        + heads.map(h=>`<span class="pair-cell">${sanitize(h)}</span>`).join(`<span class="pair-dots"></span>`)
+        + `</div>`;
+      const rows=(blk.data.items||[]).slice(0,5).map((t,i)=>{
+        const cells=String(t||"").split("|").slice(0,n);
+        while(cells.length<n) cells.push("");
+        return `<div class="pair-row"><span class="label">${circled(i+1)}</span>`
+          + cells.map(c=>`<span class="pair-cell">${processText(c.trim())}</span>`)
+                 .join(`<span class="pair-dots">……</span>`)
+          + `</div>`;
+      }).join("");
+      return `<div class="choices paired pairs-${n}">${head}${rows}</div>`;
+    }
     /* 그림 선지 — 라벨을 **그림 위 줄**에 둔다. 3열 칸은 좁아서(2단 시험지에서 한 칸이
        35mm 남짓) 라벨을 옆에 두면 그래프가 그만큼 더 눌린다. 글 선지는 종전 그대로다. */
     const items=(blk.data.items||[]).slice(0,5).map((t,i)=>{

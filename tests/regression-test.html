@@ -787,16 +787,27 @@ async function runIndexTests(){
              note: `선지 ${inChoices.length} · 그림블록 ${inImage.length} · 글만 ${none.length}` };
   });
 
-  await check(G, "선지 배치는 5열·3열·2열·세로 네 가지다", () => {
+  /* 배치는 다섯이다 — 5열·3열·2열·세로 + **짝**(`paired`, 영어 어법·낱말·요약문).
+     ⚠️ `paired` 는 `cols2` 와 다른 것이다 — `cols2` 는 선지 다섯을 두 열로 접고,
+        `paired` 는 **선지 하나가 여러 칸**이다(`HANDOFF-2026-103`). */
+  await check(G, "선지 배치는 5열·3열·2열·세로·짝 다섯 가지다", () => {
     const H2 = installHooks(win, ["CHOICE_LAYOUTS"]);
     const keep = v => win.normBlock({type:"choices", data:{items:["a"], layout:v}}).data.layout;
     const html = v => win.blockHTML(win.normBlock({type:"choices", data:{items:["a"], layout:v}}), {});
-    return { pass: String(H2.CHOICE_LAYOUTS) === "horizontal,cols3,cols2,vertical"
+    const pair = (items, pairs) => win.blockHTML(
+      win.normBlock({type:"choices", data:{items, pairs, layout:"paired"}}), {});
+    const three = pair(["a|b|c"], 3);
+    return { pass: String(H2.CHOICE_LAYOUTS) === "horizontal,cols3,cols2,vertical,paired"
                    && keep("cols2")==="cols2" && keep("cols3")==="cols3"
                    // 모르는 값은 기본(5열)으로 떨어진다 — 가져온 .json 을 믿지 않는다
                    && keep("cols7")==="horizontal"
                    && html("cols2").includes("choices cols2")
-                   && html("cols3").includes("choices cols3"),
+                   && html("cols3").includes("choices cols3")
+                   // 짝 선지: 머리글·이음말은 렌더가 붙이고 가름표는 화면에 새지 않는다
+                   && three.includes("(A)") && three.includes("(C)")
+                   && three.includes("……") && !three.includes("|")
+                   // 짝 수는 화이트리스트다 — 이상값은 2로 떨어진다
+                   && !pair(["a|b|c"], 99).includes("(C)"),
              note: `CHOICE_LAYOUTS=${H2.CHOICE_LAYOUTS}` };
   });
 

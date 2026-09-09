@@ -905,6 +905,21 @@ body.col-resizing{cursor:col-resize;user-select:none}
   display:inline-block;line-height:1.35;margin:0 .12em}
 /* 라벨 + 네모는 한 덩어리다 — 줄 끝에서 갈라지면 (A) 만 앞줄에 남는다. */
 .preview .wbox-set{white-space:nowrap}
+/* ── 짝 선지 (열 머리글 + `……`) ─────────────────────────────────────────
+   실물에서 잰 것: 2025 수능 40번 표 폭 **108.09mm** (2단 시험지 한 단이 111mm 이므로
+   거의 단 전체다) · 머리글 `(A) (B)` · 이음말 `……`.
+   ⚠️ 칸 폭을 고정값(mm)으로 박지 말 것 — 우리 미리보기는 단 폭이 화면마다 다르다.
+      `1fr` 로 두면 실물과 같은 '남는 폭을 나눠 갖는' 모양이 된다. */
+.preview .choices.paired{display:flex;flex-direction:column;gap:.18em}
+.preview .choices.paired .pair-row{display:grid;align-items:baseline;gap:0 .3em}
+.preview .choices.paired.pairs-2 .pair-row{grid-template-columns:1.35em 1fr auto 1fr}
+.preview .choices.paired.pairs-3 .pair-row{grid-template-columns:1.35em 1fr auto 1fr auto 1fr}
+.preview .choices.paired .pair-cell{min-width:0;overflow-wrap:anywhere}
+/* 머리글은 칸 가운데에 온다(실물이 그렇다). 굵게가 아니다 — 실물도 본문과 같은 굵기다. */
+.preview .choices.paired .pair-head{color:var(--text-secondary)}
+.preview .choices.paired .pair-head .pair-cell{text-align:center}
+.preview .choices.paired .pair-dots{white-space:nowrap}
+
 /* 구간 표시 — 오른쪽에 세로 괄호와 [A] 라벨 */
 .preview .psg-range{position:relative;padding-right:2.6em;margin:.15em 0}
 .preview .psg-range::before{content:"";position:absolute;right:1.7em;top:.3em;bottom:.3em;
@@ -1106,6 +1121,21 @@ body.col-resizing{cursor:col-resize;user-select:none}
   display:inline-block;line-height:1.35;margin:0 .12em}
 /* 화면(.preview)과 같은 규칙 — 한쪽만 고치면 미리보기와 인쇄가 갈라진다. */
 .pq .wbox-set{white-space:nowrap}
+/* ── 짝 선지 — 인쇄 (위와 같은 규칙을 유지할 것) ─────────────────────────────────────────
+   실물에서 잰 것: 2025 수능 40번 표 폭 **108.09mm** (2단 시험지 한 단이 111mm 이므로
+   거의 단 전체다) · 머리글 `(A) (B)` · 이음말 `……`.
+   ⚠️ 칸 폭을 고정값(mm)으로 박지 말 것 — 우리 미리보기는 단 폭이 화면마다 다르다.
+      `1fr` 로 두면 실물과 같은 '남는 폭을 나눠 갖는' 모양이 된다. */
+.pq .choices.paired{display:flex;flex-direction:column;gap:.18em}
+.pq .choices.paired .pair-row{display:grid;align-items:baseline;gap:0 .3em}
+.pq .choices.paired.pairs-2 .pair-row{grid-template-columns:1.35em 1fr auto 1fr}
+.pq .choices.paired.pairs-3 .pair-row{grid-template-columns:1.35em 1fr auto 1fr auto 1fr}
+.pq .choices.paired .pair-cell{min-width:0;overflow-wrap:anywhere}
+/* 머리글은 칸 가운데에 온다(실물이 그렇다). 굵게가 아니다 — 실물도 본문과 같은 굵기다. */
+.pq .choices.paired .pair-head{color:var(--text-secondary)}
+.pq .choices.paired .pair-head .pair-cell{text-align:center}
+.pq .choices.paired .pair-dots{white-space:nowrap}
+
 .pq .psg-range{position:relative;padding-right:2.6em;margin:.15em 0}
 .pq .psg-range::before{content:"";position:absolute;right:1.7em;top:.3em;bottom:.3em;
   width:.42em;border:0.4pt solid #000;border-left:0}
@@ -5674,18 +5704,36 @@ function renderEditor(){
 
     if(blk.type==="choices"){
       if(!CHOICE_LAYOUTS.includes(blk.data.layout)) blk.data.layout="horizontal";
-      const ctrl=el("div",null,""); ctrl.style.cssText="display:flex;gap:6px";
-      const btns=[["horizontal","↔ 5열"],["cols3","3열"],["cols2","2열"],["vertical","↕ 세로"]]
+      const ctrl=el("div",null,"");
+      /* ⚠️ 줄바꿈을 허용한다 — 배치 단추가 다섯이라 좁은 칸에서는 잘려 나간다
+         (짝 선지를 더하며 실제로 오른쪽이 잘렸다). */
+      ctrl.style.cssText="display:flex;gap:6px;flex-wrap:wrap;align-items:center;min-width:0";
+      const btns=[["horizontal","↔ 5열"],["cols3","3열"],["cols2","2열"],["vertical","↕ 세로"],
+                  ["paired","짝 (A)(B)"]]
         .map(([v,label])=>{
           const b=el("button","btn",label); b.dataset.lay=v;
           b.onclick=()=>{ blk.data.layout=v; sync(); };
           return b;
         });
+      /* 짝 선지일 때만 짝의 개수를 고른다. 실물에 있는 것은 2와 3뿐이다
+         (2025 수능 40번 요약문 = 2 · 2009 수능 어법/낱말 = 3). */
+      const pairSel=el("select","subj-sel");
+      pairSel.setAttribute("aria-label","짝 선지 칸 수");
+      [[2,"2칸 (A)(B)"],[3,"3칸 (A)(B)(C)"]].forEach(([v,t])=>{
+        const o=document.createElement("option"); o.value=String(v); o.textContent=t; pairSel.append(o);
+      });
+      pairSel.onchange=()=>{ blk.data.pairs=(+pairSel.value===3?3:2); sync(); };
+      const hint=el("span",null,"칸은 | 로 가릅니다 · …… 는 자동");
+      hint.style.cssText="font-size:11px;color:var(--text-tertiary);white-space:nowrap;align-self:center";
       const sync=()=>{
         btns.forEach(b=>b.classList.toggle("btn-primary", blk.data.layout===b.dataset.lay));
+        const paired=blk.data.layout==="paired";
+        pairSel.value=String(+blk.data.pairs===3?3:2);
+        pairSel.style.display=paired?"":"none";
+        hint.style.display=paired?"":"none";
         renderPreview(); saveSets();
       };
-      ctrl.append(...btns); head.append(ctrl); sync();
+      ctrl.append(...btns,pairSel,hint); head.append(ctrl); sync();
     }
 
     if(blk.type==="image"){
@@ -7062,7 +7110,9 @@ function fitPrintDoc(){
 
   // ── (1) 가로 선지: 먼저 전부 읽고, 넘치는 것만 모아 한 번에 줄바꿈 전환 ──
   /* 여러 칸으로 나눈 선지는 전부 넘침 보정 대상이다 — 5열만 보면 2·3열이 넘쳐도 그냥 나간다. */
-  const chs=[...wrap.querySelectorAll(".pq .choices.horizontal, .pq .choices.cols3, .pq .choices.cols2")];
+  /* ⚠️ **새 배치를 여기 빼먹지 말 것** — 넘쳐도 보정이 안 걸려 조용히 잘린다.
+     `paired` 는 한 행이 여러 칸이라 가로로 넘치기 더 쉽다. */
+  const chs=[...wrap.querySelectorAll(".pq .choices.horizontal, .pq .choices.cols3, .pq .choices.cols2, .pq .choices.paired")];
   const chOver=chs.map(ch=>{
     const s0=slotOf(ch); if(!s0) return false;
     return ch.getBoundingClientRect().right > s0.getBoundingClientRect().right+1;
