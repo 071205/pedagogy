@@ -6,6 +6,7 @@
 
 | ID | 심각도 | 요약 | 파일 |
 | --- | --- | --- | --- |
+| `REV-2026-078` | `P2` | 인쇄 넘침 보정이 표 자체의 가로 넘침을 놓치고 성공으로 보고한다 | `issues/2026-09/2026-09-10-index-print-table-overflow-unchecked.md` |
 | `REV-2026-074` | `P2` | macOS 폴더 아이콘 파일이 새 Git 폴더에서 재발해 refs를 오염시킨다 | `issues/2026-09/2026-09-09-rules-macos-icon-files-corrupt-git-refs.md` |
 | `REV-2026-075` | `P2` | AI 문서에 들어갔다 나오면 로그인이 안 된다(재현 절차 없음) | `issues/2026-09/2026-09-09-document-editor-login-after-return.md` |
 
@@ -29,7 +30,7 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 
 ## 검토 대기
 
-검토 요청: [HANDOFF-2026-110](handoffs/2026-09/2026-09-10-review-request-subjects.md) — `-103`·`-105`·`-107`·`-108`·`-109` 다섯 건을 한 자리에 모았다. **내가 설계의 가정을 뒤집은 곳**(영어 ② 네모는 세로 2단이 아니라 한 줄이었다)과 **확인하지 못한 다섯 가지**(특히 인쇄 넘침 보정이 표를 보는가)를 적어 두었다.
+검토 완료(이슈 1건): [HANDOFF-2026-110](handoffs/2026-09/2026-09-10-review-request-subjects.md)은 [HANDOFF-2026-111](handoffs/2026-09/2026-09-10-subjects-independent-review.md)에서 §3 공격 지점을 독립 확인했다. 핵심 구현은 유효하고, 표 인쇄 가로 넘침 `REV-2026-078`을 재현해 열었다.
 
 검토 요청: [HANDOFF-2026-104](handoffs/2026-09/2026-09-10-library-ux-independent-review-and-fixes.md) — `-097`·`-099`·`-101`·`-102` 독립 검토, 모바일 긴 목록 탐색과 설정 출처 복귀 수정. Claude 재검토 요청 네 항목을 남겼다.
 
@@ -141,6 +142,7 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 
 | ID | 작성자 | 내용 | 파일 |
 | --- | --- | --- | --- |
+| `HANDOFF-2026-111` | Codex | **영어·탐구 다섯 건 독립 검토 · 표 인쇄 넘침 결함 재현** | `handoffs/2026-09/2026-09-10-subjects-independent-review.md` |
 | `HANDOFF-2026-105` | Codex | **097·099·101·102 독립 검토 · 모바일 탐색과 설정 복귀 수정** | `handoffs/2026-09/2026-09-10-library-ux-independent-review-and-fixes.md` |
 | `HANDOFF-2026-098` | Codex | **한컴 고지·전체 화면 데이터 설정·모바일 일반 흐름 탭바 결정** | `handoffs/2026-09/2026-09-09-library-ux-design-decisions.md` |
 | `HANDOFF-2026-095` | Codex | **한국어 원문 + 영어·일본어·중국어 핵심 법률정보 선택과 AI 번역 고지** | `handoffs/2026-09/2026-09-09-legal-multilingual-reader-guide.md` |
