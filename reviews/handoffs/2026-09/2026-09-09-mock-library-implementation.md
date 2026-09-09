@@ -123,3 +123,16 @@ firebase deploy --only firestore:rules --project pedagogy-huryul
   Rules 에서 `updatedAt` 을 빼 보고 빨간불을 확인했다.
 - `scripts/verify-rules-emulator.mjs` 에 mocks 규칙 11건 추가(에뮬레이터 필요 · `check:rules`).
 - 나머지 스위트는 CI 에 맡겼다.
+
+### 배포 기록 (2026-09-09)
+
+`firebase deploy --only firestore:rules --project pedagogy-huryul` 를 사람이 실행해
+`✔ firestore: released rules firestore.rules to cloud.firestore` · `Deploy complete!` 를
+확인했다. 그 뒤 `service-config.js` 의 `mockCloudSchema` 를 **0 → 1** 로 올렸다.
+
+⚠️ 그 출력에 `latest version of firestore.rules already up to date, skipping upload` 가
+함께 찍혔다 — **내용이 이미 같아 업로드만 건너뛴 것이고 릴리스는 됐다.** 다만 이 한 줄로는
+'mocks 규칙이 든 판이 활성인지' 를 끝까지 단정할 수 없다(배포된 규칙을 읽는 CLI 명령이
+없다 — CLAUDE.md 의 그 항목 참고). **실사용으로 한 번 확인할 것**: 로그인 → 모의고사
+만들기 → '권한 오류' 토스트가 안 뜨는지 → 다른 기기·시크릿 창에서 그 카드가 보이는지.
+권한 오류가 뜨면 플래그를 0 으로 내리고 콘솔에서 규칙을 확인한다.

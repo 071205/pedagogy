@@ -11,7 +11,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 |---|---|
 | **문제집 편집기**(`index.html`) | 안정. **지금 하는 일 = 영어 과목**(아래). 상용 준비는 `docs/COMMERCIAL-LAUNCH.md` |
 | **모의고사 → 한글**(`mock_to_hwpx.py`) | 동작. 30문항·선택과목 검증 완료. **실물 조판 6단계 완료** |
-| **모의고사 라이브러리**(`mock-library-store.js`) | 동작. 여러 부를 카드로 관리 + 클라우드 동기화(**Rules 배포 뒤 `mockCloudSchema`=1**). 설계는 `docs/MOCK-LIBRARY-DESIGN.md` |
+| **모의고사 라이브러리**(`mock-library-store.js`) | 동작. 여러 부를 카드로 관리 + 클라우드 동기화(**2026-09-09 Rules 배포 · `mockCloudSchema`=1**). 설계는 `docs/MOCK-LIBRARY-DESIGN.md` |
 | **범용 문서 → 한글**(`document_to_hwpx.py`) | 베타. 블록 11종. 실물 한글로 확인 완료. **브라우저만으로도 된다**(아래) |
 
 ### ▶ 다음에 할 일 — 영어 과목
@@ -313,9 +313,9 @@ CDNs (KaTeX, SortableJS, Firebase compat SDK, Pretendard/KoPub webfonts).
   라이브러리 화면이 없어 임시본을 없애면 크래시 안전망만 사라진다.
   ⚠️ **클라우드 동기화는 문제집과 같은 계약이다** — `users/{uid}/mocks/{mockId}` 한 부 =
   한 문서 · tombstone 삭제 · `updatedAt` 병합 · `onSnapshot`. 새 모델을 만들지 말 것.
-  ⚠️ **`service-config.js` 의 `mockCloudSchema` 는 지금 0(로컬 전용)이다.**
-  `firestore.rules` 를 **먼저 배포하고** 1 로 올린다 — 순서를 뒤집으면 로그인 사용자의
-  모의고사 저장이 전부 '권한 오류' 로 실패한다.
+  ⚠️ **`service-config.js` 의 `mockCloudSchema` 는 지금 1 이다** — 2026-09-09 에
+  `users/{uid}/mocks` 규칙을 실제로 배포한 뒤 올렸다. **구형 Rules 를 쓰는 배포에 코드를
+  올릴 때는 0 으로 내릴 것**(그 규칙에는 mocks 가 없어 저장이 전부 '권한 오류' 가 된다).
   ⚠️ **그림은 Firestore 문서에 담지 않는다.** 편집기가 본체를 거쳐 Storage 로 올리고
   주소만 남긴다(`upload`/`uploaded` 메시지). 담으면 한 부가 1MiB 한도를 그냥 넘는다.
   한글 내보내기 직전에 편집기가 그 주소를 `fetch` 로 바이트화한다 — **버킷 CORS 설정이

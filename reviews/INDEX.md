@@ -43,7 +43,7 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 
 검토 완료: [HANDOFF-2026-085](handoffs/2026-09/2026-09-09-hwp-spec-attribution-in-ui.md) — 한컴 규격서 출처 고지를 UI 세 곳·매뉴얼에 넣고 `check:static` 이 여섯 곳을 지키게 했다. `HANDOFF-2026-087`에서 위치·정적 검사를 재확인하고 모의고사 고지를 흐름 안으로 옮겼다.
 
-검토 대기: [HANDOFF-2026-090](handoffs/2026-09/2026-09-09-mock-library-implementation.md) — `HANDOFF-2026-089` 의 설계대로 다중 모의고사를 구현했다. 저장 계층과 실패 주입 검사를 먼저 만들었고, 그 검사가 제품 결함 넷(빈 id 충돌 · `[hidden]` 을 이기는 `display` · 카드 전환 시 대기 저장 소실 · 헛돌던 정적 검사)을 잡았다. 이어서 **클라우드 동기화**까지 했다(문제집과 같은 계약 · 그림은 Storage · 계정 삭제 포함). ⚠️ `mockCloudSchema` 는 **0** 으로 나간다 — `firestore.rules` 를 배포한 뒤 1 로 올릴 것. 삭제 Undo 와 Storage 버킷 CORS 는 남았다.
+검토 대기: [HANDOFF-2026-090](handoffs/2026-09/2026-09-09-mock-library-implementation.md) — `HANDOFF-2026-089` 의 설계대로 다중 모의고사를 구현했다. 저장 계층과 실패 주입 검사를 먼저 만들었고, 그 검사가 제품 결함 넷(빈 id 충돌 · `[hidden]` 을 이기는 `display` · 카드 전환 시 대기 저장 소실 · 헛돌던 정적 검사)을 잡았다. 이어서 **클라우드 동기화**까지 했다(문제집과 같은 계약 · 그림은 Storage · 계정 삭제 포함). **2026-09-09 에 mocks 규칙을 배포하고 `mockCloudSchema` 를 1 로 올렸다**(운영 반영). 삭제 Undo 와 Storage 버킷 CORS 는 남았다.
 
 검토 완료(보정): [HANDOFF-2026-091](handoffs/2026-09/2026-09-09-legal-compliance-audit-and-terms-review.md) — Gemini의 이용약관 확장 초안을 실제 동작·운영 문서·공식 법령·Anthropic 상용 API 정책과 대조했다. 콘텐츠·비공개·학습 미이용·면책·백업에 관한 과도하거나 미구현인 보증을 보정하고, 로그인 확인을 만 14세 이상 정책과 일치시켰다. 노란 TODO와 출시 게이트는 의도적으로 유지한다.
 
