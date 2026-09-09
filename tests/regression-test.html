@@ -889,9 +889,14 @@ async function runIndexTests(){
     const H2 = installHooks(win, ["CHOICE_LAYOUTS"]);
     const keep = v => win.normBlock({type:"choices", data:{items:["a"], layout:v}}).data.layout;
     const html = v => win.blockHTML(win.normBlock({type:"choices", data:{items:["a"], layout:v}}), {});
-    const pair = (items, pairs) => win.blockHTML(
-      win.normBlock({type:"choices", data:{items, pairs, layout:"paired"}}), {});
-    const three = pair(["a|b|c"], 3);
+    /* ⚠️ 칸은 이제 `cells` 에 있다(`HANDOFF-2026-113`). 예전 `|` 데이터는 정규화가
+       한 번 이관하므로 **둘 다** 확인한다 — 이관이 끊기면 옛 문제집이 조용히 빈 칸이 된다. */
+    const pair = (data) => win.blockHTML(win.normBlock({type:"choices",
+      data:Object.assign({layout:"paired"}, data)}), {});
+    const three = pair({cells:[["a","b","c"]], items:[""], pairs:3});
+    const legacy = win.normBlock({type:"choices", data:{layout:"paired", pairs:3, items:["a|b|c"]}});
+    const legacyOk = JSON.stringify(legacy.data.cells[0])==='["a","b","c"]'
+                     && legacy.data.items[0]==="a b c";   // 평문에 가름표가 없다
     return { pass: String(H2.CHOICE_LAYOUTS) === "horizontal,cols3,cols2,vertical,paired"
                    && keep("cols2")==="cols2" && keep("cols3")==="cols3"
                    // 모르는 값은 기본(5열)으로 떨어진다 — 가져온 .json 을 믿지 않는다
@@ -902,7 +907,8 @@ async function runIndexTests(){
                    && three.includes("(A)") && three.includes("(C)")
                    && three.includes("……") && !three.includes("|")
                    // 짝 수는 화이트리스트다 — 이상값은 2로 떨어진다
-                   && !pair(["a|b|c"], 99).includes("(C)"),
+                   && !pair({cells:[["a","b","c"]], items:[""], pairs:99}).includes("(C)")
+                   && legacyOk,
              note: `CHOICE_LAYOUTS=${H2.CHOICE_LAYOUTS}` };
   });
 

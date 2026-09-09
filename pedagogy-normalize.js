@@ -93,6 +93,12 @@ const CHOICE_LAYOUTS=["horizontal","cols3","cols2","vertical","paired"];
 /* 짝 선지의 열 머리글. 실물은 (A)(B) 또는 (A)(B)(C) 뿐이라 그 둘만 받는다 —
    임의 문자열을 받으면 가져온 .json 이 화면에 아무 글이나 넣는다. */
 const PAIR_HEADS={2:["(A)","(B)"],3:["(A)","(B)","(C)"]};
+/* 짝 선지의 평문 — 내용을 훑는 곳(`blockExcerpt`·`setHasContent`)과 다른 배치로 바꿀 때
+   쓰는 `items` 값이다. ⚠️ **파생하는 곳은 여기 하나여야 한다** — 편집기도 이것을 쓴다.
+   가름표를 넣지 않는다(사용자 눈에 `|` 가 닿으면 안 된다). */
+function pairedItemText(cells){
+  return (Array.isArray(cells)?cells:[]).map(c=>String(c||"").trim()).filter(Boolean).join(" ");
+}
 const IMG_SIZES=["full","large","medium","small"];
 const str=(v,max=20000)=>typeof v==="string"?v.slice(0,max):"";
 
@@ -224,10 +230,30 @@ function normBlock(b, opts={}){
       images.push(u||"");
     }
     while(items.length<images.length) items.push("");
-    return {type,data:{items, images,
-                       layout:CHOICE_LAYOUTS.includes(d.layout)?d.layout:"horizontal",
-                       /* 짝의 개수(2 또는 3). 없으면 2 — 실물에 그 둘뿐이다. */
-                       pairs:(+d.pairs===3?3:2)}};
+    const layout=CHOICE_LAYOUTS.includes(d.layout)?d.layout:"horizontal";
+    const pairs=(+d.pairs===3?3:2);   /* 짝의 개수(2 또는 3) — 실물에 그 둘뿐이다 */
+    /* ── 짝 선지의 칸은 **별도 배열**이다(`HANDOFF-2026-111` §2 지적 반영) ──────────
+       예전에는 `items` 안에 `|` 로 넣었다. 코덱스가 *"구분자 이스케이프보다
+       `cells:string[]` 구조가 낫다"* 고 했고 맞다 — 낱말에 `|` 가 들어가면 깨진다.
+       ⚠️ **`items` 는 그대로 문자열 배열로 남는다.** `convertBlock`(조건↔보기↔선지)과
+          내용을 훑는 곳(`blockExcerpt`·`setHasContent`)이 전부 문자열을 가정한다.
+          그래서 `cells` 는 `images` 처럼 **평행 배열**이고, `items` 는 거기서 파생된
+          **평문**이다(가름표가 사용자 눈에 닿지 않는다).
+       ⚠️ **파생이 한 곳에서만 일어나야 한다** — `pairedItemText()` 를 편집기도 같이 쓴다.
+       ⚠️ 예전 데이터는 `items` 에 `|` 로 들어 있다. 여기서 **한 번 이관**한다. */
+    let cells=Array.isArray(d.cells)
+      ? d.cells.slice(0,lossless?undefined:5).map(r=>
+          (Array.isArray(r)?r:[]).slice(0,pairs).map(v=>text(v)))
+      : null;
+    if(layout==="paired" && !cells)
+      cells=items.map(t=>String(t||"").split("|").slice(0,pairs).map(x=>x.trim()));
+    if(cells){
+      while(cells.length<items.length) cells.push([]);
+      cells.forEach(r=>{ while(r.length<pairs) r.push(""); });
+    }
+    const finalItems=(layout==="paired"&&cells) ? cells.map(pairedItemText) : items;
+    return {type,data:{items:finalItems, images, layout, pairs,
+                       ...(cells?{cells}:{})}};
   }
   // image — safeUrl 을 통과하지 못하는 주소는 아예 버린다.
   // 예전에는 이때 아무 말 없이 이미지가 사라져서, 남이 준 문제집을 가져오면
@@ -357,7 +383,7 @@ global.PedagogyNormalize = Object.freeze({
      사본을 들고 있게 되어 `resetNormDropped()` 뒤에도 옛 값을 본다. */
   droppedImages: () => normDropped.images,
   BLOCK_TYPES, SUBJECTS, SUBJECT_DEFAULT, PASSAGE_KINDS, NOTICE_KINDS,
-  CHOICE_LAYOUTS, PAIR_HEADS, IMG_SIZES, SET_NAME_MAX, SHEET_COLORS, SHEET_COLOR_DEFAULT, LIB_SORTS,
+  CHOICE_LAYOUTS, PAIR_HEADS, pairedItemText, IMG_SIZES, SET_NAME_MAX, SHEET_COLORS, SHEET_COLOR_DEFAULT, LIB_SORTS,
 });
 
 })(typeof window!=="undefined" ? window : globalThis);

@@ -20,7 +20,10 @@ const fixtures = [
   ["07-math-image-choices.json", "math-image-choices-print"],
   /* ⚠️ 과목별 조판 규칙이 하나씩 걸려 있다 — 지우지 말 것.
      08: 탐구(표 0.87em · 칸 안 그림 · 칸 합치기 가로2/세로2 · '작게' 상자 · 화학식 \ce)
-     09: 영어 짝 선지((A)(B)(C) 머리글 · `……` 이음 · 네모 `[[a / b]]`) */
+     09: 영어 짝 선지((A)(B)(C) 머리글 · `……` 이음 · 네모 `[[a / b]]`)
+     ⚠️ 09 의 표본은 **일부러 예전 `items` + `|` 형식**으로 두었다. 칸이 `cells` 로 옮겨진 뒤
+        (`HANDOFF-2026-113`) 이 표본이 그대로 통과한다는 것이 **이관이 살아 있다는 증거**다.
+        새 형식으로 바꾸면 그 증거가 사라진다 — 바꾸지 말 것. */
   ["08-inquiry-table.json", "inquiry-table-print"],
   ["09-english-paired.json", "english-paired-print"],
 ];

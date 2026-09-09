@@ -2255,7 +2255,7 @@ const {uid, sanitize, safeUrl, str, normOrder,
        normSubject, normSheetColor, normBlock, normProblem, normSet, normLibMeta,
        resetNormDropped,
        BLOCK_TYPES, SUBJECTS, SUBJECT_DEFAULT, PASSAGE_KINDS, NOTICE_KINDS,
-       CHOICE_LAYOUTS, IMG_SIZES, SET_NAME_MAX, SHEET_COLORS, SHEET_COLOR_DEFAULT,
+       CHOICE_LAYOUTS, PAIR_HEADS, pairedItemText, IMG_SIZES, SET_NAME_MAX, SHEET_COLORS, SHEET_COLOR_DEFAULT,
        LIB_SORTS} = window.PedagogyNormalize;
 /* ⚠️ **`window` 표면을 옮기기 전 그대로 유지한다.** 이 여덟은 옮기기 전 최상위
    `function` 선언이라 자동으로 `window` 속성이었고, 회귀·교차 검사 80여 곳이
@@ -5875,7 +5875,7 @@ function renderEditor(){
         const o=document.createElement("option"); o.value=String(v); o.textContent=t; pairSel.append(o);
       });
       pairSel.onchange=()=>{ blk.data.pairs=(+pairSel.value===3?3:2); sync(); };
-      const hint=el("span",null,"칸은 | 로 가릅니다 · …… 는 자동");
+      const hint=el("span",null,"칸마다 따로 적어요 · …… 와 (A)(B)(C) 는 자동");
       hint.style.cssText="font-size:11px;color:var(--text-tertiary);white-space:nowrap;align-self:center";
       const sync=()=>{
         btns.forEach(b=>b.classList.toggle("btn-primary", blk.data.layout===b.dataset.lay));
@@ -6319,10 +6319,35 @@ function renderEditor(){
           const gone=(blk.type==="choices" && blk.data.images) ? blk.data.images[i] : null;
           blk.data.items.splice(i,1);
           if(blk.type==="choices" && Array.isArray(blk.data.images)) blk.data.images.splice(i,1);
+          /* ⚠️ 짝 선지 칸도 **같은 자리끼리 짝**이다 — 한쪽만 지우면 칸이 옆 선지로 옮겨간다. */
+          if(blk.type==="choices" && Array.isArray(blk.data.cells)) blk.data.cells.splice(i,1);
           renderEditor(); renderPreview(); saveSets();
           if(isStorageUrl(gone)) releaseImage(gone);   // Storage 원본이 남지 않게
         };
-        row.append(inp);
+        const paired = blk.type==="choices" && blk.data.layout==="paired";
+        if(paired){
+          /* ⚠️ **가름표를 사용자에게 치게 하지 않는다**(`HANDOFF-2026-111` §2).
+             칸마다 입력칸을 주면 낱말에 `|` 가 들어가도 깨지지 않는다.
+             `items` 는 여기서 파생한다 — 파생하는 곳은 `pairedItemText()` 하나다. */
+          const n=(+blk.data.pairs===3?3:2);
+          if(!Array.isArray(blk.data.cells)) blk.data.cells=[];
+          while(blk.data.cells.length<blk.data.items.length) blk.data.cells.push([]);
+          const cs=blk.data.cells[i];
+          while(cs.length<n) cs.push("");
+          const heads=PAIR_HEADS[n];
+          for(let j=0;j<n;j++){
+            const ci=el("input"); ci.type="text"; ci.className="field-input";
+            ci.value=cs[j]||""; ci.placeholder=heads[j];
+            ci.setAttribute("aria-label",labelText+" "+heads[j]+" 칸");
+            ci.style.minWidth="0";
+            ci.oninput=e=>{ cs[j]=e.target.value;
+              blk.data.items[i]=pairedItemText(cs); renderPreview(); saveSets(); };
+            row.append(ci);
+            if(j<n-1){ const d2=el("span",null,"……");
+              d2.style.cssText="color:var(--text-tertiary);font-size:12px;align-self:center";
+              row.append(d2); }
+          }
+        }else row.append(inp);
         if(blk.type==="choices"){
           const has=!!blk.data.images[i];
           /* 그림 붙이기 — 그림 블록과 같은 경로를 쓴다(로그인이면 Storage, 아니면 base64).

@@ -276,7 +276,11 @@ function tableHTML(data, cls){
   const wide=Math.max(0,...rows.map(r=>r.length));
   /* 칸 합치기 — 실물 자료표가 쓴다(화학Ⅰ 5×5 가 가로2·세로3, 영어 안내표가 세로3).
      ⚠️ **덮인 칸은 건너뛴다.** 안 건너뛰면 합친 만큼 칸이 오른쪽으로 밀려 표가 어긋난다.
-        어디가 덮였는지 아는 곳은 이 `taken` 하나여야 한다 — 두 곳에서 세면 갈라진다. */
+        어디가 덮였는지 아는 곳은 이 `taken` 하나여야 한다 — 두 곳에서 세면 갈라진다.
+     명세(`docs/INQUIRY-SUBJECT-DESIGN.md` §칸 합치기의 명세):
+       · 겹치면 **행 우선 순회에서 먼저 만난 칸이 이긴다** — 뒤 칸은 그려지지 않는다.
+       · **덮인 칸의 데이터는 모델에 남는다**(합치기를 되돌리면 돌아온다). 지우지 않는다.
+       · 표 밖으로 못 나가게 **남은 칸 수로 한 번 더 조인다**(정규화가 이미 상한을 걸었다). */
   const spans=(data&&data.spans)||[];
   const taken={};
   const body=rows.map((r,i)=>{
@@ -450,8 +454,11 @@ function blockHTML(blk, ctx){
         + `<span class="label"></span>`
         + heads.map(h=>`<span class="pair-cell">${sanitize(h)}</span>`).join(`<span class="pair-dots"></span>`)
         + `</div>`;
+      /* ⚠️ 칸은 `data.cells` 에서 온다 — `items` 를 `|` 로 쪼개지 않는다.
+         정규화가 예전 데이터를 한 번 이관하므로 여기서 또 쪼갤 필요가 없다. */
+      const src=Array.isArray(blk.data.cells)?blk.data.cells:[];
       const rows=(blk.data.items||[]).slice(0,5).map((t,i)=>{
-        const cells=String(t||"").split("|").slice(0,n);
+        const cells=(Array.isArray(src[i])?src[i]:[]).slice(0,n);
         while(cells.length<n) cells.push("");
         return `<div class="pair-row"><span class="label">${circled(i+1)}</span>`
           + cells.map(c=>`<span class="pair-cell">${processText(c.trim())}</span>`)

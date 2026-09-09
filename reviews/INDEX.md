@@ -146,6 +146,7 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 | `HANDOFF-2026-098` | Codex | **한컴 고지·전체 화면 데이터 설정·모바일 일반 흐름 탭바 결정** | `handoffs/2026-09/2026-09-09-library-ux-design-decisions.md` |
 | `HANDOFF-2026-095` | Codex | **한국어 원문 + 영어·일본어·중국어 핵심 법률정보 선택과 AI 번역 고지** | `handoffs/2026-09/2026-09-09-legal-multilingual-reader-guide.md` |
 | `HANDOFF-2026-094` | Codex | **공식 법령·12개 서비스군 벤치마크 · 로그인/AI 동의 분리와 과장 고지 교정** | `handoffs/2026-09/2026-09-09-legal-benchmark-and-consent-corrections.md` |
+| `HANDOFF-2026-113` | Claude | **짝 선지를 `cells` 로 · 합치기 규칙 명세화(`-111` 후속)** | `handoffs/2026-09/2026-09-10-paired-cells-and-merge-spec.md` |
 | `HANDOFF-2026-112` | Claude | **인쇄 보정이 넘치는 표를 줄인다(`REV-2026-078` 해결)** | `handoffs/2026-09/2026-09-10-print-table-overflow-fix.md` |
 | `HANDOFF-2026-111` | Codex | 영어·탐구 다섯 건 독립 검토 (`REV-2026-078` 발견) | `handoffs/2026-09/2026-09-10-subjects-independent-review.md` |
 | `HANDOFF-2026-110` | Claude | **검토 요청 — 영어 짝 선지·탐구 과목 다섯 건 (공격 지점·미확인 목록 포함)** | `handoffs/2026-09/2026-09-10-review-request-subjects.md` |
