@@ -178,7 +178,9 @@ footer{max-width:1420px;margin:0 auto;padding:22px 24px 32px;
     <a class="brand" href="index.html">PEDAGOGY</a>
     <span class="beta">β</span>
     <a class="button btn-ghost" href="index.html" style="margin-left:10px">문제집</a>
-    <a class="button btn-ghost" href="index.html#mock">모의고사</a>
+    <!-- ⚠️ 해시 계약은 `#library=mocks` 다(`index.html` 의 `readLibraryTabHash`).
+         예전 `#mock` 은 아무 데도 안 걸려 **문제집 라이브러리로 떨어졌다.** -->
+    <a class="button btn-ghost" href="index.html#library=mocks">모의고사</a>
     <span class="button btn-ghost" aria-current="page" style="color:var(--text-primary);background:var(--surface-2);border-color:var(--border);cursor:default">AI 문서</span>
   </div>
   <div class="bar-right">

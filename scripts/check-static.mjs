@@ -385,4 +385,14 @@ if (await exists("experiments/hwp-export/samples/choice-layout-truth.json")) {
     "법률정보의 기본 언어는 효력 기준인 한국어 원문이어야 합니다");
 }
 
+// ── 화면 사이 이동 링크 ────────────────────────────────────────────────────
+// ⚠️ AI 문서에서 '모의고사' 를 누르면 **모의고사 라이브러리**로 가야 한다.
+//    예전 `#mock` 해시는 아무 데도 안 걸려 문제집 라이브러리로 조용히 떨어졌다.
+{
+  const docEditor3 = await text("document-editor.html");
+  assert.match(docEditor3, /href="index\.html#library=mocks"[^>]*>모의고사</,
+    "document-editor.html 의 '모의고사' 링크가 #library=mocks 를 가리키지 않습니다");
+  assert.match(index, /library=mocks/, "index.html 이 그 해시를 읽지 않습니다");
+}
+
 console.log("Commercial static checks passed");
