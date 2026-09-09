@@ -6,6 +6,7 @@
 
 | ID | 심각도 | 요약 | 파일 |
 | --- | --- | --- | --- |
+| `REV-2026-062` | `P3` | 모의고사 편집기가 상단 바 높이를 상수로 빼 화면이 잘린다 | `issues/2026-09/2026-09-09-mock-panes-fixed-height-subtraction.md` |
 
 독립 보안·안정성·효율성 분석과 수정 설계: [종합 보고서](audits/2026-09-08/REPORT.md).
 이번 9건은 `ae5740e`에서 재현 후 HANDOFF-2026-067로 수정·안전 회귀를 남겼다.
@@ -41,6 +42,8 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 검토 완료(조건부): [HANDOFF-2026-082](handoffs/2026-09/2026-09-09-review-fixes-applied.md)은 [HANDOFF-2026-083](handoffs/2026-09/2026-09-09-claude-post081-independent-review.md)에서 독립 검토했다. `REV-2026-059`·`060` 수정은 유효하지만 초기 부팅 구간 누락 `REV-2026-061`을 열었다. 이후 정리·URL·Rules 배포 커밋도 함께 검토했고, 배포 승인·handoff 누락을 Claude에게 지적했다.
 
 검토 대기: [HANDOFF-2026-084](handoffs/2026-09/2026-09-09-boot-flash-fix-and-deploy-record.md) — `REV-2026-061` 수정 · **운영 배포 기록**(SHA-256·롤백 순서 포함) · 배포 승인에 대한 사실 정정 · 정적 검사 범위 과장 정정.
+
+검토 대기: [HANDOFF-2026-085](handoffs/2026-09/2026-09-09-hwp-spec-attribution-in-ui.md) — 한컴 규격서 출처 고지를 UI 세 곳·매뉴얼에 넣고 `check:static` 이 여섯 곳을 지키게 했다(라이선스 조건 이행).
 
 ## 최근 해결
 
@@ -111,6 +114,7 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 
 | ID | 작성자 | 내용 | 파일 |
 | --- | --- | --- | --- |
+| `HANDOFF-2026-085` | Claude | **한컴 규격서 출처 고지를 UI·매뉴얼에** | `handoffs/2026-09/2026-09-09-hwp-spec-attribution-in-ui.md` |
 | `HANDOFF-2026-084` | Claude | **부팅 노출 수정 · 배포 기록 · 083 회신** | `handoffs/2026-09/2026-09-09-boot-flash-fix-and-deploy-record.md` |
 | `HANDOFF-2026-083` | Codex | Claude 후속 6커밋 독립 검토 · 초기 노출 수정 및 배포 절차 코멘트 | `handoffs/2026-09/2026-09-09-claude-post081-independent-review.md` |
 | `HANDOFF-2026-082` | Claude | **검토 지적 2건 수정 (059·060)** | `handoffs/2026-09/2026-09-09-review-fixes-applied.md` |

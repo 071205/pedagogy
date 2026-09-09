@@ -5,11 +5,14 @@ const root = new URL("../", import.meta.url);
 const text = async (path) => readFile(new URL(path, root), "utf8");
 const exists = async (path) => stat(new URL(path, root)).then(() => true, () => false);
 
-const [index, normalize, mock, documentEditor, worker, rules, storageRules, config, workflow, integration, server, manifest, visual] = await Promise.all([
+const [index, normalize, mock, documentEditor, legal, engine, texToHwp, worker, rules, storageRules, config, workflow, integration, server, manifest, visual] = await Promise.all([
   text("index.html"),
   text("pedagogy-normalize.js"),
   text("mock-exam-editor.html"),
   text("document-editor.html"),
+  text("legal.html"),
+  text("hwpx-engine.js"),
+  text("experiments/hwp-export/tex_to_hwp.py"),
   text("worker/index.js"),
   text("firestore.rules"),
   text("storage.rules"),
@@ -78,6 +81,21 @@ for (const [name, src] of [["index.html", index], ["mock-exam-editor.html", mock
     `${name} 에서 \`.style.visibility\` 직접 대입이 있습니다 — \`display\` 로 바꾸세요. `
     + "목록 없는 `transition` shorthand 가 `all` 이라 약 130ms 동안 요소가 보이고 눌립니다"
     + "(REV-2026-059).");
+}
+
+/* ⚠️ **저작권 조항이 요구하는 고지다 — 지우면 라이선스 조건을 어긴다.**
+   한컴 수식 규격서(`docs/HWP-SPEC.md` §배포 조건)는 이 문장을 **제품 내 유저인터페이스,
+   매뉴얼, 도움말 및 소스에 모두** 기재하라고 요구한다. 예전에는 **소스에만** 있었다
+   (`hwpx-engine.js`·`tex_to_hwp.py`) — 화면 넷에는 하나도 없어 조건을 못 지키고 있었다.
+   ⚠️ 문구를 바꾸지 말 것. 규격서가 문장을 그대로 지정한다. */
+const HWP_NOTICE = "본 제품은 한글과컴퓨터의 한글 문서 파일(.hwp) 공개 문서를 참고하여 개발하였습니다.";
+for (const [name, src] of [["index.html", index], ["mock-exam-editor.html", mock],
+                           ["document-editor.html", documentEditor], ["legal.html", legal],
+                           ["hwpx-engine.js", engine],
+                           ["experiments/hwp-export/tex_to_hwp.py", texToHwp]]) {
+  assert.ok(src.includes(HWP_NOTICE),
+    `${name} 에 한컴 규격서 출처 고지가 없습니다 — 저작권 조항이 UI·매뉴얼·도움말·소스에 `
+    + `**모두** 요구합니다(docs/HWP-SPEC.md). 문구: "${HWP_NOTICE}"`);
 }
 
 assert.match(worker, /async alarm\(\)/, "AI quota는 자동 파기 alarm이 필요합니다");

@@ -583,6 +583,18 @@ body.embedded .brand-tag{margin-left:0}
   <aside class="outline"><div class="pane-hd">순서</div><div class="ol" id="ol"></div></aside>
 </main>
 
+<!-- ⚠️ **저작권 조항이 요구하는 문구다 — 지우지 말 것**(`docs/HWP-SPEC.md` §배포 조건).
+     한컴 수식 규격서는 이 문장을 **유저인터페이스·매뉴얼·도움말·소스에 모두** 적으라고
+     요구한다. 소스(`hwpx-engine.js`·`tex_to_hwp.py`)에만 있었고 화면에는 없었다.
+     `check:static` 이 네 화면에 다 있는지 본다.
+     ⚠️ **이 화면만 `position:fixed` 다.** 이 앱은 `body{overflow:hidden}` 에
+     `.panes{height:calc(100% - 60px)}` 라 화면에 딱 맞춰 놓았고, 흐름에 푸터를 더하면
+     그만큼 **잘려서 보이지 않는다**(1280×800 에서 실측 25px 잘림 — 잘리는 고지는 조건을
+     못 지킨다). 자리를 차지하지 않게 띄우고 `pointer-events:none` 으로 조작을 막지 않는다.
+     ⚠️ 근본 원인은 그 `calc(100% - 60px)` 상수 빼기다(`REV-2026-028` 이 index.html 에서
+     걷어낸 바로 그 패턴인데 여기엔 남아 있다) — 별도 이슈다. -->
+<footer style="position:fixed;right:0;bottom:0;z-index:5;padding:3px 10px;font-size:10px;line-height:1.4;color:var(--text-tertiary);background:var(--bg);border-top-left-radius:6px;pointer-events:none">본 제품은 한글과컴퓨터의 한글 문서 파일(.hwp) 공개 문서를 참고하여 개발하였습니다.</footer>
+
 <div id="measure" style="position:absolute;visibility:hidden;left:-9999px;
   font-family:'Hamchorom',serif;font-size:11.04pt;white-space:nowrap"></div>
 
