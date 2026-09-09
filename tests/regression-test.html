@@ -341,6 +341,19 @@ async function runIndexTests(){
   });
 
   // ── 이모지 정리(최근 단계) ──
+  /* ⚠️ **화학식이 실제로 그려지는가.** 정적 검사는 태그와 순서만 본다 — `integrity` 해시가
+     틀리면 스크립트가 **조용히 차단**되고 `\ce` 는 "Undefined control sequence" 가 된다.
+     그건 실행해 봐야만 안다(실물 화학Ⅰ 한 부에 수식이 440개다). */
+  await check(G, "화학식 \\ce{} 가 그려진다 (mhchem)", () => {
+    if (typeof win.katex === "undefined") return { pass: true, note: "KaTeX 없음(CDN 차단) — 건너뜀" };
+    try { win.katex.renderToString("\\ce{2H2 + O2 -> 2H2O}", { throwOnError: true }); }
+    catch (e) { return { pass: false, note: String(e.message || e).slice(0, 90) }; }
+    // 대조군 — 없는 명령은 여전히 실패해야 한다(검사가 헛돌지 않게)
+    try { win.katex.renderToString("\\notacommand{x}", { throwOnError: true }); }
+    catch { return { pass: true }; }
+    return { pass: false, note: "없는 명령도 통과했다 — 판정이 헛돌고 있다" };
+  });
+
   /* 전역 `모의고사` 버튼은 라이브러리 세그먼트로 옮겼고, 그 세그먼트는 다시 왼쪽 레일로
      갔다(`HANDOFF-2026-097`). 자리는 옮겨도 **글자에 이모지가 없다**는 계약은 그대로다.
      ⚠️ 글자를 통째로 비교하면 자리를 옮길 때마다 검사가 깨진다 — 보려는 것은 '이모지가

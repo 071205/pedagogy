@@ -48,6 +48,16 @@
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"
         integrity="sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4lfFg"
         crossorigin="anonymous"></script>
+<!-- ⚠️ **mhchem 은 KaTeX **뒤**, auto-render **앞**에 와야 한다.** KaTeX 에 `\ce` 명령을
+     더하는 확장이라 본체가 먼저 있어야 하고, 렌더가 돌기 전에 등록돼 있어야 한다.
+     `defer` 는 문서 순서를 지키므로 이 자리면 된다.
+     왜 넣었나 — 실물 화학Ⅰ 한 부에 수식이 **440개**이고 대부분이 원소기호+아래첨자다.
+     `\ce{2H2 + O2 -> 2H2O}` 와 `2\mathrm{H_2}(g)+\mathrm{O_2}(g)\rightarrow 2\mathrm{H_2O}(l)`
+     의 차이다. ⚠️ 버전을 올리면 `integrity` 해시도 반드시 다시 계산할 것
+     (`openssl dgst -sha384 -binary <파일> | openssl base64 -A`). -->
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/mhchem.min.js"
+        integrity="sha384-ifpG+NlgMq0kvOSGqGQxW1mJKpjjMDmZdpKGq3tbvD3WPhyshCEEYClriK/wRVU0"
+        crossorigin="anonymous"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
         integrity="sha384-43gviWU0YVjaDtb/GhzOouOXtZMP/7XUzwPTstBeZFe/+rCMvRwr4yROQP43s0Xk"
         crossorigin="anonymous"></script>

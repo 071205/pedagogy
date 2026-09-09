@@ -425,4 +425,22 @@ if (await exists("experiments/hwp-export/samples/choice-layout-truth.json")) {
   }
 }
 
+// ── 화학식(mhchem) ─────────────────────────────────────────────────────────
+// ⚠️ **순서가 계약이다.** mhchem 은 KaTeX 에 `\ce` 를 더하는 확장이라 **KaTeX 뒤**,
+//    렌더가 도는 **auto-render 앞**에 와야 한다. `defer` 는 문서 순서를 지키므로
+//    태그 순서만 맞으면 된다 — 뒤바뀌면 `\ce` 가 조용히 "Undefined control sequence" 가 된다.
+{
+  const at = (re) => { const m = index.match(re); return m ? index.indexOf(m[0]) : -1; };
+  const katexJs = at(/katex@[\d.]+\/dist\/katex\.min\.js/);
+  const mhchem  = at(/katex@[\d.]+\/dist\/contrib\/mhchem\.min\.js/);
+  const render  = at(/katex@[\d.]+\/dist\/contrib\/auto-render\.min\.js/);
+  assert.ok(mhchem > 0, "index.html 에 mhchem 이 없습니다 — 화학식 `\\ce{}` 가 안 그려집니다");
+  assert.ok(katexJs > 0 && mhchem > katexJs,
+    "mhchem 이 KaTeX 본체보다 앞에 있습니다 — 확장이 붙을 대상이 아직 없습니다");
+  assert.ok(render > mhchem,
+    "mhchem 이 auto-render 보다 뒤에 있습니다 — 렌더가 돈 뒤에 등록되어 `\\ce` 가 실패합니다");
+  assert.match(index, /contrib\/mhchem\.min\.js"\s*\n?\s*integrity="sha384-/,
+    "mhchem 태그에 integrity 해시가 없습니다 — CDN 태그는 전부 SRI 를 답니다");
+}
+
 console.log("Commercial static checks passed");
