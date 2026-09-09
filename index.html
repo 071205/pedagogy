@@ -1488,9 +1488,12 @@ input:focus-visible,textarea:focus-visible{outline:none}
   <button type="button" class="brand" id="brandBtn" aria-label="문제집 라이브러리로 이동">PEDAGOGY</button>
   <!-- 모의고사 편집기에서 라이브러리로 돌아가는 길. 그 화면에서만 보인다. -->
   <button type="button" id="mockBackBtn" class="btn" style="margin-left:14px" hidden>← 라이브러리</button>
-  <!-- ⚠️ 예전에 여기 있던 `모의고사` 버튼은 라이브러리 세그먼트로 옮겼다.
-       ('AI 문서 β' 는 두 라이브러리와 성격이 다른 별도 도구라 상단에 남는다) -->
-  <a class="btn" href="document-editor.html" style="margin-left:14px;text-decoration:none" title="AI 초안·검증·한글 HWPX 내보내기 베타">AI 문서 β</a>
+  <!-- ⚠️ **여기에 'AI 문서' 링크를 다시 넣지 말 것.** 예전에 있었지만 뺐다 —
+       이 제품의 의의는 *문제집·모의고사를 만들어 한글로 뽑는 것* 인데, 범용 문서 작성
+       도구가 같은 자리에 있으면 '이게 무슨 프로그램인가' 가 흐려진다.
+       `document-editor.html` 은 지우지 않았다. 그 조판 엔진(`hwpx-engine.js`)을
+       모의고사 한글 내보내기가 그대로 쓰고 있고, 주소로 직접 열면 지금도 동작한다.
+       `check:static` 이 이 결정을 지킨다(`docs/AI-DOCUMENT-SCOPE.md`). -->
   <div class="actions" id="topActions">
     <button id="undoBtn" class="btn-ghost histbtn" title="실행취소 (Cmd/Ctrl+Z)" aria-label="실행취소" disabled><span class="icon icon-undo" aria-hidden="true"></span></button>
     <button id="redoBtn" class="btn-ghost histbtn" title="다시실행 (Cmd/Ctrl+Shift+Z)" aria-label="다시실행" disabled><span class="icon icon-redo" aria-hidden="true"></span></button>
@@ -1543,8 +1546,6 @@ input:focus-visible,textarea:focus-visible{outline:none}
       <button type="button" id="tabMocks" class="lib-tab" role="tab" tabindex="-1"
               aria-selected="false" aria-controls="mocksPanel"
               title="수능 모의고사 양식 시험지 편집기">모의고사</button>
-      <a class="lib-tab rail-link" href="document-editor.html"
-         title="AI 초안·검증·한글 HWPX 내보내기 베타">AI 문서 <span class="rail-beta">β</span></a>
     </div>
     <div id="folderBar" class="folder-bar"></div>
     <div class="rail-foot">

@@ -4,7 +4,9 @@
 
 ## 열린 이슈
 
-현재 열린 이슈 없음.
+| ID | 심각도 | 요약 | 파일 |
+| --- | --- | --- | --- |
+| `REV-2026-075` | `P2` | AI 문서에 들어갔다 나오면 로그인이 안 된다(재현 절차 없음) | `issues/2026-09/2026-09-09-document-editor-login-after-return.md` |
 
 독립 보안·안정성·효율성 분석과 수정 설계: [종합 보고서](audits/2026-09-08/REPORT.md).
 이번 9건은 `ae5740e`에서 재현 후 HANDOFF-2026-067로 수정·안전 회귀를 남겼다.
@@ -136,6 +138,7 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 | `HANDOFF-2026-098` | Codex | **한컴 고지·전체 화면 데이터 설정·모바일 일반 흐름 탭바 결정** | `handoffs/2026-09/2026-09-09-library-ux-design-decisions.md` |
 | `HANDOFF-2026-095` | Codex | **한국어 원문 + 영어·일본어·중국어 핵심 법률정보 선택과 AI 번역 고지** | `handoffs/2026-09/2026-09-09-legal-multilingual-reader-guide.md` |
 | `HANDOFF-2026-094` | Codex | **공식 법령·12개 서비스군 벤치마크 · 로그인/AI 동의 분리와 과장 고지 교정** | `handoffs/2026-09/2026-09-09-legal-benchmark-and-consent-corrections.md` |
+| `HANDOFF-2026-100` | Claude | **AI 문서를 화면에서 빼고 코드로 남김 · 교차 검사의 '붙어 있는가' 이전** | `handoffs/2026-09/2026-09-09-ai-document-scope.md` |
 | `HANDOFF-2026-099` | Claude | **코덱스 결정 반영 — 휴대폰 하단 탐색(흐름 안 · safe-area 미도입)** | `handoffs/2026-09/2026-09-09-mobile-bottom-nav.md` |
 | `HANDOFF-2026-097` | Claude | **왼쪽 레일·푸터 축약·설정 좌측 갈래 · 코덱스 이슈 처리** | `handoffs/2026-09/2026-09-09-library-rail-and-settings.md` |
 | `HANDOFF-2026-096` | Claude | **라이브러리 화면 재설계 설계안 — 실측·왼쪽 레일·푸터 축약·설정 화면 (검토 요청)** | `handoffs/2026-09/2026-09-09-library-ux-design.md` |

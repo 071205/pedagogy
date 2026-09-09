@@ -393,6 +393,21 @@ if (await exists("experiments/hwp-export/samples/choice-layout-truth.json")) {
   assert.match(docEditor3, /href="index\.html#library=mocks"[^>]*>모의고사</,
     "document-editor.html 의 '모의고사' 링크가 #library=mocks 를 가리키지 않습니다");
   assert.match(index, /library=mocks/, "index.html 이 그 해시를 읽지 않습니다");
+
+  // ── AI 문서는 **화면에서 뺐고 코드로만 남겼다** (`docs/AI-DOCUMENT-SCOPE.md`) ──
+  // ⚠️ 이 제품의 의의는 문제집·모의고사를 한글로 뽑는 것이다. 범용 문서 작성 도구가
+  //    같은 자리에 있으면 그 의의가 흐려진다. 그래서 **입구만** 없앴다.
+  // ⚠️ 파일과 엔진은 그대로 둔다 — 모의고사 한글 내보내기가 같은 엔진을 쓰고,
+  //    주소로 직접 열면 지금도 동작한다. **지우는 것과 입구를 빼는 것은 다르다.**
+  assert.ok(!/href="document-editor\.html"/.test(index),
+    "index.html 이 다시 AI 문서로 링크합니다 — 화면에서 빼기로 한 결정입니다(docs/AI-DOCUMENT-SCOPE.md)");
+  const serveStatic = await text("serve.py");
+  assert.match(serveStatic, /"\/document-editor\.html":/,
+    "serve.py 의 STATIC 에서 document-editor.html 이 빠졌습니다 — 입구를 뺀 것이지 지운 것이 아닙니다");
+  for (const f of ["hwpx-engine.js", "hwpx-document.js"]) {
+    assert.match(serveStatic, new RegExp(`"\\/${f.replace(".", "\\.")}":`),
+      `serve.py 의 STATIC 에서 ${f} 가 빠졌습니다 — 모의고사 한글 내보내기가 이 엔진을 씁니다`);
+  }
 }
 
 console.log("Commercial static checks passed");

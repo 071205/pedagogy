@@ -335,7 +335,14 @@ CDNs (KaTeX, SortableJS, Firebase compat SDK, Pretendard/KoPub webfonts).
 - [`serve.py`](serve.py) — optional local Python dev server that compiles the mock editor's
   generated Typst source to PNG page previews with the real exam font/layout, so the
   in-browser approximate preview can be swapped for a pixel-accurate one.
-- [`document-editor.html`](document-editor.html) — **범용 문서 조판(베타).** 사용자가 한국어로
+- [`document-editor.html`](document-editor.html) — **범용 문서 조판(베타).**
+  ⚠️ **화면에서 입구를 뺐다(2026-09-09).** `index.html` 은 더 이상 여기로 링크하지 않는다 —
+  제품의 의의(문제집·모의고사를 한글로 뽑는다)가 흐려졌기 때문이다. **파일과 엔진은
+  지우지 않았다**: 주소로 열면 동작하고, **모의고사 한글 내보내기가 같은 엔진을 쓴다.**
+  이유와 남긴 것 목록은 [`docs/AI-DOCUMENT-SCOPE.md`](docs/AI-DOCUMENT-SCOPE.md).
+  `check:static` 이 두 방향을 함께 본다 — index 가 다시 링크하지 않는지, `serve.py` 에서
+  파일·엔진이 빠지지 않았는지. 한쪽만 보면 '입구를 뺀다' 가 어느새 '지운다' 가 된다.
+  ⚠️ **로그인 결함이 열려 있다**(`REV-2026-075`) — 재현 절차가 아직 없다. 사용자가 한국어로
   요청하면 AI(Worker)가 제한된 문서 JSON을 만들고, 브라우저에서 검증·미리보기한 뒤
   `serve.py`의 `POST /document-hwpx`로 한글 파일을 받는다. 모의고사와 **다른 흐름**이다 —
   자세한 것은 아래 '범용 문서(HWPX)' 절.

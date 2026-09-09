@@ -143,23 +143,38 @@ async function probes(page, vp, seen) {
      그래서 '붙어 있는가' 를 값으로 잰다. 줄바꿈될 때는 다른 줄로 갈 수 있으므로
      **같은 줄일 때만** 본다. */
   const brandGap = await page.evaluate(() => {
-    /* ⚠️ 예전에는 `#mockModeBtn` 과의 간격을 쟀다. 그 전역 버튼은 라이브러리 세그먼트로
-       옮겨 사라졌으므로, 지금 상단 바 왼쪽 묶음의 짝은 브랜드와 'AI 문서 β' 다.
-       재는 것(붙어 있는가)은 그대로다 — `REV-2026-063` 이 그 회귀였다. */
-    const br = document.getElementById("brandBtn");
-    const mk = document.querySelector('.topbar a[href="document-editor.html"]');
-    if (!br || !mk) return { missing: true };
-    const a = br.getBoundingClientRect(), b = mk.getBoundingClientRect();
+    /* ⚠️ **재는 자리는 옮겨 다녔지만 재는 것은 그대로다** — `REV-2026-063` 의 결함은
+       '보이지 않는 채움 요소에 기대 탐색이 벌어지는 것' 이었다. 처음에는 상단 바의
+       브랜드↔모의고사, 다음에는 브랜드↔'AI 문서' 였는데 둘 다 그 자리에서 사라졌다
+       (모의고사는 라이브러리로, AI 문서는 UI 에서 제거).
+       지금 탐색은 **왼쪽 레일**이므로 레일의 두 항목이 붙어 있는지 본다.
+       ⚠️ 검사를 지우지 않는다 — 자리를 옮길 때마다 지우면 그 회귀가 다시 들어온다. */
+    /* ⚠️ 레일은 **라이브러리 화면에만** 있다. 다른 화면에서 재면 두 요소의 사각형이
+       0×0 이라 간격도 0 이 되어 **무엇을 깨뜨려도 통과한다**(자기검사가 그것을 잡았다).
+       ⚠️ 그렇다고 `showLibrary()` 를 부르면 **앱 상태가 바뀌어 뒤 검사 여섯이 무너진다**
+          (실제로 그랬다). 화면 전환 없이 **인라인 display 만 잠깐 켰다가 되돌린다.** */
+    const view = document.getElementById("libraryView");
+    const br = document.getElementById("tabSets");
+    const mk = document.getElementById("tabMocks");
+    if (!view || !br || !mk) return { missing: true };
+    const prev = view.style.display;
+    if (getComputedStyle(view).display === "none") view.style.display = "flex";
+    const wide = br.getBoundingClientRect().width && mk.getBoundingClientRect().width;
+    const a0 = br.getBoundingClientRect(), b0 = mk.getBoundingClientRect();
+    view.style.display = prev;
+    if (!wide) return { missing: true };
+    const a = a0, b = b0;
     /* 버튼마다 높이가 달라도 세로로 절반 이상 겹치면 같은 줄이다. `top` 좌표 4px
        같은 임계값은 브랜드를 시맨틱 button으로 바꿨을 때 정확히 4px 차가 나 헛돌았다. */
+    /* 레일은 세로로 쌓이고 좁은 화면에서는 가로로 눕는다 — 두 배치를 함께 본다. */
     const verticalOverlap=Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top);
-    return { sameRow: verticalOverlap>Math.min(a.height,b.height)/2,
-             gap: Math.round(b.left - a.right) };
+    const sameRow=verticalOverlap>Math.min(a.height,b.height)/2;
+    return { sameRow, gap: Math.round(sameRow ? b.left - a.right : b.top - a.bottom) };
   });
-  add("상단 바 왼쪽 묶음이 붙어 있다",
-      !brandGap.missing && (!brandGap.sameRow || brandGap.gap <= 40),
-      brandGap.missing ? "브랜드·AI 문서 링크를 찾지 못했다"
-                       : `브랜드와 AI 문서 사이 ${brandGap.gap}px (같은 줄=${brandGap.sameRow})`);
+  add("탐색 항목이 붙어 있다",
+      !brandGap.missing && brandGap.gap <= 40,
+      brandGap.missing ? "레일의 두 탐색 항목을 찾지 못했다"
+                       : `문제집과 모의고사 사이 ${brandGap.gap}px (같은 줄=${brandGap.sameRow})`);
 
   /* ⚠️ 두 이벤트를 **따로** 본다. 함께 쏘면 하나가 죽어도 다른 하나가 가려 준다 —
      `pagehide` 를 새로 넣은 이유(iOS 사파리가 `beforeunload` 를 건너뛴다)가 통째로
@@ -337,12 +352,12 @@ const BREAKS = [
     run: p => p.evaluate(() => { const t = document.querySelector(".topbar");
       t.style.cssText += ";position:fixed;top:0;left:0;right:0;height:400px;z-index:9999"; }) },
   /* ⚠️ `REV-2026-063` — 예전 판정으로는 이 고장이 **전부 초록불**이었다. */
-  { key: "상단 바 왼쪽 묶음이 붙어 있다", 이름: "상단 바를 다시 space-between 으로 되돌리면",
-    run: p => p.evaluate(() => { const t = document.querySelector(".topbar");
-      /* 이 결함의 원래 재현 조건은 편집기 동작이 숨은 라이브러리 화면이다. */
-      document.getElementById("topActions").style.display = "none";
-      t.style.justifyContent = "space-between";
-      document.getElementById("themeBtn").style.setProperty("margin-left", "8px", "important"); }) },
+  { key: "탐색 항목이 붙어 있다", 이름: "탐색을 다시 벌려 놓으면",
+    /* ⚠️ 재는 자리가 상단 바 → 레일로 옮겨졌으므로 **고장도 함께 옮긴다.** 안 옮기면
+       자기검사가 없는 probe 를 찾다가 실패하고, 진짜 회귀는 아무도 안 본다. */
+    run: p => p.evaluate(() => { const rail = document.querySelector(".lib-tabs");
+      rail.style.setProperty("gap", "80px", "important");
+      rail.style.setProperty("justify-content", "space-between", "important"); }) },
   { key: "핵심 단추가 화면 안", 이름: "핵심 단추를 화면 밖(가로)으로 밀면",
     run: p => p.evaluate(() => { document.getElementById("printBtn").style.cssText += ";position:fixed;left:-500px"; }) },
   /* ⚠️ 아래 둘은 `REV-2026-025` 가 지적한 맹점이다 — 예전 판정은 둘 다 초록불이었다. */
