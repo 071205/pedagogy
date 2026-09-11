@@ -28,6 +28,10 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 `-049`(발문 별행 수식 탭·왼쪽 정렬) · `-050`(범용성 설계) · `-051`(설계 독립 검토) · `-052`(검토 반영) · `-053`(1단계 연기 검사) · `-054`(2단계 인앱·pagehide).
 
 ## 검토 대기
+검토 완료(이슈 1건 수정): [HANDOFF-2026-116](handoffs/2026-09/2026-09-11-library-mode-switcher-settings-modal.md)의 UI를 3개 브라우저 엔진에서 확인했고, 보안 후속 변경의 전역 AI quota가 확정되지 않는 `REV-2026-080`을 [HANDOFF-2026-117](handoffs/2026-09/2026-09-11-ui-security-followup-independent-review.md)에서 재현·수정했다.
+
+검토 완료(검사 결함 1건 수정): [HANDOFF-2026-114](handoffs/2026-09/2026-09-11-saas-security-enhancement-proposals.md)는 [HANDOFF-2026-115](handoffs/2026-09/2026-09-11-saas-security-proposals-independent-review.md)에서 코드·공개 배포본·공식 보호 범위와 대조했다. App Check·지속 감시 방향은 유효하지만 WAF·DLP·자체 Worker 보호 계약은 재설계가 필요하다. `check:launch`가 주석을 실제 플랜 설정으로 오인하는 `REV-2026-079`를 재현·수정했다.
+
 
 검토 완료(이슈 1건): [HANDOFF-2026-110](handoffs/2026-09/2026-09-10-review-request-subjects.md)은 [HANDOFF-2026-111](handoffs/2026-09/2026-09-10-subjects-independent-review.md)에서 §3 공격 지점을 독립 확인했다. 핵심 구현은 유효하고, 표 인쇄 가로 넘침 `REV-2026-078`을 재현해 열었다.
 
@@ -61,6 +65,8 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 
 | ID | 심각도 | 요약 | 파일 |
 | --- | --- | --- | --- |
+| `REV-2026-080` | `P1` | 전역 AI quota 예약이 다른 ID로 확정되어 비용 상한이 작동하지 않는다 | `issues/2026-09/2026-09-11-worker-global-quota-reservation.md` |
+| `REV-2026-079` | `P2` | 주석의 유료 플랜 AI 상한을 출시 설정으로 오인한다 | `issues/2026-09/2026-09-11-tests-launch-plan-limit-comment.md` |
 | `REV-2026-077` | `P2` | 설정이 출처 화면을 잊고 모의고사 편집기에는 진입점이 없다 | `issues/2026-09/2026-09-10-index-settings-forgets-source-view.md` |
 | `REV-2026-076` | `P2` | 모바일 탐색이 긴 라이브러리 뒤로 밀리고 포커스 순서가 역전된다 | `issues/2026-09/2026-09-10-index-mobile-navigation-after-long-library.md` |
 | `REV-2026-074` | `P2` | macOS 폴더 아이콘 파일이 Git refs를 오염시킨다 | `issues/2026-09/2026-09-09-rules-macos-icon-files-corrupt-git-refs.md` |
@@ -141,11 +147,16 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 
 | ID | 작성자 | 내용 | 파일 |
 | --- | --- | --- | --- |
+| `HANDOFF-2026-117` | Codex | **라이브러리 UI·보안 후속 독립 검토 · 전역 AI quota 확정 수정** | `handoffs/2026-09/2026-09-11-ui-security-followup-independent-review.md` |
+| `HANDOFF-2026-116` | Codex | **문제집/모의고사 큰 선택 메뉴 · A 아이콘 · 블러 설정 모달** | `handoffs/2026-09/2026-09-11-library-mode-switcher-settings-modal.md` |
+| `HANDOFF-2026-115` | Codex | **SaaS 보안 제안 독립 검토·출시 게이트 주석 오인 수정** | `handoffs/2026-09/2026-09-11-saas-security-proposals-independent-review.md` |
 | `HANDOFF-2026-111` | Codex | **영어·탐구 다섯 건 독립 검토 · 표 인쇄 넘침 결함 재현** | `handoffs/2026-09/2026-09-10-subjects-independent-review.md` |
 | `HANDOFF-2026-105` | Codex | **097·099·101·102 독립 검토 · 모바일 탐색과 설정 복귀 수정** | `handoffs/2026-09/2026-09-10-library-ux-independent-review-and-fixes.md` |
 | `HANDOFF-2026-098` | Codex | **한컴 고지·전체 화면 데이터 설정·모바일 일반 흐름 탭바 결정** | `handoffs/2026-09/2026-09-09-library-ux-design-decisions.md` |
 | `HANDOFF-2026-095` | Codex | **한국어 원문 + 영어·일본어·중국어 핵심 법률정보 선택과 AI 번역 고지** | `handoffs/2026-09/2026-09-09-legal-multilingual-reader-guide.md` |
 | `HANDOFF-2026-094` | Codex | **공식 법령·12개 서비스군 벤치마크 · 로그인/AI 동의 분리와 과장 고지 교정** | `handoffs/2026-09/2026-09-09-legal-benchmark-and-consent-corrections.md` |
+| `HANDOFF-2026-114` | Gemini | **엔터프라이즈 SaaS 보안 강화 제안서** | `handoffs/2026-09/2026-09-11-saas-security-enhancement-proposals.md` |
+
 | `HANDOFF-2026-113` | Claude | **짝 선지를 `cells` 로 · 합치기 규칙 명세화(`-111` 후속)** | `handoffs/2026-09/2026-09-10-paired-cells-and-merge-spec.md` |
 | `HANDOFF-2026-112` | Claude | **인쇄 보정이 넘치는 표를 줄인다(`REV-2026-078` 해결)** | `handoffs/2026-09/2026-09-10-print-table-overflow-fix.md` |
 | `HANDOFF-2026-111` | Codex | 영어·탐구 다섯 건 독립 검토 (`REV-2026-078` 발견) | `handoffs/2026-09/2026-09-10-subjects-independent-review.md` |

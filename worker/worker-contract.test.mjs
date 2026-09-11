@@ -6,6 +6,9 @@ const env = {
   FIREBASE_PROJECT_ID: "pedagogy-test",
   ANTHROPIC_KEY: "test-secret",
   DAILY_LIMIT: "5",
+  // 기존 요청 계약 검사는 사용자별 quota에 집중한다. 전역 quota는 아래의
+  // 전용 가짜 Durable Object로 실제 reserve/consume 순서를 따로 검증한다.
+  GLOBAL_DAILY_LIMIT: "0",
   PLAN_DAILY_LIMITS_JSON: JSON.stringify({ free: 5, pro: 20 }),
 };
 
@@ -62,6 +65,45 @@ function testWorker({
 
 async function body(response) {
   return response.json();
+}
+
+function globalQuotaEnv({ limit = 2, used = 0, fail = false } = {}) {
+  const state = { calls: [], reservations: new Set(), used };
+  const stub = {
+    async fetch(_url, init) {
+      if (fail) throw new Error("global quota unavailable");
+      const req = JSON.parse(init.body);
+      state.calls.push(req);
+      if (req.op === "reserve") {
+        if (state.used + state.reservations.size >= req.limit) {
+          return Response.json({ ok: false, used: state.used, limit: req.limit,
+            pending: state.reservations.size });
+        }
+        state.reservations.add(req.reservationId);
+        return Response.json({ ok: true, used: state.used, limit: req.limit,
+          pending: state.reservations.size });
+      }
+      if (req.op === "consume") {
+        if (!state.reservations.delete(req.reservationId)) {
+          return Response.json({ ok: false, used: state.used, limit: req.limit,
+            pending: state.reservations.size, error: "reservation expired" });
+        }
+        state.used += 1;
+        return Response.json({ ok: true, used: state.used, limit: req.limit,
+          pending: state.reservations.size });
+      }
+      state.reservations.delete(req.reservationId);
+      return Response.json({ ok: true, used: state.used, limit: req.limit,
+        pending: state.reservations.size });
+    },
+  };
+  return {
+    env: { ...env, GLOBAL_DAILY_LIMIT: String(limit), QUOTA: {
+      idFromName: (name) => name,
+      get: () => stub,
+    } },
+    state,
+  };
 }
 
 async function testHealthAndOriginBoundary() {
@@ -143,6 +185,50 @@ async function testQuotaAndProviderContract() {
     ["reserve", "consume"], "제공자 실패도 비용 상한을 위해 사용량을 확정한 뒤 처리한다");
 }
 
+async function testGlobalQuotaContract() {
+  const success = testWorker();
+  const global = globalQuotaEnv();
+  const successResponse = await success.worker.fetch(request("POST", {
+    body: { imageBase64: "abc", mimeType: "image/png" },
+  }), global.env);
+  assert.equal(successResponse.status, 200);
+  assert.deepEqual(global.state.calls.map((call) => call.op), ["reserve", "consume"]);
+  assert.equal(global.state.calls[0].reservationId, global.state.calls[1].reservationId,
+    "전역 quota도 같은 예약 ID를 확정해야 실제 사용량이 증가한다");
+  assert.equal(global.state.used, 1);
+
+  const personalFull = testWorker({
+    quotaResult: { reserve: { ok: false, used: 20, limit: 20, pending: 0 } },
+  });
+  const untouched = globalQuotaEnv();
+  const personalFullResponse = await personalFull.worker.fetch(request("POST", {
+    body: { imageBase64: "abc", mimeType: "image/png" },
+  }), untouched.env);
+  assert.equal(personalFullResponse.status, 429);
+  assert.equal(untouched.state.calls.length, 0,
+    "개인 한도에 막힌 요청이 조직 전체 한도를 먼저 점유하면 안 된다");
+
+  const globallyFull = testWorker();
+  const fullGlobal = globalQuotaEnv({ limit: 1, used: 1 });
+  const fullResponse = await globallyFull.worker.fetch(request("POST", {
+    body: { imageBase64: "abc", mimeType: "image/png" },
+  }), fullGlobal.env);
+  assert.equal(fullResponse.status, 429);
+  assert.deepEqual(globallyFull.calls.filter((call) => call.kind === "quota").map((call) => call.op),
+    ["reserve", "release"], "전역 한도에 막히면 개인 예약을 반납해야 한다");
+
+  const unavailable = testWorker();
+  const brokenGlobal = globalQuotaEnv({ fail: true });
+  const unavailableResponse = await unavailable.worker.fetch(request("POST", {
+    body: { imageBase64: "abc", mimeType: "image/png" },
+  }), brokenGlobal.env);
+  assert.equal(unavailableResponse.status, 503,
+    "비용 차단기 상태를 확인하지 못하면 AI 호출을 fail-closed 해야 한다");
+  assert.deepEqual(unavailable.calls.filter((call) => call.kind === "quota").map((call) => call.op),
+    ["reserve", "release"]);
+  assert.equal(unavailable.calls.filter((call) => call.kind === "ai").length, 0);
+}
+
 async function testDocumentDraftContract() {
   const badInput = testWorker();
   const missing = await badInput.worker.fetch(request("POST", { body: { mode: "document", prompt: "" } }), env);
@@ -190,6 +276,7 @@ async function testDeletionPurgeContract() {
 await testHealthAndOriginBoundary();
 await testAuthenticationAndInputBoundary();
 await testQuotaAndProviderContract();
+await testGlobalQuotaContract();
 await testDocumentDraftContract();
 await testDeletionPurgeContract();
 

@@ -22,6 +22,8 @@
  *   FIREBASE_PROJECT_ID  예: pedagogy-huryul
  *   ALLOWED_ORIGINS      쉼표로 구분한 허용 출처
  *   DAILY_LIMIT          사용자당 하루 호출 상한 (기본 50)
+ *   GLOBAL_DAILY_LIMIT   전체 사용자 합산 하루 호출 상한 (기본 5000, 0=무제한)
+ *   AI_KILL_SWITCH       "1"이면 AI 기능을 즉시 중단 (배포 없이 끌 수 있다)
  *   PLAN_DAILY_LIMITS_JSON Firebase custom claim별 상한 JSON (선택)
  *   ANTHROPIC_KEY        (Secret) AI 공급자 키
  *   QUOTA                (Durable Object 바인딩) 사용량 카운터
@@ -34,6 +36,12 @@ const DEFAULT_DAILY_LIMIT = 50;
 // 최종 방어선이다. 더 큰 계약 플랜이 필요하면 코드 리뷰와 비용 알림을 함께 갱신한다.
 const MAX_DAILY_LIMIT = 10_000;
 const MAX_BODY_BYTES = 8 * 1024 * 1024; // 이미지 base64 상한
+const DEFAULT_GLOBAL_DAILY_LIMIT = 5000;
+
+/** 전역 quota DO 이름. 날짜별 하나만 존재한다. */
+export function globalQuotaKey(when = new Date()) {
+  return `global:${when.toISOString().slice(0, 10)}`;
+}
 
 export function allowedOrigins(env) {
   return (env.ALLOWED_ORIGINS || "")
@@ -98,6 +106,13 @@ export function dailyLimit(env, claims) {
   const plan = typeof claims?.pedagogy_plan === "string" ? claims.pedagogy_plan : "free";
   const limit = plans?.[plan];
   return isDailyLimit(limit) ? limit : fallback;
+}
+
+export function globalDailyLimit(env) {
+  const raw = String(env.GLOBAL_DAILY_LIMIT ?? "").trim();
+  if (raw === "0") return 0;
+  const n = raw === "" ? DEFAULT_GLOBAL_DAILY_LIMIT : Number(raw);
+  return isDailyLimit(n) ? n : DEFAULT_GLOBAL_DAILY_LIMIT;
 }
 
 function quotaState(raw) {
@@ -203,12 +218,26 @@ async function quotaRequest(env, uid, op, reservationId = "", { limit, when } = 
   return r.json();
 }
 
+async function globalQuotaRequest(env, op, reservationId = "", { limit, when } = {}) {
+  if (!env.QUOTA) throw new Error("QUOTA Durable Object 바인딩이 설정되지 않았습니다");
+  const id = env.QUOTA.idFromName(globalQuotaKey(when));
+  const stub = env.QUOTA.get(id);
+  const r = await stub.fetch("https://quota.internal/" + op, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ op, reservationId, limit: globalDailyLimit(env) }),
+  });
+  if (!r.ok) throw new Error("전역 quota 처리 실패 (" + r.status + ")");
+  return r.json();
+}
+
 /* 외부 경계(Firebase 토큰, Durable Object, AI 공급자)는 기본값을 유지하되 테스트에서
    가짜 구현을 주입할 수 있게 한다. 실제 Cloudflare Worker는 아래 default instance만
    사용하므로 운영 요청 형식·보안 경계는 변하지 않는다. */
 export function createWorker({
   verifyToken = verifyIdToken,
   requestQuota = quotaRequest,
+  requestGlobalQuota = globalQuotaRequest,
   generateProblems = callAI,
   generateDocument = callDocumentAI,
 } = {}) {
@@ -316,11 +345,19 @@ export function createWorker({
     if (!env.ANTHROPIC_KEY) {
       return json({ error: "AI 기능을 일시적으로 사용할 수 없습니다. 잠시 후 다시 시도해 주세요." }, 503, cors);
     }
+
+    // ── 2.5 Kill switch — 배포 없이 AI를 즉시 끌 수 있다 ──
+    if (env.AI_KILL_SWITCH === "1") {
+      return json({ error: "AI 기능이 일시적으로 중단되었습니다. 잠시 후 다시 시도해 주세요." }, 503, cors);
+    }
+
     const limit = dailyLimit(env, user.claims);
+    const globalLimit = globalDailyLimit(env);
 
     // ── 3. 남은 한도를 원자적으로 예약 ──
     const reservationId = crypto.randomUUID();
     let reserved = false;
+    let globalReserved = false;
     let rate;
     try {
       rate = await requestQuota(env, user.uid, "reserve", reservationId, { limit });
@@ -336,13 +373,44 @@ export function createWorker({
       );
     }
 
+    // ── 3.5 전역(조직) 일일 상한 — 개인 한도를 통과한 요청만 점유한다 ──
+    if (globalLimit > 0) {
+      let globalRate;
+      try {
+        globalRate = await requestGlobalQuota(env, "reserve", reservationId, { limit: globalLimit });
+        globalReserved = !!globalRate.ok;
+      } catch {
+        try { await requestQuota(env, user.uid, "release", reservationId, { limit }); }
+        catch { console.error("AI quota 예약 해제 실패"); }
+        reserved = false;
+        console.error("전역 AI quota 예약 실패");
+        return json({ error: "AI 전체 사용량을 확인하지 못했습니다. 잠시 후 다시 시도해 주세요." }, 503, cors);
+      }
+      if (!globalReserved) {
+        try { await requestQuota(env, user.uid, "release", reservationId, { limit }); }
+        catch { console.error("AI quota 예약 해제 실패"); }
+        reserved = false;
+        console.error("전역 AI 일일 상한 도달");
+        return json({ error: "오늘 서비스 전체 AI 사용량에 도달했습니다. 내일 다시 시도해 주세요." }, 429, cors);
+      }
+    }
+
     // ── 4. 외부 호출 전에 사용량 확정 ──
     let after;
     try {
+      if (globalReserved) {
+        const globalAfter = await requestGlobalQuota(env, "consume", reservationId, { limit: globalLimit });
+        if (!globalAfter.ok) throw new Error("전역 AI 사용량 확정에 실패했습니다");
+        globalReserved = false;
+      }
       after = await requestQuota(env, user.uid, "consume", reservationId, { limit });
       if (!after.ok) throw new Error("AI 사용량 확정에 실패했습니다");
       reserved = false;
     } catch (e) {
+      if (globalReserved) {
+        try { await requestGlobalQuota(env, "release", reservationId, { limit: globalLimit }); }
+        catch { console.error("전역 AI quota 예약 해제 실패"); }
+      }
       if (reserved) {
         try { await requestQuota(env, user.uid, "release", reservationId, { limit }); }
         catch { console.error("AI quota 예약 해제 실패"); }

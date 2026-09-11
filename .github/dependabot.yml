@@ -1,0 +1,16 @@
+version: 2
+
+updates:
+  # npm 의존성 취약점 자동 업데이트
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  # GitHub Actions를 SHA pinning한 상태에서 자동 업데이트
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5

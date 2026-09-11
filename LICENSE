@@ -1,0 +1,55 @@
+PEDAGOGY — Proprietary Software License
+
+Copyright (c) 2026 허율 (071205). All rights reserved.
+
+1. 소유권 및 저작권
+   본 소프트웨어(소스 코드, 문서, 디자인, 조판 알고리즘, 테스트, 빌드 산출물 및
+   관련 자료 일체. 이하 "소프트웨어")의 모든 지식재산권은 허율(이하 "권리자")에게
+   있습니다.
+
+2. 허용되지 않는 행위
+   권리자의 사전 서면 허가 없이 다음 행위를 금지합니다.
+   - 소프트웨어의 전부 또는 일부를 복제, 배포, 재배포, 전송, 공중송신하는 행위
+   - 소프트웨어를 기반으로 2차적 저작물을 작성하는 행위
+   - 소프트웨어의 전부 또는 일부를 상업적·비상업적 목적의 별도 제품이나 서비스에
+     포함시키는 행위
+   - 소프트웨어를 역설계(reverse engineering), 디컴파일, 디어셈블하는 행위
+     (관련 법령이 명시적으로 허용하는 범위는 제외)
+   - 소프트웨어에 포함된 저작권 표시, 상표, 워터마크 등을 제거·변경하는 행위
+
+3. 제3자 오픈소스 구성요소
+   본 소프트웨어에는 다음과 같은 제3자 오픈소스 라이브러리가 포함되어 있으며,
+   각 라이브러리는 해당 원 라이선스 조건에 따릅니다.
+
+   - KaTeX (MIT License) — https://katex.org
+   - Firebase JavaScript SDK (Apache License 2.0) — https://firebase.google.com
+   - Pretendard (SIL Open Font License 1.1) — https://github.com/orioncactus/pretendard
+   - KoPub 바탕 (KoPub License, 상업 이용 가능) — https://www.kopus.org
+   - Playwright (Apache License 2.0) — https://playwright.dev
+   - pixelmatch (ISC License) — https://github.com/mapbox/pixelmatch
+   - pngjs (MIT License) — https://github.com/lukeapage/pngjs
+
+   이 목록은 주요 구성요소를 나열한 것이며, 전체 의존성의 라이선스 정보는
+   package.json 및 node_modules 내 각 패키지의 LICENSE 파일을 참고하십시오.
+   위 오픈소스 구성요소에 대한 권리는 각 원저작자에게 있으며, 본 라이선스가
+   해당 구성요소의 원 라이선스를 대체하거나 제한하지 않습니다.
+
+4. 한글 문서 파일(.hwp) 공개 규격
+   본 소프트웨어의 HWPX 관련 기능은 한글과컴퓨터의 한글 문서 파일(.hwp) 공개
+   문서를 참고하여 개발하였습니다. 해당 규격 문서의 저작권은 한글과컴퓨터에
+   있습니다.
+
+5. 보증의 부인
+   본 소프트웨어는 "있는 그대로(AS IS)" 제공되며, 명시적이든 묵시적이든 어떠한
+   종류의 보증도 제공하지 않습니다.
+
+6. 책임의 제한
+   관련 법령이 허용하는 최대한의 범위에서, 권리자는 본 소프트웨어의 사용 또는
+   사용 불능으로 인하여 발생하는 어떠한 손해에 대해서도 책임지지 않습니다.
+
+7. 준거법
+   본 라이선스는 대한민국 법령에 따라 해석됩니다.
+
+8. 별도 허가 문의
+   상업적 이용, 교육 기관 배포, 기술 제휴 등 별도 허가가 필요한 경우 저장소
+   소유자에게 서면으로 문의하십시오.

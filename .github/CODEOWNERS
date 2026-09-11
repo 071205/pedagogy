@@ -1,0 +1,13 @@
+# 보안 민감 파일은 반드시 소유자 리뷰를 거친다.
+# PR 기반 워크플로를 사용할 때 이 파일이 자동으로 리뷰어를 지정한다.
+
+# 전체 기본 소유자
+* @071205
+
+# 보안 규칙 — 변경 시 반드시 리뷰
+firestore.rules           @071205
+storage.rules             @071205
+worker/                   @071205
+.github/workflows/        @071205
+SECURITY.md               @071205
+service-config.js         @071205

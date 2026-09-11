@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { DailyQuota, allowedOrigins, corsHeaders, dailyLimit, quotaKey } from "./index.js";
+import { DailyQuota, allowedOrigins, corsHeaders, dailyLimit, globalDailyLimit, quotaKey } from "./index.js";
 
 /* Durable Object storage의 transaction 직렬화를 흉내 낸다. 실제 Worker와 같은
    요청 순서에서 한도 1이 동시 두 요청을 모두 통과시키지 않는지를 검증한다. */
@@ -122,6 +122,11 @@ async function testWorkerBoundaryHelpers() {
   assert.equal(dailyLimit(env, { pedagogy_plan: "unsafe" }), 50,
     "플랜 설정이 절대 상한을 넘으면 안전한 기본 한도로 돌아가야 한다");
   assert.equal(dailyLimit({ DAILY_LIMIT: "not-a-number", PLAN_DAILY_LIMITS_JSON: "{}" }, {}), 50);
+  assert.equal(globalDailyLimit({}), 5000);
+  assert.equal(globalDailyLimit({ GLOBAL_DAILY_LIMIT: "0" }), 0,
+    "전역 상한은 명시적인 0에서만 꺼져야 한다");
+  assert.equal(globalDailyLimit({ GLOBAL_DAILY_LIMIT: "not-a-number" }), 5000,
+    "전역 상한 오타가 비용 차단기를 꺼서는 안 된다");
 
   const uid = "sensitive-user-id@example.test";
   const key = await quotaKey(uid, new Date("2026-08-28T12:00:00.000Z"));
