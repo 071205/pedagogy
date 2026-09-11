@@ -154,8 +154,8 @@ async function probes(page, vp, seen) {
        ⚠️ 그렇다고 `showLibrary()` 를 부르면 **앱 상태가 바뀌어 뒤 검사 여섯이 무너진다**
           (실제로 그랬다). 화면 전환 없이 **인라인 display 만 잠깐 켰다가 되돌린다.** */
     const view = document.getElementById("libraryView");
-    const br = document.getElementById("tabSets");
-    const mk = document.getElementById("tabMocks");
+    const br = document.getElementById("libraryModeBtn");
+    const mk = document.getElementById("folderBar");
     if (!view || !br || !mk) return { missing: true };
     const prev = view.style.display;
     if (getComputedStyle(view).display === "none") view.style.display = "flex";
@@ -355,9 +355,8 @@ const BREAKS = [
   { key: "탐색 항목이 붙어 있다", 이름: "탐색을 다시 벌려 놓으면",
     /* ⚠️ 재는 자리가 상단 바 → 레일로 옮겨졌으므로 **고장도 함께 옮긴다.** 안 옮기면
        자기검사가 없는 probe 를 찾다가 실패하고, 진짜 회귀는 아무도 안 본다. */
-    run: p => p.evaluate(() => { const rail = document.querySelector(".lib-tabs");
-      rail.style.setProperty("gap", "80px", "important");
-      rail.style.setProperty("justify-content", "space-between", "important"); }) },
+    run: p => p.evaluate(() => { const mode = document.querySelector(".library-mode-switcher");
+      mode.style.setProperty("margin", "80px", "important"); }) },
   { key: "핵심 단추가 화면 안", 이름: "핵심 단추를 화면 밖(가로)으로 밀면",
     run: p => p.evaluate(() => { document.getElementById("printBtn").style.cssText += ";position:fixed;left:-500px"; }) },
   /* ⚠️ 아래 둘은 `REV-2026-025` 가 지적한 맹점이다 — 예전 판정은 둘 다 초록불이었다. */
@@ -487,6 +486,7 @@ async function runViewportFit(engineName, engine) {
          하나 만들어 실제 진입 경로 그대로 들어간다 — 화면이 뜨는지까지 함께 본다. */
       for (const [btn, view, label] of [[null, "#libraryView", "라이브러리"], ["mock", "#mockView", "모의고사"]]) {
         if (btn === "mock") {
+          await page.click("#libraryModeBtn");
           await page.click("#tabMocks");
           await page.click("#newMockBtn");
           await page.waitForFunction(() => document.querySelector("#mockView iframe") &&

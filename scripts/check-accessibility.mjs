@@ -40,11 +40,14 @@ const checks = [
   [/t\.setAttribute\("role",type==="error"\?"alert":"status"\)/, "토스트 의미 역할"],
   [/t\.setAttribute\("aria-live",type==="error"\?"assertive":"polite"\)/, "토스트 상태 알림"],
   [/t\.setAttribute\("aria-atomic","true"\)/, "토스트 전체 읽기"],
-  /* 라이브러리 종류 전환은 제목 자리를 대신한다 — 탭 의미와 문서 제목이 함께 있어야 한다. */
+  /* 라이브러리 종류 전환은 제목 자리를 대신한다 — 메뉴 버튼과 현재 선택 상태가 함께 있어야 한다. */
   [/<h2 class="sr-only">라이브러리<\/h2>/, "라이브러리 문서 제목"],
-  [/<div class="lib-tabs" role="tablist" aria-label="라이브러리 종류">/, "라이브러리 탭 목록"],
-  [/id="tabMocks"[^>]+role="tab"[^>]+aria-selected="false" aria-controls="mocksPanel"/, "모의고사 탭 상태"],
-  [/<div id="mocksPanel" role="tabpanel" aria-labelledby="tabMocks" hidden>/, "모의고사 탭 패널"],
+  [/id="libraryModeBtn"[^>]+aria-haspopup="menu" aria-expanded="false" aria-controls="libraryModeMenu"/, "라이브러리 종류 메뉴 버튼"],
+  [/id="libraryModeMenu"[^>]+role="menu" aria-label="라이브러리 종류" hidden/, "라이브러리 종류 메뉴"],
+  [/id="tabMocks"[^>]+role="menuitemradio"[\s\S]{0,80}aria-checked="false" aria-controls="mocksPanel"/, "모의고사 선택 상태"],
+  [/<div id="mocksPanel" role="region" aria-labelledby="libraryModeBtn" hidden>/, "모의고사 영역"],
+  [/<dialog id="settingsView" aria-labelledby="settingsTitle">/, "설정 모달 의미"],
+  [/id="settingsBack" class="settings-close" aria-label="설정 닫기"/, "설정 닫기 이름"],
 ];
 
 const failed = checks.filter(([pattern]) => !pattern.test(html)).map(([, label]) => label);

@@ -29,6 +29,51 @@ async function check(name,run){
 try{
   for(let i=0;i<80;i++){try{if((await fetch(base+'/health')).ok)break;}catch{}await new Promise(r=>setTimeout(r,100));}
   browser=await chromium.launch();
+  await check('library mode switcher and settings modal preserve context accessibly',async p=>{
+    await p.setViewportSize({width:1194,height:834});
+    const switcher=p.locator('#libraryModeBtn');
+    assert.equal(await switcher.isVisible(),true);
+    assert.equal(await switcher.getAttribute('aria-haspopup'),'menu');
+    assert.equal(await switcher.getAttribute('aria-expanded'),'false');
+    assert.match(await switcher.textContent(),/문제집/);
+    assert.equal(await p.locator('#libraryModeMenu').isVisible(),false);
+
+    await switcher.click();
+    assert.equal(await switcher.getAttribute('aria-expanded'),'true');
+    assert.equal(await p.locator('#libraryModeMenu').isVisible(),true);
+    const menuOnTop=await p.locator('#libraryModeMenu').evaluate(menu=>{
+      const r=menu.getBoundingClientRect();
+      return menu.contains(document.elementFromPoint(r.right-20,r.top+42));
+    });
+    assert.equal(menuOnTop,true,'펼친 메뉴가 라이브러리 카드 아래에 깔렸다');
+    assert.match(await p.locator('#tabSets').textContent(),/문항을 묶고 편집/);
+    assert.equal(await p.locator('#tabSets').getAttribute('aria-checked'),'true');
+    await p.keyboard.press('ArrowDown');
+    assert.equal(await p.evaluate(()=>document.activeElement?.id),'tabMocks');
+    await p.keyboard.press('Enter');
+    assert.equal(await switcher.getAttribute('aria-expanded'),'false');
+    assert.match(await switcher.textContent(),/모의고사/);
+    assert.match(await p.evaluate(()=>location.hash),/library=mocks/);
+
+    await p.evaluate(()=>setLibraryTab('sets'));
+    await p.locator('#settingsBtn').click();
+    const dialog=p.locator('#settingsView');
+    assert.equal(await dialog.evaluate(el=>el instanceof HTMLDialogElement && el.open),true);
+    assert.equal(await p.locator('#libraryView').isVisible(),true,'설정 뒤 라이브러리 맥락이 사라졌다');
+    const backdrop=await dialog.evaluate(el=>getComputedStyle(el,'::backdrop').backdropFilter||
+      getComputedStyle(el,'::backdrop').webkitBackdropFilter||'');
+    assert.match(backdrop,/blur\(/,'설정 배경에 맥락을 남기는 블러가 없다');
+    const fields=await p.locator('#stPanScreen .settings-choice').evaluateAll(xs=>xs.map(x=>x.getBoundingClientRect()));
+    assert.equal(fields.length,2);
+    assert.ok(fields[1].top-fields[0].bottom>=12,'테마와 언어 선택 영역이 붙어 있다');
+    await p.keyboard.press('Escape');
+    assert.equal(await dialog.evaluate(el=>el.open),false);
+    assert.equal(await p.evaluate(()=>document.activeElement?.id),'settingsBtn');
+
+    const visual=p.locator('#setGrid .set-card-visual--set').first();
+    assert.equal(await visual.isVisible(),true);
+    assert.equal(await visual.getAttribute('aria-hidden'),'true');
+  });
   await check('folder creation, keyboard cancel, capacity, and mobile dialog layout',async p=>{
     await p.getByRole('button',{name:'+ 새 폴더',exact:true}).click();
     assert.equal(await p.locator('#folderDeleteBtn').isVisible(),false);
@@ -71,7 +116,8 @@ try{
 
     await p.evaluate(()=>showEditor('a'));
     await p.locator('#editorSettingsBtn').click();
-    assert.equal(await p.locator('#settingsBack').textContent(),'← 문제집 편집기');
+    assert.equal(await p.locator('#settingsBack').getAttribute('aria-label'),'설정 닫기');
+    assert.equal(await p.locator('#editorView').isVisible(),true,'모달 뒤 편집기가 사라졌다');
     assert.equal(await p.evaluate(()=>readLastSet()),'a');
     await p.locator('#settingsBack').click();
     assert.equal(await p.locator('#editorView').isVisible(),true);
@@ -83,7 +129,8 @@ try{
     });
     assert.equal(await p.locator('#mockSettingsBtn').isVisible(),true);
     await p.locator('#mockSettingsBtn').click();
-    assert.equal(await p.locator('#settingsBack').textContent(),'← 모의고사 편집기');
+    assert.equal(await p.locator('#settingsBack').getAttribute('aria-label'),'설정 닫기');
+    assert.equal(await p.locator('#mockView').isVisible(),true,'모달 뒤 모의고사 편집기가 사라졌다');
     await p.locator('#settingsBack').click();
     assert.equal(await p.locator('#mockView').isVisible(),true);
     assert.equal(await p.evaluate(()=>MockStore.findMock(mocks,mockOpenId)?.name),'설정 복귀 검사');

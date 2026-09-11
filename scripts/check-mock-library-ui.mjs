@@ -138,35 +138,43 @@ try{
 
   await check('상단 바의 전역 모의고사 버튼이 라이브러리 세그먼트로 대체됐다',async p=>{
     assert.equal(await p.locator('#mockModeBtn').count(),0,'옛 전역 버튼이 남아 있다');
-    assert.equal(await p.locator('#tabSets').isVisible(),true);
-    assert.equal(await p.locator('#tabMocks').isVisible(),true);
+    assert.equal(await p.locator('#libraryModeBtn').isVisible(),true);
+    assert.equal(await p.locator('#tabSets').isVisible(),false);
+    assert.equal(await p.locator('#tabMocks').isVisible(),false);
     /* 편집기로 돌아가는 길은 있어야 한다 — 열기 전에는 보이면 안 된다. */
     assert.equal(await p.locator('#mockBackBtn').isVisible(),false,'라이브러리에서 돌아가기 단추가 보인다');
     /* 두 갈래의 액션이 동시에 보이면 안 된다(`display:flex` 가 `[hidden]` 을 이기던 결함). */
     assert.equal(await p.locator('#mocksActions').isVisible(),false);
+    await p.click('#libraryModeBtn');
+    assert.equal(await p.locator('#tabSets').isVisible(),true);
+    assert.equal(await p.locator('#tabMocks').isVisible(),true);
     await p.click('#tabMocks');
     assert.equal(await p.locator('#setsActions').isVisible(),false);
     assert.equal(await p.locator('#mocksActions').isVisible(),true);
     assert.equal(await p.locator('#newSetBtn').isVisible(),false,'문제집 액션이 모의고사 탭에 남는다');
   });
 
-  await check('탭은 키보드로 옮겨지고 주소에 남아 새로고침을 넘긴다',async p=>{
-    await p.focus('#tabSets');
-    await p.keyboard.press('ArrowRight');
-    assert.equal(await p.locator('#tabMocks').getAttribute('aria-selected'),'true');
+  await check('메뉴는 키보드로 옮겨지고 주소에 남아 새로고침을 넘긴다',async p=>{
+    await p.focus('#libraryModeBtn');
+    await p.keyboard.press('ArrowDown');
+    await p.keyboard.press('ArrowDown');
+    await p.keyboard.press('Enter');
+    assert.equal(await p.locator('#tabMocks').getAttribute('aria-checked'),'true');
     assert.match(await p.evaluate(()=>location.hash),/library=mocks/);
     await p.reload();
     await p.waitForFunction(()=>typeof setLibraryTab==='function');
     await p.waitForFunction(()=>document.getElementById('mocksPanel')&&!document.getElementById('mocksPanel').hidden);
-    assert.equal(await p.locator('#tabMocks').getAttribute('aria-selected'),'true');
-    await p.focus('#tabMocks');           /* 새로고침은 포커스를 지운다 */
-    await p.keyboard.press('ArrowLeft');
-    assert.equal(await p.locator('#tabSets').getAttribute('aria-selected'),'true');
+    assert.equal(await p.locator('#tabMocks').getAttribute('aria-checked'),'true');
+    await p.focus('#libraryModeBtn');      /* 새로고침은 포커스를 지운다 */
+    await p.keyboard.press('ArrowUp');
+    await p.keyboard.press('ArrowUp');
+    await p.keyboard.press('Enter');
+    assert.equal(await p.locator('#tabSets').getAttribute('aria-checked'),'true');
     assert.equal(await p.evaluate(()=>location.hash),'');
   });
 
   await check('여러 부를 만들어 각각 편집하고 새로고침해도 따로 복구된다',async p=>{
-    await p.click('#tabMocks');
+    await p.click('#libraryModeBtn');await p.click('#tabMocks');
     for(const name of ['6월 대비','9월 대비']){
       await p.evaluate(()=>setLibraryTab('mocks'));
       await p.click('#newMockBtn');
@@ -257,7 +265,7 @@ try{
     });
     /* 먼저 '취소' — 원본이 남고 파일로 받을 길이 보여야 한다. */
     p.once('dialog',d=>d.dismiss());
-    await p.click('#tabMocks');
+    await p.click('#libraryModeBtn');await p.click('#tabMocks');
     assert.equal(await p.evaluate(()=>!!localStorage.getItem('MOCK_DRAFT_V1')),true,'취소했는데 원본이 사라졌다');
     assert.equal(await p.getByRole('button',{name:'예전 임시저장 내려받기'}).count(),1);
     /* 다시 물었을 때 '확인' — 카드가 하나 생기고 원본은 그대로 남는다. */
@@ -300,8 +308,8 @@ try{
       await p.setViewportSize({width:w,height:h});
       const over=await p.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth);
       assert.ok(over<=0,`${w}px 에서 가로로 ${over}px 넘친다`);
-      const tab=await p.locator('#tabMocks').boundingBox();
-      assert.ok(tab.x>=0&&tab.x+tab.width<=w,`${w}px 에서 탭이 화면 밖(${JSON.stringify(tab)})`);
+      const tab=await p.locator('#libraryModeBtn').boundingBox();
+      assert.ok(tab.x>=0&&tab.x+tab.width<=w,`${w}px 에서 모드 선택기가 화면 밖(${JSON.stringify(tab)})`);
     }
     await p.screenshot({path:'/tmp/pedagogy-mock-library.png',fullPage:true});
   });
