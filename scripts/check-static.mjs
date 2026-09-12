@@ -5,7 +5,7 @@ const root = new URL("../", import.meta.url);
 const text = async (path) => readFile(new URL(path, root), "utf8");
 const exists = async (path) => stat(new URL(path, root)).then(() => true, () => false);
 
-const [index, normalize, mock, documentEditor, legal, engine, texToHwp, worker, rules, storageRules, config, workflow, integration, server, manifest, visual] = await Promise.all([
+const [index, normalize, mock, documentEditor, legal, engine, texToHwp, worker, appCheckWorker, rules, storageRules, config, workflow, integration, server, manifest, visual] = await Promise.all([
   text("index.html"),
   text("pedagogy-normalize.js"),
   text("mock-exam-editor.html"),
@@ -14,6 +14,7 @@ const [index, normalize, mock, documentEditor, legal, engine, texToHwp, worker, 
   text("hwpx-engine.js"),
   text("experiments/hwp-export/tex_to_hwp.py"),
   text("worker/index.js"),
+  text("worker/app-check.js"),
   text("firestore.rules"),
   text("storage.rules"),
   text("service-config.js"),
@@ -30,6 +31,13 @@ const cspDirective = (name) => csp.match(new RegExp(name + "\\s+([^;]+);", "i"))
 
 assert.match(index, /firebase-app-check-compat\.js/, "Firebase App Check SDK가 로드돼야 합니다");
 assert.match(index, /ReCaptchaEnterpriseProvider/, "App Check는 reCAPTCHA Enterprise provider를 써야 합니다");
+assert.match(index, /X-Firebase-AppCheck/, "문제 이미지 AI 요청은 App Check 토큰을 Worker에 보내야 합니다");
+assert.match(documentEditor, /firebase-app-check-compat\.js/, "AI 문서도 App Check SDK를 로드해야 합니다");
+assert.match(documentEditor, /ReCaptchaEnterpriseProvider/, "AI 문서도 App Check provider를 초기화해야 합니다");
+assert.match(documentEditor, /X-Firebase-AppCheck/, "AI 문서 요청도 App Check 토큰을 Worker에 보내야 합니다");
+assert.match(worker, /verifyAppCheck\(appCheckToken/, "Worker는 자체 백엔드용 App Check 토큰을 검증해야 합니다");
+assert.match(appCheckWorker, /firebaseappcheck\.googleapis\.com\/v1\/jwks/, "App Check 전용 JWKS를 사용해야 합니다");
+assert.match(appCheckWorker, /allowedAppIds\.includes\(claims\.sub\)/, "App Check app ID allowlist를 검증해야 합니다");
 assert.match(cspDirective("script-src"), /https:\/\/www\.google\.com/,
   "App Check reCAPTCHA 스크립트 호스트가 CSP script-src에 있어야 합니다");
 assert.match(cspDirective("frame-src"), /https:\/\/www\.google\.com/,

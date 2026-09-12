@@ -1,0 +1,15 @@
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: public script policy must reject injected script blocks
+    at file:///Users/huryul/pedagogy-main/scripts/build-public.test.mjs:22:10 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: "'self' 'unsafe-inline' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com",
+  expected: /'unsafe-inline'/,
+  operator: 'doesNotMatch',
+  diff: 'simple'
+}
+
+Node.js v26.7.0

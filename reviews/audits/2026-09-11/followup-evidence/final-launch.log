@@ -1,0 +1,13 @@
+
+> check:launch
+> node scripts/check-launch-readiness.mjs
+
+상용 출시 차단 항목:
+- Firebase App Check site key가 비어 있습니다.
+- 공개 고객지원 이메일이 비어 있습니다.
+- 약관·개인정보처리방침 버전이 비어 있습니다.
+- 결제/구독 관리 포털이 연결되지 않았습니다.
+- legal.html에 운영자·수탁자 정보 TODO가 남아 있습니다.
+- 유료 플랜별 AI 상한 설정이 없습니다.
+- AI Worker App Check가 enforce 상태가 아닙니다.
+- 운영 Worker 허용 출처에 localhost가 남아 있습니다. staging/production Worker를 분리하세요.

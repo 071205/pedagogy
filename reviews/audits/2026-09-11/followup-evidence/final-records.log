@@ -1,0 +1,20 @@
+2026-09-12 final documentation check
+Issue records: 88; unique IDs: 88
+Handoff records: 123
+Open: REV-2026-074, REV-2026-075
+Missing entries / broken links: 0
+REV-080 original restored byte-for-byte: PASS
+git diff --check: exit 0
+npm run check:icons: exit 0
+
+> check:icons
+> node scripts/clean-mac-icons.mjs --check
+
+macOS 아이콘 메타파일 없음
+npm run check:public: exit 0
+
+> check:public
+> node scripts/build-public.mjs --check
+
+Public artifact verified: 22 files. Publish only dist/public; this is not launch approval.
+git show-ref --head: exit 0

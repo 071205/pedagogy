@@ -1,0 +1,453 @@
+
+> check:fast
+> npm run test:public && npm run check:icons && npm run test:worker && npm run test:fixtures && npm run test:mock-layout && npm run test:mock-library && npm run test:hwpx && npm run test:hwpx-exam && npm run test:hwpx-browser && npm run test:cross:fast && npm run check:static && npm run test:audit-browser && npm run test:review-contracts && npm run test:library-ui && npm run test:mock-library-ui
+
+
+> test:public
+> node scripts/build-public.test.mjs
+
+Public build: reproducible runtime files; private files excluded; map, secret, symlink, missing-input and leaked-output rejection confirmed
+
+> check:icons
+> node scripts/clean-mac-icons.mjs --check
+
+macOS 아이콘 메타파일 없음
+
+> test:worker
+> node worker/quota.test.mjs && node worker/app-check.test.mjs && node worker/worker-contract.test.mjs && node scripts/check-audit-safety.mjs && node scripts/check-review-followup.mjs
+
+Worker quota and boundary tests passed
+App Check JWT tests passed: claims, signature, app allowlist, cache, timeout, rotation refresh and fail-closed errors
+토큰 검증 실패
+App Check 토큰 검증 실패
+App Check 검증 인프라 실패
+App Check 토큰 검증 실패
+App Check 토큰 검증 실패
+AI 호출 실패
+전역 AI 일일 상한 도달
+전역 AI quota 예약 실패
+AI 호출 실패
+Worker request contract tests passed
+✔ 031: DELETE cannot reset actual DailyQuota; alarm still clears retained data (15.596375ms)
+✔ 037: actual bytes bounded without Content-Length, before provider/quota (7.593417ms)
+✔ 032: stale load discarded A-B (0.796875ms)
+✔ 032: stale load discarded A-B-A (0.418709ms)
+✔ 033: ack uses sent snapshot and schedules unsent revision (0.6425ms)
+✔ 034: restoring image URL does not delete remote bytes (0.576042ms)
+✔ 041: an upload that never attached is deleted, attached history remains (0.3935ms)
+✔ 042: keepId, bounds, and lossless are independent (4.901959ms)
+✔ 038: failed local writes retain dirty and close warning, retry clears them (0.59575ms)
+✔ 032: repeated auth notification preserves edits; switching flushes old owner (0.642875ms)
+✔ 033: overlapping saves serialize and eventually acknowledge latest content (0.685708ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 36.028917
+✔ mock acknowledgement uses the sent document, including nested data (1.688541ms)
+✔ account survives failed library deletion (0.59625ms)
+✔ account survives failed consent deletion (0.390583ms)
+✔ failed mock local save retains an owner-scoped recovery and close warning (0.415834ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5.51875
+
+> test:fixtures
+> node scripts/check-fixtures.mjs
+
+Reference fixture checks passed (7 sets)
+
+> test:mock-layout
+> node scripts/mock-exam-layout.test.mjs
+
+Mock exam continuation header geometry passed
+Mock exam section-tag height parity passed
+
+> test:mock-library
+> node scripts/check-mock-library.mjs && MOCK_STORE_RED=1 node scripts/check-mock-library.mjs
+
+PASS 이름·선택과목·문항 개수를 화이트리스트로 고정한다
+PASS 배열이 아닌 것·문항이 아닌 것을 버린다
+PASS id 는 crypto 가 없어도 서로 다르다
+PASS 가져온 id 는 모양이 맞을 때만 지킨다
+PASS 같은 id 가 둘이면 뒤엣것을 버리고 개수 상한을 지킨다
+PASS 복제는 새 id 와 깊은 사본을 준다
+PASS upsert 는 같은 id 를 덮어쓰고 remove 는 그것만 지운다
+PASS 정렬은 최근 수정·만든 시각·이름 셋을 지원하고 모르는 값은 최근 수정순
+PASS 저장 키는 계정별로 갈라지고 소유자가 없으면 guest 다
+PASS 읽기·쓰기가 막힌 저장소에서 던지지 않고 실패를 알린다
+PASS 손상된 저장 내용은 빈 목록으로 떨어지되 조용하지 않다
+PASS 왕복 — 쓴 것을 그대로 다시 읽는다
+PASS 구형 임시본을 카드 하나로 옮기고 원본 키는 남긴다
+PASS 이전은 멱등하다 — 다시 불러도 카드가 늘지 않는다
+PASS 이전 실패는 원본을 보존한 채 실패로 보고한다
+PASS 옮길 것이 없거나 손상됐으면 각각 다르게 답한다
+모의고사 라이브러리 저장 계층 통과
+PASS 이름·선택과목·문항 개수를 화이트리스트로 고정한다
+PASS 배열이 아닌 것·문항이 아닌 것을 버린다
+PASS id 는 crypto 가 없어도 서로 다르다
+PASS 가져온 id 는 모양이 맞을 때만 지킨다
+PASS 같은 id 가 둘이면 뒤엣것을 버리고 개수 상한을 지킨다
+PASS 복제는 새 id 와 깊은 사본을 준다
+PASS upsert 는 같은 id 를 덮어쓰고 remove 는 그것만 지운다
+PASS 정렬은 최근 수정·만든 시각·이름 셋을 지원하고 모르는 값은 최근 수정순
+PASS 저장 키는 계정별로 갈라지고 소유자가 없으면 guest 다
+FAIL 읽기·쓰기가 막힌 저장소에서 던지지 않고 실패를 알린다 — 저장 실패를 성공으로 보고하면 사용자가 안전망을 믿는다
+
+true !== false
+
+PASS 손상된 저장 내용은 빈 목록으로 떨어지되 조용하지 않다
+PASS 왕복 — 쓴 것을 그대로 다시 읽는다
+PASS 구형 임시본을 카드 하나로 옮기고 원본 키는 남긴다
+PASS 이전은 멱등하다 — 다시 불러도 카드가 늘지 않는다
+PASS 이전 실패는 원본을 보존한 채 실패로 보고한다
+PASS 옮길 것이 없거나 손상됐으면 각각 다르게 답한다
+자기검사 통과 — 고장 주입에서 1건이 빨간불
+
+> test:hwpx
+> node scripts/check-hwpx.mjs
+
+  ✅ test_tex_to_hwp.py
+  ✅ test_layout.py
+  ✅ test_image_paths.py
+  ✅ test_internal_runtime.py
+  ✅ test_document_export.py
+  ✅ test_document_endpoint.py
+  ✅ test_structure.py
+  ✅ test_sections.py
+  ✅ test_page_layout.py
+  ✅ test_style_roles.py
+  ✅ test_template_content.py
+  ✅ test_endpoint.py
+HWPX concurrency and exception recovery passed
+HWPX export tests passed — 실행 12건
+
+> test:hwpx-exam
+> node scripts/check-hwpx-exam.mjs
+
+틀 읽기 대조 통과 — 역할 22종이 파이썬과 같습니다
+문항 방출 대조 통과 — 문단 13개가 파이썬과 같습니다
+문항 배치 대조 통과 — 표본 7종이 파이썬과 같습니다
+표 개체 대조 통과 — 표 3개·개체 id 가 파이썬과 같습니다
+시험지 한 부 대조 통과 — 문항 9개·쪽나눔 1회가 파이썬과 같습니다
+
+> test:hwpx-browser
+> node scripts/check-hwpx-browser.mjs
+
+브라우저 ↔ 파이썬 대조
+  ✅ document-sample
+  ✅ document-sample — ZIP 껍데기도 파이썬과 같습니다 (파트 11개)
+  ✅ extra-blocks
+  ✅ extra-blocks — ZIP 껍데기도 파이썬과 같습니다 (파트 11개)
+
+브라우저 조판기가 파이썬과 같은 결과를 냅니다
+
+> test:cross:fast
+> XPLAT_ONLY=chromium node scripts/check-cross-platform.mjs
+
+
+── chromium ──
+  ✅ chromium · 데스크톱 — 라이브러리에 가로 스크롤이 없다
+  ✅ chromium · 데스크톱 — 가로스크롤(편집기)
+  ✅ chromium · 데스크톱 — 블록 더하기
+  ✅ chromium · 데스크톱 — 인쇄본 조립
+  ✅ chromium · 데스크톱 — 상단 막대가 본문을 덮지 않는다
+  ✅ chromium · 데스크톱 — 핵심 단추가 화면 안
+  ✅ chromium · 데스크톱 — 탐색 항목이 붙어 있다
+  ✅ chromium · 데스크톱 — visibilitychange 로 편집분이 로컬에 남는다
+  ✅ chromium · 데스크톱 — pagehide 로 편집분이 로컬에 남는다
+  ✅ chromium · 데스크톱 — 스크립트 오류 없음
+  ✅ chromium · 데스크톱 — 문항 조작 뒤 키보드 포커스 유지
+  ✅ chromium · 태블릿 — 라이브러리에 가로 스크롤이 없다
+  ✅ chromium · 태블릿 — 가로스크롤(편집기)
+  ✅ chromium · 태블릿 — 블록 더하기
+  ✅ chromium · 태블릿 — 인쇄본 조립
+  ✅ chromium · 태블릿 — 상단 막대가 본문을 덮지 않는다
+  ✅ chromium · 태블릿 — 핵심 단추가 화면 안
+  ✅ chromium · 태블릿 — 탐색 항목이 붙어 있다
+  ✅ chromium · 태블릿 — visibilitychange 로 편집분이 로컬에 남는다
+  ✅ chromium · 태블릿 — pagehide 로 편집분이 로컬에 남는다
+  ✅ chromium · 태블릿 — 스크립트 오류 없음
+  ✅ chromium · 태블릿 — 문항 조작 뒤 키보드 포커스 유지
+  ✅ chromium · 태블릿 — 터치 목표 44px 이상
+  ✅ chromium · 태블릿 — hover 없이도 블록 추가 단추가 보인다
+  ✅ chromium · 아이패드 가로 — 라이브러리에 가로 스크롤이 없다
+  ✅ chromium · 아이패드 가로 — 가로스크롤(편집기)
+  ✅ chromium · 아이패드 가로 — 블록 더하기
+  ✅ chromium · 아이패드 가로 — 인쇄본 조립
+  ✅ chromium · 아이패드 가로 — 상단 막대가 본문을 덮지 않는다
+  ✅ chromium · 아이패드 가로 — 핵심 단추가 화면 안
+  ✅ chromium · 아이패드 가로 — 탐색 항목이 붙어 있다
+  ✅ chromium · 아이패드 가로 — visibilitychange 로 편집분이 로컬에 남는다
+  ✅ chromium · 아이패드 가로 — pagehide 로 편집분이 로컬에 남는다
+  ✅ chromium · 아이패드 가로 — 스크립트 오류 없음
+  ✅ chromium · 아이패드 가로 — 문항 조작 뒤 키보드 포커스 유지
+  ✅ chromium · 아이패드 가로 — 터치 목표 44px 이상
+  ✅ chromium · 아이패드 가로 — hover 없이도 블록 추가 단추가 보인다
+  ✅ chromium · 휴대폰 — 라이브러리에 가로 스크롤이 없다
+  ✅ chromium · 휴대폰 — 가로스크롤(편집기)
+  ✅ chromium · 휴대폰 — 블록 더하기
+  ✅ chromium · 휴대폰 — 인쇄본 조립
+  ✅ chromium · 휴대폰 — 상단 막대가 본문을 덮지 않는다
+  ✅ chromium · 휴대폰 — 핵심 단추가 화면 안
+  ✅ chromium · 휴대폰 — 탐색 항목이 붙어 있다
+  ✅ chromium · 휴대폰 — visibilitychange 로 편집분이 로컬에 남는다
+  ✅ chromium · 휴대폰 — pagehide 로 편집분이 로컬에 남는다
+  ✅ chromium · 휴대폰 — 스크립트 오류 없음
+  ✅ chromium · 휴대폰 — 문항 조작 뒤 키보드 포커스 유지
+  ✅ chromium · 휴대폰 — 터치 목표 44px 이상
+  ✅ chromium · 휴대폰 — hover 없이도 블록 추가 단추가 보인다
+  ✅ chromium · 문서 편집기 · 저장소 정상 — 단추가 살아 있다
+  ✅ chromium · 문서 편집기 · 저장소 차단 — 단추가 살아 있다
+  ✅ chromium · 본체 · 저장소 정상 — 단추가 살아 있다
+  ✅ chromium · 본체 · 저장소 차단 — 단추가 살아 있다
+  ✅ chromium · 375×812 — 상단 바 + 라이브러리 이 한 화면에 든다
+  ✅ chromium · 375×812 — 상단 바 + 모의고사 이 한 화면에 든다
+  ✅ chromium · 375×812 — 모의고사 가변 머리·본문·고지가 한 화면에 든다
+  ✅ chromium · 768×1024 — 상단 바 + 라이브러리 이 한 화면에 든다
+  ✅ chromium · 768×1024 — 상단 바 + 모의고사 이 한 화면에 든다
+  ✅ chromium · 768×1024 — 모의고사 가변 머리·본문·고지가 한 화면에 든다
+  ✅ chromium · 1024×768 — 상단 바 + 라이브러리 이 한 화면에 든다
+  ✅ chromium · 1024×768 — 상단 바 + 모의고사 이 한 화면에 든다
+  ✅ chromium · 1024×768 — 모의고사 가변 머리·본문·고지가 한 화면에 든다
+  ✅ chromium · 1194×834 — 상단 바 + 라이브러리 이 한 화면에 든다
+  ✅ chromium · 1194×834 — 상단 바 + 모의고사 이 한 화면에 든다
+  ✅ chromium · 1194×834 — 모의고사 가변 머리·본문·고지가 한 화면에 든다
+  ✅ chromium · 글꼴 — 방문만 하면 인쇄용 글꼴 파일을 하나도 받지 않는다
+  ✅ chromium · 글꼴 — 인쇄 의도 뒤 KoPub 세 굵기를 받는다
+  ✅ chromium · 글꼴 — 인쇄 의도 뒤 KaTeX 글꼴도 받는다
+     · 인쇄용 글꼴 — 방문만 0MB / 인쇄 의도 뒤 7.83MB · 화면 글꼴(Pretendard) 0.22MB
+  ✅ chromium · 서버 있음 — 안내를 띄우지 않는다
+  ✅ chromium · 서버 있음 — 단추에 '서버' 표시가 없다
+  ✅ chromium · 서버 있음 — 단추를 막지는 않는다
+  ✅ chromium · 서버 없음 — 누르기 전에 미리 알린다
+  ✅ chromium · 서버 없음 — 서버가 필요한 단추를 표시한다
+  ✅ chromium · 서버 없음 — 서버 켜기와 브라우저 제약을 함께 알린다
+  ✅ chromium · 서버 없음 — 단추를 막지는 않는다
+  ✅ chromium · 본체 · 인앱 안내 — '밖에서 열기' 를 누를 수 있다
+  ✅ chromium · 본체 · 인앱 안내 — '밖에서 열기' 가 44px 이상
+  ✅ chromium · 본체 · 인앱 안내 — 안내를 띄워도 가로로 넘치지 않는다
+  ✅ chromium · 문서 편집기 · 인앱 안내 — '밖에서 열기' 를 누를 수 있다
+  ✅ chromium · 문서 편집기 · 인앱 안내 — '밖에서 열기' 가 44px 이상
+  ✅ chromium · 문서 편집기 · 인앱 안내 — 안내를 띄워도 가로로 넘치지 않는다
+  ✅ chromium · CDN 차단 — 문제집을 계속 편집할 수 있다
+  ✅ chromium · CDN 차단 — 내보내기(데이터 탈출구)가 살아 있다
+  ⚠️  chromium · CDN 차단 — KaTeX 없음: 수식이 원문으로 보인다(인쇄 전 확인 대화상자가 뜬다)
+  ⚠️  chromium · CDN 차단 — SortableJS 없음: 순서 바꾸기만 못 쓴다
+  ✅ chromium · 내보내기 — JSON 파일이 실제로 내려온다
+
+── 자기검사 (검사가 실제로 잡는가) ──
+  ✅ 단보다 넓은 요소를 넣으면 빨간불이 된다
+  ✅ 블록 더하기 단추를 죽이면 빨간불이 된다
+  ✅ 인쇄본을 비우면 빨간불이 된다
+  ✅ 상단 막대를 본문 위로 덮으면 빨간불이 된다
+  ✅ 탐색을 다시 벌려 놓으면 빨간불이 된다
+  ✅ 핵심 단추를 화면 밖(가로)으로 밀면 빨간불이 된다
+  ✅ 핵심 단추를 화면 밖(세로)으로 밀면 빨간불이 된다
+  ✅ 핵심 단추를 아예 지우면 빨간불이 된다
+  ✅ 단추를 다시 작게 만들면 빨간불이 된다
+  ✅ 블록 추가 단추를 다시 숨기면 빨간불이 된다
+  ✅ 숨김 저장을 끊으면 (visibilitychange) 빨간불이 된다
+  ✅ 숨김 저장을 끊으면 (pagehide) 빨간불이 된다
+  ✅ 스크립트 오류를 내면 빨간불이 된다
+  ✅ 문항 포커스 복원을 끊으면 빨간불이 된다
+
+환경 연기 검사 통과 (경고 2건)
+
+> check:static
+> node scripts/check-static.mjs && node scripts/check-launch-readiness.test.mjs && node scripts/check-accessibility.mjs && node scripts/check-document-blocks.mjs && node scripts/check-shared-design.mjs && node scripts/check-exam-style-roles.mjs
+
+Commercial static checks passed
+상용 출시 게이트 설정 검사 통과
+접근성 계약 통과 — 35개
+  ✅ 브라우저 검증(document-editor.html)
+  ✅ Worker 검증(validateDocumentResponse)
+  ✅ Worker 프롬프트(DOCUMENT_SYSTEM_PROMPT)
+문서 블록 경계 일치 — 계약 11종 (AI 는 10종, image 은 AI 가 만들 수 없어 제외)
+디자인 토큰 일치 — 22개 · 테마 키 PM_THEME
+  ✅ 역할 ↔ 실물 스타일 이름 12종이 template.py 와 같습니다
+  ✅ 쓰임으로 찾는 역할 2종이 이름 목록에 섞이지 않았습니다
+  ✅ read_roles_by_usage() 가 figure·note 를 찾습니다
+  ✅ 변환기가 쓰는 역할 11종이 모두 표에 있습니다
+  ✅ 선지 한 줄(①~⑤) 칸 폭 = 21.61 · 21.6 · 21.61 · 21.59mm (화면·정본·표 일치)
+  ✅ 선지 두 줄(3+2) 칸 폭 = 36.01 · 36mm (화면·정본·표 일치)
+  ✅ 선지 위 여백 = 6.5mm (화면·정본·표 일치)
+  ✅ 조건 상자 폭 = 104mm (화면·정본·표 일치)
+  ✅ 조건 상자 위아래 여백 = 3.4mm (화면·정본·표 일치)
+  ✅ 별행 수식 위아래 여백 = 2.8mm (화면·정본·표 일치)
+  ✅ 별행 수식 시작 위치 = 14.11mm (화면·정본·표 일치)
+  ✅ 구획 태그 폭 — 5지선다형 = 38.99mm (화면·정본·표 일치)
+  ✅ 구획 태그 폭 — 단답형 = 27.84mm (화면·정본·표 일치)
+  ✅ 구획 태그 높이 = 8.29mm (화면·정본·표 일치)
+  ✅ 구획 태그가 단 위에서 먹는 높이 = 15.92mm (화면·정본·표 일치)
+  ✅ ※ 확인 사항 상자 폭 = 112mm (화면·정본·표 일치)
+  ✅ 선지 한 줄(①~⑤) 칸 폭 가 실물 탭 정지점 25.6,47.2,68.8,90.4 에서 나온 값입니다
+  ✅ 선지 두 줄(3+2) 칸 폭 가 실물 탭 정지점 40,76 에서 나온 값입니다
+  ✅ 별행 수식 시작 위치 가 실물 탭 정지점 14.11 에서 나온 값입니다
+조판 역할 표 일치 — 역할 14종 · 값 12종
+
+> test:audit-browser
+> node scripts/check-audit-browser.mjs
+
+REGRESSION 158 / 158 통과
+FAILED []
+CLOUD_NORMALIZATION {
+  headerBefore: 500,
+  headerAfter: 500,
+  blocksBefore: 51,
+  blocksAfter: 51
+}
+SERIALIZATION_BENCH [
+  {
+    problems: 100,
+    chars: 106493,
+    medianMs: 0.10000002384185791,
+    maxMs: 0.20000004768371582
+  },
+  {
+    problems: 500,
+    chars: 532493,
+    medianMs: 0.6000000238418579,
+    maxMs: 1.199999988079071
+  },
+  {
+    problems: 2000,
+    chars: 2130993,
+    medianMs: 1.5,
+    maxMs: 3.199999988079071
+  }
+]
+JSON_ROOT: 12 malformed requests rejected, server healthy
+
+> test:review-contracts
+> node scripts/build-exam-template.mjs --check && node scripts/check-review-contracts.mjs
+
+PASS folder tombstone masks membership from either source (schema 0)
+PASS folder tombstone masks membership from either source (schema 1)
+PASS explicit empty cloud folderId beats stale migration map (schema 1)
+PASS capability off never sends folderId or changes set for local move
+PASS A migration distinguishes absent field from explicit cloud no-folder
+PASS delete and immediate restore use same queue, delete errors propagate
+PASS account switch reloads local folder metadata
+PASS mock JSON image is bounded by decoded 2 MiB
+PASS actual selection Undo and Redo survive delayed tombstone snapshot
+PASS 401 selected deletes retain only failed ID and permit retry
+PASS concurrent prefs save preserves remote tombstones and clears 401 memberships in chunks
+PASS figure format follows bytes and broken data produces warning
+PASS exam download without API server (http)
+PASS exam download without API server (file)
+PASS download failure restores button and reports failure without success
+PASS index.html boots from file:// with the split normalization module
+PASS mock library store loads and renders from file://
+PASS moving normalization keeps the exact window surface
+PASS print split keeps its surface, group boundaries, and staged shrink
+PASS render split keeps its surface, sanitization order, and context
+PASS a hung cloud read falls back to local data instead of spinning forever
+PASS a hung folder preferences read does not hold an already loaded library
+PASS classic scripts share lexical bindings without window properties
+
+> test:library-ui
+> node scripts/check-library-ui.mjs
+
+PASS library mode switcher and settings modal preserve context accessibly
+PASS folder creation, keyboard cancel, capacity, and mobile dialog layout
+PASS mobile navigation stays visible before a long library and follows DOM focus order
+PASS settings returns to its library or editor source and mock editor exposes settings
+PASS folder rename/delete are visible and preserve sets (schema 0)
+PASS folder rename/delete are visible and preserve sets (schema 1)
+PASS new sets and duplicates stay in their folder (schema 0)
+PASS new sets and duplicates stay in their folder (schema 1)
+PASS folder navigation clears global search and search shows folder labels
+PASS move picker uses names, cancels safely, and exposes selected actions
+PASS single-card move and stale account dialogs cannot change a new session
+PASS folder move is one immediate Undo/Redo step (schema 0)
+PASS folder move is one immediate Undo/Redo step (schema 1)
+PASS recent-edit sort stamps the renamed card and displays selected order
+PASS editor-only top actions stay out of the library
+PASS editor-only top actions stay hidden during a slow boot
+PASS 데이터 삭제가 끝나면 출처 편집기가 아니라 라이브러리로 간다
+
+> test:mock-library-ui
+> node scripts/check-mock-library-ui.mjs && MOCK_UI_RED=1 node scripts/check-mock-library-ui.mjs
+
+PASS 상단 바의 전역 모의고사 버튼이 라이브러리 세그먼트로 대체됐다
+PASS 메뉴는 키보드로 옮겨지고 주소에 남아 새로고침을 넘긴다
+PASS 여러 부를 만들어 각각 편집하고 새로고침해도 따로 복구된다
+PASS 복제·이름 변경·내보내기·삭제가 서로 독립이다
+PASS 다른 계정의 모의고사는 보이지 않는다
+PASS 저장 공간이 막히면 조용히 넘기지 않고 알린다
+PASS 구형 임시본을 잃지 않고 카드 하나로 옮긴다
+PASS JSON 왕복 — 편집기가 저장한 형식을 그대로 읽고 쓴다
+PASS 가로 넘침 없이 세 화면에 담긴다
+PASS 계정에 올리는 문서 모양이 Rules 화이트리스트와 같다
+PASS 플래그가 0이면 아무것도 올리지 않는다 (구형 Rules 안전장치)
+PASS 다른 기기에서 만든 모의고사가 내려오고, 지운 것은 되살아나지 않는다
+PASS 삭제는 tombstone 으로 올라간다
+PASS 편집 중인 카드도, 더 최신인 카드도 원격이 덮지 않는다
+PASS 문서가 너무 크면 올리지 않고 알린다
+PASS 계정이 바뀌면 앞 계정 문서로 올라가지 않는다
+PASS 그림은 문서에 담지 않고 주소만 남긴다
+FAIL 상단 바의 전역 모의고사 버튼이 라이브러리 세그먼트로 대체됐다 Expected values to be strictly equal:
+
+true !== false
+
+PASS 메뉴는 키보드로 옮겨지고 주소에 남아 새로고침을 넘긴다
+FAIL 여러 부를 만들어 각각 편집하고 새로고침해도 따로 복구된다 page.waitForFunction: Timeout 8000ms exceeded.
+PASS 복제·이름 변경·내보내기·삭제가 서로 독립이다
+FAIL 다른 계정의 모의고사는 보이지 않는다 앞 계정 자료가 새 계정 화면에 남는다
++ actual - expected
+
++ [
++   'A의 시험'
++ ]
+- []
+
+FAIL 저장 공간이 막히면 조용히 넘기지 않고 알린다 locator.waitFor: Timeout 8000ms exceeded.
+Call log:
+[2m  - waiting for locator('.toast').filter({ hasText: '저장하지 못했어요' }).first() to be visible[22m
+
+PASS 구형 임시본을 잃지 않고 카드 하나로 옮긴다
+PASS JSON 왕복 — 편집기가 저장한 형식을 그대로 읽고 쓴다
+PASS 가로 넘침 없이 세 화면에 담긴다
+PASS 계정에 올리는 문서 모양이 Rules 화이트리스트와 같다
+FAIL 플래그가 0이면 아무것도 올리지 않는다 (구형 Rules 안전장치) 플래그를 내려도 올라간다 — 구형 Rules 배포에서 저장이 전부 권한 오류가 된다
+
+1 !== 0
+
+PASS 다른 기기에서 만든 모의고사가 내려오고, 지운 것은 되살아나지 않는다
+FAIL 삭제는 tombstone 으로 올라간다 Rules 는 내용이 남은 tombstone 을 거부한다
++ actual - expected
+
+  [
+    true,
++   '지울 것',
+    '',
+-   '',
+    0
+  ]
+
+FAIL 편집 중인 카드도, 더 최신인 카드도 원격이 덮지 않는다 원격이 덮었다: ["남의 기기","남의 옛것"]
++ actual - expected
+
+  [
++   '남의 기기',
++   '남의 옛것'
+-   '내 편집본',
+-   '닫힌 최신본'
+  ]
+
+FAIL 문서가 너무 크면 올리지 않고 알린다 locator.waitFor: Timeout 8000ms exceeded.
+Call log:
+[2m  - waiting for locator('.toast').filter({ hasText: '너무 커서' }).first() to be visible[22m
+
+PASS 계정이 바뀌면 앞 계정 문서로 올라가지 않는다
+PASS 그림은 문서에 담지 않고 주소만 남긴다
+자기검사 통과 — 고장 9개에서 계약 8개가 빨간불

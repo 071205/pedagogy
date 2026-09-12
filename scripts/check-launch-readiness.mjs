@@ -15,6 +15,13 @@ export function collectLaunchBlockers({ config, legal, workerConfig }) {
   if (!/^[\t ]*PLAN_DAILY_LIMITS_JSON[\t ]*=/m.test(workerConfig)) {
     blockers.push("유료 플랜별 AI 상한 설정이 없습니다.");
   }
+  if (!/^[\t ]*APP_CHECK_MODE[\t ]*=[\t ]*["']enforce["'][\t ]*$/m.test(workerConfig)) {
+    blockers.push("AI Worker App Check가 enforce 상태가 아닙니다.");
+  }
+  if (!/^[\t ]*FIREBASE_PROJECT_NUMBER[\t ]*=[\t ]*["']\d+["'][\t ]*$/m.test(workerConfig)
+    || !/^[\t ]*FIREBASE_APP_IDS[\t ]*=[\t ]*["'][^"']+["'][\t ]*$/m.test(workerConfig)) {
+    blockers.push("AI Worker App Check project number/app ID allowlist가 없습니다.");
+  }
   if (/http:\/\/127\.0\.0\.1|http:\/\/localhost/.test(workerConfig)) {
     blockers.push("운영 Worker 허용 출처에 localhost가 남아 있습니다. staging/production Worker를 분리하세요.");
   }

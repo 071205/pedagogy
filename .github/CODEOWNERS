@@ -11,3 +11,6 @@ worker/                   @071205
 .github/workflows/        @071205
 SECURITY.md               @071205
 service-config.js         @071205
+scripts/build-public*     @071205
+scripts/check-csp*        @071205
+scripts/check-public*     @071205

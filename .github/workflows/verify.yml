@@ -8,13 +8,19 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: verify-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 2
+          persist-credentials: false
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
@@ -45,6 +51,8 @@ jobs:
       #    돌려 `visual-baseline/linux/` 를 만들어 커밋하면 된다.
       - name: Visual print regression
         run: npm run test:visual
+      - name: Verify public artifact boundary (no deployment)
+        run: npm run build:public && npm run check:public && npm run test:public-browser
       - name: Upload visual diff on failure
         if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -70,8 +78,11 @@ jobs:
   #    (`docs/CROSS-PLATFORM-DESIGN.md` §7).
   cross-platform:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
@@ -82,6 +93,18 @@ jobs:
         env:
           XPLAT_REQUIRE: "1"
         run: npm run test:cross
+      - name: CSP attribute enforcement and failure injection
+        env:
+          CSP_ENGINES: chromium,webkit,firefox
+        run: npm run test:csp
+      - name: Authentication navigation and attestation isolation
+        env:
+          AUTH_ENGINES: chromium,webkit,firefox
+        run: npm run test:auth-navigation
+      - name: External public scripts and strict script policy
+        env:
+          PUBLIC_ENGINES: chromium,webkit,firefox
+        run: npm run test:public-browser
 
   # ── 한글(HWPX) 내보내기 — 베타 ──────────────────────────────────────────
   # 본 검사(verify)와 **분리된 작업**이다. 변환기 XML 의존성(lxml)은 제품 의존성이
@@ -109,8 +132,11 @@ jobs:
   #    지문을 적어 두고 `check:static` 이 낡음을 잡는다(그건 CI 에서 항상 돈다).
   hwpx:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22

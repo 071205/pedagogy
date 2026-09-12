@@ -1,0 +1,7 @@
+
+> test:auth-navigation
+> node scripts/check-auth-navigation.mjs
+
+Auth chromium: document/index round trips, owner isolation, redirect results and App Check initialization failure passed (SDK fixture)
+Auth webkit: document/index round trips, owner isolation, redirect results and App Check initialization failure passed (SDK fixture)
+Auth firefox: document/index round trips, owner isolation, redirect results and App Check initialization failure passed (SDK fixture)

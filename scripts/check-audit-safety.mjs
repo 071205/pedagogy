@@ -138,7 +138,7 @@ test('032: repeated auth notification preserves edits; switching flushes old own
     const libPicked=new Set(),readLibMeta=()=>{},applyUiLang=()=>{};
     let cloudSynced=new Map(),deletedIds=new Map(),pendingLocalByOwner=new Map(),writes=[];
     let authInitialized=true,prevUid='A',localStamps={},lastSnapshot=null,undoStack=[],redoStack=[];
-    const flushLocal=()=>{writes.push(currentUser?.uid);return true;},setsKey=()=>currentUser?.uid;
+    const flushLocal=()=>{writes.push(currentUser?.uid);return true;},setsKey=()=>currentUser?.uid,flushOpenMock=()=>{};
     const migrateSharedLocalCache=()=>{},migrateSharedAuxKeys=()=>{},loadLastQ=()=>{},readStamps=()=>({});
     const $=()=>({style:{}}),updatePlanBadge=()=>{},inAppBrowserName=()=>null,showInAppNotice=()=>{};
     const bootLibrary=async()=>{},loadSets=async()=>{},showLibraryLoading=()=>{},snapshot=()=>'',updateHistButtons=()=>{},showLibrary=()=>{};`);

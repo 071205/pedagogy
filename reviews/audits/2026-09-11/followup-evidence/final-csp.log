@@ -1,0 +1,13 @@
+
+> test:csp
+> node scripts/check-csp-browser.mjs
+
+CSP chromium/index.html: blocked attribute, working callbacks, red mutation confirmed
+CSP chromium/mock-exam-editor.html: blocked attribute, working callbacks, red mutation confirmed
+CSP chromium/document-editor.html: blocked attribute, working callbacks, red mutation confirmed
+CSP webkit/index.html: blocked attribute, working callbacks, red mutation confirmed
+CSP webkit/mock-exam-editor.html: blocked attribute, working callbacks, red mutation confirmed
+CSP webkit/document-editor.html: blocked attribute, working callbacks, red mutation confirmed
+CSP firefox/index.html: blocked attribute, working callbacks, red mutation confirmed
+CSP firefox/mock-exam-editor.html: blocked attribute, working callbacks, red mutation confirmed
+CSP firefox/document-editor.html: blocked attribute, working callbacks, red mutation confirmed

@@ -1,0 +1,7 @@
+
+> test:public-browser
+> node scripts/check-public-browser.mjs
+
+Public artifact chromium: four pages, editing/print/mock save, strict CSP + red probe, file://, HWPX and private 404 passed
+Public artifact webkit: four pages, editing/print/mock save, strict CSP + red probe, file://, HWPX and private 404 passed
+Public artifact firefox: four pages, editing/print/mock save, strict CSP + red probe, file://, HWPX and private 404 passed

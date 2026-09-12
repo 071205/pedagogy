@@ -56,3 +56,9 @@
 2. 재현되면 `initFirebase()`·`onAuth`·`authEpoch` 경로와 `document-editor.html` 의
    같은 자리 코드를 함께 본다(두 화면은 **사본**이고 사본은 갈라진다).
 3. 고친 뒤에는 두 화면을 오가는 회귀를 남긴다 — 지금 그 경로를 보는 검사가 없다.
+
+## 2026-09-11 후속 검토 (Codex)
+
+별도 재현 가능한 인증 결함 두 건을 수정했다: 문서 CSP의 Firebase popup helper/auth iframe 차단(`REV-2026-086`), App Check 초기화 예외가 Auth도 중단하는 경로(`REV-2026-087`). 문서의 getRedirectResult 오류 처리도 추가했다. SDK 경계를 대체한 Chromium·WebKit·Firefox의 index→document→index, A→B→A 계정 격리는 통과했다.
+
+원래 실계정에서 본체로 돌아온 뒤 로그인이 실패한 신고와 같은 원인인지는 아직 입증되지 않았다. 이 이슈를 추측으로 닫지 않고 `open`으로 유지한다. 실제 계정·iPad/WebView의 popup/redirect 결과가 남은 확인이다.

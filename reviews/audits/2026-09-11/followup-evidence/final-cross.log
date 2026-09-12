@@ -1,0 +1,296 @@
+
+> test:cross
+> node scripts/check-cross-platform.mjs
+
+
+── chromium ──
+  ✅ chromium · 데스크톱 — 라이브러리에 가로 스크롤이 없다
+  ✅ chromium · 데스크톱 — 가로스크롤(편집기)
+  ✅ chromium · 데스크톱 — 블록 더하기
+  ✅ chromium · 데스크톱 — 인쇄본 조립
+  ✅ chromium · 데스크톱 — 상단 막대가 본문을 덮지 않는다
+  ✅ chromium · 데스크톱 — 핵심 단추가 화면 안
+  ✅ chromium · 데스크톱 — 탐색 항목이 붙어 있다
+  ✅ chromium · 데스크톱 — visibilitychange 로 편집분이 로컬에 남는다
+  ✅ chromium · 데스크톱 — pagehide 로 편집분이 로컬에 남는다
+  ✅ chromium · 데스크톱 — 스크립트 오류 없음
+  ✅ chromium · 데스크톱 — 문항 조작 뒤 키보드 포커스 유지
+  ✅ chromium · 태블릿 — 라이브러리에 가로 스크롤이 없다
+  ✅ chromium · 태블릿 — 가로스크롤(편집기)
+  ✅ chromium · 태블릿 — 블록 더하기
+  ✅ chromium · 태블릿 — 인쇄본 조립
+  ✅ chromium · 태블릿 — 상단 막대가 본문을 덮지 않는다
+  ✅ chromium · 태블릿 — 핵심 단추가 화면 안
+  ✅ chromium · 태블릿 — 탐색 항목이 붙어 있다
+  ✅ chromium · 태블릿 — visibilitychange 로 편집분이 로컬에 남는다
+  ✅ chromium · 태블릿 — pagehide 로 편집분이 로컬에 남는다
+  ✅ chromium · 태블릿 — 스크립트 오류 없음
+  ✅ chromium · 태블릿 — 문항 조작 뒤 키보드 포커스 유지
+  ✅ chromium · 태블릿 — 터치 목표 44px 이상
+  ✅ chromium · 태블릿 — hover 없이도 블록 추가 단추가 보인다
+  ✅ chromium · 아이패드 가로 — 라이브러리에 가로 스크롤이 없다
+  ✅ chromium · 아이패드 가로 — 가로스크롤(편집기)
+  ✅ chromium · 아이패드 가로 — 블록 더하기
+  ✅ chromium · 아이패드 가로 — 인쇄본 조립
+  ✅ chromium · 아이패드 가로 — 상단 막대가 본문을 덮지 않는다
+  ✅ chromium · 아이패드 가로 — 핵심 단추가 화면 안
+  ✅ chromium · 아이패드 가로 — 탐색 항목이 붙어 있다
+  ✅ chromium · 아이패드 가로 — visibilitychange 로 편집분이 로컬에 남는다
+  ✅ chromium · 아이패드 가로 — pagehide 로 편집분이 로컬에 남는다
+  ✅ chromium · 아이패드 가로 — 스크립트 오류 없음
+  ✅ chromium · 아이패드 가로 — 문항 조작 뒤 키보드 포커스 유지
+  ✅ chromium · 아이패드 가로 — 터치 목표 44px 이상
+  ✅ chromium · 아이패드 가로 — hover 없이도 블록 추가 단추가 보인다
+  ✅ chromium · 휴대폰 — 라이브러리에 가로 스크롤이 없다
+  ✅ chromium · 휴대폰 — 가로스크롤(편집기)
+  ✅ chromium · 휴대폰 — 블록 더하기
+  ✅ chromium · 휴대폰 — 인쇄본 조립
+  ✅ chromium · 휴대폰 — 상단 막대가 본문을 덮지 않는다
+  ✅ chromium · 휴대폰 — 핵심 단추가 화면 안
+  ✅ chromium · 휴대폰 — 탐색 항목이 붙어 있다
+  ✅ chromium · 휴대폰 — visibilitychange 로 편집분이 로컬에 남는다
+  ✅ chromium · 휴대폰 — pagehide 로 편집분이 로컬에 남는다
+  ✅ chromium · 휴대폰 — 스크립트 오류 없음
+  ✅ chromium · 휴대폰 — 문항 조작 뒤 키보드 포커스 유지
+  ✅ chromium · 휴대폰 — 터치 목표 44px 이상
+  ✅ chromium · 휴대폰 — hover 없이도 블록 추가 단추가 보인다
+  ✅ chromium · 문서 편집기 · 저장소 정상 — 단추가 살아 있다
+  ✅ chromium · 문서 편집기 · 저장소 차단 — 단추가 살아 있다
+  ✅ chromium · 본체 · 저장소 정상 — 단추가 살아 있다
+  ✅ chromium · 본체 · 저장소 차단 — 단추가 살아 있다
+  ✅ chromium · 375×812 — 상단 바 + 라이브러리 이 한 화면에 든다
+  ✅ chromium · 375×812 — 상단 바 + 모의고사 이 한 화면에 든다
+  ✅ chromium · 375×812 — 모의고사 가변 머리·본문·고지가 한 화면에 든다
+  ✅ chromium · 768×1024 — 상단 바 + 라이브러리 이 한 화면에 든다
+  ✅ chromium · 768×1024 — 상단 바 + 모의고사 이 한 화면에 든다
+  ✅ chromium · 768×1024 — 모의고사 가변 머리·본문·고지가 한 화면에 든다
+  ✅ chromium · 1024×768 — 상단 바 + 라이브러리 이 한 화면에 든다
+  ✅ chromium · 1024×768 — 상단 바 + 모의고사 이 한 화면에 든다
+  ✅ chromium · 1024×768 — 모의고사 가변 머리·본문·고지가 한 화면에 든다
+  ✅ chromium · 1194×834 — 상단 바 + 라이브러리 이 한 화면에 든다
+  ✅ chromium · 1194×834 — 상단 바 + 모의고사 이 한 화면에 든다
+  ✅ chromium · 1194×834 — 모의고사 가변 머리·본문·고지가 한 화면에 든다
+  ✅ chromium · 글꼴 — 방문만 하면 인쇄용 글꼴 파일을 하나도 받지 않는다
+  ✅ chromium · 글꼴 — 인쇄 의도 뒤 KoPub 세 굵기를 받는다
+  ✅ chromium · 글꼴 — 인쇄 의도 뒤 KaTeX 글꼴도 받는다
+     · 인쇄용 글꼴 — 방문만 0MB / 인쇄 의도 뒤 7.83MB · 화면 글꼴(Pretendard) 0.22MB
+  ✅ chromium · 서버 있음 — 안내를 띄우지 않는다
+  ✅ chromium · 서버 있음 — 단추에 '서버' 표시가 없다
+  ✅ chromium · 서버 있음 — 단추를 막지는 않는다
+  ✅ chromium · 서버 없음 — 누르기 전에 미리 알린다
+  ✅ chromium · 서버 없음 — 서버가 필요한 단추를 표시한다
+  ✅ chromium · 서버 없음 — 서버 켜기와 브라우저 제약을 함께 알린다
+  ✅ chromium · 서버 없음 — 단추를 막지는 않는다
+  ✅ chromium · 본체 · 인앱 안내 — '밖에서 열기' 를 누를 수 있다
+  ✅ chromium · 본체 · 인앱 안내 — '밖에서 열기' 가 44px 이상
+  ✅ chromium · 본체 · 인앱 안내 — 안내를 띄워도 가로로 넘치지 않는다
+  ✅ chromium · 문서 편집기 · 인앱 안내 — '밖에서 열기' 를 누를 수 있다
+  ✅ chromium · 문서 편집기 · 인앱 안내 — '밖에서 열기' 가 44px 이상
+  ✅ chromium · 문서 편집기 · 인앱 안내 — 안내를 띄워도 가로로 넘치지 않는다
+  ✅ chromium · CDN 차단 — 문제집을 계속 편집할 수 있다
+  ✅ chromium · CDN 차단 — 내보내기(데이터 탈출구)가 살아 있다
+  ⚠️  chromium · CDN 차단 — KaTeX 없음: 수식이 원문으로 보인다(인쇄 전 확인 대화상자가 뜬다)
+  ⚠️  chromium · CDN 차단 — SortableJS 없음: 순서 바꾸기만 못 쓴다
+  ✅ chromium · 내보내기 — JSON 파일이 실제로 내려온다
+
+── webkit ──
+  ✅ webkit · 데스크톱 — 라이브러리에 가로 스크롤이 없다
+  ✅ webkit · 데스크톱 — 가로스크롤(편집기)
+  ✅ webkit · 데스크톱 — 블록 더하기
+  ✅ webkit · 데스크톱 — 인쇄본 조립
+  ✅ webkit · 데스크톱 — 상단 막대가 본문을 덮지 않는다
+  ✅ webkit · 데스크톱 — 핵심 단추가 화면 안
+  ✅ webkit · 데스크톱 — 탐색 항목이 붙어 있다
+  ✅ webkit · 데스크톱 — visibilitychange 로 편집분이 로컬에 남는다
+  ✅ webkit · 데스크톱 — pagehide 로 편집분이 로컬에 남는다
+  ✅ webkit · 데스크톱 — 스크립트 오류 없음
+  ✅ webkit · 데스크톱 — 문항 조작 뒤 키보드 포커스 유지
+  ✅ webkit · 태블릿 — 라이브러리에 가로 스크롤이 없다
+  ✅ webkit · 태블릿 — 가로스크롤(편집기)
+  ✅ webkit · 태블릿 — 블록 더하기
+  ✅ webkit · 태블릿 — 인쇄본 조립
+  ✅ webkit · 태블릿 — 상단 막대가 본문을 덮지 않는다
+  ✅ webkit · 태블릿 — 핵심 단추가 화면 안
+  ✅ webkit · 태블릿 — 탐색 항목이 붙어 있다
+  ✅ webkit · 태블릿 — visibilitychange 로 편집분이 로컬에 남는다
+  ✅ webkit · 태블릿 — pagehide 로 편집분이 로컬에 남는다
+  ✅ webkit · 태블릿 — 스크립트 오류 없음
+  ✅ webkit · 태블릿 — 문항 조작 뒤 키보드 포커스 유지
+  ✅ webkit · 태블릿 — 터치 목표 44px 이상
+  ✅ webkit · 태블릿 — hover 없이도 블록 추가 단추가 보인다
+  ✅ webkit · 아이패드 가로 — 라이브러리에 가로 스크롤이 없다
+  ✅ webkit · 아이패드 가로 — 가로스크롤(편집기)
+  ✅ webkit · 아이패드 가로 — 블록 더하기
+  ✅ webkit · 아이패드 가로 — 인쇄본 조립
+  ✅ webkit · 아이패드 가로 — 상단 막대가 본문을 덮지 않는다
+  ✅ webkit · 아이패드 가로 — 핵심 단추가 화면 안
+  ✅ webkit · 아이패드 가로 — 탐색 항목이 붙어 있다
+  ✅ webkit · 아이패드 가로 — visibilitychange 로 편집분이 로컬에 남는다
+  ✅ webkit · 아이패드 가로 — pagehide 로 편집분이 로컬에 남는다
+  ✅ webkit · 아이패드 가로 — 스크립트 오류 없음
+  ✅ webkit · 아이패드 가로 — 문항 조작 뒤 키보드 포커스 유지
+  ✅ webkit · 아이패드 가로 — 터치 목표 44px 이상
+  ✅ webkit · 아이패드 가로 — hover 없이도 블록 추가 단추가 보인다
+  ✅ webkit · 휴대폰 — 라이브러리에 가로 스크롤이 없다
+  ✅ webkit · 휴대폰 — 가로스크롤(편집기)
+  ✅ webkit · 휴대폰 — 블록 더하기
+  ✅ webkit · 휴대폰 — 인쇄본 조립
+  ✅ webkit · 휴대폰 — 상단 막대가 본문을 덮지 않는다
+  ✅ webkit · 휴대폰 — 핵심 단추가 화면 안
+  ✅ webkit · 휴대폰 — 탐색 항목이 붙어 있다
+  ✅ webkit · 휴대폰 — visibilitychange 로 편집분이 로컬에 남는다
+  ✅ webkit · 휴대폰 — pagehide 로 편집분이 로컬에 남는다
+  ✅ webkit · 휴대폰 — 스크립트 오류 없음
+  ✅ webkit · 휴대폰 — 문항 조작 뒤 키보드 포커스 유지
+  ✅ webkit · 휴대폰 — 터치 목표 44px 이상
+  ✅ webkit · 휴대폰 — hover 없이도 블록 추가 단추가 보인다
+  ✅ webkit · 문서 편집기 · 저장소 정상 — 단추가 살아 있다
+  ✅ webkit · 문서 편집기 · 저장소 차단 — 단추가 살아 있다
+  ✅ webkit · 본체 · 저장소 정상 — 단추가 살아 있다
+  ✅ webkit · 본체 · 저장소 차단 — 단추가 살아 있다
+  ✅ webkit · 375×812 — 상단 바 + 라이브러리 이 한 화면에 든다
+  ✅ webkit · 375×812 — 상단 바 + 모의고사 이 한 화면에 든다
+  ✅ webkit · 375×812 — 모의고사 가변 머리·본문·고지가 한 화면에 든다
+  ✅ webkit · 768×1024 — 상단 바 + 라이브러리 이 한 화면에 든다
+  ✅ webkit · 768×1024 — 상단 바 + 모의고사 이 한 화면에 든다
+  ✅ webkit · 768×1024 — 모의고사 가변 머리·본문·고지가 한 화면에 든다
+  ✅ webkit · 1024×768 — 상단 바 + 라이브러리 이 한 화면에 든다
+  ✅ webkit · 1024×768 — 상단 바 + 모의고사 이 한 화면에 든다
+  ✅ webkit · 1024×768 — 모의고사 가변 머리·본문·고지가 한 화면에 든다
+  ✅ webkit · 1194×834 — 상단 바 + 라이브러리 이 한 화면에 든다
+  ✅ webkit · 1194×834 — 상단 바 + 모의고사 이 한 화면에 든다
+  ✅ webkit · 1194×834 — 모의고사 가변 머리·본문·고지가 한 화면에 든다
+  ✅ webkit · 글꼴 — 방문만 하면 인쇄용 글꼴 파일을 하나도 받지 않는다
+  ✅ webkit · 글꼴 — 인쇄 의도 뒤 KoPub 세 굵기를 받는다
+  ✅ webkit · 글꼴 — 인쇄 의도 뒤 KaTeX 글꼴도 받는다
+     · 인쇄용 글꼴 — 방문만 0MB / 인쇄 의도 뒤 7.83MB · 화면 글꼴(Pretendard) 0.25MB
+  ✅ webkit · 서버 있음 — 안내를 띄우지 않는다
+  ✅ webkit · 서버 있음 — 단추에 '서버' 표시가 없다
+  ✅ webkit · 서버 있음 — 단추를 막지는 않는다
+  ✅ webkit · 서버 없음 — 누르기 전에 미리 알린다
+  ✅ webkit · 서버 없음 — 서버가 필요한 단추를 표시한다
+  ✅ webkit · 서버 없음 — 서버 켜기와 브라우저 제약을 함께 알린다
+  ✅ webkit · 서버 없음 — 단추를 막지는 않는다
+  ✅ webkit · 본체 · 인앱 안내 — '밖에서 열기' 를 누를 수 있다
+  ✅ webkit · 본체 · 인앱 안내 — '밖에서 열기' 가 44px 이상
+  ✅ webkit · 본체 · 인앱 안내 — 안내를 띄워도 가로로 넘치지 않는다
+  ✅ webkit · 문서 편집기 · 인앱 안내 — '밖에서 열기' 를 누를 수 있다
+  ✅ webkit · 문서 편집기 · 인앱 안내 — '밖에서 열기' 가 44px 이상
+  ✅ webkit · 문서 편집기 · 인앱 안내 — 안내를 띄워도 가로로 넘치지 않는다
+  ✅ webkit · CDN 차단 — 문제집을 계속 편집할 수 있다
+  ✅ webkit · CDN 차단 — 내보내기(데이터 탈출구)가 살아 있다
+  ⚠️  webkit · CDN 차단 — KaTeX 없음: 수식이 원문으로 보인다(인쇄 전 확인 대화상자가 뜬다)
+  ⚠️  webkit · CDN 차단 — SortableJS 없음: 순서 바꾸기만 못 쓴다
+  ✅ webkit · 내보내기 — JSON 파일이 실제로 내려온다
+
+── firefox ──
+  ✅ firefox · 데스크톱 — 라이브러리에 가로 스크롤이 없다
+  ✅ firefox · 데스크톱 — 가로스크롤(편집기)
+  ✅ firefox · 데스크톱 — 블록 더하기
+  ✅ firefox · 데스크톱 — 인쇄본 조립
+  ✅ firefox · 데스크톱 — 상단 막대가 본문을 덮지 않는다
+  ✅ firefox · 데스크톱 — 핵심 단추가 화면 안
+  ✅ firefox · 데스크톱 — 탐색 항목이 붙어 있다
+  ✅ firefox · 데스크톱 — visibilitychange 로 편집분이 로컬에 남는다
+  ✅ firefox · 데스크톱 — pagehide 로 편집분이 로컬에 남는다
+  ✅ firefox · 데스크톱 — 스크립트 오류 없음
+  ✅ firefox · 데스크톱 — 문항 조작 뒤 키보드 포커스 유지
+  ⚠️  firefox · 데스크톱 — 콘솔 오류 2건 — [JavaScript Error: "Content-Security-Policy: The page’s settings blocked an event handler (script-src-attr) from being executed because it v | [JavaScript Error: "Content-Security-Policy: The page’s settings blocked an event handler (script-src-attr) from being executed because it v
+  ✅ firefox · 태블릿 — 라이브러리에 가로 스크롤이 없다
+  ✅ firefox · 태블릿 — 가로스크롤(편집기)
+  ✅ firefox · 태블릿 — 블록 더하기
+  ✅ firefox · 태블릿 — 인쇄본 조립
+  ✅ firefox · 태블릿 — 상단 막대가 본문을 덮지 않는다
+  ✅ firefox · 태블릿 — 핵심 단추가 화면 안
+  ✅ firefox · 태블릿 — 탐색 항목이 붙어 있다
+  ✅ firefox · 태블릿 — visibilitychange 로 편집분이 로컬에 남는다
+  ✅ firefox · 태블릿 — pagehide 로 편집분이 로컬에 남는다
+  ✅ firefox · 태블릿 — 스크립트 오류 없음
+  ✅ firefox · 태블릿 — 문항 조작 뒤 키보드 포커스 유지
+  ✅ firefox · 태블릿 — 터치 목표 44px 이상
+  ✅ firefox · 태블릿 — hover 없이도 블록 추가 단추가 보인다
+  ⚠️  firefox · 태블릿 — 콘솔 오류 2건 — [JavaScript Error: "Content-Security-Policy: The page’s settings blocked an event handler (script-src-attr) from being executed because it v | [JavaScript Error: "Content-Security-Policy: The page’s settings blocked an event handler (script-src-attr) from being executed because it v
+  ✅ firefox · 아이패드 가로 — 라이브러리에 가로 스크롤이 없다
+  ✅ firefox · 아이패드 가로 — 가로스크롤(편집기)
+  ✅ firefox · 아이패드 가로 — 블록 더하기
+  ✅ firefox · 아이패드 가로 — 인쇄본 조립
+  ✅ firefox · 아이패드 가로 — 상단 막대가 본문을 덮지 않는다
+  ✅ firefox · 아이패드 가로 — 핵심 단추가 화면 안
+  ✅ firefox · 아이패드 가로 — 탐색 항목이 붙어 있다
+  ✅ firefox · 아이패드 가로 — visibilitychange 로 편집분이 로컬에 남는다
+  ✅ firefox · 아이패드 가로 — pagehide 로 편집분이 로컬에 남는다
+  ✅ firefox · 아이패드 가로 — 스크립트 오류 없음
+  ✅ firefox · 아이패드 가로 — 문항 조작 뒤 키보드 포커스 유지
+  ✅ firefox · 아이패드 가로 — 터치 목표 44px 이상
+  ✅ firefox · 아이패드 가로 — hover 없이도 블록 추가 단추가 보인다
+  ⚠️  firefox · 아이패드 가로 — 콘솔 오류 2건 — [JavaScript Error: "Content-Security-Policy: The page’s settings blocked an event handler (script-src-attr) from being executed because it v | [JavaScript Error: "Content-Security-Policy: The page’s settings blocked an event handler (script-src-attr) from being executed because it v
+  ✅ firefox · 휴대폰 — 라이브러리에 가로 스크롤이 없다
+  ✅ firefox · 휴대폰 — 가로스크롤(편집기)
+  ✅ firefox · 휴대폰 — 블록 더하기
+  ✅ firefox · 휴대폰 — 인쇄본 조립
+  ✅ firefox · 휴대폰 — 상단 막대가 본문을 덮지 않는다
+  ✅ firefox · 휴대폰 — 핵심 단추가 화면 안
+  ✅ firefox · 휴대폰 — 탐색 항목이 붙어 있다
+  ✅ firefox · 휴대폰 — visibilitychange 로 편집분이 로컬에 남는다
+  ✅ firefox · 휴대폰 — pagehide 로 편집분이 로컬에 남는다
+  ✅ firefox · 휴대폰 — 스크립트 오류 없음
+  ✅ firefox · 휴대폰 — 문항 조작 뒤 키보드 포커스 유지
+  ✅ firefox · 휴대폰 — 터치 목표 44px 이상
+  ✅ firefox · 휴대폰 — hover 없이도 블록 추가 단추가 보인다
+  ⚠️  firefox · 휴대폰 — 콘솔 오류 2건 — [JavaScript Error: "Content-Security-Policy: The page’s settings blocked an event handler (script-src-attr) from being executed because it v | [JavaScript Error: "Content-Security-Policy: The page’s settings blocked an event handler (script-src-attr) from being executed because it v
+  ✅ firefox · 문서 편집기 · 저장소 정상 — 단추가 살아 있다
+  ✅ firefox · 문서 편집기 · 저장소 차단 — 단추가 살아 있다
+  ✅ firefox · 본체 · 저장소 정상 — 단추가 살아 있다
+  ✅ firefox · 본체 · 저장소 차단 — 단추가 살아 있다
+  ✅ firefox · 375×812 — 상단 바 + 라이브러리 이 한 화면에 든다
+  ✅ firefox · 375×812 — 상단 바 + 모의고사 이 한 화면에 든다
+  ✅ firefox · 375×812 — 모의고사 가변 머리·본문·고지가 한 화면에 든다
+  ✅ firefox · 768×1024 — 상단 바 + 라이브러리 이 한 화면에 든다
+  ✅ firefox · 768×1024 — 상단 바 + 모의고사 이 한 화면에 든다
+  ✅ firefox · 768×1024 — 모의고사 가변 머리·본문·고지가 한 화면에 든다
+  ✅ firefox · 1024×768 — 상단 바 + 라이브러리 이 한 화면에 든다
+  ✅ firefox · 1024×768 — 상단 바 + 모의고사 이 한 화면에 든다
+  ✅ firefox · 1024×768 — 모의고사 가변 머리·본문·고지가 한 화면에 든다
+  ✅ firefox · 1194×834 — 상단 바 + 라이브러리 이 한 화면에 든다
+  ✅ firefox · 1194×834 — 상단 바 + 모의고사 이 한 화면에 든다
+  ✅ firefox · 1194×834 — 모의고사 가변 머리·본문·고지가 한 화면에 든다
+  ✅ firefox · 글꼴 — 방문만 하면 인쇄용 글꼴 파일을 하나도 받지 않는다
+  ✅ firefox · 글꼴 — 인쇄 의도 뒤 KoPub 세 굵기를 받는다
+  ✅ firefox · 글꼴 — 인쇄 의도 뒤 KaTeX 글꼴도 받는다
+     · 인쇄용 글꼴 — 방문만 0MB / 인쇄 의도 뒤 7.83MB · 화면 글꼴(Pretendard) 0.22MB
+  ✅ firefox · 서버 있음 — 안내를 띄우지 않는다
+  ✅ firefox · 서버 있음 — 단추에 '서버' 표시가 없다
+  ✅ firefox · 서버 있음 — 단추를 막지는 않는다
+  ✅ firefox · 서버 없음 — 누르기 전에 미리 알린다
+  ✅ firefox · 서버 없음 — 서버가 필요한 단추를 표시한다
+  ✅ firefox · 서버 없음 — 서버 켜기와 브라우저 제약을 함께 알린다
+  ✅ firefox · 서버 없음 — 단추를 막지는 않는다
+  ✅ firefox · 본체 · 인앱 안내 — '밖에서 열기' 를 누를 수 있다
+  ✅ firefox · 본체 · 인앱 안내 — '밖에서 열기' 가 44px 이상
+  ✅ firefox · 본체 · 인앱 안내 — 안내를 띄워도 가로로 넘치지 않는다
+  ✅ firefox · 문서 편집기 · 인앱 안내 — '밖에서 열기' 를 누를 수 있다
+  ✅ firefox · 문서 편집기 · 인앱 안내 — '밖에서 열기' 가 44px 이상
+  ✅ firefox · 문서 편집기 · 인앱 안내 — 안내를 띄워도 가로로 넘치지 않는다
+  ✅ firefox · CDN 차단 — 문제집을 계속 편집할 수 있다
+  ✅ firefox · CDN 차단 — 내보내기(데이터 탈출구)가 살아 있다
+  ⚠️  firefox · CDN 차단 — KaTeX 없음: 수식이 원문으로 보인다(인쇄 전 확인 대화상자가 뜬다)
+  ⚠️  firefox · CDN 차단 — SortableJS 없음: 순서 바꾸기만 못 쓴다
+  ✅ firefox · 내보내기 — JSON 파일이 실제로 내려온다
+
+── 자기검사 (검사가 실제로 잡는가) ──
+  ✅ 단보다 넓은 요소를 넣으면 빨간불이 된다
+  ✅ 블록 더하기 단추를 죽이면 빨간불이 된다
+  ✅ 인쇄본을 비우면 빨간불이 된다
+  ✅ 상단 막대를 본문 위로 덮으면 빨간불이 된다
+  ✅ 탐색을 다시 벌려 놓으면 빨간불이 된다
+  ✅ 핵심 단추를 화면 밖(가로)으로 밀면 빨간불이 된다
+  ✅ 핵심 단추를 화면 밖(세로)으로 밀면 빨간불이 된다
+  ✅ 핵심 단추를 아예 지우면 빨간불이 된다
+  ✅ 단추를 다시 작게 만들면 빨간불이 된다
+  ✅ 블록 추가 단추를 다시 숨기면 빨간불이 된다
+  ✅ 숨김 저장을 끊으면 (visibilitychange) 빨간불이 된다
+  ✅ 숨김 저장을 끊으면 (pagehide) 빨간불이 된다
+  ✅ 스크립트 오류를 내면 빨간불이 된다
+  ✅ 문항 포커스 복원을 끊으면 빨간불이 된다
+
+환경 연기 검사 통과 (경고 10건)

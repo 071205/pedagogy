@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { createWorker } from "./index.js";
+import { AppCheckError } from "./app-check.js";
 
 const env = {
   ALLOWED_ORIGINS: "https://app.example",
@@ -15,12 +16,14 @@ const env = {
 const request = (method, {
   origin = "https://app.example",
   token = "test-token",
+  appCheckToken = null,
   body,
   extraHeaders = {},
 } = {}) => {
   const headers = new Headers(extraHeaders);
   if (origin !== null) headers.set("Origin", origin);
   if (token !== null) headers.set("Authorization", "Bearer " + token);
+  if (appCheckToken !== null) headers.set("X-Firebase-AppCheck", appCheckToken);
   if (body !== undefined) headers.set("Content-Type", "application/json");
   return new Request("https://worker.example/ai", {
     method,
@@ -31,6 +34,7 @@ const request = (method, {
 
 function testWorker({
   verifyToken = async () => ({ uid: "user-1", claims: { pedagogy_plan: "pro" } }),
+  verifyAppCheck = async () => ({ appId: "test-app" }),
   quotaResult = {},
   generateProblems = async () => [{ title: "변환됨", blocks: [] }],
   generateDocument = async () => ({ title: "초안", blocks: [{ type: "paragraph", text: "본문" }] }),
@@ -40,6 +44,10 @@ function testWorker({
     verifyToken: async (...args) => {
       calls.push({ kind: "verify", args });
       return verifyToken(...args);
+    },
+    verifyAppCheck: async (...args) => {
+      calls.push({ kind: "app-check", args });
+      return verifyAppCheck(...args);
     },
     requestQuota: async (_env, uid, op, reservationId, options) => {
       calls.push({ kind: "quota", uid, op, reservationId, options });
@@ -116,6 +124,7 @@ async function testHealthAndOriginBoundary() {
   const options = await worker.fetch(request("OPTIONS"), env);
   assert.equal(options.status, 204);
   assert.equal(options.headers.get("Access-Control-Allow-Origin"), "https://app.example");
+  assert.match(options.headers.get("Access-Control-Allow-Headers"), /X-Firebase-AppCheck/);
 
   const blocked = await worker.fetch(request("POST", { origin: "https://evil.example", body: {} }), env);
   assert.equal(blocked.status, 403);
@@ -126,6 +135,78 @@ async function testHealthAndOriginBoundary() {
 
   const missingToken = await worker.fetch(request("POST", { token: null, body: {} }), env);
   assert.equal(missingToken.status, 401);
+}
+
+async function testAppCheckBoundary() {
+  const configured = {
+    ...env,
+    APP_CHECK_MODE: "enforce",
+    FIREBASE_PROJECT_NUMBER: "123456789",
+    FIREBASE_APP_IDS: "app-one,app-two",
+  };
+  const missing = testWorker({
+    verifyAppCheck: async () => { throw new AppCheckError("invalid", "private detail"); },
+  });
+  const missingResponse = await missing.worker.fetch(request("POST", {
+    body: { imageBase64: "abc", mimeType: "image/png" },
+  }), configured);
+  assert.equal(missingResponse.status, 401);
+  assert.equal((await body(missingResponse)).error,
+    "앱 확인에 실패했습니다. 페이지를 새로 열어 다시 시도해 주세요.");
+  assert.deepEqual(missing.calls.map((call) => call.kind), ["verify", "app-check"],
+    "invalid App Check must stop before body, quota and AI");
+
+  const outage = testWorker({
+    verifyAppCheck: async () => { throw new AppCheckError("unavailable", "private detail"); },
+  });
+  const outageResponse = await outage.worker.fetch(request("POST", {
+    appCheckToken: "valid-looking-app-check-token",
+    body: { imageBase64: "abc", mimeType: "image/png" },
+  }), configured);
+  assert.equal(outageResponse.status, 503);
+  assert.equal(outage.calls.filter((call) => call.kind === "quota").length, 0);
+
+  const accepted = testWorker();
+  const acceptedResponse = await accepted.worker.fetch(request("POST", {
+    appCheckToken: "valid-looking-app-check-token",
+    body: { imageBase64: "abc", mimeType: "image/png" },
+  }), configured);
+  assert.equal(acceptedResponse.status, 200);
+  assert.deepEqual(accepted.calls.map((call) => call.kind),
+    ["verify", "app-check", "quota", "quota", "ai"]);
+  assert.deepEqual(accepted.calls[1].args[1], {
+    projectNumber: "123456789", allowedAppIds: ["app-one", "app-two"],
+  });
+
+  const monitor = testWorker({
+    verifyAppCheck: async () => { throw new AppCheckError("invalid", "private detail"); },
+  });
+  const monitorResponse = await monitor.worker.fetch(request("POST", {
+    body: { imageBase64: "abc", mimeType: "image/png" },
+  }), { ...configured, APP_CHECK_MODE: "monitor" });
+  assert.equal(monitorResponse.status, 200, "monitor records failure without enforcing it");
+
+  const typo = testWorker({
+    verifyAppCheck: async () => { throw new AppCheckError("invalid", "private detail"); },
+  });
+  const typoResponse = await typo.worker.fetch(request("POST", {
+    body: { imageBase64: "abc", mimeType: "image/png" },
+  }), { ...configured, APP_CHECK_MODE: "enfore" });
+  assert.equal(typoResponse.status, 401, "unknown mode must fail closed instead of disabling App Check");
+}
+
+async function testKillSwitchBoundary() {
+  const stopped = testWorker();
+  const response = await stopped.worker.fetch(request("POST", {
+    body: { imageBase64: "abc", mimeType: "image/png" },
+  }), { ...env, AI_KILL_SWITCH: "1", APP_CHECK_MODE: "enforce" });
+  assert.equal(response.status, 503);
+  assert.equal(stopped.calls.length, 0,
+    "kill switch must stop before Auth/App Check, body, quota and AI work");
+  const wrongOrigin = await stopped.worker.fetch(request("POST", {
+    origin: "https://evil.example", body: {},
+  }), { ...env, AI_KILL_SWITCH: "1" });
+  assert.equal(wrongOrigin.status, 403, "Origin boundary must remain before the kill switch");
 }
 
 async function testAuthenticationAndInputBoundary() {
@@ -275,6 +356,8 @@ async function testDeletionPurgeContract() {
 
 await testHealthAndOriginBoundary();
 await testAuthenticationAndInputBoundary();
+await testAppCheckBoundary();
+await testKillSwitchBoundary();
 await testQuotaAndProviderContract();
 await testGlobalQuotaContract();
 await testDocumentDraftContract();

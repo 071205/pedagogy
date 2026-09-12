@@ -12,10 +12,10 @@
 
 <!-- ══ 콘텐츠 보안 정책 ══
      이 앱은 인라인 스크립트 블록으로만 이뤄져 있어 'unsafe-inline' 을 뺄 수 없다.
-     다만 CSP 를 걸면 인라인 *이벤트 핸들러 속성*(onerror=, onload=)은 별도로
-     차단된다 — 'unsafe-inline' 은 스크립트 블록만 허용하고 속성 핸들러는
-     'unsafe-hashes' 가 있어야 살아난다. 즉 processText/numLabel 같은 곳에
-     실수로 구멍이 다시 생겨도 주입된 onerror 가 실행되지 않는다.
+     이벤트 핸들러 속성(onerror=, onclick=)은 script-src-attr 'none' 으로
+     별도 차단한다. unsafe-inline 만 두면 속성도 실행된다. JS가 등록한
+     onclick 함수·addEventListener 는 유지된다. 인라인 script 블록은 아직
+     허용되므로 이 정책이 HTML 정규화·이스케이프를 대체하지는 않는다.
      connect-src 는 Firestore/Storage/Auth·AI 프록시·로컬 렌더 서버를 모두 담는다.
 
      ⚠️ 구글 로그인은 apis.google.com 의 gapi 를 불러 숨은 iframe 으로 팝업과
@@ -26,6 +26,7 @@
 <meta http-equiv="Content-Security-Policy" content="
   default-src 'self';
   script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
+  script-src-attr 'none';
   style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
   font-src 'self' data: https://cdn.jsdelivr.net;
   img-src 'self' data: blob: https://firebasestorage.googleapis.com https://storage.googleapis.com https://lh3.googleusercontent.com https://*.googleusercontent.com;
@@ -2561,6 +2562,14 @@ function initFirebase(){
     fbAuth = firebase.auth();
     fbDb = firebase.firestore();
     fbStorage = firebase.storage();
+    fbReady = true;
+  }catch(e){
+    console.error("Firebase 초기화 실패 — 로컬 전용 모드로 동작합니다", e);
+    fbReady=false;
+    return;
+  }
+  // Attestation failure blocks AI; it must not strand Auth or the user's library.
+  try{
     const appCheckSiteKey=String(publicConfig.appCheckSiteKey||"").trim();
     if(appCheckSiteKey){
       const provider=new firebase.appCheck.ReCaptchaEnterpriseProvider(appCheckSiteKey);
@@ -2569,11 +2578,23 @@ function initFirebase(){
     }else{
       console.warn("App Check가 설정되지 않았습니다. 상용 출시 전 service-config.js와 Firebase Console에서 반드시 활성화하세요.");
     }
-    fbReady = true;
   }catch(e){
-    console.error("Firebase 초기화 실패 — 로컬 전용 모드로 동작합니다", e);
-    fbReady=false;
+    console.error("App Check 초기화 실패 — AI 요청을 차단합니다", e);
+    appCheckReady=false;
   }
+}
+
+async function getAiAppCheckToken(){
+  // During the staged rollout an empty site key keeps the existing Worker usable.
+  // Once initialized, token acquisition failure must stop the request instead of
+  // silently sending an unverified call that an enforcing Worker will reject.
+  if(!appCheckReady){
+    if(String(publicConfig.appCheckSiteKey||"").trim()) throw new Error("앱 확인을 시작하지 못했어요 · 새로고침 후 다시 시도해 주세요");
+    return "";
+  }
+  const result=await firebase.appCheck().getToken(false);
+  if(!result||typeof result.token!=="string"||!result.token) throw new Error("App Check token unavailable");
+  return result.token;
 }
 
 /* ===== 이미지 저장 헬퍼 (Firebase Storage) =====
@@ -4086,10 +4107,16 @@ async function deleteAccountEverything(){
     /* ⚠️ 폴더 설정은 하위 문서라 부모를 지워도 **함께 사라지지 않는다**(Firestore 규칙:
        문서 삭제는 하위 컬렉션을 지우지 않는다). 따로 지운다. */
     try{ await PREFS_DOC(uid).delete(); }
-    catch(e){ console.warn('폴더 설정 삭제 실패', e); }
+    catch(e){
+      console.warn('폴더 설정 삭제 실패', e);
+      throw new Error('폴더 설정을 지우지 못해 계정 삭제를 멈췄어요 · 계정은 그대로 두었습니다');
+    }
     /* 동의 증적도 개인정보다 — 계정을 지우면 함께 파기한다. */
     try{ await fbDb.collection('users').doc(uid).collection('prefs').doc('consent').delete(); }
-    catch(e){ console.warn('동의 기록 삭제 실패', e); }
+    catch(e){
+      console.warn('동의 기록 삭제 실패', e);
+      throw new Error('동의 기록을 지우지 못해 계정 삭제를 멈췄어요 · 계정은 그대로 두었습니다');
+    }
     try{ localStorage.removeItem(consentKey(uid)); }catch(e){}
 
     try{ await fbDb.collection('users').doc(uid).delete(); }
@@ -4101,6 +4128,7 @@ async function deleteAccountEverything(){
     // ⑥ 로컬 — 백업까지 전부
     clearLocalKeys(keys,{keepBackup:false});
     clearLocalKeys(mockLocalKeys(uid),{keepBackup:false});
+    pendingLocalByOwner.delete(MockStore.keysFor(uid).list);
     mocks=[]; mocksLoaded=false; mockOpenId="";
     mockCloudSynced.clear(); mockDeletedIds.clear();
     localDirty=false; pendingLocalByOwner.delete(keys.sets);
@@ -4434,8 +4462,9 @@ function saveSets(changedSetId=currentSetId){
 let authRedirecting=false;
 window.addEventListener('beforeunload',(e)=>{
   flushLocal();                    // 디바운스 대기 중인 로컬 저장을 먼저 확정
+  flushOpenMock();
   if(authRedirecting) return;      // 로그인하러 가는 길 — 경고하지 않는다
-  if(!hasUnsavedCloudWork()) return;
+  if(!hasUnsavedCloudWork() && !hasUnsavedMockWork()) return;
   e.preventDefault();
   e.returnValue='';
 });
@@ -4448,6 +4477,10 @@ window.addEventListener('pagehide',()=>{ flushLocal(); });
 /* 탭을 숨기거나 앱을 전환할 때는 경고 없이 곧바로 올린다(모바일에서 중요) */
 document.addEventListener('visibilitychange',()=>{
   if(document.visibilityState==='hidden') flushLocal();
+  if(document.visibilityState==='hidden'){
+    flushOpenMock();
+    if(hasUnsavedMockWork()){ clearTimeout(mockCloudTimer); void flushMocksToCloud(); }
+  }
   if(document.visibilityState==='hidden' && currentUser && hasUnsavedCloudWork()){
     clearTimeout(saveTimer);
     flushToCloud(currentUser.uid);
@@ -4905,7 +4938,8 @@ function readMockSort(){
   catch(e){ return "updated"; }
 }
 function loadMocks(){
-  const r=MockStore.readMocks(mockOwner());
+  const pending=pendingLocalByOwner.get(MockStore.keysFor(mockOwner()).list);
+  const r=MockStore.readMocks(mockOwner(),pending ? {getItem:()=>pending} : undefined);
   mocks=r.list; mocksLoaded=true; mockSort=readMockSort();
   if(!r.ok) toast(r.corrupt?"저장된 모의고사를 읽지 못했어요 · 손상된 것 같습니다"
                            :"이 브라우저가 저장소를 막고 있어 모의고사를 읽지 못했어요","error");
@@ -4916,7 +4950,11 @@ function loadMocks(){
 /* ⚠️ 저장 실패를 조용히 넘기면 사용자는 안전망이 있다고 믿은 채 계속 작업한다.
    한 번은 반드시 알리고, 대안(.json 내보내기)을 함께 말한다. */
 function persistMocks(){
+  if(wiping) return false;
+  const key=MockStore.keysFor(mockOwner()).list;
   const w=MockStore.writeMocks(mockOwner(),mocks);
+  if(w.ok) pendingLocalByOwner.delete(key);
+  else pendingLocalByOwner.set(key,JSON.stringify(mocks));
   if(!w.ok && !mockWriteWarned){
     mockWriteWarned=true;
     toast("모의고사를 이 기기에 저장하지 못했어요 · 저장 공간이 가득 찼을 수 있습니다. 카드 메뉴의 ‘내보내기’ 로 .json 을 받아 두세요","error");
@@ -5069,6 +5107,11 @@ function mockCloudEnabled(){
 }
 function mockCloudReady(){ return mockCloudEnabled() && !!currentUser && fbReady && !wiping; }
 
+function hasUnsavedMockWork(){
+  if(wiping) return false;
+  return mockWriteWarned || (mockCloudReady() && mocks.some(e=>mockCloudSynced.get(e.id)!==mockJSON(e)));
+}
+
 /* ⚠️ 필드를 더하면 `firestore.rules` 의 `hasOnly([...])` 에도 넣어야 한다.
    안 넣으면 저장이 통째로 '권한 오류' 로 실패한다. */
 function mockToDoc(e){
@@ -5124,8 +5167,8 @@ function flushMocksToCloud(){
     if(!dirty.length) return true;
     const ready=[], tooBig=[];
     for(const e of dirty){
-      const doc=mockToDoc(e);
-      (docBytes(doc)>MOCK_DOC_MAX?tooBig:ready).push({e,doc});
+      const doc=JSON.parse(JSON.stringify(mockToDoc(e)));
+      (docBytes(doc)>MOCK_DOC_MAX?tooBig:ready).push({id:e.id,doc,fingerprint:mockJSON(doc)});
     }
     if(tooBig.length)
       toast(`모의고사 ${tooBig.length}부가 너무 커서 계정에 올리지 못했어요 · 그림을 줄이거나 문항을 나눠 주세요 (이 기기에는 저장돼 있습니다)`,"error");
@@ -5133,11 +5176,17 @@ function flushMocksToCloud(){
       for(let off=0; off<ready.length; off+=400){
         if(!sessionMatches(session) || wiping) return;
         const batch=fbDb.batch();
-        ready.slice(off,off+400).forEach(({e,doc})=>batch.set(MOCKS_COL(owner).doc(String(e.id)),doc));
+        const chunk=ready.slice(off,off+400);
+        chunk.forEach(({id,doc})=>batch.set(MOCKS_COL(owner).doc(id),doc));
         await batch.commit();
+        if(!sessionMatches(session)) return;
+        chunk.forEach(({id,fingerprint})=>mockCloudSynced.set(id,fingerprint));
       }
       if(!sessionMatches(session)) return;
-      ready.forEach(({e})=>mockCloudSynced.set(e.id, mockJSON(e)));
+      if(ready.some(({id,fingerprint})=>{
+        const live=mocks.find(e=>e.id===id);
+        return live && mockJSON(live)!==fingerprint;
+      })) scheduleMockCloud();
       mockCloudWarned=false;
       return true;
     }catch(err){
@@ -6774,12 +6823,13 @@ async function aiGenerateFromImage(file){
     return;
   }
   if(!confirmAiTransfer()) return;
-  let idToken="";
+  let idToken="",appCheckToken="";
   try{
     idToken=await currentUser.getIdToken();
+    appCheckToken=await getAiAppCheckToken();
   }catch(e){
     console.error(e);
-    toast("로그인 정보를 확인하지 못했어요. 다시 로그인해 주세요.","error");
+    toast("로그인 또는 앱 확인 정보를 준비하지 못했어요. 페이지를 새로 열어 주세요.","error");
     return;
   }
   /* AI 경로는 아래에서 1568px 로 줄여 보내므로 업로드 상한(5MB)까지 조일 필요는
@@ -6803,6 +6853,7 @@ async function aiGenerateFromImage(file){
       headers:{
         "Content-Type":"application/json",
         "Authorization":"Bearer "+idToken,   // Worker 가 이 토큰을 검증한다
+        ...(appCheckToken?{"X-Firebase-AppCheck":appCheckToken}:{}),
       },
       body:JSON.stringify({imageBase64, mimeType}),
     });
@@ -7903,6 +7954,8 @@ const onAuth=async (user)=>{
   // 계정이 바뀌는 순간 예약된 저장을 취소한다 — 이전 계정의 내용이 뒤늦게
   // 새 계정 문서로 넘어가지 않도록.
   if(!authInitialized || (currentUser?.uid||null)!==(user?.uid||null)){
+    // iframe 디바운스도 기존 소유자일 때 확정한다. 실패본은 owner별 메모리에 남긴다.
+    flushOpenMock();
     // 반드시 기존 owner인 동안 확정한다. 실패한 원본은 메모리에서 계정별 보존.
     if(localDirty && !flushLocal()) pendingLocalByOwner.set(setsKey(),JSON.stringify(sets));
     clearTimeout(localTimer); localTimer=null; localDirty=false;

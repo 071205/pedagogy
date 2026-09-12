@@ -1,6 +1,6 @@
 # 리뷰 현황
 
-마지막 정리: 2026-09-09
+마지막 정리: 2026-09-13
 
 ## 열린 이슈
 
@@ -27,7 +27,17 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 `-047`(인쇄 속도 · 그림 도착 전 측정) · `-048`(깨진 그림 인쇄 대기 제거) ·
 `-049`(발문 별행 수식 탭·왼쪽 정렬) · `-050`(범용성 설계) · `-051`(설계 독립 검토) · `-052`(검토 반영) · `-053`(1단계 연기 검사) · `-054`(2단계 인앱·pagehide).
 
-## 검토 대기
+## 최신 후속 검토
+
+[HANDOFF-2026-123](handoffs/2026-09/2026-09-13-agents-efficient-workflow.md): `AGENTS.md`에 탐색·로그·중복 검사 절약 규칙을 적용했다. 기존 리뷰·회귀 의무를 유지하며 문서 독립 검토만 남겼다.
+
+[HANDOFF-2026-122](handoffs/2026-09/2026-09-11-comprehensive-followup-review-and-fixes.md)에서 인계 122개와 기존 이슈 81개의 미결·후속 기록을 대조했다. [전수 목록·판정·실행 증거](audits/2026-09-11/FOLLOWUP-REVIEW.md).
+
+- 118·119 공개 빌드/App Check 검토 완료, 재현 결함 보완. 공개 스크립트 분리와 인라인 실행 차단 적용.
+- 120·121 제안 검토 완료. ESM 일괄 전환·IndexedDB/PWA 전체 이관은 미적용이며 보정 근거를 각 제안서에 남겼다.
+- 신규 `REV-2026-082~088` 7건은 수정 전 실패·수정 후 통과 근거와 함께 해결했다.
+- 074·075는 위 열린 이슈 표 그대로다. 운영/실계정 미검증은 완료로 올리지 않았다.
+
 검토 완료(이슈 1건 수정): [HANDOFF-2026-116](handoffs/2026-09/2026-09-11-library-mode-switcher-settings-modal.md)의 UI를 3개 브라우저 엔진에서 확인했고, 보안 후속 변경의 전역 AI quota가 확정되지 않는 `REV-2026-080`을 [HANDOFF-2026-117](handoffs/2026-09/2026-09-11-ui-security-followup-independent-review.md)에서 재현·수정했다.
 
 검토 완료(검사 결함 1건 수정): [HANDOFF-2026-114](handoffs/2026-09/2026-09-11-saas-security-enhancement-proposals.md)는 [HANDOFF-2026-115](handoffs/2026-09/2026-09-11-saas-security-proposals-independent-review.md)에서 코드·공개 배포본·공식 보호 범위와 대조했다. App Check·지속 감시 방향은 유효하지만 WAF·DLP·자체 Worker 보호 계약은 재설계가 필요하다. `check:launch`가 주석을 실제 플랜 설정으로 오인하는 `REV-2026-079`를 재현·수정했다.
@@ -35,7 +45,7 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 
 검토 완료(이슈 1건): [HANDOFF-2026-110](handoffs/2026-09/2026-09-10-review-request-subjects.md)은 [HANDOFF-2026-111](handoffs/2026-09/2026-09-10-subjects-independent-review.md)에서 §3 공격 지점을 독립 확인했다. 핵심 구현은 유효하고, 표 인쇄 가로 넘침 `REV-2026-078`을 재현해 열었다.
 
-검토 요청: [HANDOFF-2026-104](handoffs/2026-09/2026-09-10-library-ux-independent-review-and-fixes.md) — `-097`·`-099`·`-101`·`-102` 독립 검토, 모바일 긴 목록 탐색과 설정 출처 복귀 수정. Claude 재검토 요청 네 항목을 남겼다.
+검토 완료(106 및 122에서 재확인): [HANDOFF-2026-104](handoffs/2026-09/2026-09-10-library-ux-independent-review-and-fixes.md) — `-097`·`-099`·`-101`·`-102` 독립 검토, 모바일 긴 목록 탐색과 설정 출처 복귀 수정. Claude 재검토 요청 네 항목을 남겼다.
 
 검토 요청(설계 · 1~3단계는 `-097` 로 구현됨): [HANDOFF-2026-096](handoffs/2026-09/2026-09-09-library-ux-design.md) — 라이브러리 화면 재설계. 한컴 고지 위치 · 전체 화면 데이터 설정 · 모바일 일반 흐름 탭바에 대한 답은 [HANDOFF-2026-098](handoffs/2026-09/2026-09-09-library-ux-design-decisions.md)에 확정했다. 설계 본문은 `docs/LIBRARY-UX-DESIGN.md`.
 
@@ -55,7 +65,7 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 
 검토 완료: [HANDOFF-2026-085](handoffs/2026-09/2026-09-09-hwp-spec-attribution-in-ui.md) — 한컴 규격서 출처 고지를 UI 세 곳·매뉴얼에 넣고 `check:static` 이 여섯 곳을 지키게 했다. `HANDOFF-2026-087`에서 위치·정적 검사를 재확인하고 모의고사 고지를 흐름 안으로 옮겼다.
 
-검토 대기: [HANDOFF-2026-090](handoffs/2026-09/2026-09-09-mock-library-implementation.md) — `HANDOFF-2026-089` 의 설계대로 다중 모의고사를 구현했다. 저장 계층과 실패 주입 검사를 먼저 만들었고, 그 검사가 제품 결함 넷(빈 id 충돌 · `[hidden]` 을 이기는 `display` · 카드 전환 시 대기 저장 소실 · 헛돌던 정적 검사)을 잡았다. 이어서 **클라우드 동기화**까지 했다(문제집과 같은 계약 · 그림은 Storage · 계정 삭제 포함). **2026-09-09 에 mocks 규칙을 배포하고 `mockCloudSchema` 를 1 로 올렸다**(운영 반영). 삭제 Undo 와 Storage 버킷 CORS 는 남았다.
+검토 완료(122에서 저장 후속 결함 수정): [HANDOFF-2026-090](handoffs/2026-09/2026-09-09-mock-library-implementation.md) — `HANDOFF-2026-089` 의 설계대로 다중 모의고사를 구현했다. 저장 계층과 실패 주입 검사를 먼저 만들었고, 그 검사가 제품 결함 넷(빈 id 충돌 · `[hidden]` 을 이기는 `display` · 카드 전환 시 대기 저장 소실 · 헛돌던 정적 검사)을 잡았다. 이어서 **클라우드 동기화**까지 했다(문제집과 같은 계약 · 그림은 Storage · 계정 삭제 포함). **2026-09-09 에 mocks 규칙을 배포하고 `mockCloudSchema` 를 1 로 올렸다**(운영 반영). 삭제 Undo 와 Storage 버킷 CORS 는 남았다.
 
 검토 완료(보정): [HANDOFF-2026-091](handoffs/2026-09/2026-09-09-legal-compliance-audit-and-terms-review.md) — Gemini의 이용약관 확장 초안을 실제 동작·운영 문서·공식 법령·Anthropic 상용 API 정책과 대조했다. 콘텐츠·비공개·학습 미이용·면책·백업에 관한 과도하거나 미구현인 보증을 보정하고, 로그인 확인을 만 14세 이상 정책과 일치시켰다. 노란 TODO와 출시 게이트는 의도적으로 유지한다.
 
@@ -65,11 +75,19 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 
 | ID | 심각도 | 요약 | 파일 |
 | --- | --- | --- | --- |
+| `REV-2026-083` | `P1` | 하위 설정·동의 삭제 실패에도 Auth 계정을 삭제함 | `issues/2026-09/2026-09-11-account-delete-required-prefs.md` |
+| `REV-2026-087` | `P1` | App Check 초기화 실패가 정상 Auth와 라이브러리 초기화도 막음 | `issues/2026-09/2026-09-11-app-check-init-disables-auth.md` |
+| `REV-2026-085` | `P2` | 알 수 없는 App Check kid가 요청마다 Google 공개키 조회를 유발함 | `issues/2026-09/2026-09-11-app-check-jwks-amplification.md` |
+| `REV-2026-086` | `P1` | AI 문서 CSP가 Firebase 로그인 보조 스크립트와 iframe을 차단함 | `issues/2026-09/2026-09-11-document-auth-csp-hosts.md` |
+| `REV-2026-088` | `P2` | 시험지 HWPX 대조만 HWPX_PYTHON을 무시하고 생략됨 | `issues/2026-09/2026-09-11-hwpx-exam-python-override.md` |
+| `REV-2026-082` | `P1` | 모의고사 저장이 전송 중 수정본을 저장 완료로 표시함 | `issues/2026-09/2026-09-11-mock-cloud-snapshot-ack.md` |
+| `REV-2026-084` | `P1` | 모의고사 로컬 저장 실패가 종료 경고·계정별 복구에 반영되지 않음 | `issues/2026-09/2026-09-11-mock-local-failure-recovery.md` |
+| `REV-2026-081` | `P2` | CSP가 주석과 달리 인라인 이벤트 속성을 허용함 | `issues/2026-09/2026-09-11-index-csp-inline-event-attributes.md` |
 | `REV-2026-080` | `P1` | 전역 AI quota 예약이 다른 ID로 확정되어 비용 상한이 작동하지 않는다 | `issues/2026-09/2026-09-11-worker-global-quota-reservation.md` |
 | `REV-2026-079` | `P2` | 주석의 유료 플랜 AI 상한을 출시 설정으로 오인한다 | `issues/2026-09/2026-09-11-tests-launch-plan-limit-comment.md` |
+| `REV-2026-078` | `P2` | 인쇄 넘침 보정이 표 자체의 가로 넘침을 놓침 | `issues/2026-09/2026-09-10-index-print-table-overflow-unchecked.md` |
 | `REV-2026-077` | `P2` | 설정이 출처 화면을 잊고 모의고사 편집기에는 진입점이 없다 | `issues/2026-09/2026-09-10-index-settings-forgets-source-view.md` |
 | `REV-2026-076` | `P2` | 모바일 탐색이 긴 라이브러리 뒤로 밀리고 포커스 순서가 역전된다 | `issues/2026-09/2026-09-10-index-mobile-navigation-after-long-library.md` |
-| `REV-2026-074` | `P2` | macOS 폴더 아이콘 파일이 Git refs를 오염시킨다 | `issues/2026-09/2026-09-09-rules-macos-icon-files-corrupt-git-refs.md` |
 | `REV-2026-073` | `P2` | 로그인 국외이전 동의가 선택적 AI를 묶고 미확인 사실을 단정한다 | `issues/2026-09/2026-09-09-login-consent-bundles-ai-and-overstates-facts.md` |
 | `REV-2026-072` | `P3` | 접근성 계약이 다수 라벨·동작 회귀를 놓친다 | `issues/2026-09/2026-09-09-tests-accessibility-contract-gaps.md` |
 | `REV-2026-071` | `P2` | 문항 열기·추가 뒤 키보드 포커스가 사라진다 | `issues/2026-09/2026-09-09-index-question-focus-loss.md` |
@@ -102,6 +120,7 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 | `REV-2026-049` | `P2` | 가져온 그림이 UI의 2MiB 상한을 우회함 | `issues/2026-09/2026-09-08-mock-hwpx-figure-byte-limit.md` |
 | `REV-2026-050` | `P2` | 그림 바이트와 파일명 확장자가 다르면 HWPX MIME이 틀림 | `issues/2026-09/2026-09-08-mock-hwpx-figure-mime.md` |
 | `REV-2026-031` | `P1` | 인증된 DELETE로 AI 일일 비용 한도 초기화 | `issues/2026-09/2026-09-08-worker-quota-purge-reset.md` |
+| `REV-2026-030` | `P1` | 내장 시험지 틀에 원본 발문과 수식이 남음 | `issues/2026-09/2026-09-08-mock-bundled-template-retains-exam-content.md` |
 | `REV-2026-040` | `P1` | REV-032 검사가 제품이 아니라 검사 자신의 사본을 봄 | `issues/2026-09/2026-09-09-audit-check-tests-its-own-copy.md` |
 | `REV-2026-041` | `P1` | releaseImage 무동작화가 업로드 롤백까지 샘 | `issues/2026-09/2026-09-09-release-image-noop-leaks-uploads.md` |
 | `REV-2026-042` | `P2` | 감사 수정 뒤 남은 죽은 코드·혼합 옵션 | `issues/2026-09/2026-09-09-dead-options-after-audit-fixes.md` |
@@ -147,6 +166,11 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 
 | ID | 작성자 | 내용 | 파일 |
 | --- | --- | --- | --- |
+| `HANDOFF-2026-123` | Codex | 탐색·로그·중복 검사 절약 규칙 적용과 후속 검토 범위 | `handoffs/2026-09/2026-09-13-agents-efficient-workflow.md` |
+| `HANDOFF-2026-121` | Antigravity | 오프라인 생존성 및 데이터 동기화 아키텍처 제안서 | `handoffs/2026-09/2026-09-11-offline-persistence-architecture.md` |
+| `HANDOFF-2026-120` | Antigravity | 프론트엔드 성능 및 아키텍처 개편 제안서 | `handoffs/2026-09/2026-09-11-frontend-architecture-proposal.md` |
+| `HANDOFF-2026-119` | Codex | **App Check 클라이언트 전송·Worker 검증·전환 게이트** | `handoffs/2026-09/2026-09-11-app-check-worker-phase2.md` |
+| `HANDOFF-2026-118` | Codex | **상용 보안 아키텍처·공개 빌드·CSP 1단계** | `handoffs/2026-09/2026-09-11-security-architecture-phase1.md` |
 | `HANDOFF-2026-117` | Codex | **라이브러리 UI·보안 후속 독립 검토 · 전역 AI quota 확정 수정** | `handoffs/2026-09/2026-09-11-ui-security-followup-independent-review.md` |
 | `HANDOFF-2026-116` | Codex | **문제집/모의고사 큰 선택 메뉴 · A 아이콘 · 블러 설정 모달** | `handoffs/2026-09/2026-09-11-library-mode-switcher-settings-modal.md` |
 | `HANDOFF-2026-115` | Codex | **SaaS 보안 제안 독립 검토·출시 게이트 주석 오인 수정** | `handoffs/2026-09/2026-09-11-saas-security-proposals-independent-review.md` |
@@ -178,7 +202,9 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 | `HANDOFF-2026-092` | Claude | **법률 문서 구조 개편(요약·목차·개정 이력·인쇄) · 해지 조항 신설 · 푸터 회귀 수정** | `handoffs/2026-09/2026-09-09-legal-page-structure-and-footer.md` |
 | `HANDOFF-2026-090` | Claude | **모의고사 라이브러리 구현 + 클라우드 동기화(문서별·tombstone·병합·파기)** | `handoffs/2026-09/2026-09-09-mock-library-implementation.md` |
 | `HANDOFF-2026-089` | Codex | **라이브러리 액션·폴더 배치 정돈과 다중 모의고사 라이브러리 설계** | `handoffs/2026-09/2026-09-09-library-header-and-mock-library-plan.md` |
+| `HANDOFF-2026-089` | Claude | 새 채팅 인계 — 2026-09-09 저녁 기준 (번호 중복, 경로로 구별) | `handoffs/2026-09/2026-09-09-new-chat-handoff.md` |
 | `HANDOFF-2026-088` | Codex | **편집기 접근성 디자인 점검 · 키보드 경로와 이름 보정** | `handoffs/2026-09/2026-09-09-editor-accessibility-design-audit.md` |
+| `HANDOFF-2026-087` | Codex | 아이패드 후속 변경 독립 검토와 무한 대기 보완 | `handoffs/2026-09/2026-09-09-claude-ipad-followup-independent-review.md` |
 | `HANDOFF-2026-086` | Claude | **아이패드 실사용 신고 두 건 수정** | `handoffs/2026-09/2026-09-09-ipad-report-fixes.md` |
 | `HANDOFF-2026-085` | Claude | **한컴 규격서 출처 고지를 UI·매뉴얼에** | `handoffs/2026-09/2026-09-09-hwp-spec-attribution-in-ui.md` |
 | `HANDOFF-2026-084` | Claude | **부팅 노출 수정 · 배포 기록 · 083 회신** | `handoffs/2026-09/2026-09-09-boot-flash-fix-and-deploy-record.md` |
@@ -193,9 +219,11 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 | `HANDOFF-2026-075` | Claude | **구조 1단계 — 정규화(신뢰 경계)를 별도 파일로** | `handoffs/2026-09/2026-09-08-structure-step1-normalize.md` |
 | `HANDOFF-2026-074` | Claude | **코덱스 8건 독립 검증 · A단계 전환 · 검사의 플래그 의존 제거** | `handoffs/2026-09/2026-09-08-library-review-verified-and-schema-a.md` |
 | `HANDOFF-2026-073` | Codex | 라이브러리·HWPX 독립 검토 8건 수정, 구조 설계 세 질문 답변 | `handoffs/2026-09/2026-09-08-library-hwpx-independent-review.md` |
+| `HANDOFF-2026-071` | Claude | index.html 구조 분리 설계 | `handoffs/2026-09/2026-09-09-structure-design.md` |
 | `HANDOFF-2026-062` | Codex | UX 수정 설계 검토 — 즉시 되돌리기·묶음 경계·진행 표시 보완 | `handoffs/2026-09/2026-09-08-ux-fixes-design-review.md` |
 | `HANDOFF-2026-066` | Codex | 독립 종합 감사 — 결함 9건·체크리스트·수정 설계·재현 도구, 제품 미수정 | `handoffs/2026-09/2026-09-08-independent-security-stability-audit.md` |
 | `HANDOFF-2026-067` | Codex | 독립 감사 9건 수정·실패 주입 회귀·보존 정책 정리 | `handoffs/2026-09/2026-09-08-audit-findings-fixed.md` |
+| `HANDOFF-2026-068` | Claude | 감사 수정 9건 검토와 후속 이슈 3건 | `handoffs/2026-09/2026-09-09-review-of-audit-fixes.md` |
 | `HANDOFF-2026-069` | Codex | Claude 후속 검토 3건 수정·실행형 회귀 보강 | `handoffs/2026-09/2026-09-09-audit-review-findings-fixed.md` |
 | `HANDOFF-2026-070` | Codex | 라이브러리 설계 검토 — 폴더 tombstone·A/B 분리·원격 삭제 Undo 계약 | `handoffs/2026-09/2026-09-09-library-design-review.md` |
 | `HANDOFF-2026-072` | Codex | 새 채팅 전환용 현재 상태·안전 계약·검토 순서 | `handoffs/2026-09/2026-09-09-new-chat-project-context.md` |

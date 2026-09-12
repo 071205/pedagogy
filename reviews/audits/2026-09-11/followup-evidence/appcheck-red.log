@@ -1,0 +1,18 @@
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: a newly fetched JWKS need not be fetched twice for the same unknown kid
+
+2 !== 1
+
+    at file:///Users/huryul/pedagogy-main/worker/app-check.test.mjs:76:8 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: 2,
+  expected: 1,
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v26.7.0

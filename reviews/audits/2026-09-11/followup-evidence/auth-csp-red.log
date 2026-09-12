@@ -1,0 +1,24 @@
+
+> test:csp
+> node scripts/check-csp-browser.mjs
+
+CSP chromium/index.html: blocked attribute, working callbacks, red mutation confirmed
+CSP chromium/mock-exam-editor.html: blocked attribute, working callbacks, red mutation confirmed
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: document-editor.html: Firebase popup helper must pass CSP
+
+false !== true
+
+    at file:///Users/huryul/pedagogy-main/scripts/check-csp-browser.mjs:76:22 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: false,
+  expected: true,
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v26.7.0

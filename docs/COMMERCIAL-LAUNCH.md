@@ -4,13 +4,17 @@
 `npm run check:launch`는 저장소에서 확인할 수 있는 미완성 항목을 실패로 표시한다. 콘솔·계약
 항목은 사람이 증빙을 연결해 확인한다.
 
+보안·소스 보호의 최종 우선순위는 [확정 설계](SECURITY-ARCHITECTURE.md), 실제 콘솔 증적과
+전환·롤백 순서는 [운영 체크리스트](SECURITY-OPERATIONS-CHECKLIST.md)를 따른다.
+`check:launch` 통과만으로 이 두 문서의 출시 조건이 충족되지는 않는다.
+
 ## 코드에서 이미 강제하는 항목
 
 - 문제집은 사용자별 Firestore 경로로 격리하고, 구형 전체 배열 문서의 신규 쓰기를 막는다.
 - Firestore 문제 수·제목·헤더·순서와 Storage MIME·파일 크기를 Rules에서 제한한다.
 - AI quota는 UID 원문이 아닌 SHA-256 식별자에 저장하며, 호출 전에 원자적으로 사용량을 확정한다.
-- AI quota는 Durable Object alarm으로 최대 48시간 후 파기하며 계정 삭제에도 현재·직전 이틀
-  기록을 삭제한다.
+- AI quota는 Durable Object alarm으로 48시간 보존 후 파기한다. 일반 사용자 DELETE로 비용
+  카운터를 초기화하지 않는다. 실제 alarm 실행 시각은 운영 증적으로 확인한다.
 - Worker 오류는 사용자 콘텐츠·공급자 원문 대신 일반 오류만 반환한다.
 - CI는 Worker 상태 머신, 상용 보안 정적 검사, Python 문법을 매 push/PR마다 검사한다.
 - CI는 Java 21 Firebase Emulator로 Firestore·Storage Rules도 실제로 파싱한다.
@@ -22,8 +26,10 @@
 2. **법무**: `legal.html`의 운영자명, 주소, 사업자 정보, 개인정보보호책임자, 문의 이메일,
    수탁자 연락처·국가·이전 방법·보유 기간을 실제 계약과 콘솔 기준으로 채운 뒤 전문 검토를 받는다.
 3. **App Check**: `service-config.js`에 reCAPTCHA Enterprise site key를 넣고 Firebase Console에서
-   Firestore·Storage·Authentication의 검증 비율을 관찰한 뒤 enforcement를 켠다. 개발용 debug
-   token은 배포물과 저장소에 절대 넣지 않는다.
+   Firestore·Storage의 검증 비율을 관찰한 뒤 enforcement를 켠다. Authentication은 Identity
+   Platform 지원·비용을 확인한다. 자체 Worker의 토큰 전송·검증 코드는 준비됐지만
+   `APP_CHECK_MODE=off`이며 실제 site key·staging·운영 enforcement 증적이 필요하다.
+   개발용 debug token은 배포물과 저장소에 절대 넣지 않는다.
 4. **분리**: production과 staging의 Firebase 프로젝트, Cloudflare Worker, Anthropic key, 결제 키를
    분리한다. production Worker에서는 localhost origin을 제거한다.
 5. **비용**: Google Cloud/Firebase, Cloudflare, Anthropic 각각에 예산·이상 사용량·오류율 알림을

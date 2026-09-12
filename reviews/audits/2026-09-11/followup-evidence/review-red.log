@@ -1,0 +1,80 @@
+✖ mock acknowledgement uses the sent document, including nested data (2.125458ms)
+✖ account survives failed library deletion (0.746375ms)
+✖ account survives failed consent deletion (0.457958ms)
+✖ failed mock local save retains an owner-scoped recovery and close warning (0.42575ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 0
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6.416166
+
+✖ failing tests:
+
+test at scripts/check-review-followup.mjs:21:1
+✖ mock acknowledgement uses the sent document, including nested data (2.125458ms)
+  AssertionError [ERR_ASSERTION]: transport snapshot must not be live
+
+  'after' !== 'before'
+
+      at TestContext.<anonymous> (file:///Users/huryul/pedagogy-main/scripts/check-review-followup.mjs:40:10)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'after',
+    expected: 'before',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at scripts/check-review-followup.mjs:46:49
+✖ account survives failed library deletion (0.746375ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async TestContext.<anonymous> (file:///Users/huryul/pedagogy-main/scripts/check-review-followup.mjs:64:3)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at scripts/check-review-followup.mjs:46:49
+✖ account survives failed consent deletion (0.457958ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async TestContext.<anonymous> (file:///Users/huryul/pedagogy-main/scripts/check-review-followup.mjs:64:3)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at scripts/check-review-followup.mjs:69:1
+✖ failed mock local save retains an owner-scoped recovery and close warning (0.42575ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  false !== true
+
+      at TestContext.<anonymous> (file:///Users/huryul/pedagogy-main/scripts/check-review-followup.mjs:79:10)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1397:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:969:18)
+      at Test.postRun (node:internal/test_runner/test:1537:19)
+      at Test.run (node:internal/test_runner/test:1462:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

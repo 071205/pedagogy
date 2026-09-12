@@ -23,13 +23,14 @@
  *   ALLOWED_ORIGINS      쉼표로 구분한 허용 출처
  *   DAILY_LIMIT          사용자당 하루 호출 상한 (기본 50)
  *   GLOBAL_DAILY_LIMIT   전체 사용자 합산 하루 호출 상한 (기본 5000, 0=무제한)
- *   AI_KILL_SWITCH       "1"이면 AI 기능을 즉시 중단 (배포 없이 끌 수 있다)
+ *   AI_KILL_SWITCH       "1"이면 새 AI 요청을 앞단에서 중단
  *   PLAN_DAILY_LIMITS_JSON Firebase custom claim별 상한 JSON (선택)
  *   ANTHROPIC_KEY        (Secret) AI 공급자 키
  *   QUOTA                (Durable Object 바인딩) 사용량 카운터
  */
 
 import { verifyIdToken } from "./auth.js";
+import { AppCheckError, verifyAppCheckToken } from "./app-check.js";
 
 const DEFAULT_DAILY_LIMIT = 50;
 // 환경 변수 오타나 잘못된 Billing claim 매핑이 비용 상한을 무력화하지 않게 하는
@@ -61,7 +62,7 @@ export function corsHeaders(request, env) {
   if (origin && list.includes(origin)) {
     h["Access-Control-Allow-Origin"] = origin;
     h["Vary"] = "Origin";
-    h["Access-Control-Allow-Headers"] = "Content-Type, Authorization";
+    h["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Firebase-AppCheck";
     h["Access-Control-Allow-Methods"] = "POST, DELETE, OPTIONS";
     h["Access-Control-Max-Age"] = "600";
   }
@@ -236,6 +237,7 @@ async function globalQuotaRequest(env, op, reservationId = "", { limit, when } =
    사용하므로 운영 요청 형식·보안 경계는 변하지 않는다. */
 export function createWorker({
   verifyToken = verifyIdToken,
+  verifyAppCheck = verifyAppCheckToken,
   requestQuota = quotaRequest,
   requestGlobalQuota = globalQuotaRequest,
   generateProblems = callAI,
@@ -265,6 +267,12 @@ export function createWorker({
       return json({ error: "허용되지 않은 출처입니다" }, 403, cors);
     }
 
+    // Emergency stop before token/JWKS work, body reads, quota, and provider calls.
+    // Keep the Origin boundary first so arbitrary scripts cannot use this as a probe.
+    if (request.method === "POST" && env.AI_KILL_SWITCH === "1") {
+      return json({ error: "AI 기능이 일시적으로 중단되었습니다. 잠시 후 다시 시도해 주세요." }, 503, cors);
+    }
+
     // ── 1. 로그인 확인 ──
     const auth = request.headers.get("Authorization") || "";
     const token = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
@@ -279,6 +287,29 @@ export function createWorker({
       // 실패 사유를 그대로 흘리면 공격자에게 힌트가 되므로 로그로만 남긴다
       console.error("토큰 검증 실패");
       return json({ error: "로그인이 유효하지 않습니다" }, 401, cors);
+    }
+
+    // Firebase SDK enforcement does not protect this custom backend. Verify the
+    // separate App Check JWT before reading the body, reserving quota, or calling AI.
+    const rawMode = String(env.APP_CHECK_MODE || "").trim().toLowerCase();
+    const appCheckMode = rawMode === "" ? "off"
+      : ["off", "monitor", "enforce"].includes(rawMode) ? rawMode : "enforce";
+    if (appCheckMode !== "off") {
+      const appCheckToken = request.headers.get("X-Firebase-AppCheck") || "";
+      try {
+        await verifyAppCheck(appCheckToken, {
+          projectNumber: env.FIREBASE_PROJECT_NUMBER,
+          allowedAppIds: String(env.FIREBASE_APP_IDS || "").split(",").map((id) => id.trim()).filter(Boolean),
+        });
+      } catch (error) {
+        const unavailable = error instanceof AppCheckError && error.code === "unavailable";
+        console.error(unavailable ? "App Check 검증 인프라 실패" : "App Check 토큰 검증 실패");
+        if (appCheckMode === "enforce") {
+          return unavailable
+            ? json({ error: "앱 확인 서비스를 사용할 수 없습니다. 잠시 후 다시 시도해 주세요." }, 503, cors)
+            : json({ error: "앱 확인에 실패했습니다. 페이지를 새로 열어 다시 시도해 주세요." }, 401, cors);
+        }
+      }
     }
 
     if (request.method === "DELETE") {
@@ -344,11 +375,6 @@ export function createWorker({
     }
     if (!env.ANTHROPIC_KEY) {
       return json({ error: "AI 기능을 일시적으로 사용할 수 없습니다. 잠시 후 다시 시도해 주세요." }, 503, cors);
-    }
-
-    // ── 2.5 Kill switch — 배포 없이 AI를 즉시 끌 수 있다 ──
-    if (env.AI_KILL_SWITCH === "1") {
-      return json({ error: "AI 기능이 일시적으로 중단되었습니다. 잠시 후 다시 시도해 주세요." }, 503, cors);
     }
 
     const limit = dailyLimit(env, user.claims);

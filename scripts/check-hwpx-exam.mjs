@@ -32,6 +32,7 @@ const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const TEMPLATE = join(ROOT, "experiments/hwp-export/templates/exam-math.hwpx");
 const JS = join(ROOT, "hwpx-exam-template.js");
 const REQUIRE = process.env.HWPX_REQUIRE === "1";
+const PYTHON = process.env.HWPX_PYTHON || "python3";
 
 const SKIP_FIXABLE = 3;
 
@@ -286,7 +287,7 @@ print(json.dumps({"report": dataclasses.asdict(rep), "sections": sections, "unit
 
 let pyRoles;
 try {
-  pyRoles = JSON.parse(execFileSync("python3", ["-c", PY], { cwd: ROOT, encoding: "utf8" }));
+  pyRoles = JSON.parse(execFileSync(PYTHON, ["-c", PY], { cwd: ROOT, encoding: "utf8" }));
 } catch (e) {
   skip("파이썬 쪽을 돌리지 못했습니다: " + String(e.message).split("\n")[0].slice(0, 120));
 }
@@ -384,7 +385,7 @@ console.log(`틀 읽기 대조 통과 — 역할 ${keys.length}종이 파이썬�
 /* ── 3단계: 문항 방출 대조 ───────────────────────────────────────────────── */
 let pyEmit;
 try {
-  pyEmit = JSON.parse(execFileSync("python3", ["-c", PY_EMIT, JSON.stringify(PROBLEM)],
+  pyEmit = JSON.parse(execFileSync(PYTHON, ["-c", PY_EMIT, JSON.stringify(PROBLEM)],
                                    { cwd: ROOT, encoding: "utf8", maxBuffer: 32 << 20 }));
 } catch (e) {
   console.log("문항 방출 대조를 건너뜁니다 — 파이썬 쪽 실패: "
@@ -472,7 +473,7 @@ const LAYOUT_CASES = {
 
 let pyLayout;
 try {
-  pyLayout = JSON.parse(execFileSync("python3", ["-c", PY_LAYOUT, JSON.stringify(LAYOUT_CASES)],
+  pyLayout = JSON.parse(execFileSync(PYTHON, ["-c", PY_LAYOUT, JSON.stringify(LAYOUT_CASES)],
                                      { cwd: ROOT, encoding: "utf8" }));
 } catch (e) {
   console.log("배치 대조를 건너뜁니다 — 파이썬 쪽 실패: "
@@ -527,7 +528,7 @@ console.log(`문항 배치 대조 통과 — 표본 ${Object.keys(LAYOUT_CASES).
    그래서 **id 가 실제로 달라지는지**까지 본다. */
 let pyMarks;
 try {
-  pyMarks = JSON.parse(execFileSync("python3", ["-c", PY_MARKS], { cwd: ROOT, encoding: "utf8", maxBuffer: 32 << 20 }));
+  pyMarks = JSON.parse(execFileSync(PYTHON, ["-c", PY_MARKS], { cwd: ROOT, encoding: "utf8", maxBuffer: 32 << 20 }));
 } catch (e) {
   console.log("표 개체 대조를 건너뜁니다 — 파이썬 쪽 실패: "
     + String(e.stderr || e.message).split("\n").filter(Boolean).slice(-1)[0]?.slice(0, 160));
@@ -659,7 +660,7 @@ const EXAM = {
 
 let pyExam;
 try {
-  pyExam = JSON.parse(execFileSync("python3", ["-c", PY_BUILD, JSON.stringify(EXAM)],
+  pyExam = JSON.parse(execFileSync(PYTHON, ["-c", PY_BUILD, JSON.stringify(EXAM)],
                                    { cwd: ROOT, encoding: "utf8", maxBuffer: 64 << 20 }));
 } catch (e) {
   console.log("시험지 대조를 건너뜁니다 — 파이썬 쪽 실패: "

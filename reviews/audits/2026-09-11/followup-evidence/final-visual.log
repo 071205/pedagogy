@@ -1,0 +1,15 @@
+
+> test:visual
+> node scripts/visual-regression.mjs
+
+시각 회귀 통과: math-print (픽셀 0.001% · 배치 0.018%)
+시각 회귀 통과: korean-passage-print (픽셀 0.000% · 배치 0.000%)
+시각 회귀 통과: image-print (픽셀 0.000% · 배치 0.000%)
+시각 회귀 통과: overflow-print (픽셀 0.001% · 배치 0.007%)
+시각 회귀 통과: english-order-print (픽셀 0.000% · 배치 0.000%)
+시각 회귀 통과: english-notice-print (픽셀 0.000% · 배치 0.000%)
+시각 회귀 통과: math-image-choices-print (픽셀 0.000% · 배치 0.000%)
+시각 회귀 통과: inquiry-table-print (픽셀 0.000% · 배치 0.000%)
+시각 회귀 통과: english-paired-print (픽셀 0.000% · 배치 0.000%)
+자기검사 통과: 글줄을 지우면 28.50% 로 잡힙니다
+Visual print regression passed (9 sets)

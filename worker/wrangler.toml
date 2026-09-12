@@ -7,6 +7,11 @@ compatibility_date = "2024-11-01"
 
 [vars]
 FIREBASE_PROJECT_ID = "pedagogy-huryul"
+# App Check custom-backend 검증용. site key가 배포되고 staging 검증을 마칠 때까지 off로 둔다.
+# production 출시는 enforce만 허용하며 check:launch가 off/monitor를 차단한다.
+FIREBASE_PROJECT_NUMBER = "297266134873"
+FIREBASE_APP_IDS = "1:297266134873:web:e5b48c7a1d484bcde41648"
+APP_CHECK_MODE = "off"
 # 이 Worker 를 호출할 수 있는 출처(scheme+host). 쉼표로 구분.
 ALLOWED_ORIGINS = "https://071205.github.io,http://127.0.0.1:8787,http://localhost:8787,http://127.0.0.1:8080,http://localhost:8080"
 # 사용자 한 명당 하루 호출 상한
@@ -14,8 +19,8 @@ DAILY_LIMIT = "50"
 # 전체 사용자 합산 하루 호출 상한. 다계정 과금 폭탄 방어.
 # 50명 × 50회 = 2500 을 넉넉히 잡아 5000. 0이면 무제한.
 GLOBAL_DAILY_LIMIT = "5000"
-# "1"로 바꾸면 배포 없이 AI 기능을 즉시 중단한다.
-# Cloudflare 대시보드 → Worker → Settings → Variables 에서 바꿀 수 있다.
+# "1"을 반영하면 새 AI 요청을 토큰·본문 처리 전에 중단한다.
+# Cloudflare 대시보드 → Worker → Settings → Variables 에서 바꾸고 새 요청 503을 확인한다.
 AI_KILL_SWITCH = "0"
 # 결제 webhook 전용 백엔드가 Firebase Admin custom claim `pedagogy_plan`을 발급한 뒤
 # 이 JSON에 해당 플랜 상한을 명시한다. 클라이언트가 직접 이 값을 바꿀 수는 없다.
