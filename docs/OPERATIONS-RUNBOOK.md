@@ -3,6 +3,9 @@
 ## 매일 확인
 
 - Cloudflare Worker 4xx/5xx, AI 공급자 오류, Durable Object 오류, AI 요청량
+- Cloudflare Workers Logs의 `event=ai_usage`: `task`별(`problem_image`·`document`) 성공률,
+  `input_tokens`·`output_tokens`, `stop_reason`, `duration_ms`, `http_status`. 현재 로그는 10% 표본이라
+  장애·품질 추세에 쓰고, 전체 Anthropic 과금과 일치한다고 가정하지 않는다.
 - Firebase Firestore read/write/delete, Storage 용량·전송량, Authentication 신규 가입량
 - Anthropic 사용량·한도·결제 상태
 - 고객지원 메일과 권리자/개인정보 요청
@@ -17,10 +20,12 @@
    Worker는 코드상 하루 10,000회를 절대 상한으로 두므로, 그보다 큰 값은 설정 오류로 기본값이
    적용된다. 더 큰 계약 한도가 필요하면 코드·비용 알림·승인을 함께 갱신한다.
 2. Firebase App Check enforcement와 Firebase Auth 승인 도메인을 확인한다.
-3. 특정 UID/계정의 요청을 차단해야 하면 Billing backend에서 entitlement를 정지한다. Worker에 UID
+3. 표본 로그에서 `task`별 `http_error`·`json_parse_error`와 `max_tokens` 중단이 급증했는지 확인한다.
+   이미지·프롬프트·AI 응답 원문·사용자 UID를 검색하거나 기록하지 않는다.
+4. 특정 UID/계정의 요청을 차단해야 하면 Billing backend에서 entitlement를 정지한다. Worker에 UID
    블랙리스트를 하드코딩하지 않는다.
-4. Anthropic key 노출이 의심되면 즉시 폐기·재발급하고 배포한다.
-5. 원인, 시각, 영향 계정, 조치, 재발 방지를 인시던트 기록에 남긴다.
+5. Anthropic key 노출이 의심되면 즉시 폐기·재발급하고 배포한다.
+6. 원인, 시각, 영향 계정, 조치, 재발 방지를 인시던트 기록에 남긴다.
 
 ## 개인정보·계정 삭제 요청
 

@@ -38,8 +38,9 @@ class_name = "DailyQuota"
 tag = "v1"
 new_sqlite_classes = ["DailyQuota"]
 
-# 원본 요청 본문·AI 출력은 절대 console에 남기지 않는다. 낮은 샘플의 상태·오류 메타데이터만
-# 관찰해 장애와 비용 급증을 감지한다. 실제 운영자는 Cloudflare 대시보드에서 보존 기간을 확인한다.
+# 원본 요청 본문·AI 출력은 절대 console에 남기지 않는다. `ai_usage`는 공급자·작업 갈래·모델,
+# 토큰 수·중단 사유·응답 시간·안전한 HTTP 상태만 남긴다. 10% 표본이므로 개별 호출 품질 추세용이며
+# 총 과금의 원장은 Anthropic 콘솔을 사용한다. 실제 운영자는 Cloudflare 대시보드에서 보존 기간을 확인한다.
 [observability]
 enabled = true
 head_sampling_rate = 0.1

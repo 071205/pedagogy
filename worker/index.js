@@ -242,6 +242,7 @@ export function createWorker({
   requestGlobalQuota = globalQuotaRequest,
   generateProblems = callAI,
   generateDocument = callDocumentAI,
+  recordMetric = console.log,
 } = {}) {
   return {
   async fetch(request, env) {
@@ -446,15 +447,26 @@ export function createWorker({
     }
 
     // ── 5. AI 호출 (사용량은 이미 확정됨) ──
+    let aiTelemetry;
     try {
       if (documentMode) {
-        const document = await generateDocument(env, prompt.trim());
+        const result = unwrapAiGeneration(await generateDocument(env, prompt.trim()));
+        aiTelemetry = result.telemetry;
+        const document = result.value;
         validateDocumentResponse(document);
+        recordAiMetric(recordMetric, aiTelemetry);
         return json({ document, usage: { used: after.used, limit: after.limit } }, 200, cors);
       }
-      const problems = await generateProblems(env, imageBase64, mimeType);
+      const result = unwrapAiGeneration(await generateProblems(env, imageBase64, mimeType));
+      aiTelemetry = result.telemetry;
+      const problems = result.value;
+      recordAiMetric(recordMetric, aiTelemetry);
       return json({ problems, usage: { used: after.used, limit: after.limit } }, 200, cors);
     } catch (e) {
+      const failureTelemetry = e instanceof AiGenerationError
+        ? e.telemetry
+        : aiTelemetry ? { ...aiTelemetry, outcome: "validation_error" } : null;
+      recordAiMetric(recordMetric, failureTelemetry);
       console.error("AI 호출 실패");
       return json({ error: documentMode
         ? "AI 문서 초안 생성에 실패했습니다. 요청과 네트워크 상태를 확인한 뒤 다시 시도해 주세요."
@@ -599,17 +611,125 @@ function validateDocumentResponse(document) {
  * 키 이름은 기존 Worker 와 같은 ANTHROPIC_KEY 를 그대로 쓴다
  * (이미 이 Worker 에 secret 으로 등록돼 있어 다시 넣을 필요가 없다).
  */
-async function callAI(env, imageBase64, mimeType) {
-  if (!env.ANTHROPIC_KEY) throw new Error("ANTHROPIC_KEY 가 설정되지 않았습니다");
+const AI_USAGE_EVENT = "ai_usage";
+const ALLOWED_STOP_REASONS = new Set([
+  "end_turn", "max_tokens", "stop_sequence", "tool_use", "pause_turn",
+  "refusal", "model_context_window_exceeded",
+]);
 
-  const r = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": env.ANTHROPIC_KEY,
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify({
+class AiGenerationError extends Error {
+  constructor(message, telemetry) {
+    super(message);
+    this.telemetry = telemetry;
+  }
+}
+
+function configuredModel(env) {
+  return String(env.AI_MODEL || "claude-haiku-4-5");
+}
+
+function safeModel(value) {
+  const model = String(value || "");
+  return /^[A-Za-z0-9._:-]{1,128}$/.test(model) ? model : "unknown";
+}
+
+function safeTokenCount(value) {
+  return Number.isSafeInteger(value) && value >= 0 ? value : null;
+}
+
+function safeHttpStatus(value) {
+  return Number.isInteger(value) && value >= 100 && value <= 599 ? value : null;
+}
+
+function elapsedMs(startedAt) {
+  return Math.max(0, Date.now() - startedAt);
+}
+
+/* Cloudflare Workers Logs receives this object as structured JSON. Keep the schema
+   deliberately small: images, prompts, model text, headers and user identifiers
+   must never cross this boundary. */
+function aiTelemetry({ task, model, response, data, outcome, startedAt }) {
+  const usage = data?.usage || {};
+  const stopReason = data?.stop_reason;
+  return {
+    event: AI_USAGE_EVENT,
+    provider: "anthropic",
+    task,
+    model: safeModel(data?.model || model),
+    outcome,
+    input_tokens: safeTokenCount(usage.input_tokens),
+    output_tokens: safeTokenCount(usage.output_tokens),
+    stop_reason: stopReason == null ? null
+      : ALLOWED_STOP_REASONS.has(stopReason) ? stopReason : "unknown",
+    duration_ms: elapsedMs(startedAt),
+    http_status: safeHttpStatus(response?.status),
+  };
+}
+
+function aiGeneration(value, telemetry) {
+  return { value, telemetry };
+}
+
+function unwrapAiGeneration(result) {
+  if (result && typeof result === "object" && result.telemetry?.event === AI_USAGE_EVENT
+    && Object.hasOwn(result, "value")) {
+    return result;
+  }
+  // Test doubles and any future adapter without telemetry retain the old return contract.
+  return { value: result, telemetry: null };
+}
+
+function recordAiMetric(recordMetric, telemetry) {
+  if (!telemetry) return;
+  try {
+    recordMetric(telemetry);
+  } catch {
+    // Observability must not turn a completed provider request into a customer error.
+    console.error("AI 측정 로그 기록 실패");
+  }
+}
+
+async function anthropicResponse(env, requestBody, task) {
+  if (!env.ANTHROPIC_KEY) throw new Error("ANTHROPIC_KEY 가 설정되지 않았습니다");
+  const model = configuredModel(env);
+  const startedAt = Date.now();
+  let response;
+  try {
+    response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": env.ANTHROPIC_KEY,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify(requestBody),
+    });
+  } catch {
+    throw new AiGenerationError("AI 공급자 연결 실패", aiTelemetry({
+      task, model, outcome: "request_error", startedAt,
+    }));
+  }
+  if (!response.ok) {
+    // 공급자 오류 원문과 AI 출력은 운영 로그에 남기지 않는다. 문제 이미지의 내용이나
+    // 개인 정보가 오류 설명에 반사될 수 있기 때문이다.
+    console.error("Anthropic API 오류:", response.status);
+    throw new AiGenerationError("AI 공급자 오류 (" + response.status + ")", aiTelemetry({
+      task, model, response, outcome: "http_error", startedAt,
+    }));
+  }
+  try {
+    return { response, data: await response.json(), model, startedAt };
+  } catch {
+    throw new AiGenerationError("AI 응답을 해석하지 못했습니다", aiTelemetry({
+      task, model, response, outcome: "json_parse_error", startedAt,
+    }));
+  }
+}
+
+export async function callAI(env, imageBase64, mimeType) {
+  if (!env.ANTHROPIC_KEY) throw new Error("ANTHROPIC_KEY 가 설정되지 않았습니다");
+  const task = "problem_image";
+  const { response, data, model, startedAt } = await anthropicResponse(env, {
       model: env.AI_MODEL || "claude-haiku-4-5",
       max_tokens: 4096,
       system: SYSTEM_PROMPT,
@@ -625,17 +745,8 @@ async function callAI(env, imageBase64, mimeType) {
           ],
         },
       ],
-    }),
-  });
-
-  if (!r.ok) {
-    // 공급자 오류 원문과 AI 출력은 운영 로그에 남기지 않는다. 문제 이미지의 내용이나
-    // 개인 정보가 오류 설명에 반사될 수 있기 때문이다.
-    console.error("Anthropic API 오류:", r.status);
-    throw new Error("AI 공급자 오류 (" + r.status + ")");
-  }
-
-  const data = await r.json();
+    }, task);
+  const telemetry = aiTelemetry({ task, model, response, data, outcome: "success", startedAt });
   const text = data?.content?.[0]?.text || "";
   const clean = text.replace(/```json|```/g, "").trim();
 
@@ -644,40 +755,37 @@ async function callAI(env, imageBase64, mimeType) {
     parsed = JSON.parse(clean);
   } catch {
     console.error("AI JSON 파싱 실패");
-    throw new Error("AI 응답을 해석하지 못했습니다");
+    throw new AiGenerationError("AI 응답을 해석하지 못했습니다", {
+      ...telemetry, outcome: "json_parse_error",
+    });
   }
 
   const problems = Array.isArray(parsed) ? parsed : parsed.problems;
-  if (!Array.isArray(problems)) throw new Error("AI 응답에 problems 가 없습니다");
-  return problems;
+  if (!Array.isArray(problems)) {
+    throw new AiGenerationError("AI 응답에 problems 가 없습니다", {
+      ...telemetry, outcome: "json_parse_error",
+    });
+  }
+  return aiGeneration(problems, telemetry);
 }
 
-async function callDocumentAI(env, prompt) {
+export async function callDocumentAI(env, prompt) {
   if (!env.ANTHROPIC_KEY) throw new Error("ANTHROPIC_KEY 가 설정되지 않았습니다");
-  const r = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": env.ANTHROPIC_KEY,
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify({
+  const task = "document";
+  const { response, data, model, startedAt } = await anthropicResponse(env, {
       model: env.AI_MODEL || "claude-haiku-4-5",
       max_tokens: 4096,
       system: DOCUMENT_SYSTEM_PROMPT,
       messages: [{ role: "user", content: [{ type: "text", text: prompt }] }],
-    }),
-  });
-  if (!r.ok) {
-    console.error("Anthropic API 오류:", r.status);
-    throw new Error("AI 공급자 오류 (" + r.status + ")");
-  }
-  const data = await r.json();
+    }, task);
+  const telemetry = aiTelemetry({ task, model, response, data, outcome: "success", startedAt });
   const text = data?.content?.[0]?.text || "";
   try {
-    return JSON.parse(text.replace(/```json|```/g, "").trim());
+    return aiGeneration(JSON.parse(text.replace(/```json|```/g, "").trim()), telemetry);
   } catch {
     console.error("AI 문서 JSON 파싱 실패");
-    throw new Error("AI 문서 응답을 해석하지 못했습니다");
+    throw new AiGenerationError("AI 문서 응답을 해석하지 못했습니다", {
+      ...telemetry, outcome: "json_parse_error",
+    });
   }
 }

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { createWorker } from "./index.js";
+import { callAI, callDocumentAI, createWorker } from "./index.js";
 import { AppCheckError } from "./app-check.js";
 
 const env = {
@@ -38,8 +38,10 @@ function testWorker({
   quotaResult = {},
   generateProblems = async () => [{ title: "변환됨", blocks: [] }],
   generateDocument = async () => ({ title: "초안", blocks: [{ type: "paragraph", text: "본문" }] }),
+  recordMetric,
 } = {}) {
   const calls = [];
+  const metrics = [];
   const worker = createWorker({
     verifyToken: async (...args) => {
       calls.push({ kind: "verify", args });
@@ -67,12 +69,50 @@ function testWorker({
       calls.push({ kind: "document-ai", args });
       return generateDocument(...args);
     },
+    recordMetric: (metric) => {
+      // Intentional failure injection: the privacy assertion below must reject a log
+      // payload with prompt text rather than merely trusting the test helper.
+      const observed = process.env.AI_METRICS_RED === "1"
+        ? { ...metric, prompt: "must-not-be-logged" } : metric;
+      metrics.push(observed);
+      recordMetric?.(observed);
+    },
   });
-  return { worker, calls };
+  return { worker, calls, metrics };
 }
 
 async function body(response) {
   return response.json();
+}
+
+async function withMockFetch(mock, action) {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = mock;
+  try {
+    return await action();
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+}
+
+function assertSafeAiMetric(metric, expected) {
+  assert.deepEqual(Object.keys(metric).sort(), [
+    "duration_ms", "event", "http_status", "input_tokens", "model", "outcome",
+    "output_tokens", "provider", "stop_reason", "task",
+  ]);
+  assert.equal(metric.event, "ai_usage");
+  assert.equal(metric.provider, "anthropic");
+  assert.equal(metric.task, expected.task);
+  assert.equal(metric.outcome, expected.outcome);
+  assert.equal(metric.http_status, expected.httpStatus);
+  assert.equal(metric.input_tokens, expected.inputTokens);
+  assert.equal(metric.output_tokens, expected.outputTokens);
+  assert.equal(metric.stop_reason, expected.stopReason);
+  assert.equal(typeof metric.duration_ms, "number");
+  assert.ok(metric.duration_ms >= 0);
+  for (const forbidden of ["image", "imageBase64", "prompt", "response", "text", "uid", "userId"]) {
+    assert.equal(Object.hasOwn(metric, forbidden), false, `${forbidden} must not enter Worker logs`);
+  }
 }
 
 function globalQuotaEnv({ limit = 2, used = 0, fail = false } = {}) {
@@ -345,6 +385,53 @@ async function testDocumentDraftContract() {
     "AI 문서 초안 생성에 실패했습니다. 요청과 네트워크 상태를 확인한 뒤 다시 시도해 주세요.");
 }
 
+async function testAiUsageMetrics() {
+  const success = testWorker({ generateProblems: callAI });
+  const successResponse = await withMockFetch(async () => Response.json({
+    model: "claude-haiku-4-5-20251001",
+    stop_reason: "end_turn",
+    usage: { input_tokens: 123, output_tokens: 45 },
+    content: [{ type: "text", text: '{"problems":[{"title":"변환됨","blocks":[]}]}' }],
+  }), () => success.worker.fetch(request("POST", {
+    body: { imageBase64: "private-image-content", mimeType: "image/png" },
+  }), env));
+  assert.equal(successResponse.status, 200);
+  assert.equal(success.metrics.length, 1);
+  assertSafeAiMetric(success.metrics[0], {
+    task: "problem_image", outcome: "success", httpStatus: 200,
+    inputTokens: 123, outputTokens: 45, stopReason: "end_turn",
+  });
+
+  const httpFailure = testWorker({ generateProblems: callAI });
+  const httpResponse = await withMockFetch(async () => new Response("provider details must not be logged", {
+    status: 529,
+  }), () => httpFailure.worker.fetch(request("POST", {
+    body: { imageBase64: "private-image-content", mimeType: "image/png" },
+  }), env));
+  assert.equal(httpResponse.status, 502);
+  assert.equal(httpFailure.metrics.length, 1);
+  assertSafeAiMetric(httpFailure.metrics[0], {
+    task: "problem_image", outcome: "http_error", httpStatus: 529,
+    inputTokens: null, outputTokens: null, stopReason: null,
+  });
+
+  const jsonFailure = testWorker({ generateDocument: callDocumentAI });
+  const jsonResponse = await withMockFetch(async () => Response.json({
+    model: "claude-haiku-4-5-20251001",
+    stop_reason: "end_turn",
+    usage: { input_tokens: 88, output_tokens: 13 },
+    content: [{ type: "text", text: "private malformed response" }],
+  }), () => jsonFailure.worker.fetch(request("POST", {
+    body: { mode: "document", prompt: "private document request" },
+  }), env));
+  assert.equal(jsonResponse.status, 502);
+  assert.equal(jsonFailure.metrics.length, 1);
+  assertSafeAiMetric(jsonFailure.metrics[0], {
+    task: "document", outcome: "json_parse_error", httpStatus: 200,
+    inputTokens: 88, outputTokens: 13, stopReason: "end_turn",
+  });
+}
+
 async function testDeletionPurgeContract() {
   const deletion = testWorker();
   const response = await deletion.worker.fetch(request("DELETE"), env);
@@ -361,6 +448,7 @@ await testKillSwitchBoundary();
 await testQuotaAndProviderContract();
 await testGlobalQuotaContract();
 await testDocumentDraftContract();
+await testAiUsageMetrics();
 await testDeletionPurgeContract();
 
 console.log("Worker request contract tests passed");

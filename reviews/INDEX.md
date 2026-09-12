@@ -29,6 +29,8 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 
 ## 최신 후속 검토
 
+[HANDOFF-2026-124](handoffs/2026-09/2026-09-13-worker-ai-usage-observability.md): Anthropic의 문항 변환·문서 생성별 토큰·중단 사유·응답 시간·실패 유형을 안전한 Cloudflare 표본 로그로 측정하는 1단계를 구현했다. quota·모델 한도·공급자·프런트엔드는 변경하지 않았다.
+
 [HANDOFF-2026-123](handoffs/2026-09/2026-09-13-agents-efficient-workflow.md): `AGENTS.md`에 탐색·로그·중복 검사 절약 규칙을 적용했다. 기존 리뷰·회귀 의무를 유지하며 문서 독립 검토만 남겼다.
 
 [HANDOFF-2026-122](handoffs/2026-09/2026-09-11-comprehensive-followup-review-and-fixes.md)에서 인계 122개와 기존 이슈 81개의 미결·후속 기록을 대조했다. [전수 목록·판정·실행 증거](audits/2026-09-11/FOLLOWUP-REVIEW.md).
@@ -166,6 +168,7 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 
 | ID | 작성자 | 내용 | 파일 |
 | --- | --- | --- | --- |
+| `HANDOFF-2026-124` | Codex | Worker AI 사용량 측정 1단계 · 원문 없는 Cloudflare 표본 로그 | `handoffs/2026-09/2026-09-13-worker-ai-usage-observability.md` |
 | `HANDOFF-2026-123` | Codex | 탐색·로그·중복 검사 절약 규칙 적용과 후속 검토 범위 | `handoffs/2026-09/2026-09-13-agents-efficient-workflow.md` |
 | `HANDOFF-2026-121` | Antigravity | 오프라인 생존성 및 데이터 동기화 아키텍처 제안서 | `handoffs/2026-09/2026-09-11-offline-persistence-architecture.md` |
 | `HANDOFF-2026-120` | Antigravity | 프론트엔드 성능 및 아키텍처 개편 제안서 | `handoffs/2026-09/2026-09-11-frontend-architecture-proposal.md` |
