@@ -107,6 +107,51 @@ async function captureConsole(action) {
   }
 }
 
+function aiMetricEvents(entries) {
+  return entries.flatMap(({ args }) => args).filter((entry) => entry?.event === "ai_usage");
+}
+
+function assertConsoleExcludes(entries, secrets) {
+  const output = JSON.stringify(entries);
+  for (const [kind, secret] of Object.entries(secrets)) {
+    assert.equal(output.includes(secret), false, `${kind} 원문이 console 로그에 남으면 안 된다`);
+  }
+}
+
+async function captureDefaultProviderRequest({ documentMode = false, contentText }) {
+  const secrets = {
+    image: "PRIVATE_IMAGE_7f44",
+    prompt: "PRIVATE_PROMPT_43cd",
+    uid: "PRIVATE_UID_98be",
+    token: "PRIVATE_TOKEN_20cc",
+    response: "PRIVATE_RESPONSE_30aa",
+  };
+  const quotaOps = [];
+  const captured = await captureConsole(async () => {
+    const worker = createWorker({
+      verifyToken: async () => ({ uid: secrets.uid, claims: {} }),
+      requestQuota: async (_env, _uid, op, _reservationId, options) => {
+        quotaOps.push(op);
+        return op === "reserve"
+          ? { ok: true, used: 0, limit: options.limit, pending: 1 }
+          : { ok: true, used: 1, limit: options.limit, pending: 0 };
+      },
+    });
+    return withMockFetch(async () => Response.json({
+      model: "claude-haiku-4-5-20251001",
+      stop_reason: "end_turn",
+      usage: { input_tokens: 144, output_tokens: 7 },
+      content: [{ type: "text", text: contentText }, { type: "text", text: secrets.response }],
+    }), () => worker.fetch(request("POST", {
+      token: secrets.token,
+      body: documentMode
+        ? { mode: "document", prompt: secrets.prompt }
+        : { imageBase64: secrets.image, mimeType: "image/png" },
+    }), env));
+  });
+  return { ...captured, quotaOps, secrets };
+}
+
 function assertSafeAiMetric(metric, expected) {
   assert.deepEqual(Object.keys(metric).sort(), [
     "duration_ms", "event", "http_status", "input_tokens", "model", "outcome",
@@ -443,41 +488,45 @@ async function testAiUsageMetrics() {
     inputTokens: 88, outputTokens: 13, stopReason: "end_turn",
   });
 
-  const secrets = {
-    image: "PRIVATE_IMAGE_7f44",
-    uid: "PRIVATE_UID_98be",
-    token: "PRIVATE_TOKEN_20cc",
-    response: "PRIVATE_RESPONSE_30aa",
-  };
-  const captured = await captureConsole(async () => {
-    const worker = createWorker({
-      verifyToken: async () => ({ uid: secrets.uid, claims: {} }),
-      requestQuota: async (_env, _uid, op, _reservationId, options) => op === "reserve"
-        ? { ok: true, used: 0, limit: options.limit, pending: 1 }
-        : { ok: true, used: 1, limit: options.limit, pending: 0 },
-    });
-    return withMockFetch(async () => Response.json({
-      model: "claude-haiku-4-5-20251001",
-      stop_reason: "end_turn",
-      usage: { input_tokens: 144, output_tokens: 7 },
-      content: [{ type: "text", text: "null" }, { type: "text", text: secrets.response }],
-    }), () => worker.fetch(request("POST", {
-      token: secrets.token,
-      body: { imageBase64: secrets.image, mimeType: "image/png" },
-    }), env));
-  });
-  assert.equal(captured.value.status, 502, "비정상 최상위 JSON은 사용자 응답에서 거절해야 한다");
-  const usageEvents = captured.entries.flatMap(({ args }) => args)
-    .filter((entry) => entry?.event === "ai_usage");
-  assert.equal(usageEvents.length, 1, "비용이 든 실패도 사용량 이벤트를 정확히 한 번 기록해야 한다");
-  assertSafeAiMetric(usageEvents[0], {
+  const imageCaptured = await captureDefaultProviderRequest({ contentText: "null" });
+  assert.equal(imageCaptured.value.status, 502, "비정상 최상위 JSON은 사용자 응답에서 거절해야 한다");
+  assert.deepEqual(imageCaptured.quotaOps, ["reserve", "consume"]);
+  const imageUsageEvents = aiMetricEvents(imageCaptured.entries);
+  assert.equal(imageUsageEvents.length, 1, "비용이 든 실패도 사용량 이벤트를 정확히 한 번 기록해야 한다");
+  assertSafeAiMetric(imageUsageEvents[0], {
     task: "problem_image", outcome: "json_parse_error", httpStatus: 200,
     inputTokens: 144, outputTokens: 7, stopReason: "end_turn",
   });
-  const allConsoleOutput = JSON.stringify(captured.entries);
-  for (const [kind, secret] of Object.entries(secrets)) {
-    assert.equal(allConsoleOutput.includes(secret), false, `${kind} 원문이 console 로그에 남으면 안 된다`);
-  }
+  assertConsoleExcludes(imageCaptured.entries, imageCaptured.secrets);
+
+  const documentCaptured = await captureDefaultProviderRequest({
+    documentMode: true,
+    contentText: JSON.stringify({ title: "초안", blocks: [{ type: "paragraph", text: "본문" }] }),
+  });
+  assert.equal(documentCaptured.value.status, 200, "문서 정상 응답은 logger 검사 중에도 성공해야 한다");
+  assert.deepEqual(documentCaptured.quotaOps, ["reserve", "consume"]);
+  const documentUsageEvents = aiMetricEvents(documentCaptured.entries);
+  assert.equal(documentUsageEvents.length, 1, "문서 성공도 사용량 이벤트를 정확히 한 번 기록해야 한다");
+  assertSafeAiMetric(documentUsageEvents[0], {
+    task: "document", outcome: "success", httpStatus: 200,
+    inputTokens: 144, outputTokens: 7, stopReason: "end_turn",
+  });
+  assertConsoleExcludes(documentCaptured.entries, documentCaptured.secrets);
+
+  const loggerFailure = testWorker({
+    generateProblems: callAI,
+    recordMetric: () => { throw new Error("logger unavailable"); },
+  });
+  const loggerFailureResponse = await withMockFetch(async () => Response.json({
+    model: "claude-haiku-4-5-20251001",
+    stop_reason: "end_turn",
+    usage: { input_tokens: 1, output_tokens: 1 },
+    content: [{ type: "text", text: '{"problems":[]}' }],
+  }), () => loggerFailure.worker.fetch(request("POST", {
+    body: { imageBase64: "safe-image", mimeType: "image/png" },
+  }), env));
+  assert.equal(loggerFailureResponse.status, 200,
+    "측정 로거 자체의 실패가 성공한 AI 요청을 502로 바꾸면 안 된다");
 }
 
 async function testDeletionPurgeContract() {

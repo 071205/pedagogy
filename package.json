@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test:worker": "node worker/quota.test.mjs && node worker/app-check.test.mjs && node worker/worker-contract.test.mjs && node scripts/check-audit-safety.mjs && node scripts/check-review-followup.mjs",
+    "test:worker": "node worker/quota.test.mjs && node worker/app-check.test.mjs && node worker/worker-contract.test.mjs && node reviews/audits/2026-09-13/worker-telemetry-review.mjs && node scripts/check-audit-safety.mjs && node scripts/check-review-followup.mjs",
     "test:fixtures": "node scripts/check-fixtures.mjs",
     "fix:icons": "node scripts/clean-mac-icons.mjs",
     "check:icons": "node scripts/clean-mac-icons.mjs --check",

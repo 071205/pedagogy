@@ -2,6 +2,8 @@
 
 마지막 정리: 2026-09-13
 
+AI 비용 개선을 이어갈 때: [진행 기준과 현재 단계](../docs/AI-COST-ROADMAP.md).
+
 ## 열린 이슈
 
 | ID | 심각도 | 요약 | 파일 |
@@ -29,7 +31,11 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 
 ## 최신 후속 검토
 
-[HANDOFF-2026-125](handoffs/2026-09/2026-09-13-worker-ai-usage-observability-followup.md): 124 검토에서 재현한 비정상 문항 JSON의 측정 누락을 해결했다. 공급자 토큰을 보존한 실패 이벤트 1건과 전체 console 원문 비노출을 회귀로 고정했다.
+[HANDOFF-2026-127](handoffs/2026-09/2026-09-13-ai-cost-roadmap-test-coverage.md): 진행 기준 A에서 문서 prompt·이미지·응답·UID 누출 변이를 실제 단언으로 검출하게 했다. 090을 해결했고 다음 위치는 B 독립 검토다.
+
+[HANDOFF-2026-126](handoffs/2026-09/2026-09-13-ai-cost-roadmap-review.md): 125의 제품 수정은 20개 응답 경계에서 확인했다. 문서 로그 누출을 놓치는 검사 결함 090을 열었으며, 모델 전환용 진행 기준을 확정했다. 다음 작업은 진행 기준 A의 검사 보강이다.
+
+[HANDOFF-2026-125](handoffs/2026-09/2026-09-13-worker-ai-usage-observability-followup.md): 비정상 문항 JSON의 측정 누락을 해결했다. 126에서 제품 수정은 확인했으나 문서 프롬프트 로그 검증은 빠져 있어 090으로 후속 보강한다.
 
 [HANDOFF-2026-124](handoffs/2026-09/2026-09-13-worker-ai-usage-observability.md): Anthropic의 문항 변환·문서 생성별 토큰·중단 사유·응답 시간·실패 유형을 안전한 Cloudflare 표본 로그로 측정하는 1단계를 구현했다. quota·모델 한도·공급자·프런트엔드는 변경하지 않았다.
 
@@ -79,6 +85,7 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 
 | ID | 심각도 | 요약 | 파일 |
 | --- | --- | --- | --- |
+| `REV-2026-090` | `P2` | 문서 프롬프트 console 누출 코드 변이를 Worker 로그 회귀가 놓침 | `issues/2026-09/2026-09-13-tests-ai-console-coverage-gap.md` |
 | `REV-2026-089` | `P2` | 비정상 문항 JSON의 비용 측정 이벤트가 누락됨 | `issues/2026-09/2026-09-13-worker-ai-usage-invalid-json-gap.md` |
 | `REV-2026-083` | `P1` | 하위 설정·동의 삭제 실패에도 Auth 계정을 삭제함 | `issues/2026-09/2026-09-11-account-delete-required-prefs.md` |
 | `REV-2026-087` | `P1` | App Check 초기화 실패가 정상 Auth와 라이브러리 초기화도 막음 | `issues/2026-09/2026-09-11-app-check-init-disables-auth.md` |
@@ -171,6 +178,8 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 
 | ID | 작성자 | 내용 | 파일 |
 | --- | --- | --- | --- |
+| `HANDOFF-2026-127` | Codex | AI 측정 로그의 문서·원문·UID 누출 변이 회귀 보강 | `handoffs/2026-09/2026-09-13-ai-cost-roadmap-test-coverage.md` |
+| `HANDOFF-2026-126` | Codex | AI 측정 재검토·검사 결함 090·모델 전환 진행 기준 | `handoffs/2026-09/2026-09-13-ai-cost-roadmap-review.md` |
 | `HANDOFF-2026-125` | Codex | 비정상 AI 응답의 측정 누락과 전체 console 원문 검사 보완 | `handoffs/2026-09/2026-09-13-worker-ai-usage-observability-followup.md` |
 | `HANDOFF-2026-124` | Codex | Worker AI 사용량 측정 1단계 · 원문 없는 Cloudflare 표본 로그 | `handoffs/2026-09/2026-09-13-worker-ai-usage-observability.md` |
 | `HANDOFF-2026-123` | Codex | 탐색·로그·중복 검사 절약 규칙 적용과 후속 검토 범위 | `handoffs/2026-09/2026-09-13-agents-efficient-workflow.md` |

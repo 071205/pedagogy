@@ -3,7 +3,7 @@
 - ID: `HANDOFF-2026-125`
 - 날짜: `2026-09-13`
 - 작성자: `Codex`
-- 상태: `ready-for-review`
+- 상태: `needs-follow-up`
 - 영향 영역: `worker`, `tests`, `docs`
 - 관련 이슈: `REV-2026-089` 해결
 
@@ -40,3 +40,11 @@ quota·`max_tokens`·공급자·프런트엔드·Cloudflare 표본률은 변경�
 검토 범위는 `worker/index.js`, `worker/worker-contract.test.mjs`, `REV-2026-089`와 이 인계다.
 실제 키나 운영 요청 없이 가짜 Anthropic 200 응답만으로 재현할 수 있다.
 
+## 2026-09-13 재검토 — HANDOFF-126
+
+제품 수정은 문항·문서 20개 응답 경계에서 토큰 보존과 이벤트 1회 기록으로 재확인했다.
+다만 위 console 검증은 문항 null 한 경우에 한정됐으며 문서 prompt는 시험하지 않았다.
+실제 callDocumentAI에 console.error(prompt)를 넣는 메모리 변이에도 기존 계약 검사는 통과한다.
+AI_METRICS_RED의 테스트 헬퍼 필드 추가는 이 경로를 검증하지 못한다. 따라서 전체 로그 비노출과
+실제 실패 주입이 충분히 끝났다는 해석은 정정한다. 검사 결함 REV-2026-090을 새로 열고
+[진행 기준 A](../../../docs/AI-COST-ROADMAP.md)에서 보강한다. 제품 유출 자체가 재현된 것은 아니다.
