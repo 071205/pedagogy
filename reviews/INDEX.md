@@ -29,6 +29,8 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 
 ## 최신 후속 검토
 
+[HANDOFF-2026-125](handoffs/2026-09/2026-09-13-worker-ai-usage-observability-followup.md): 124 검토에서 재현한 비정상 문항 JSON의 측정 누락을 해결했다. 공급자 토큰을 보존한 실패 이벤트 1건과 전체 console 원문 비노출을 회귀로 고정했다.
+
 [HANDOFF-2026-124](handoffs/2026-09/2026-09-13-worker-ai-usage-observability.md): Anthropic의 문항 변환·문서 생성별 토큰·중단 사유·응답 시간·실패 유형을 안전한 Cloudflare 표본 로그로 측정하는 1단계를 구현했다. quota·모델 한도·공급자·프런트엔드는 변경하지 않았다.
 
 [HANDOFF-2026-123](handoffs/2026-09/2026-09-13-agents-efficient-workflow.md): `AGENTS.md`에 탐색·로그·중복 검사 절약 규칙을 적용했다. 기존 리뷰·회귀 의무를 유지하며 문서 독립 검토만 남겼다.
@@ -77,6 +79,7 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 
 | ID | 심각도 | 요약 | 파일 |
 | --- | --- | --- | --- |
+| `REV-2026-089` | `P2` | 비정상 문항 JSON의 비용 측정 이벤트가 누락됨 | `issues/2026-09/2026-09-13-worker-ai-usage-invalid-json-gap.md` |
 | `REV-2026-083` | `P1` | 하위 설정·동의 삭제 실패에도 Auth 계정을 삭제함 | `issues/2026-09/2026-09-11-account-delete-required-prefs.md` |
 | `REV-2026-087` | `P1` | App Check 초기화 실패가 정상 Auth와 라이브러리 초기화도 막음 | `issues/2026-09/2026-09-11-app-check-init-disables-auth.md` |
 | `REV-2026-085` | `P2` | 알 수 없는 App Check kid가 요청마다 Google 공개키 조회를 유발함 | `issues/2026-09/2026-09-11-app-check-jwks-amplification.md` |
@@ -168,6 +171,7 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 
 | ID | 작성자 | 내용 | 파일 |
 | --- | --- | --- | --- |
+| `HANDOFF-2026-125` | Codex | 비정상 AI 응답의 측정 누락과 전체 console 원문 검사 보완 | `handoffs/2026-09/2026-09-13-worker-ai-usage-observability-followup.md` |
 | `HANDOFF-2026-124` | Codex | Worker AI 사용량 측정 1단계 · 원문 없는 Cloudflare 표본 로그 | `handoffs/2026-09/2026-09-13-worker-ai-usage-observability.md` |
 | `HANDOFF-2026-123` | Codex | 탐색·로그·중복 검사 절약 규칙 적용과 후속 검토 범위 | `handoffs/2026-09/2026-09-13-agents-efficient-workflow.md` |
 | `HANDOFF-2026-121` | Antigravity | 오프라인 생존성 및 데이터 동기화 아키텍처 제안서 | `handoffs/2026-09/2026-09-11-offline-persistence-architecture.md` |

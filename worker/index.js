@@ -747,26 +747,19 @@ export async function callAI(env, imageBase64, mimeType) {
       ],
     }, task);
   const telemetry = aiTelemetry({ task, model, response, data, outcome: "success", startedAt });
-  const text = data?.content?.[0]?.text || "";
-  const clean = text.replace(/```json|```/g, "").trim();
-
-  let parsed;
   try {
-    parsed = JSON.parse(clean);
+    const text = data?.content?.[0]?.text;
+    if (typeof text !== "string") throw new Error("AI 응답 text가 문자열이 아닙니다");
+    const parsed = JSON.parse(text.replace(/```json|```/g, "").trim());
+    const problems = Array.isArray(parsed) ? parsed : parsed?.problems;
+    if (!Array.isArray(problems)) throw new Error("AI 응답에 problems 가 없습니다");
+    return aiGeneration(problems, telemetry);
   } catch {
     console.error("AI JSON 파싱 실패");
     throw new AiGenerationError("AI 응답을 해석하지 못했습니다", {
       ...telemetry, outcome: "json_parse_error",
     });
   }
-
-  const problems = Array.isArray(parsed) ? parsed : parsed.problems;
-  if (!Array.isArray(problems)) {
-    throw new AiGenerationError("AI 응답에 problems 가 없습니다", {
-      ...telemetry, outcome: "json_parse_error",
-    });
-  }
-  return aiGeneration(problems, telemetry);
 }
 
 export async function callDocumentAI(env, prompt) {

@@ -95,6 +95,18 @@ async function withMockFetch(mock, action) {
   }
 }
 
+async function captureConsole(action) {
+  const methods = ["log", "error", "warn", "info", "debug"];
+  const originals = Object.fromEntries(methods.map((method) => [method, console[method]]));
+  const entries = [];
+  for (const method of methods) console[method] = (...args) => entries.push({ method, args });
+  try {
+    return { value: await action(), entries };
+  } finally {
+    for (const method of methods) console[method] = originals[method];
+  }
+}
+
 function assertSafeAiMetric(metric, expected) {
   assert.deepEqual(Object.keys(metric).sort(), [
     "duration_ms", "event", "http_status", "input_tokens", "model", "outcome",
@@ -430,6 +442,42 @@ async function testAiUsageMetrics() {
     task: "document", outcome: "json_parse_error", httpStatus: 200,
     inputTokens: 88, outputTokens: 13, stopReason: "end_turn",
   });
+
+  const secrets = {
+    image: "PRIVATE_IMAGE_7f44",
+    uid: "PRIVATE_UID_98be",
+    token: "PRIVATE_TOKEN_20cc",
+    response: "PRIVATE_RESPONSE_30aa",
+  };
+  const captured = await captureConsole(async () => {
+    const worker = createWorker({
+      verifyToken: async () => ({ uid: secrets.uid, claims: {} }),
+      requestQuota: async (_env, _uid, op, _reservationId, options) => op === "reserve"
+        ? { ok: true, used: 0, limit: options.limit, pending: 1 }
+        : { ok: true, used: 1, limit: options.limit, pending: 0 },
+    });
+    return withMockFetch(async () => Response.json({
+      model: "claude-haiku-4-5-20251001",
+      stop_reason: "end_turn",
+      usage: { input_tokens: 144, output_tokens: 7 },
+      content: [{ type: "text", text: "null" }, { type: "text", text: secrets.response }],
+    }), () => worker.fetch(request("POST", {
+      token: secrets.token,
+      body: { imageBase64: secrets.image, mimeType: "image/png" },
+    }), env));
+  });
+  assert.equal(captured.value.status, 502, "비정상 최상위 JSON은 사용자 응답에서 거절해야 한다");
+  const usageEvents = captured.entries.flatMap(({ args }) => args)
+    .filter((entry) => entry?.event === "ai_usage");
+  assert.equal(usageEvents.length, 1, "비용이 든 실패도 사용량 이벤트를 정확히 한 번 기록해야 한다");
+  assertSafeAiMetric(usageEvents[0], {
+    task: "problem_image", outcome: "json_parse_error", httpStatus: 200,
+    inputTokens: 144, outputTokens: 7, stopReason: "end_turn",
+  });
+  const allConsoleOutput = JSON.stringify(captured.entries);
+  for (const [kind, secret] of Object.entries(secrets)) {
+    assert.equal(allConsoleOutput.includes(secret), false, `${kind} 원문이 console 로그에 남으면 안 된다`);
+  }
 }
 
 async function testDeletionPurgeContract() {
