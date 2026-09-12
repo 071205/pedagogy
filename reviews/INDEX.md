@@ -31,7 +31,7 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 
 ## 최신 후속 검토
 
-[HANDOFF-2026-127](handoffs/2026-09/2026-09-13-ai-cost-roadmap-test-coverage.md): 진행 기준 A에서 문서 prompt·이미지·응답·UID 누출 변이를 실제 단언으로 검출하게 했다. 090을 해결했고 다음 위치는 B 독립 검토다.
+[HANDOFF-2026-127](handoffs/2026-09/2026-09-13-ai-cost-roadmap-test-coverage.md): 진행 기준 A의 문서 prompt·이미지·응답·UID 누출 회귀를 독립 승인했다. 기본 logger 경계와 네 실패 변이를 재확인했고 다음 위치는 C 배포 준비다.
 
 [HANDOFF-2026-126](handoffs/2026-09/2026-09-13-ai-cost-roadmap-review.md): 125의 제품 수정은 20개 응답 경계에서 확인했다. 문서 로그 누출을 놓치는 검사 결함 090을 열었으며, 모델 전환용 진행 기준을 확정했다. 다음 작업은 진행 기준 A의 검사 보강이다.
 

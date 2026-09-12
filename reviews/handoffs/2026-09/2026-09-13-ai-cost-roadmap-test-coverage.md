@@ -3,7 +3,7 @@
 - ID: `HANDOFF-2026-127`
 - 날짜: `2026-09-13`
 - 작성자: `Codex`
-- 상태: `ready-for-review`
+- 상태: `reviewed`
 - 영향 영역: `tests`, `docs`
 - 관련 이슈: `REV-2026-090` 해결
 
@@ -40,3 +40,17 @@ log/error/warn/info/debug 어디에도 남지 않는지, 이벤트가 정확히 
 
 진행 기준의 현재 위치는 B다. A 변경 diff와 090 처리 기록만 독립 검토한다. 재현되는 결함이 없으면
 수정하지 말고 이 인계에 결과를 기록한 뒤 C 배포 준비로 넘긴다.
+
+## 독립 검토 결과 (2026-09-13)
+
+승인한다. 실제 Worker 소스와 검사를 다시 대조하고 재현 도구를 독립 실행했다.
+
+- `captureConsole` 안에서 `createWorker()`를 생성하므로 기본값 `recordMetric = console.log`가 교체된
+  logger를 실제로 잡는다. 별도 측정 주입으로 기본 경계를 우회하지 않는다.
+- 가짜 image, document prompt, UID, 인증 token과 공급자 응답 표식이 실제 요청·인증 결과·가짜
+  공급자 응답을 거쳐 전체 console 검사에 도달한다.
+- `node reviews/audits/2026-09-13/worker-telemetry-review.mjs` 재실행 결과 문항·문서 20개 경계가
+  통과했고 baseline은 exit 0, 네 누출 변이는 각각 exit 1이었다. 각 실패는 `AssertionError`라서
+  import 또는 문법 오류를 검출로 오인하지 않는다.
+- 재현되는 새 결함은 없었다. 제품 코드·검사·quota·max_tokens·공급자·프런트·배포는 변경하지
+  않았다. 진행 기준은 C 배포 준비로 이동한다.
