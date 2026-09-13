@@ -2,7 +2,8 @@
 
 마지막 정리: 2026-09-13
 
-AI 비용 개선을 이어갈 때: [진행 기준과 현재 단계](../docs/AI-COST-ROADMAP.md).
+비용 개선의 유일한 경로: [통합 레일·현재 단계](../docs/DEV-TOKEN-ROADMAP.md).
+개발 DEV-1~5 → 서비스 OPS-6~10 순서다. 기존 서비스 A·B 완료 결과는 재사용한다.
 
 ## 열린 이슈
 
@@ -30,6 +31,10 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 `-049`(발문 별행 수식 탭·왼쪽 정렬) · `-050`(범용성 설계) · `-051`(설계 독립 검토) · `-052`(검토 반영) · `-053`(1단계 연기 검사) · `-054`(2단계 인앱·pagehide).
 
 ## 최신 후속 검토
+
+[HANDOFF-2026-129](handoffs/2026-09/2026-09-13-development-token-code-map.md): 통합 레일 DEV-1의 기능·검사 탐색 지도와 분리 후보 A~C를 기록했다. 다음 DEV-2/Astra high. 이력 상세 검색은 열린 074의 깨진 ref로 보류했다.
+
+[HANDOFF-2026-128](handoffs/2026-09/2026-09-13-development-token-rails.md): 개발·서비스 비용 작업을 하나의 레일로 통합했다. 다음 DEV-1/Terra medium, 이후 OPS-6~10까지 같은 요청으로 진행한다. 제품·기존 검사는 보존했다.
 
 [HANDOFF-2026-127](handoffs/2026-09/2026-09-13-ai-cost-roadmap-test-coverage.md): 진행 기준 A의 문서 prompt·이미지·응답·UID 누출 회귀를 독립 승인했다. 기본 logger 경계와 네 실패 변이를 재확인했고 다음 위치는 C 배포 준비다.
 
@@ -178,6 +183,8 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 
 | ID | 작성자 | 내용 | 파일 |
 | --- | --- | --- | --- |
+| `HANDOFF-2026-128` | Codex | 개발·서비스 비용 통합 레일·모델별 순서·완료 기준 | `handoffs/2026-09/2026-09-13-development-token-rails.md` |
+| `HANDOFF-2026-129` | Codex | 개발 토큰 탐색 지도·첫 분리 후보 A~C | `handoffs/2026-09/2026-09-13-development-token-code-map.md` |
 | `HANDOFF-2026-127` | Codex | AI 측정 로그의 문서·원문·UID 누출 변이 회귀 보강 | `handoffs/2026-09/2026-09-13-ai-cost-roadmap-test-coverage.md` |
 | `HANDOFF-2026-126` | Codex | AI 측정 재검토·검사 결함 090·모델 전환 진행 기준 | `handoffs/2026-09/2026-09-13-ai-cost-roadmap-review.md` |
 | `HANDOFF-2026-125` | Codex | 비정상 AI 응답의 측정 누락과 전체 console 원문 검사 보완 | `handoffs/2026-09/2026-09-13-worker-ai-usage-observability-followup.md` |
