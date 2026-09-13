@@ -37,11 +37,11 @@
 | “사진 AI 변환에서 인증·전송 동의·이미지 축소·응답 반영은 어디서 처리되는가?” | `rg aiGenerateFromImage` → index의 `confirmAiTransfer`~`aiGenerateFromImage` → Worker `callAI` | index의 약 6731~6909, `getAiAppCheckToken`, `dataUrlToJpegBlob`, `normProblem`, `sets/currentSetId` |
 | “미리보기 확대가 문제집 저장·동기화와 독립적인가?” | `rg pvSetZoom` → index의 `pvMeasure`~`pvApply` → `renderPreview` | preview DOM·`pvZoom/pvNat/pvFitted`; 문제 데이터는 `renderPreview`의 입력 경계까지만 |
 
-## 첫 분리 후보 — DEV-3에서 A 일부 구현, 독립 검토 전
+## 첫 분리 후보 — DEV-4에서 A 일부 구현 승인
 
 | 후보 | 근거·예상 탐색 절감 | 결합·검사 부담 | DEV-2가 확인할 것 |
 | --- | --- | --- | --- |
-| A. AI 전처리·응답 변환 | 선택한 blobToBase64~aiBlocksToProblem 53줄을 `pedagogy-ai-image.js`로 옮겼다. 전송 동의·HTTP·상태 반영은 본체 유지. | `dataUrlToJpegBlob`, `fileToDataURL`, `normProblem` 3개 주입 의존과 FileReader. | namespace factory·기존 lexical wrapper·`test:ai-image`의 HTTP/file·실패 주입 적용. DEV-4에서 독립 검토 |
+| A. AI 전처리·응답 변환 | 선택한 blobToBase64~aiBlocksToProblem 53줄을 `pedagogy-ai-image.js`로 옮겼다. 전송 동의·HTTP·상태 반영은 본체 유지. | `dataUrlToJpegBlob`, `fileToDataURL`, `normProblem` 3개 주입 의존과 FileReader. | namespace factory·기존 lexical wrapper·`test:ai-image`의 HTTP/file·실패 주입 적용. DEV-4 승인 |
 | B. 미리보기 확대 제어 | 핵심 상수~pvFitZoom은 44줄/1,735바이트. 이전 약 250줄 추정은 독립 경계의 크기가 아님. | renderPreview·폭 조절·탭·버튼·휠이 pvZoom/pvFitted를 직접 사용. | 첫 추출에서 보류 |
 | C. 블록 편집기 렌더 | `renderEditor`는 가장 큰 단일 탐색 구간이라 향후 편집 기능 변경의 읽는 범위를 크게 줄일 수 있다. | `activeQ`, `saveSets`, history, 이미지 업로드, Sortable, 미리보기, AI drop zone과 직접 연결돼 첫 분리 위험이 높다. | 첫 후보로 적합하지 않다면 하위 블록 종류 하나만 안전하게 분리할 수 있는지. |
 
@@ -52,5 +52,5 @@ DEV-1의 이력 실패는 `--all`로 깨진 refs까지 탐색했기 때문이다
 
 ## 다음 단계에 넘길 결론
 
-다음 DEV-4/Sol medium: [구현 설계](AI-IMAGE-EXTRACTION-DESIGN.md)와 HANDOFF-131을 기준으로 A의 실제 diff·의존성 주입·로딩 순서·검사 증거를 독립 검토한다.
-저장·동기화·인증·전송 동의·HTTP·UI 동작은 이번 추출에서도 유지했다.
+다음 DEV-5/Terra medium: 고정한 두 유지보수 질문을 새 구조에서 다시 찾아 탐색량·왕복·검증 부담을 비교한다.
+저장·동기화·인증·전송 동의·HTTP·UI 동작은 추출과 독립 검토에서 유지됨을 확인했다.

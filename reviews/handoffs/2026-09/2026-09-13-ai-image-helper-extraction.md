@@ -3,7 +3,7 @@
 - ID: `HANDOFF-2026-131`
 - 날짜: `2026-09-13`
 - 작성자: `Codex`
-- 상태: `ready-for-review`
+- 상태: `reviewed`
 - 영향 영역: `index`, `server`, `tests`, `docs`
 - 관련 이슈: `없음` (열린 `REV-2026-074`, `REV-2026-075` 유지)
 
@@ -39,3 +39,15 @@
 DEV-4/GPT-5.6 Sol medium은 HANDOFF-130 설계, 이 diff, `pedagogy-ai-image.js`와 `scripts/check-ai-image.mjs`를
 독립적으로 대조한다. 재현 가능한 결함만 이슈로 열고, 결함이 없으면 이 인계의 결과만 승인 기록으로 남긴다.
 다른 추출 후보·Worker·quota·max_tokens·공급자·배포에는 착수하지 않는다. `transcript.txt`는 사용자 미추적 파일로 유지한다.
+
+## 독립 검토 결과 (2026-09-13)
+
+승인한다. `bc9c6f9`의 실제 diff를 HANDOFF-130 설계와 대조하고 핵심 회귀를 다시 실행했다.
+
+- 이동된 구현은 기존 53줄의 상수·오류 문구·블록 변환·선택지 보정·최종 `normProblem` 호출을 유지한다.
+- `PedagogyAIImage.create`는 명시한 세 함수만 주입받으며 DOM·fetch·Firebase·저장·사용자 상태를 읽지 않는다.
+- 본체의 `prepImageForAI`, `aiBlocksToProblem` 함수와 `AI_MAX_DIM`, `AI_QUALITY`, `blobToBase64` lexical 계약이 유지된다.
+- 새 script가 본체보다 먼저 로드되고 공개 빌드·로컬 서버 목록에 포함된다. AI 동의·인증·HTTP·quota·상태 반영은 이동하지 않았다.
+- `npm run test:ai-image`를 독립 재실행해 HTTP·`file://`·실제 canvas 전처리·실패 경계를 확인했다.
+  `normProblem` 우회 변이는 정상 실행 실패가 아니라 기대한 `AssertionError`로 검출됐다.
+- 재현 가능한 새 결함은 없었다. 제품 코드와 검사는 수정하지 않았으며 DEV-5 효과 확인으로 넘긴다.
