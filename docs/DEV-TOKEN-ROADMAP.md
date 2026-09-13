@@ -7,13 +7,13 @@
 
 ## 현재 위치
 
-- **OPS-6 / 대기 — GPT-5.6 Terra · medium.** staging 대상·운영 읽기 권한·2회 합성 호출 예산 승인이 필요하다.
-- DEV-0~5 완료. OPS-6의 로컬/공개 endpoint 확인과 승인 묶음 정리는 완료했지만 staging과 운영 증적은 미확인이다.
+- **OPS-6 / 대기 — GPT-5.6 Terra · medium.** staging 대상과 Cloudflare/Anthropic 접근 정보가 필요하다.
+- DEV-0~5 완료. 2회 합성 staging 검증·자동 재시도 금지·총 $1 한도 승인은 받았지만 staging과 운영 증적은 미확인이다.
 - 사용자 요청: **“비용 개선 레일대로 다음 단계 진행해.”** 또는 “개발 토큰 레일대로 다음 단계 진행해.”
   위 표현과 기존 “서비스 비용 레일대로 다음 단계 진행해” 모두 이 문서의 현재 단계 한 개를 실행한다.
 - 기본 순서: **DEV-1~5 → OPS-6~10 → 통합 완료**. 서비스 배포 준비에 별도 재개 요청이 필요하지 않다.
-- 배포·유료 호출은 OPS-6에서 대상·예산을 구체화하고 승인받은 범위에서 실행한다. 현재 해당 승인은 없다.
-- 마지막 인계: [HANDOFF-133](../reviews/handoffs/2026-09/2026-09-13-ai-measurement-deployment-prep.md).
+- 배포·유료 호출은 OPS-6에서 대상·예산을 구체화하고 승인받은 범위에서 실행한다. 현재 승인은 격리 staging의 합성 2회·$1 한도이며 production에는 적용되지 않는다.
+- 마지막 인계: [HANDOFF-134](../reviews/handoffs/2026-09/2026-09-13-new-chat-ops6-context.md).
 
 ## 보존하는 결과와 범위
 
@@ -37,7 +37,7 @@
 | DEV-3. 한 경계 구현 | 완료 | GPT-5.6 Terra / medium | AI 이미지 전처리·응답 변환 53줄 추출, 공개 빌드·필수 회귀·실패 주입·인계 |
 | DEV-4. 독립 검토 | 완료 | GPT-5.6 Sol / medium | `bc9c6f9` diff·동작 계약 승인, 재현 결함 없음 |
 | DEV-5. 개발 효과 확인 | 완료 | GPT-5.6 Terra / medium | 전체 흐름의 절감 근거 없음. 변환 내부 탐색만 개선, 추가 분리 보류 |
-| OPS-6. 서비스 배포 준비 | 대기 | GPT-5.6 Terra / medium | 승인 묶음 완료. staging 대상·운영 증적·2회 합성 호출 예산 승인 대기 |
+| OPS-6. 서비스 배포 준비 | 대기 | GPT-5.6 Terra / medium | 2회/$1 승인 묶음 완료. staging 대상·운영 증적 접근 대기 |
 | OPS-7. 측정 실환경 검증 | OPS-6 완료·대상 승인 후 | GPT-5.6 Sol / medium | 구 D: 승인 환경의 두 AI 경로·로그·인증·quota·복원 검증 |
 | OPS-8. 서비스 표본 분석 | OPS-7 후, 데이터 필요 | GPT-5.6 Terra / medium | 구 E: 작업별 토큰·실패·응답 시간 분포와 한계 |
 | OPS-9. 출력 한도 판단 | OPS-8 후 | GPT-6 Astra / high 판단 → 변경 시 Terra / medium 구현 → Sol / medium 검토 | 구 F: 4096 유지 결정 또는 검증된 작업별 한도 변경 |
@@ -201,3 +201,4 @@ Astra high가 현재 품질·비용·운영 부담으로 현 공급자 유지 �
 | 2026-09-13 | DEV-4 완료 | HANDOFF-131 독립 검토 결과 추가. 실제 diff·주입/전역 계약·로딩 경계를 대조하고 `test:ai-image`와 정규화 우회 변이를 재현했다. 결함 없음. 다음 DEV-5/Terra medium. |
 | 2026-09-13 | DEV-5 완료 | HANDOFF-132. 고정한 두 탐색 질문을 추출 전후로 비교했다. 전체 사진 AI 흐름은 211줄/1파일→234줄/2파일로 절감 근거가 없으며 추가 프런트 분리를 보류한다. 다음 OPS-6/Terra medium. |
 | 2026-09-13 | OPS-6 준비 완료·대기 | HANDOFF-133. 공개 health는 응답하지만 staging/version/binding/secret/콘솔 증적은 미확인이다. 2회 합성 staging 검증과 표본률 복원, rollback, 출력 성분 $0.04096 상한을 묶어 다음 승인 범위를 고정했다. |
+| 2026-09-13 | OPS-6 승인 반영·대기 | HANDOFF-134. 사용자가 격리 staging 합성 2회·자동 재시도 금지·$1 한도·production 제외를 승인했다. 로컬에 staging 선언·Cloudflare token/CLI·Anthropic staging key가 없어 대상/접근 정보 대기다. |
