@@ -20,8 +20,8 @@
 | 문제집 저장·동기화·계정 전환 | `index.html`: `loadSets`, `watchCloud`, `saveSets`, `writeCloudSnapshot`, `sessionContext`, `sessionMatches` | `npm run test:cross:fast`, `npm run test:review-contracts`, `npm run test:audit-browser` |
 | 문제집·모의고사 라이브러리 | `index.html`: `renderLibrary`, `loadLibraryPrefs`, `renderMockLibrary`; `mock-library-store.js`: `MockStore` | `npm run test:library-ui`, `npm run test:mock-library-ui`, `npm run test:mock-library` |
 | 문항 목록·블록 편집 | `index.html`: `showEditor`, `renderQList`, `renderEditor`, `blankBlockData`, `convertBlock` | `npm run test:cross:fast`, `tests/regression-test.html` |
-| 미리보기·안전 HTML | `index.html`: `renderPreview`, `pvMeasure`, `pvSetZoom`; `pedagogy-render.js`: `blockHTML`, `groupHeadHTML`, `fitMathIn` | `npm run test:cross:fast`, `npm run check:static`, `npm run test:public-browser` |
-| 인쇄 | `index.html`: `doPrint`, `fitPrintDoc`; `pedagogy-print.js`: `buildPrintDoc`, `awaitPrintImages` | `npm run test:hwpx-exam`, `npm run test:cross:fast` |
+| 미리보기·안전 HTML | `index.html`: `renderPreview`, `pvMeasure`, `pvSetZoom`; `pedagogy-render.js`: `blockHTML`, `groupHeadHTML`; `pedagogy-print.js`: `fitMathIn` | `npm run test:cross:fast`, `npm run check:static`, `npm run test:public-browser` |
+| 인쇄 | `index.html`: `doPrint`, `fitPrintDoc`, `buildPrintDoc`; `pedagogy-print.js`: `awaitPrintImages` | `npm run test:hwpx-exam`, `npm run test:cross:fast` |
 | 이미지 저장 | `index.html`: `storeImageFile`, `uploadBlobToStorage`, `releaseImage`, `dataUrlToJpegBlob` | `npm run test:cross:fast`, 저장 영향 `tests/regression-test.html` |
 | 사진 AI 변환 | `index.html`: `confirmAiTransfer`, `prepImageForAI`, `aiBlocksToProblem`, `aiGenerateFromImage`; `worker/index.js`: `callAI` | `npm run test:worker`; 브라우저 영향 `npm run test:cross:fast` |
 | 문서 AI·HWPX | `document-editor.html`, `hwpx-engine.js`, `hwpx-document.js`; Worker `callDocumentAI` | `npm run test:worker`, `npm run test:hwpx-browser`, `npm run test:cross:fast` |
@@ -37,21 +37,20 @@
 | “사진 AI 변환에서 인증·전송 동의·이미지 축소·응답 반영은 어디서 처리되는가?” | `rg aiGenerateFromImage` → index의 `confirmAiTransfer`~`aiGenerateFromImage` → Worker `callAI` | index의 약 6731~6909, `getAiAppCheckToken`, `dataUrlToJpegBlob`, `normProblem`, `sets/currentSetId` |
 | “미리보기 확대가 문제집 저장·동기화와 독립적인가?” | `rg pvSetZoom` → index의 `pvMeasure`~`pvApply` → `renderPreview` | preview DOM·`pvZoom/pvNat/pvFitted`; 문제 데이터는 `renderPreview`의 입력 경계까지만 |
 
-## 첫 분리 후보 — 아직 선택하지 않음
+## 첫 분리 후보 — DEV-2에서 A 일부 선택, 구현 전
 
 | 후보 | 근거·예상 탐색 절감 | 결합·검사 부담 | DEV-2가 확인할 것 |
 | --- | --- | --- | --- |
-| A. AI 요청 준비·응답 변환 | `confirmAiTransfer`~`aiBlocksToProblem`은 약 80줄의 목적이 명확한 경계다. OPS-6~10의 Worker 작업도 같은 기능을 다시 읽게 되므로 재탐색을 줄일 가능성이 있다. | `dataUrlToJpegBlob`, `fileToDataURL`, `normProblem`에 의존. 실제 요청·상태 반영은 `currentUser`, `sets`, 렌더·저장에 얽혀 있다. | 순수 준비/변환만 추출할지, DOM 상태 변경은 본체에 남길지. 입력 adapter와 오류 계약. |
-| B. 미리보기 확대 제어 | `pvMeasure`~`pvApply`은 독자적인 DOM 상태 묶음이며 저장·인증 상태를 직접 바꾸지 않는다. 약 250줄의 화면 제어 문맥을 본체에서 제외할 여지가 있다. | `renderPreview` 직후의 초기 측정 순서와 `#pvContent/.preview` DOM 계약, 키보드·휠 이벤트를 유지해야 한다. | 실제 함수 범위, 공개 이름 유무, `renderPreview`와의 callback 경계, Chromium·Firefox·WebKit 검증. |
+| A. AI 전처리·응답 변환 | 선택한 blobToBase64~aiBlocksToProblem 구간은 53줄/3,073바이트. 전송 동의·HTTP·상태 반영은 본체 유지. | `dataUrlToJpegBlob`, `fileToDataURL`, `normProblem` 3개 의존과 FileReader. | [확정 설계](AI-IMAGE-EXTRACTION-DESIGN.md)의 namespace factory·호환 wrapper·검사 적용 |
+| B. 미리보기 확대 제어 | 핵심 상수~pvFitZoom은 44줄/1,735바이트. 이전 약 250줄 추정은 독립 경계의 크기가 아님. | renderPreview·폭 조절·탭·버튼·휠이 pvZoom/pvFitted를 직접 사용. | 첫 추출에서 보류 |
 | C. 블록 편집기 렌더 | `renderEditor`는 가장 큰 단일 탐색 구간이라 향후 편집 기능 변경의 읽는 범위를 크게 줄일 수 있다. | `activeQ`, `saveSets`, history, 이미지 업로드, Sortable, 미리보기, AI drop zone과 직접 연결돼 첫 분리 위험이 높다. | 첫 후보로 적합하지 않다면 하위 블록 종류 하나만 안전하게 분리할 수 있는지. |
 
-현재 수치만으로 “최근 수정 빈도”를 확정하지 않았다. `git log -S` 탐색은 `REV-2026-074`의 깨진
-`refs/codex/.../Icon?` 때문에 `fatal: bad object`로 중단됐다. 이 지도는 현재 함수 경계와 2026-09
-구조 인계의 증거를 사용한다. 이슈 074를 해결한 뒤에만 이력 빈도를 보강한다. 실계정 재현이 필요한
-로그인 이슈 075도 열린 상태로 유지하며, AI·문서·인증 경계 작업에서만 관련 재현을 추가한다.
+DEV-1의 이력 실패는 `--all`로 깨진 refs까지 탐색했기 때문이다. DEV-2에서 `git log HEAD -L :함수:index.html
+--no-patch`는 성공했다. prepImageForAI 3개, aiBlocksToProblem 2개, pvMeasure 1개 커밋(도입 포함 전체 계보).
+최근 변경 빈도로 오인하지 않는다. 074는 해결하지 않았으며 HEAD로 좁혀 읽는 방법만 확인했다.
+실계정 재현이 필요한 로그인 이슈 075도 열린 상태로 유지한다.
 
 ## 다음 단계에 넘길 결론
 
-DEV-2/Astra high는 후보 A·B·C 중 하나를 고르거나 분리 보류를 결정한다. 저장·동기화·인증 전체,
-ESM 전환, 프레임워크 도입은 선택 대상이 아니다. 선택할 때 상태 읽기/쓰기, DOM·이벤트 순서,
-window 계약, 공개 빌드·CSP·file://, 관련 회귀와 실패 주입, 추출만 되돌리는 파일 묶음을 설계한다.
+다음 DEV-3/Terra medium: [확정 설계](AI-IMAGE-EXTRACTION-DESIGN.md)에 따라 A 일부만 구현한다.
+저장·동기화·인증·전송 동의·HTTP·UI 동작을 유지한다. 모듈 구현은 아직 없다.

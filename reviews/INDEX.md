@@ -32,6 +32,8 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 
 ## 최신 후속 검토
 
+[HANDOFF-2026-130](handoffs/2026-09/2026-09-13-ai-image-extraction-design.md): DEV-2에서 AI 이미지 전처리·응답 변환만 추출하도록 설계했다. 호환 표면·회귀·실패 주입·복귀 범위를 고정했으며 다음 DEV-3/Terra medium이다. 제품 무수정.
+
 [HANDOFF-2026-129](handoffs/2026-09/2026-09-13-development-token-code-map.md): 통합 레일 DEV-1의 기능·검사 탐색 지도와 분리 후보 A~C를 기록했다. 다음 DEV-2/Astra high. 이력 상세 검색은 열린 074의 깨진 ref로 보류했다.
 
 [HANDOFF-2026-128](handoffs/2026-09/2026-09-13-development-token-rails.md): 개발·서비스 비용 작업을 하나의 레일로 통합했다. 다음 DEV-1/Terra medium, 이후 OPS-6~10까지 같은 요청으로 진행한다. 제품·기존 검사는 보존했다.
@@ -183,6 +185,7 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 
 | ID | 작성자 | 내용 | 파일 |
 | --- | --- | --- | --- |
+| `HANDOFF-2026-130` | Codex | DEV-2 AI 이미지 전처리·응답 변환 추출 설계 | `handoffs/2026-09/2026-09-13-ai-image-extraction-design.md` |
 | `HANDOFF-2026-128` | Codex | 개발·서비스 비용 통합 레일·모델별 순서·완료 기준 | `handoffs/2026-09/2026-09-13-development-token-rails.md` |
 | `HANDOFF-2026-129` | Codex | 개발 토큰 탐색 지도·첫 분리 후보 A~C | `handoffs/2026-09/2026-09-13-development-token-code-map.md` |
 | `HANDOFF-2026-127` | Codex | AI 측정 로그의 문서·원문·UID 누출 변이 회귀 보강 | `handoffs/2026-09/2026-09-13-ai-cost-roadmap-test-coverage.md` |
