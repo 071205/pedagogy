@@ -70,6 +70,8 @@ STATIC = {
     "/pedagogy-print.js": ("pedagogy-print.js", "application/javascript; charset=utf-8"),
     # 모의고사 라이브러리 저장 계층(다중 문서·구형 임시본 이전). 빼면 라이브러리 탭이 죽는다.
     "/mock-library-store.js": ("mock-library-store.js", "application/javascript; charset=utf-8"),
+    # 사진 AI의 이미지 전처리·응답 문항 변환. 본체가 classic script로 즉시 읽는다.
+    "/pedagogy-ai-image.js": ("pedagogy-ai-image.js", "application/javascript; charset=utf-8"),
     # 브라우저에서 도는 HWPX 조판기. 이것이 있으면 AI 문서는 **로컬 서버 없이** 내보낸다
     # (배포본에서도 된다). 파이썬 변환기는 모의고사와 CLI 용으로 남는다.
     "/hwpx-engine.js": ("hwpx-engine.js", "application/javascript; charset=utf-8"),

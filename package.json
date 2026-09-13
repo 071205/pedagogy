@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "test:worker": "node worker/quota.test.mjs && node worker/app-check.test.mjs && node worker/worker-contract.test.mjs && node reviews/audits/2026-09-13/worker-telemetry-review.mjs && node scripts/check-audit-safety.mjs && node scripts/check-review-followup.mjs",
+    "test:ai-image": "node scripts/check-ai-image.mjs",
     "test:fixtures": "node scripts/check-fixtures.mjs",
     "fix:icons": "node scripts/clean-mac-icons.mjs",
     "check:icons": "node scripts/clean-mac-icons.mjs --check",
@@ -17,7 +18,7 @@
     "update:visual-baseline": "UPDATE_VISUAL_BASELINE=1 node scripts/visual-regression.mjs",
     "check:static": "node scripts/check-static.mjs && node scripts/check-launch-readiness.test.mjs && node scripts/check-accessibility.mjs && node scripts/check-document-blocks.mjs && node scripts/check-shared-design.mjs && node scripts/check-exam-style-roles.mjs",
     "check:rules": "npx --yes firebase-tools emulators:exec --project pedagogy-rules-test --only firestore,storage \"node scripts/verify-rules-emulator.mjs\"",
-    "check:fast": "npm run test:public && npm run check:icons && npm run test:worker && npm run test:fixtures && npm run test:mock-layout && npm run test:mock-library && npm run test:hwpx && npm run test:hwpx-exam && npm run test:hwpx-browser && npm run test:cross:fast && npm run check:static && npm run test:audit-browser && npm run test:review-contracts && npm run test:library-ui && npm run test:mock-library-ui",
+    "check:fast": "npm run test:public && npm run check:icons && npm run test:worker && npm run test:ai-image && npm run test:fixtures && npm run test:mock-layout && npm run test:mock-library && npm run test:hwpx && npm run test:hwpx-exam && npm run test:hwpx-browser && npm run test:cross:fast && npm run check:static && npm run test:audit-browser && npm run test:review-contracts && npm run test:library-ui && npm run test:mock-library-ui",
     "test:all": "npm run check:fast && npm run check:rules && npm run test:visual",
     "check:launch": "node scripts/check-launch-readiness.mjs",
     "test:hwpx": "node scripts/check-hwpx.mjs",

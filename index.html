@@ -2373,6 +2373,7 @@ function setEditorActions(on){
 <script src="pedagogy-render.js"></script>
 <script src="pedagogy-print.js"></script>
 <script src="mock-library-store.js"></script>
+<script src="pedagogy-ai-image.js"></script>
 <script>
 /* ===== Utils ===== */
 const $=s=>document.querySelector(s);
@@ -6755,13 +6756,6 @@ function fileToBase64(file){
     r.readAsDataURL(file);
   });
 }
-const blobToBase64=blob=>new Promise((res,rej)=>{
-  const r=new FileReader();
-  r.onload=()=>res(String(r.result).split(",")[1]);
-  r.onerror=()=>rej(new Error("이미지 변환 실패"));
-  r.readAsDataURL(blob);
-});
-
 /* AI 로 보내기 전 이미지를 줄인다.
    1568px 는 임의로 고른 값이 아니라 모델이 실제로 보는 해상도 상한이다
    (지금 쓰는 haiku 4.5 는 긴 변 1568px·시각 토큰 1568개로 서버에서 다운스케일된다).
@@ -6771,43 +6765,16 @@ const blobToBase64=blob=>new Promise((res,rej)=>{
 
    덤으로 아이폰 기본 포맷인 HEIC 문제도 여기서 풀린다 — AI 공급자는
    JPEG/PNG/GIF/WebP 만 받는데, canvas 를 거치면 JPEG 로 통일된다. */
-const AI_MAX_DIM=1568, AI_QUALITY=0.8;
-async function prepImageForAI(file){
-  const dataUrl=await fileToDataURL(file);
-  const blob=await dataUrlToJpegBlob(dataUrl, AI_MAX_DIM, AI_QUALITY);
-  if(blob) return { base64: await blobToBase64(blob), mimeType: "image/jpeg", bytes: blob.size };
-  // canvas 가 못 읽는 형식(크롬의 HEIC 등). 원본을 그대로 보내지는 않는다 —
-  // 공급자가 어차피 거절하고, 큰 파일이면 올리는 시간만 버린다.
-  throw new Error("이 형식은 읽지 못했어요 · JPEG나 PNG로 저장한 뒤 다시 시도해 주세요");
-}
-
-// AI 응답(JSON)을 편집기 블록 구조로 변환
-/* AI 응답도 신뢰 경계 바깥이다 — 사진 속 글자에 지시문을 심어 넣는 식으로
-   원하는 문자열을 돌려받게 만들 수 있다. 예전에는 여기서 바로 문항을 만들어
-   normProblem() 의 길이 제한·타입 강제·URL 검사를 전부 건너뛰었다.
-   AI 응답의 {type,text,items} 모양을 편집기 블록 모양으로만 옮기고,
-   최종 검사는 가져오기와 똑같이 normProblem() 에 맡긴다. */
-function aiBlocksToProblem(p){
-  const raw=(p&&Array.isArray(p.blocks))?p.blocks:[];
-  const blocks=[];
-  raw.forEach(b=>{
-    if(!b||typeof b!=="object") return;
-    const items=Array.isArray(b.items)?b.items.map(x=>String(x==null?"":x)):null;
-    if(b.type==="statement"||b.type==="boxed"){
-      blocks.push({type:b.type, data:{text:String(b.text==null?"":b.text)}});
-    }else if(b.type==="conditions"||b.type==="examples"){
-      blocks.push({type:b.type, data:{items:(items&&items.length)?items:[""]}});
-    }else if(b.type==="choices"){
-      const a=(items||[]).slice(0,5);
-      while(a.length<5) a.push("");
-      blocks.push({type:"choices", data:{items:a, layout:"horizontal"}});
-    }
-  });
-  if(!blocks.length) blocks.push({type:"statement", data:{text:""}});
-  // normProblem 이 id 재발급·길이 상한·블록 타입 고정까지 해 준다
-  return normProblem({ title:(p&&p.title)||"", desc:"", answer:"", answerImg:"",
-                       numLabel:"", paired:false, blocks });
-}
+if(!window.PedagogyAIImage)
+  throw new Error("pedagogy-ai-image.js 를 불러오지 못했습니다 — AI 이미지 변환을 시작할 수 없습니다");
+const aiImageTools=window.PedagogyAIImage.create({
+  fileToDataURL: file=>fileToDataURL(file),
+  dataUrlToJpegBlob: (url,maxDim,quality)=>dataUrlToJpegBlob(url,maxDim,quality),
+  normProblem: value=>normProblem(value),
+});
+const {AI_MAX_DIM, AI_QUALITY, blobToBase64}=aiImageTools;
+async function prepImageForAI(file){ return aiImageTools.prepImageForAI(file); }
+function aiBlocksToProblem(problem){ return aiImageTools.aiBlocksToProblem(problem); }
 
 async function aiGenerateFromImage(file){
   if(AI_PROXY_URL.includes("YOUR-SUBDOMAIN")){

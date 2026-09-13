@@ -7,7 +7,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 // The two sanitized HWPX skeletons are runtime data; the rest of experiments is private.
 export const PUBLIC_INPUTS = Object.freeze([
   'index.html', 'mock-exam-editor.html', 'document-editor.html', 'legal.html',
-  'service-config.js', 'pedagogy-normalize.js', 'pedagogy-render.js', 'pedagogy-print.js',
+  'service-config.js', 'pedagogy-normalize.js', 'pedagogy-render.js', 'pedagogy-print.js', 'pedagogy-ai-image.js',
   'mock-library-store.js', 'hwpx-engine.js', 'hwpx-document.js', 'hwpx-exam.js',
   'hwpx-exam-template.js', 'exam-template-data.js', 'LICENSE',
   'experiments/hwp-export/templates/blank.hwpx',

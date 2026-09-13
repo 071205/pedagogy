@@ -32,7 +32,9 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 
 ## 최신 후속 검토
 
-[HANDOFF-2026-130](handoffs/2026-09/2026-09-13-ai-image-extraction-design.md): DEV-2에서 AI 이미지 전처리·응답 변환만 추출하도록 설계했다. 호환 표면·회귀·실패 주입·복귀 범위를 고정했으며 다음 DEV-3/Terra medium이다. 제품 무수정.
+[HANDOFF-2026-131](handoffs/2026-09/2026-09-13-ai-image-helper-extraction.md): DEV-3에서 AI 이미지 전처리·응답 변환만 classic script로 추출했다. HTTP/file·실제 전처리·정규화 우회 변이·기존 regression·공개 3브라우저를 확인했고 다음 DEV-4/Sol medium 독립 검토다.
+
+[HANDOFF-2026-130](handoffs/2026-09/2026-09-13-ai-image-extraction-design.md): DEV-2에서 AI 이미지 전처리·응답 변환만 추출하도록 설계했다. 호환 표면·회귀·실패 주입·복귀 범위를 고정했다.
 
 [HANDOFF-2026-129](handoffs/2026-09/2026-09-13-development-token-code-map.md): 통합 레일 DEV-1의 기능·검사 탐색 지도와 분리 후보 A~C를 기록했다. 다음 DEV-2/Astra high. 이력 상세 검색은 열린 074의 깨진 ref로 보류했다.
 
@@ -185,6 +187,7 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 
 | ID | 작성자 | 내용 | 파일 |
 | --- | --- | --- | --- |
+| `HANDOFF-2026-131` | Codex | DEV-3 AI 이미지 전처리·응답 변환 classic script 추출 | `handoffs/2026-09/2026-09-13-ai-image-helper-extraction.md` |
 | `HANDOFF-2026-130` | Codex | DEV-2 AI 이미지 전처리·응답 변환 추출 설계 | `handoffs/2026-09/2026-09-13-ai-image-extraction-design.md` |
 | `HANDOFF-2026-128` | Codex | 개발·서비스 비용 통합 레일·모델별 순서·완료 기준 | `handoffs/2026-09/2026-09-13-development-token-rails.md` |
 | `HANDOFF-2026-129` | Codex | 개발 토큰 탐색 지도·첫 분리 후보 A~C | `handoffs/2026-09/2026-09-13-development-token-code-map.md` |

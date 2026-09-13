@@ -7,13 +7,13 @@
 
 ## 현재 위치
 
-- **DEV-3 / 시작 가능 — GPT-5.6 Terra · medium.** [확정 설계](AI-IMAGE-EXTRACTION-DESIGN.md)에 따라 AI 이미지 전처리·응답 변환만 분리한다.
-- DEV-0~2 완료. 후보 A 중 53줄의 구현 경계를 선택했다. 제품 코드·검사는 아직 바꾸지 않았다.
+- **DEV-4 / 시작 가능 — GPT-5.6 Sol · medium.** DEV-3 구현 diff를 독립적으로 검토한다.
+- DEV-0~3 완료. 후보 A 중 53줄을 `pedagogy-ai-image.js`로 분리했고 공개 빌드·HTTP·`file://`·세 브라우저 회귀를 확인했다.
 - 사용자 요청: **“비용 개선 레일대로 다음 단계 진행해.”** 또는 “개발 토큰 레일대로 다음 단계 진행해.”
   위 표현과 기존 “서비스 비용 레일대로 다음 단계 진행해” 모두 이 문서의 현재 단계 한 개를 실행한다.
 - 기본 순서: **DEV-1~5 → OPS-6~10 → 통합 완료**. 서비스 배포 준비에 별도 재개 요청이 필요하지 않다.
 - 배포·유료 호출은 OPS-6에서 대상·예산을 구체화하고 승인받은 범위에서 실행한다. 현재 해당 승인은 없다.
-- 마지막 인계: [HANDOFF-130](../reviews/handoffs/2026-09/2026-09-13-ai-image-extraction-design.md).
+- 마지막 인계: [HANDOFF-131](../reviews/handoffs/2026-09/2026-09-13-ai-image-helper-extraction.md).
 
 ## 보존하는 결과와 범위
 
@@ -34,7 +34,7 @@
 | DEV-0. 레일 정리 | 완료 | GPT-6 Astra / high | 개발·서비스 순서를 통합하고 기존 중복 레일 해체 |
 | DEV-1. 탐색 지도·기준선 | 완료 | GPT-5.6 Terra / medium | 기능→파일·함수·검사 지도와 후보 최대 3개의 근거. 제품 무수정 |
 | DEV-2. 첫 분리 설계 | 완료 | GPT-6 Astra / high | A 일부 선택. AI-IMAGE-EXTRACTION-DESIGN.md에 호환·검사·복귀 고정 |
-| DEV-3. 한 경계 구현 | 시작 가능 | GPT-5.6 Terra / medium | 설계한 추출 하나, 공개 빌드 반영, 필수 회귀·실패 주입·인계 |
+| DEV-3. 한 경계 구현 | 완료 | GPT-5.6 Terra / medium | AI 이미지 전처리·응답 변환 53줄 추출, 공개 빌드·필수 회귀·실패 주입·인계 |
 | DEV-4. 독립 검토 | DEV-3 후 | GPT-5.6 Sol / medium | 해당 diff와 동작 계약 승인 또는 재현 결함만 반환 |
 | DEV-5. 개발 효과 확인 | DEV-4 승인 후, 또는 DEV-2 보류 시 | GPT-5.6 Terra / medium | 탐색량·재작업·검증 부담 비교 후 OPS-6으로 이동 |
 | OPS-6. 서비스 배포 준비 | DEV-5 후 | GPT-5.6 Terra / medium | 구 C: 실제 배포 차이·대상·검사·롤백·최대 호출/비용의 승인 묶음 |
@@ -197,3 +197,4 @@ Astra high가 현재 품질·비용·운영 부담으로 현 공급자 유지 �
 | 2026-09-13 | DEV-0 통합 정정 | 사용자 요청에 따라 두 레일을 단일 순서로 통합. 구 A/B 완료 결과 유지, C~F는 OPS-6~9, G/H는 OPS-10 조건부 판단으로 흡수. 다음 DEV-1/Terra medium. |
 | 2026-09-13 | DEV-1 완료 | HANDOFF-129. CODE-MAP: 기능·로딩·상태·검사와 A~C 후보를 기록했다. 이력 세부 검색은 열린 074의 깨진 ref로 보류. 다음 DEV-2/Astra high. |
 | 2026-09-13 | DEV-2 완료 | HANDOFF-130. A의 전처리·변환 53줄 추출 설계. HEAD 한정 이력 조회 성공, 지도 크기·함수 소속·표 상태 정정. 다음 DEV-3/Terra medium. |
+| 2026-09-13 | DEV-3 완료 | HANDOFF-131. classic script 경계·호환 wrapper·공개 빌드를 구현했다. 전용 HTTP/file 검사·정규화 우회 변이·기존 regression 158건·공개 3브라우저 통과. `check:fast`는 열린 074의 깨진 `.git/refs` 아이콘 검사에서 중단. 다음 DEV-4/Sol medium. |
