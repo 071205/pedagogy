@@ -359,6 +359,16 @@ CDNs (KaTeX, SortableJS, Firebase compat SDK, Pretendard/KoPub webfonts).
 Git remote: `origin` → https://github.com/071205/pedagogy (branch `main`, GitHub Pages로
 **`https://071205.github.io/pedagogy/`** 에 배포됨 — 프로젝트 페이지라 **저장소 이름이 경로에
 붙는다.** `https://071205.github.io` 만 열면 404 다(실측).
+⚠️ **저장소를 비공개로 바꾸면 Pages 가 함께 죽는다 — 무료 플랜에서는 되살릴 수 없다.**
+2026-09-13 에 실제로 그랬다: 사이트가 404 였고 원인은 코드가 아니라 visibility 였다.
+게다가 **Pages 설정 자체가 삭제되므로** 공개로 되돌린 뒤 다시 *만들어야* 한다(켜는 것이 아니다).
+```bash
+gh api repos/071205/pedagogy/pages --jq .status        # 없으면 404 = Pages 자체가 없다
+gh api -X POST repos/071205/pedagogy/pages -f "source[branch]=main" -f "source[path]=/"
+```
+⚠️ **비공개로 옮기려면 대체 호스트를 먼저 띄운다** — `docs/SECURITY-OPERATIONS-CHECKLIST.md`
+A 항목이 정한 순서다(새 호스트 확인 → 그 다음 Pages 정리). 순서를 뒤집으면 제품이 통째로 내려간다.
+
 ⚠️ **그렇다고 `serve.py` 의 `ALLOW_ORIGINS` 에 경로를 붙이지 말 것.** HTTP `Origin` 헤더는
 스킴+호스트+포트뿐이고 **경로를 담지 않는다** — `/pedagogy/` 에서 보내는 Origin 이 정확히
 `https://071205.github.io` 다. 지금 값이 맞고, 경로를 붙이면 CORS 가 통째로 막힌다.
