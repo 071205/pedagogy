@@ -16,7 +16,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const OUT = path.join(ROOT, 'review-copy');
+const OUT = path.join(ROOT, '분석용 코드');
 
 /* 제품이 돌아가는 데 필요한 것만. 검사·설계 문서·리뷰 기록은 일부러 뺀다.
    ⚠️ 목록을 glob 으로 바꾸지 말 것 — 새로 생긴 메모가 조용히 섞여 들어간다. */
@@ -131,6 +131,60 @@ export function stripJs(src, collect) {
   return collapse(out);
 }
 
+/* ⚠️ **문자열 안에도 해설이 산다.** 모의고사 편집기는 Typst 조판 틀을 템플릿 리터럴로
+   들고 있고, 그 안에 실측 근거를 적은 Typst 주석이 150줄 넘게 있다. JS 훑개는 그것을
+   문자열로 보므로 건드리지 않는다 — 맞는 판단이지만, 그대로 두면 사본이 '코드만' 이
+   아니게 된다. 그래서 **Typst 소스인 템플릿에 한해** 그 언어의 주석도 지운다.
+   Typst 문자열(`"…"`) 안의 `//` 는 내용이므로 건드리지 않는다. */
+const TYPST_MARKERS = /#let\s|#set\s(page|text|par)\(/;
+
+export function stripTypstComments(body) {
+  let out = '', i = 0;
+  const n = body.length;
+  while (i < n) {
+    const c = body[i];
+    if (c === '"') {
+      let j = i + 1;
+      while (j < n && body[j] !== '"') j += body[j] === '\\' ? 2 : 1;
+      out += body.slice(i, j + 1); i = j + 1; continue;
+    }
+    if (c === '/' && body[i + 1] === '/') {
+      let end = body.indexOf('\n', i); if (end < 0) end = n;
+      const ownLine = /(^|\n)[ \t]*$/.test(out);
+      out = out.replace(/[ \t]+$/, '');
+      i = end;
+      if (ownLine && body[i] === '\n') i++;
+      continue;
+    }
+    out += c; i++;
+  }
+  return out.replace(/\n{3,}/g, '\n\n');
+}
+
+/** 이미 JS 주석을 지운 소스에서, Typst 틀인 템플릿 리터럴만 골라 한 번 더 지운다. */
+export function stripTypstTemplates(src) {
+  let out = '', i = 0;
+  const n = src.length;
+  while (i < n) {
+    const at = src.indexOf('`', i);
+    if (at < 0) { out += src.slice(i); break; }
+    let j = at + 1, depth = 0;
+    while (j < n) {
+      const ch = src[j];
+      if (ch === '\\') { j += 2; continue; }
+      if (ch === '$' && src[j + 1] === '{') { depth++; j += 2; continue; }
+      if (ch === '}' && depth) { depth--; j++; continue; }
+      if (ch === '`' && !depth) break;
+      j++;
+    }
+    const body = src.slice(at + 1, j);
+    out += src.slice(i, at) + '`' + (TYPST_MARKERS.test(body) ? stripTypstComments(body) : body)
+      + (src[j] === '`' ? '`' : '');
+    i = j + 1;
+  }
+  return out;
+}
+
 export function stripCss(src) {
   let out = '', i = 0;
   const n = src.length;
@@ -157,43 +211,44 @@ export function stripCss(src) {
   return collapse(out);
 }
 
-/* HTML 주석은 밖에서만 지운다. script·style 안의 여는 주석 기호는 내용이지 주석이 아니다. */
 export function stripHtml(src) {
+  /* ⚠️ **주석과 태그를 한 줄에서 함께 고른다.** 예전에는 `<script`·`<style` 을 먼저 찾고
+     그 사이만 주석 처리했는데, **주석 본문에 `<style` 이라는 글자가 들어 있으면** 그것이
+     진짜 태그로 읽혀 뒤가 통째로 '스타일 본문' 이 되고 그 구간의 주석이 살아남았다
+     (이 저장소의 주석이 실제로 그 경고를 적어 두고 있다). 먼저 오는 쪽이 이긴다. */
   let out = '', i = 0;
   const n = src.length;
+  const tagRe = /<(script|style)\b([^>]*)>/i;
   while (i < n) {
-    const open = /<(script|style)\b([^>]*)>/i.exec(src.slice(i));
-    const at = open ? i + open.index : n;
-    out += stripHtmlComments(src.slice(i, at));
-    if (!open) break;
-    const tag = open[1].toLowerCase();
-    const bodyStart = at + open[0].length;
+    const commentAt = src.indexOf('<!--', i);
+    const m = tagRe.exec(src.slice(i));
+    const tagAt = m ? i + m.index : -1;
+    if (commentAt < 0 && tagAt < 0) { out += src.slice(i); break; }
+    const commentFirst = commentAt >= 0 && (tagAt < 0 || commentAt < tagAt);
+
+    if (commentFirst) {
+      out += src.slice(i, commentAt);
+      const close = src.indexOf('-->', commentAt + 4);
+      const stop = close < 0 ? n : close + 3;
+      const text = src.slice(commentAt + 4, close < 0 ? n : close);
+      if (hasNotice(text)) { out += '<!-- ' + NOTICE + ' -->'; i = stop; continue; }
+      if (KEEP_RE.test(text)) { out += src.slice(commentAt, stop); i = stop; continue; }
+      const ownLine = /(^|\n)[ \t]*$/.test(out) && /^[ \t]*(\n|$)/.test(src.slice(stop));
+      out = out.replace(/[ \t]+$/, '');
+      i = stop;
+      if (ownLine && src[i] === '\n') i++;
+      continue;
+    }
+
+    out += src.slice(i, tagAt) + m[0];
+    const tag = m[1].toLowerCase();
+    const bodyStart = tagAt + m[0].length;
     const closeIdx = src.toLowerCase().indexOf('</' + tag, bodyStart);
     const bodyEnd = closeIdx < 0 ? n : closeIdx;
     const body = src.slice(bodyStart, bodyEnd);
-    const inline = !/\bsrc\s*=/i.test(open[2]);
-    out += open[0] + (inline ? (tag === 'style' ? stripCss(body) : stripJs(body)) : body);
+    const inline = !/\bsrc\s*=/i.test(m[2]);
+    out += inline ? (tag === 'style' ? stripCss(body) : stripJs(body)) : body;
     i = bodyEnd;
-  }
-  return out;
-}
-
-function stripHtmlComments(chunk) {
-  let out = '', i = 0;
-  const n = chunk.length;
-  while (i < n) {
-    const start = chunk.indexOf('<!--', i);
-    if (start < 0) { out += chunk.slice(i); break; }
-    const close = chunk.indexOf('-->', start + 4);
-    const stop = close < 0 ? n : close + 3;
-    const text = chunk.slice(start + 4, close < 0 ? n : close);
-    out += chunk.slice(i, start);
-    if (hasNotice(text)) { out += '<!-- ' + NOTICE + ' -->'; i = stop; continue; }
-    if (KEEP_RE.test(text)) { out += chunk.slice(start, stop); i = stop; continue; }
-    const ownLine = /(^|\n)[ \t]*$/.test(out) && /^[ \t]*(\n|$)/.test(chunk.slice(stop));
-    out = out.replace(/[ \t]+$/, '');
-    i = stop;
-    if (ownLine && chunk[i] === '\n') i++;
   }
   return collapse(out);
 }
@@ -204,8 +259,8 @@ function collapse(text) {
 }
 
 export function stripFile(rel, bytes) {
-  if (/\.html$/.test(rel)) return Buffer.from(stripHtml(bytes.toString('utf8')));
-  if (/\.(js|mjs|rules)$/.test(rel)) return Buffer.from(stripJs(bytes.toString('utf8')));
+  if (/\.html$/.test(rel)) return Buffer.from(stripTypstTemplates(stripHtml(bytes.toString('utf8'))));
+  if (/\.(js|mjs|rules)$/.test(rel)) return Buffer.from(stripTypstTemplates(stripJs(bytes.toString('utf8'))));
   if (/\.py$/.test(rel)) {
     const args = KEEP_MODULE_DOC.has(rel) ? ['--keep-module-doc'] : [];
     return Buffer.from(execFileSync('python3',
@@ -220,36 +275,26 @@ export function stripFile(rel, bytes) {
   return bytes;   // LICENSE · JSON · .hwpx · requirements.txt 는 그대로
 }
 
-const READ_ME = `# PEDAGOGY — 검토용 사본
+const READ_ME = `# PEDAGOGY — 분석용 코드
 
-이 폴더는 **읽기 전용 사본**이다. 원본은 상위 폴더이며 이 사본은
-\`node scripts/build-review-copy.mjs\` 가 매번 새로 만든다 — **여기서 고친 것은 사라진다.**
-
-설계 의도를 적은 주석과 설계 문서·리뷰 기록을 걷어내고 실행되는 코드만 남겼다.
-코드가 스스로 무엇을 말하는지 보려는 것이므로 판단의 근거는 코드에서 찾으면 된다.
-
-법적 고지(한컴 규격서 출처)는 규격서의 저작권 조항이 소스에 요구하므로 남아 있다.
-
-## 무엇이 들어 있나
-
-| | |
-| --- | --- |
-| \`index.html\` | 문제집 편집기(본체). 라이브러리·블록 편집·인쇄·클라우드 동기화 |
-| \`mock-exam-editor.html\` | 모의고사 편집기. 본체가 iframe 으로 띄운다 |
-| \`document-editor.html\` | 범용 문서 조판(베타) |
-| \`pedagogy-*.js\` | 정규화(신뢰 경계) · 렌더 · 인쇄 |
-| \`mock-library-store.js\` | 모의고사 저장 계층 |
-| \`hwpx-*.js\` · \`experiments/hwp-export/*.py\` | 한글(HWPX) 조판기 — 브라우저판과 파이썬판 |
-| \`worker/\` | Cloudflare Worker(AI 프록시 · 인증 · 사용량 한도 · App Check) |
-| \`serve.py\` | 로컬 개발 서버(Typst 미리보기 · HWPX 대비 경로) |
-| \`*.rules\` | Firestore · Storage 보안 규칙 |
+실행되는 코드만 모아 둔 폴더다. 주석·설계 문서·리뷰 기록은 들어 있지 않다.
+\`node scripts/build-review-copy.mjs\` 가 상위 폴더의 원본에서 매번 새로 만든다 —
+**여기서 고친 것은 다음 빌드에 사라진다.**
 
 빌드 단계가 없다. \`.html\` 을 그대로 열면 돈다.
 
-## 들어 있지 않은 것
+## 여는 자리
 
-검사·회귀 스위트, 설계 문서, 리뷰 기록. 코드 자체를 보게 하려는 의도이며
-검토에 필요하면 원본 저장소에 있다.
+- \`index.html\` — 시작점
+- \`mock-exam-editor.html\` — \`index.html\` 이 iframe 으로 띄운다
+- \`document-editor.html\` — 따로 연다
+- \`worker/index.js\` — Cloudflare Worker 진입점
+- \`serve.py\` — 로컬 개발 서버
+- \`experiments/hwp-export/\` — 파이썬 조판기 (\`requirements.txt\` 참고)
+
+나머지 \`.js\` 는 \`.html\` 이 \`<script src>\` 로 부른다. \`.rules\` 는 Firebase 보안 규칙이다.
+
+법적 고지(한컴 규격서 출처)는 규격서의 저작권 조항이 소스에 요구하므로 남아 있다.
 `;
 
 function build() {
@@ -277,8 +322,10 @@ function build() {
    주석을 지우는 일은 리터럴을 건드릴 이유가 없으므로, 다르면 그 자리가 사고다. */
 function literals(source) { const out = []; stripJs(source, out); return out; }
 
+/* Typst 틀은 일부러 바꿨으므로 원본에도 같은 변환을 먹인 뒤 견준다. 그 한 곳을 빼면
+   나머지 리터럴은 **한 글자도** 달라지면 안 된다. */
 function literalDiff(before, after) {
-  const a = literals(before), b = literals(after);
+  const a = literals(stripTypstTemplates(before)), b = literals(after);
   if (a.length !== b.length) return `리터럴 개수가 ${a.length} → ${b.length} 로 바뀌었습니다`;
   for (let k = 0; k < a.length; k++)
     if (a[k] !== b[k]) return `리터럴이 바뀌었습니다: ${JSON.stringify(a[k]).slice(0, 60)} → ${JSON.stringify(b[k]).slice(0, 60)}`;
@@ -298,7 +345,10 @@ function verify(report) {
     const file = path.join(OUT, rel);
     try {
       if (/\.(js|mjs)$/.test(rel)) execFileSync('node', ['--check', file], { stdio: 'pipe' });
-      if (/\.py$/.test(rel)) execFileSync('python3', ['-m', 'py_compile', file], { stdio: 'pipe' });
+      if (/\.py$/.test(rel)) {
+        execFileSync('python3', ['-m', 'py_compile', file], { stdio: 'pipe' });
+        fs.rmSync(path.join(path.dirname(file), '__pycache__'), { recursive: true, force: true });
+      }
       if (/\.json$/.test(rel)) JSON.parse(fs.readFileSync(file, 'utf8'));
       if (/\.(js|mjs|rules|html)$/.test(rel)) {
         const source = fs.readFileSync(path.join(ROOT, rel), 'utf8');

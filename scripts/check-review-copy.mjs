@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const COPY = path.join(ROOT, 'review-copy');
+const COPY = path.join(ROOT, '분석용 코드');
 const PORT = Number(process.env.REVIEW_COPY_PORT || 8791);
 
 /* 부팅했다고 말할 수 있는 신호. **화면에 실제로 그려진 것**을 본다 — 전역이 생겼다는
@@ -88,9 +88,40 @@ async function bootAll(dir) {
   return failures;
 }
 
+/* ⚠️ 모의고사 화면 미리보기는 CSS 경로라 **Typst 틀이 상해도 부팅은 멀쩡하다.**
+   그래서 원본과 사본에서 `typstSource()` 를 실제로 뽑아 견준다. 주석만 다르다는 것을
+   보이려고, 양쪽 모두에 **빌더와 무관한 단순 규칙**(줄 앞 `//` 지우기)을 먹인 뒤 비교한다
+   — 같은 훑개로 양쪽을 만들면 같은 실수를 함께 저질러 통과한다. */
+const plainTypst = (text) => text.split('\n')
+  .filter((line) => !/^\s*\/\//.test(line))
+  .map((line) => line.replace(/\s+\/\/.*$/, '').trimEnd())
+  .filter((line) => line !== '').join('\n');
+
+async function typstSourceOf(dir) {
+  const server = serve(dir);
+  let browser;
+  try {
+    if (!await waitForServer(`http://127.0.0.1:${PORT}/mock-exam-editor.html`)) return null;
+    browser = await chromium.launch();
+    const page = await browser.newPage();
+    await page.goto(`http://127.0.0.1:${PORT}/mock-exam-editor.html?t=${Date.now()}`,
+      { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => typeof window.typstSource === 'function', null, { timeout: 15000 });
+    return await page.evaluate(() => window.typstSource());
+  } catch { return null; } finally { await browser?.close(); server.kill(); }
+}
+
+async function typstEquivalence() {
+  const original = await typstSourceOf(ROOT);
+  const copy = await typstSourceOf(COPY);
+  if (!original || !copy) return 'Typst 조판 원본을 뽑지 못했습니다';
+  return plainTypst(original) === plainTypst(copy) ? ''
+    : 'Typst 조판 결과가 주석 말고도 달라졌습니다 — 틀 문자열이 상했습니다';
+}
+
 /* ── 자기검사 — 상한 사본을 진짜로 빨간불로 보는가 ─────────────────────────── */
 async function selfCheck() {
-  const broken = path.join(ROOT, 'review-copy-selfcheck');
+  const broken = path.join(ROOT, '분석용 코드-selfcheck');
   fs.rmSync(broken, { recursive: true, force: true });
   fs.cpSync(COPY, broken, { recursive: true });
   /* 주석 제거가 문자열을 삼켰을 때와 같은 모양의 고장: 문자열 하나를 줄 끝에서 끊는다. */
@@ -105,13 +136,15 @@ async function selfCheck() {
 }
 
 if (!fs.existsSync(COPY)) {
-  console.error('  ❌ review-copy 가 없습니다 — 먼저 `node scripts/build-review-copy.mjs`');
+  console.error("  ❌ '분석용 코드' 폴더가 없습니다 — 먼저 node scripts/build-review-copy.mjs");
   process.exit(1);
 }
 const failures = await bootAll(COPY);
+const typst = await typstEquivalence();
+if (typst) failures.push(typst);
 for (const f of failures) console.error('  ❌ ' + f);
 const caught = await selfCheck();
 if (!caught) console.error('  ❌ 자기검사 실패 — 고장 난 사본도 통과합니다. 이 검사는 헛돕니다');
 if (failures.length || !caught) process.exit(1);
-console.log(`검토용 사본 부팅 확인 — 앱 ${APPS.length}개가 실제 브라우저에서 뜬다 · 자기검사 통과`);
+console.log(`검토용 사본 확인 — 앱 ${APPS.length}개 부팅 · Typst 조판 결과 동일 · 자기검사 통과`);
 for (const a of APPS) console.log('  ✅ ' + a.label);

@@ -28,6 +28,13 @@ def spans_to_drop(src, keep_module_doc):
         if not isinstance(node, holders):
             continue
         if isinstance(node, ast.Module) and keep_module_doc:
+            # 도움말로 인쇄되는 docstring 은 남기되 개발 근거는 뺀다.
+            doc = node.body[0] if node.body and isinstance(node.body[0], ast.Expr) else None
+            if doc and isinstance(getattr(doc, "value", None), ast.Constant) \
+                    and isinstance(doc.value.value, str) and "⚠️" in doc.value.value:
+                kept = doc.value.value.split("⚠️")[0].rstrip() + "\n"
+                drop.append(((doc.lineno, doc.col_offset), (doc.end_lineno, doc.end_col_offset),
+                             '"""' + kept + '"""'))
             continue
         if not (node.body and isinstance(node.body[0], ast.Expr)
                 and isinstance(node.body[0].value, ast.Constant)
