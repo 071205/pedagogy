@@ -32,6 +32,8 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 
 ## 최신 후속 검토
 
+[HANDOFF-2026-133](handoffs/2026-09/2026-09-13-ai-measurement-deployment-prep.md): OPS-6에서 Worker 측정 배포 준비를 완료했다. staging 대상·운영 증적·2회 합성 호출 예산 승인이 없으므로 OPS-6 대기이며, 배포·실호출은 하지 않았다.
+
 [HANDOFF-2026-132](handoffs/2026-09/2026-09-13-development-token-effect-check.md): DEV-5에서 첫 분리의 실제 탐색 범위와 검증 부담을 비교했다. 전체 사진 AI 흐름의 개발 토큰 절감은 입증되지 않아 추가 프런트 분리를 보류하고 OPS-6/Terra medium으로 이동한다.
 
 [HANDOFF-2026-131](handoffs/2026-09/2026-09-13-ai-image-helper-extraction.md): DEV-3의 AI 이미지 전처리·응답 변환 classic script 추출을 DEV-4에서 독립 승인했다. 실제 diff·주입/전역 계약·로딩과 HTTP/file·정규화 우회 변이를 재확인했으며 재현 결함은 없다. 다음 DEV-5/Terra medium.
@@ -189,6 +191,7 @@ Claude의 후속 검토 `HANDOFF-2026-068`이 연 3건은 `HANDOFF-2026-069`로 
 
 | ID | 작성자 | 내용 | 파일 |
 | --- | --- | --- | --- |
+| `HANDOFF-2026-133` | Codex | OPS-6 AI 측정 배포 준비 · staging/예산 승인 대기 | `handoffs/2026-09/2026-09-13-ai-measurement-deployment-prep.md` |
 | `HANDOFF-2026-132` | Codex | DEV-5 개발 토큰 효과 확인 · 추가 프런트 분리 보류 | `handoffs/2026-09/2026-09-13-development-token-effect-check.md` |
 | `HANDOFF-2026-131` | Codex | DEV-3 AI 이미지 경계 추출 · DEV-4 독립 검토 승인 | `handoffs/2026-09/2026-09-13-ai-image-helper-extraction.md` |
 | `HANDOFF-2026-130` | Codex | DEV-2 AI 이미지 전처리·응답 변환 추출 설계 | `handoffs/2026-09/2026-09-13-ai-image-extraction-design.md` |
