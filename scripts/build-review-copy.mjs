@@ -25,7 +25,7 @@ export const PROGRAM_FILES = Object.freeze([
   'service-config.js', 'pedagogy-normalize.js', 'pedagogy-render.js', 'pedagogy-print.js',
   'pedagogy-ai-image.js', 'mock-library-store.js',
   'hwpx-engine.js', 'hwpx-document.js', 'hwpx-exam.js', 'hwpx-exam-template.js',
-  'exam-template-data.js',
+  'exam-template-data.js', 'blank-template-data.js',
   'serve.py', 'firestore.rules', 'storage.rules', 'firebase.json', 'storage-cors.json',
   'LICENSE',
   'worker/index.js', 'worker/auth.js', 'worker/app-check.js', 'worker/wrangler.toml',

@@ -1350,10 +1350,14 @@ JSON 가져오기 크기·개수 상한, Storage 고아 이미지 정리, serve.
   명시적 namespace는 의존성·중복 선언을 관리하기 위한 선택이다.
 - 정적 HTTP(S): 모의고사 및 AI 문서 HWPX는 변환 API 서버 없이 템플릿을 fetch한다.
 - `file://`: 본체 편집과 모의고사 HWPX(내장 PNG/JPEG 포함)는 지원한다. 모의고사 틀은
-  `exam-template-data.js`를 사용한다. 원본 틀 변경 시 `node scripts/build-exam-template.mjs`로
-  재생성하고 `--check`로 원본과 일치를 확인한다.
-- AI 문서 HWPX는 아직 `templates/blank.hwpx` fetch를 사용하므로 `file://` 예외다.
-  정적 HTTP(S)로 열거나 기존 로컬 서버 대비 경로를 사용한다.
+  `exam-template-data.js`를 사용한다. **AI 문서 골격도 `blank-template-data.js` 로 같이 인라인했다**
+  (2026-09-17) — 그래서 `file://` 예외가 사라졌다. 원본 틀을 바꾸면
+  `node scripts/build-hwpx-templates.mjs` 로 **둘 다** 재생성하고 `--check` 로 낡음을 확인한다
+  (`test:review-contracts` 안에서 돈다). ⚠️ 틀이 늘어도 스크립트를 새로 만들지 말 것 —
+  그 파일의 `TEMPLATES` 표에 한 줄만 더한다.
+- ~~AI 문서 HWPX는 `file://` 예외다~~ → **2026-09-17 해소.** `blank-template-data.js` 를
+  인라인해 `file://` 에서도 한글 내보내기가 된다(`blankSource()` 가 프로토콜로 가른다).
+  ⚠️ HTTP(S) 에서는 계속 실물 파일을 fetch 한다 — 인라인은 `file://` 전용 경로다.
 - 파일 이름만 있는 모의고사 그림 및 Typst 정본 미리보기에는 로컬 서버가 필요하다.
 - 라이브러리 클라우드 스키마는 `service-config.js`의 `libraryCloudSchema`로 명시한다.
   **지금 값은 `1`(B단계)이다** — 2026-09-09 에 새 Rules 를 실제로 배포한 뒤 올렸다.

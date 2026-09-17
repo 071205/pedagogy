@@ -11,7 +11,7 @@
     "check:icons": "node scripts/clean-mac-icons.mjs --check",
     "test:mock-layout": "node scripts/mock-exam-layout.test.mjs",
     "test:mock-library": "node scripts/check-mock-library.mjs && MOCK_STORE_RED=1 node scripts/check-mock-library.mjs",
-    "test:review-contracts": "node scripts/build-exam-template.mjs --check && node scripts/check-review-contracts.mjs",
+    "test:review-contracts": "node scripts/build-hwpx-templates.mjs --check && node scripts/check-review-contracts.mjs",
     "test:library-ui": "node scripts/check-library-ui.mjs",
     "test:mock-library-ui": "node scripts/check-mock-library-ui.mjs && MOCK_UI_RED=1 node scripts/check-mock-library-ui.mjs",
     "test:audit-browser": "node scripts/check-audit-browser.mjs",

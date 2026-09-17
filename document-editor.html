@@ -22,6 +22,9 @@
      — 사이트만 열어도 파일이 나온다. 못 불러오면 예전처럼 serve.py 를 찾아 쓴다. -->
 <script src="hwpx-engine.js" defer></script>
 <script src="hwpx-document.js" defer></script>
+<!-- 빈 문서 골격을 인라인한 것. `file://` 은 fetch 가 막혀 이것이 유일한 경로다
+     (시험지 틀의 `exam-template-data.js` 와 같은 방식). -->
+<script src="blank-template-data.js" defer></script>
 <style>
 /* ─────────────────────────────────────────────────────────────
    디자인 토큰 — index.html 과 **같은 이름·같은 값**을 쓴다.
@@ -317,15 +320,25 @@ async function findHwpxServer(){
 const NO_SERVER_HINT="로컬 서버를 찾지 못했습니다 · 터미널에서 python3 serve.py 를 실행한 뒤 "
                     +"http://127.0.0.1:8787 로 열어 주세요";
 
-/* 빈 문서 골격. **한글이 직접 저장한 실물 파일**이라 코드로 지어 만들면 한글이 못 연다. */
+/* 빈 문서 골격. **한글이 직접 저장한 실물 파일**이라 코드로 지어 만들면 한글이 못 연다
+   (두 번 시도해 두 번 실패했다 — `docs/HWP-SPEC.md`). 그래서 실물을 들고 다닌다.
+   ⚠️ `file://` 은 fetch 가 막히므로 인라인해 둔 바이트를 쓴다 — 시험지 틀과 같은 방식이고,
+   이것이 없으면 파일을 그대로 열었을 때 한글 내보내기가 통째로 안 된다. */
 const BLANK_URL="experiments/hwp-export/templates/blank.hwpx";
+function blankSource(){
+  if(location.protocol!=="file:") return BLANK_URL;
+  const b64=window.PEDAGOGY_BLANK_TEMPLATE_BASE64;
+  if(typeof b64!=="string"||!b64)
+    throw Error("빈 문서 골격을 불러오지 못했습니다 · blank-template-data.js 가 없습니다");
+  return Uint8Array.from(atob(b64),c=>c.charCodeAt(0)).buffer;
+}
 function saveBlob(blob,title){const a=document.createElement("a");a.href=URL.createObjectURL(blob);
   a.download=`${String(title).replace(/[\\/:*?\"<>|]/g,"_")}.hwpx`;a.click();
   setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
 
 /* 브라우저에서 직접 만든다 — 서버가 필요 없다. 못 하면 예전 서버 경로로 떨어진다. */
 async function downloadInBrowser(docData){
-  const {blob,report}=await window.PedagogyHwpxDocument.buildDocument(docData,BLANK_URL);
+  const {blob,report}=await window.PedagogyHwpxDocument.buildDocument(docData,blankSource());
   saveBlob(blob,docData.title);
   setStatus("docStatus",report.warnings.length
     ?`내보냈지만 조판 경고 ${report.warnings.length}건이 있습니다 · ${report.warnings[0]}`

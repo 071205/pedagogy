@@ -439,9 +439,12 @@
     }
 
     /** 빈 문서 — 한글이 직접 저장한 골격을 받아 쓴다(코드로 지어 만들지 말 것). */
-    static async blank(url) {
-      const res = await fetch(url, { cache: "no-cache" });
-      if (!res.ok) throw new Error("빈 문서 골격을 받지 못했습니다 (" + url + " → HTTP " + res.status + ")");
+    /* 주소도 받고 바이트도 받는다. ⚠️ `file://` 에서는 fetch 가 막히므로 부른 쪽이
+       인라인해 둔 골격 바이트를 그대로 넘긴다(시험지 틀과 같은 방식). */
+    static async blank(source) {
+      if (typeof source !== "string") return HwpxDocument.open(source);
+      const res = await fetch(source, { cache: "no-cache" });
+      if (!res.ok) throw new Error("빈 문서 골격을 받지 못했습니다 (" + source + " → HTTP " + res.status + ")");
       return HwpxDocument.open(await res.arrayBuffer());
     }
 
