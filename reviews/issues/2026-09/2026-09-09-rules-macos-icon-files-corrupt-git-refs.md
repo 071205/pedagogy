@@ -114,3 +114,44 @@ broken-ref 경고를 낸다. 나머지 9개는 `reviews/` 아래에 있으며 �
 - `2026-09-11` — `Codex` (`HANDOFF-2026-122`): 최초 check:fast가 11개(그중 refs 2개) 재발로 중단됐다. 기존의 정확한 0바이트 basename/FinderInfo 조건을 확인하고 11개만 정리했다. 생성 주체를 입증하지 못했으므로 열린 상태를 유지한다.
 
 - `2026-09-12` — `Codex` (`HANDOFF-2026-122` 마무리): 작업 재개 후 39개(그중 refs 7개) 재발을 확인했다. 기존 정리 스크립트로 정확한 0바이트 파일 39개와 아이콘 전용 폴더 속성 39개만 정리했다. 재발 원인은 여전히 미확인이므로 `open`을 유지한다.
+
+## 원인 — Google Drive 동기화다 (2026-09-17 · `Claude / Opus 5`)
+
+⚠️ **`/Users/huryul/pedagogy-main` 자체가 Google Drive for Desktop 의 동기화 루트다.**
+
+```
+~/Library/Application Support/Google/DriveFS/root_preference_sqlite.db
+  4|…|pedagogy-main|Users/huryul/pedagogy-main|…|/Users/huryul/pedagogy-main
+```
+
+**근거 넷이 같은 곳을 가리킨다:**
+
+1. 위 DB 행 — 이 폴더가 mirror 루트로 등록돼 있다.
+2. **시각이 맞는다.** `npm run fix:icons` 로 전부 지운 직후, 커밋·푸시한 `10:14:13` 에
+   정확히 네 개가 새로 생겼고 자리가 `.git/objects/13`·`6d`·`80`·`fc` — **git 이 그때
+   만든 느슨한 개체 폴더들**이다. 빈 폴더를 새로 만드는 것만으로는 안 생긴다(실험함).
+3. `Google Drive.app` 의 `FinderSyncExtension` 이 떠 있다.
+4. **`git fsck` 가 이름을 댄다** — `bad sha1 file: .git/objects/13/Icon` 외 3건.
+
+즉 Drive 가 자기가 만지는 폴더마다 `Icon\r` 를 쓰고, 그 대상에 **`.git` 내부가 포함된다.**
+`.git/refs` 안에 들어가면 `git show-ref` 가 죽는 것이 그 결과다.
+
+## 이것은 미관 문제가 아니다
+
+- ⚠️ **Drive 가 살아 있는 git 저장소를 동기화하는 것 자체가 위험하다.** git 이 개체를
+  쓰는 도중 부분 동기화되거나 충돌 사본(`파일 (1).js`)이 `.git` 안에 생기면 저장소가
+  깨진다. **지금은 충돌 사본이 없고 `fsck` 도 Icon 말고는 깨끗하다** — 운이 좋았다.
+- ⚠️ **`.gitignore` 로 막아 둔 저작물이 Drive 에는 올라간다.** `.gitignore` 는 git 만
+  막고 Drive 는 파일 시스템을 본다. 평가원 양식 `.hwp`·`.hwpx` 와 67MB PDF 가 포함된다.
+  폴더 전체 **354MB** 가 동기화 대상이고 그중 `.git` 이 28MB 다.
+
+## 고치는 법 — 사람이 해야 한다
+
+`npm run fix:icons` 는 **증상만 지운다.** 원인을 끄려면 Drive 설정을 바꿔야 한다.
+
+1. **권장** — Google Drive 환경설정에서 이 폴더의 동기화를 **끈다**(저장소는 GitHub 이
+   이미 원격이다. Drive 로 이중 백업할 이유가 약하고 위험이 크다).
+2. 그래도 동기화하겠다면 **최소한 `.git` 을 제외**한다.
+3. 저장소를 Drive 루트 **밖으로 옮긴다**.
+
+셋 중 하나를 하기 전에는 `Icon\r` 이 계속 재발하고 `check:fast` 가 첫 단계에서 막힌다.

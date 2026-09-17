@@ -255,6 +255,11 @@ environment 를 공유한다. namespace 는 의존성을 **보이게** 하려는
   (`settingsBtn`·`editorSettingsBtn`·`stTabAbout`·`settingsBack`).
   **닿을 수 없는 곳의 고지는 고지가 아니다.**
 
+⚠️ **이 작업 폴더는 Google Drive 동기화 루트다 — `Icon\r` 이 `.git` 안에 꽂힌다.**
+`git fsck` 가 `bad sha1 file: .git/objects/…/Icon` 으로 이름을 댄다. `npm run fix:icons` 는
+**증상만 지운다** — 원인은 Drive 설정이고 사람이 꺼야 한다(`REV-2026-074` 에 근거 넷).
+⚠️ **`.gitignore` 는 Drive 를 막지 못한다** — 저작물 `.hwp`·`.hwpx` 도 Drive 에 올라가 있다.
+
 **이 프로젝트에서 반복된 실패 방식** — 새로 만들기 전에 한 번 읽을 것:
 1. **검사가 다 초록불인데 결과물이 틀렸다.** 한글이 파일을 못 여는 것, 수식이 글자로
    찍히는 것, 표에 선이 없는 것 — 전부 검사를 통과했고 **화면을 봐야** 보였다.
