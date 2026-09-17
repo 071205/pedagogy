@@ -524,12 +524,16 @@ const DOCUMENT_SYSTEM_PROMPT = `너는 한국어 문서 조판 도우미다.
     { "type": "box", "label": "<보기>", "text": "테두리 상자.\\n줄바꿈으로 여러 줄" },
     { "type": "examples", "items": ["ㄱ에 올 내용", "ㄴ에 올 내용"] },
     { "type": "choices", "items": ["①에 올 선지", "②에 올 선지"], "layout": "auto" },
-    { "type": "table", "rows": [["머리글", "머리글"], ["값", "값"]], "header": true }
+    { "type": "table", "rows": [["머리글", "머리글"], ["값", "값"]], "header": true },
+    { "type": "footnote", "text": "바로 앞 문단에 달리는 각주" },
+    { "type": "pagebreak" }
   ]
 }
 
 규칙:
-- 지원하는 type만 쓴다: heading, paragraph, equation, bullets, numbered, quote.
+- 지원하는 type만 쓴다: heading, paragraph, equation, bullets, numbered, quote, footnote, pagebreak.
+- footnote는 **바로 앞 문단 끝**에 달린다. 글 가운데 지점은 가리키지 못하므로 각주를 달 문단
+  다음에 놓는다. pagebreak는 데이터가 없고, **뒤에 오는 내용이 새 쪽에서 시작**한다는 표시다.
 - heading level은 1, 2, 3 중 하나다. 표·이미지·HTML·HWPX/XML 블록은 만들지 않는다.
 - 사용자가 제공하지 않은 사실·출처·인용은 지어내지 않는다. 필요한 정보가 없으면 [확인 필요]라고 적는다.
 - 한국어 문장으로 쓰고, 본문은 읽기 좋은 짧은 문단으로 나눈다.
@@ -547,7 +551,9 @@ function validateDocumentResponse(document) {
   }
   for (const block of document.blocks) {
     if (!block || typeof block !== "object") throw new Error("AI 문서 블록 형식이 아닙니다");
-    if (["heading", "paragraph", "equation", "quote"].includes(block.type)) {
+    if (block.type === "pagebreak") {
+      // 데이터가 없는 표시 블록이다. 확인할 것이 없다.
+    } else if (["heading", "paragraph", "equation", "quote", "footnote"].includes(block.type)) {
       if (typeof block.text !== "string" || !block.text.trim() || block.text.length > 12_000) {
         throw new Error("AI 문서 텍스트가 유효하지 않습니다");
       }

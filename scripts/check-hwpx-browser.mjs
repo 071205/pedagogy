@@ -75,6 +75,12 @@ cases.push(["extra-blocks", {
     { type: "examples", label: "<자료>", items: ["첫째", "둘째", "셋째"] },
     { type: "box", label: null, text: "라벨 없는 상자" },
     { type: "quote", text: "인용 안의 수식 $e^{i\\pi}+1=0$" },
+    // 각주는 **앞 문단**에 매달리고 쪽나눔은 **다음 문단**의 속성이 된다.
+    // 양쪽이 그 '앞/뒤' 를 같은 자리로 잡는지까지 이 대조가 본다.
+    { type: "footnote", text: "인용에 붙는 각주" },
+    { type: "pagebreak" },
+    { type: "paragraph", text: "쪽나눔 뒤 문단" },
+    { type: "footnote", text: "둘째 각주 — 번호가 이어져야 한다" },
   ],
 }]);
 

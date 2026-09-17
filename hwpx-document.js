@@ -282,10 +282,19 @@
     const frame = doc.firstParagraphIsEmpty();
     emitRich(doc, docJson.title, report, styles,
              { para: "title", char: "title", where: "제목", into: frame ? 0 : null });
+    /* ⚠️ 쪽나눔은 **다음 문단**의 속성이다. 그 문단이 아직 없으므로 자리만 적어 두고
+       전부 방출한 뒤에 준다 — 빈 문단을 끼우면 새 쪽 맨 위에 빈 줄이 남는다.
+       파이썬 `pending_breaks` 의 사본이다. */
+    const pendingBreaks = [];
     docJson.blocks.forEach((block, index) => {
       const kind = block.type;
       const where = `${index + 1}번째 ${kind}`;
-      if (kind === "heading") {
+      if (kind === "pagebreak") {
+        pendingBreaks.push([doc.paragraphCount(), where]);
+      } else if (kind === "footnote") {
+        if (doc.paragraphCount() === 0) report.warnings.push(`${where}: 앞에 본문이 없어 각주를 달지 못했습니다`);
+        else doc.appendFootnote(block.text);
+      } else if (kind === "heading") {
         emitRich(doc, block.text, report, styles,
                  { para: "heading" + block.level, char: "heading" + block.level, where });
       } else if (kind === "paragraph") {
@@ -313,6 +322,10 @@
       }
       report.blocks += 1;
     });
+    for (const [at, where] of pendingBreaks) {
+      if (at < doc.paragraphCount()) doc.setPageBreak(at);
+      else report.warnings.push(`${where}: 뒤에 내용이 없어 쪽을 넘기지 않았습니다`);
+    }
     return { blob: await doc.toBlob(), report };
   }
 

@@ -204,6 +204,7 @@ class HwpxDocument:
     def __init__(self, parts: OrderedDict[str, _Part] | None = None):
         self._parts = parts if parts is not None else HwpxDocument.blank()._parts
         self._control = 1
+        self._footnote = 0
         # 표 칸 안 문단(hp:p)은 본문 문단과 **별도로 전체 문서에서 유일한 id**가 필요하다
         # (jakal-hwpx의 append_table()이 `.//hp:p/@id` 전체를 훑어 다음 번호를 매기는
         # 이유가 그것이다). 본문 문단은 섹션마다 0부터 다시 매기므로(`append_paragraph`),
@@ -366,6 +367,60 @@ class HwpxDocument:
 
     def append_inline_equation(self, script: str, **kwargs: object) -> None:
         self.append_equation(script, **kwargs)
+
+    def set_page_break(self, paragraph_index: int, *, section_index: int = 0) -> None:
+        """그 문단이 **새 쪽에서 시작**하게 한다(`docs/HWPX-ELEMENT-SPECS.md`).
+
+        ⚠️ 여기에 단나눔(`columnBreak`)까지 주지 말 것 — 한글이 **둘 다** 수행해
+        새 쪽의 왼쪽 단이 통째로 빈다. 쪽나눔은 그 자체로 새 쪽 첫 단에서 시작한다.
+        """
+        paragraphs = self._paragraphs(section_index)
+        if not 0 <= paragraph_index < len(paragraphs):
+            raise IndexError(f"쪽나눔을 줄 문단이 없습니다: {paragraph_index}")
+        paragraphs[paragraph_index].set("pageBreak", "1")
+        self._section(section_index).mark_modified()
+
+    def append_footnote(self, text: str, *, section_index: int = 0,
+                        paragraph_index: int | None = None, number: int | None = None,
+                        char_pr_id: str | None = None, note_para_pr_id: str = "10",
+                        note_style_id: str = "15", note_char_pr_id: str = "3") -> int:
+        """본문 문단 **끝에** 각주를 매단다. 붙인 번호를 돌려준다.
+
+        근거는 `docs/HWPX-ELEMENT-SPECS.md` — 생성한 표본이 한글에서 열리는 것을 확인한
+        구조다. ⚠️ **본문 run 안**(`<hp:t>` 뒤)에 `<hp:ctrl>` 로 들어간다. 새 run 을
+        만들지 않는다 — 실물이 그 모양이다.
+        ⚠️ 서식(구분선·간격·번호 방식)은 `secPr` 의 `<hp:footNotePr>` 에 **이미 있다.**
+        골격에 들어 있으므로 여기서 만들지 않는다.
+        ⚠️ 번호는 **두 곳**에 적는다 — `<hp:footNote number>` 와 `<hp:autoNum num>`.
+        """
+        paragraph = self._target_paragraph(section_index, paragraph_index, char_pr_id)
+        runs = [node for node in paragraph if _local(node) == "run"]
+        run = runs[-1] if runs else etree.SubElement(
+            paragraph, qn("hp", "run"), charPrIDRef=str(char_pr_id or "0"))
+        self._footnote += 1
+        num = self._footnote if number is None else number
+        self._control += 1
+        ctrl = etree.SubElement(run, qn("hp", "ctrl"))
+        note = etree.SubElement(ctrl, qn("hp", "footNote"), number=str(num),
+                                suffixChar="41", instid=str(1_000_000 + self._control))
+        sub = etree.SubElement(note, qn("hp", "subList"), id="", textDirection="HORIZONTAL",
+                               lineWrap="BREAK", vertAlign="TOP", linkListIDRef="0",
+                               linkListNextIDRef="0", textWidth="0", textHeight="0",
+                               hasTextRef="0", hasNumRef="0")
+        note_p = etree.SubElement(sub, qn("hp", "p"), paraPrIDRef=note_para_pr_id,
+                                  styleIDRef=note_style_id, pageBreak="0", columnBreak="0",
+                                  merged="0", id="0")
+        mark_run = etree.SubElement(note_p, qn("hp", "run"), charPrIDRef=note_char_pr_id)
+        mark_ctrl = etree.SubElement(mark_run, qn("hp", "ctrl"))
+        auto = etree.SubElement(mark_ctrl, qn("hp", "autoNum"), num=str(num), numType="FOOTNOTE")
+        etree.SubElement(auto, qn("hp", "autoNumFormat"), type="DIGIT", userChar="",
+                         prefixChar="", suffixChar=")", supscript="0")
+        body_run = etree.SubElement(note_p, qn("hp", "run"), charPrIDRef=note_char_pr_id)
+        body = etree.SubElement(body_run, qn("hp", "t"))
+        body.set(XML_SPACE, "preserve")
+        body.text = text
+        self._section(section_index).mark_modified()
+        return num
 
     def append_picture(self, name: str, data: bytes, *, section_index: int = 0,
                        paragraph_index: int | None = None, char_pr_id: str | None = None,

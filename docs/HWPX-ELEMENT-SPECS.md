@@ -39,7 +39,10 @@ print(sorted(els('/tmp/probe.hwpx') - els('experiments/hwp-export/templates/blan
 멀쩡히 열리고 검사도 전부 초록불인데 발문이 빈칸으로 인쇄되는** 결함이 이 단계에서만
 드러났다. 여는 것과 제대로 그려지는 것은 다른 문제다.
 
-## 알아낸 것
+## 알아낸 것 — 둘 다 **구현 완료**(2026-09-17)
+
+계약 블록 `pagebreak` · `footnote` 로 쓴다. 파이썬·JS 양쪽에 있고 `test:hwpx-browser` 가
+대조하며, 실물 한글로 PDF 를 뽑아 각주 표시·구분선·번호 이어짐·쪽 넘김을 눈으로 확인했다.
 
 ### 쪽 나눔 — 근거: 시험지 변환기(실물 PDF 로 확인)
 

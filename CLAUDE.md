@@ -1023,10 +1023,14 @@ section XML 을 통째로** 견준다(틀 읽기 22값 · 문단 13개 · 배치
 masterpage 전부 바이트까지 같다.** 오히려 **실물 틀로 뽑으면 결과물의 `Preview/` 에
 원본 2025 수능 문제 전문과 썸네일이 실려 나간다** — 결과물로 봐도 벗긴 틀이 낫다.
 
-- **계약이 제품이다.** `document_schema.py` 가 받는 블록만 조판된다. 지금 11종:
+- **계약이 제품이다.** `document_schema.py` 가 받는 블록만 조판된다. 지금 **13종**:
   `heading` `paragraph` `equation` `quote` `bullets` `numbered` `table` `image` `box`
-  `examples`(ㄱㄴㄷ 보기) `choices`(①②③④⑤ 선지).
-  아직 없는 것: 각주 · 쪽 나눔 · 머리말꼬리말 · 상자 안의 표·그림 · 지문(passage).
+  `examples`(ㄱㄴㄷ 보기) `choices`(①②③④⑤ 선지) · **`footnote`(각주) `pagebreak`(쪽 나눔)**.
+  ⚠️ **각주는 바로 앞 문단 끝에 붙는다** — 글 가운데 지점은 가리키지 못한다.
+  ⚠️ **쪽나눔은 다음 문단의 속성이다**(`pageBreak="1"`). 빈 문단을 끼우지 않는다 —
+  그러면 새 쪽 맨 위에 빈 줄이 남는다. 둘 다 실물 한글로 PDF 를 뽑아 확인했다.
+  아직 없는 것: 머리말꼬리말 · 상자 안의 표·그림 · 지문(passage) —
+  근거를 만드는 절차는 [`docs/HWPX-ELEMENT-SPECS.md`](docs/HWPX-ELEMENT-SPECS.md) 에 있다.
 - **엔진은 우리 것이다.** `pedagogy_hwpx.py` 가 HWPX 를 직접 만든다. 런타임 의존성은
   `lxml` 하나뿐이고, `test_internal_runtime.py` 가 `jakal_hwpx` import 를 막은 채로
   내보내기가 되는지 확인한다(예전에 그 라이브러리를 쓰다 걷어냈다).

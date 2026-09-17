@@ -60,6 +60,10 @@ EXAMPLE_BLOCKS = {"examples"}     # <보기> — ㄱㄴㄷ 항목
 CHOICE_BLOCKS = {"choices"}       # 선지 — ①②③④⑤
 MAX_EXAMPLES = 6                  # HGND 가 ㄱ~ㅂ 여섯 개다
 CHOICE_LAYOUTS = ("auto", "1", "2", "v")
+# 쪽 나눔은 데이터가 없는 표시 블록이고, 각주는 **앞 문단에 매달린다**
+# (근거와 XML 구조는 `docs/HWPX-ELEMENT-SPECS.md`).
+FLOW_BLOCKS = {"pagebreak"}
+NOTE_BLOCKS = {"footnote"}
 
 
 class DocumentValidationError(ValueError):
@@ -122,6 +126,12 @@ def validate(raw: Any) -> Document:
             if not isinstance(level, int) or isinstance(level, bool) or level not in (1, 2, 3):
                 raise DocumentValidationError(f"{where}.level은 1~3 정수여야 합니다")
             clean.append({"type": kind, "level": level, "text": _text(block.get("text"), f"{where}.text")})
+        elif kind in FLOW_BLOCKS:
+            # 데이터가 없다. 다음 내용이 새 쪽에서 시작한다는 표시뿐이다.
+            clean.append({"type": kind})
+        elif kind in NOTE_BLOCKS:
+            # ⚠️ 각주는 **바로 앞 문단 끝**에 붙는다. 글 가운데 지점을 가리키지는 못한다.
+            clean.append({"type": kind, "text": _text(block.get("text"), f"{where}.text")})
         elif kind in TEXT_BLOCKS:
             clean.append({"type": kind, "text": _text(block.get("text"), f"{where}.text")})
         elif kind in LIST_BLOCKS:

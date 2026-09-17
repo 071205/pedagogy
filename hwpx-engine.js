@@ -437,6 +437,7 @@
     constructor(parts) {
       this.parts = parts;               // Map<string, {bytes?:Uint8Array, xml?:XMLDocument}>
       this._control = 1;
+      this._footnote = 0;
       // 표 칸 문단은 본문 문단과 **전체 문서에서 겹치지 않는 id** 가 필요하다.
       this._cellPara = 900000;
     }
@@ -546,6 +547,48 @@
       const script_ = sub(eq, "hp:script");
       script_.setAttributeNS("http://www.w3.org/XML/1998/namespace", "xml:space", "preserve");
       script_.textContent = script;
+    }
+
+    /* 그 문단이 **새 쪽에서 시작**하게 한다. 파이썬 `set_page_break` 의 사본이다.
+       ⚠️ 단나눔까지 함께 주지 말 것 — 한글이 둘 다 수행해 새 쪽 왼쪽 단이 통째로 빈다. */
+    setPageBreak(paragraphIndex, { sectionIndex = 0 } = {}) {
+      const ps = this.paragraphs(sectionIndex);
+      if (!(paragraphIndex >= 0 && paragraphIndex < ps.length))
+        throw new Error("쪽나눔을 줄 문단이 없습니다: " + paragraphIndex);
+      ps[paragraphIndex].setAttribute("pageBreak", "1");
+    }
+
+    /* 본문 문단 끝에 각주를 매단다. 파이썬 `append_footnote` 의 사본이다.
+       근거는 `docs/HWPX-ELEMENT-SPECS.md` — 한글이 여는 것을 확인한 구조다.
+       ⚠️ 본문 run 안(`<hp:t>` 뒤)에 `<hp:ctrl>` 로 들어간다. 새 run 을 만들지 않는다.
+       ⚠️ 번호는 `<hp:footNote number>` 와 `<hp:autoNum num>` **두 곳**에 적는다. */
+    appendFootnote(text, { sectionIndex = 0, paragraphIndex, number, charPrId,
+                           noteParaPrId = "10", noteStyleId = "15", noteCharPrId = "3" } = {}) {
+      const p = this._targetParagraph(sectionIndex, paragraphIndex, charPrId);
+      const runs = [...p.childNodes].filter((n) => n.nodeType === 1 && n.localName === "run");
+      const run = runs.length ? runs[runs.length - 1]
+        : sub(p, "hp:run", { charPrIDRef: String(charPrId || "0") });
+      this._footnote += 1;
+      const num = number == null ? this._footnote : number;
+      this._control += 1;
+      const ctrl = sub(run, "hp:ctrl");
+      const note = sub(ctrl, "hp:footNote", { number: String(num), suffixChar: "41",
+                                              instid: String(1000000 + this._control) });
+      const list = sub(note, "hp:subList", { id: "", textDirection: "HORIZONTAL",
+        lineWrap: "BREAK", vertAlign: "TOP", linkListIDRef: "0", linkListNextIDRef: "0",
+        textWidth: "0", textHeight: "0", hasTextRef: "0", hasNumRef: "0" });
+      const notePara = sub(list, "hp:p", { paraPrIDRef: noteParaPrId, styleIDRef: noteStyleId,
+        pageBreak: "0", columnBreak: "0", merged: "0", id: "0" });
+      const markRun = sub(notePara, "hp:run", { charPrIDRef: noteCharPrId });
+      const auto = sub(sub(markRun, "hp:ctrl"), "hp:autoNum",
+                       { num: String(num), numType: "FOOTNOTE" });
+      sub(auto, "hp:autoNumFormat", { type: "DIGIT", userChar: "", prefixChar: "",
+                                      suffixChar: ")", supscript: "0" });
+      const bodyRun = sub(notePara, "hp:run", { charPrIDRef: noteCharPrId });
+      const t = sub(bodyRun, "hp:t");
+      t.setAttributeNS("http://www.w3.org/XML/1998/namespace", "xml:space", "preserve");
+      t.textContent = text;
+      return num;
     }
 
     appendPicture(name, data, { sectionIndex = 0, paragraphIndex, charPrId,

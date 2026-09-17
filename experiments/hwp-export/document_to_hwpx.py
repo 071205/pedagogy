@@ -324,9 +324,20 @@ def build(raw: object, output: str | Path) -> Report:
     frame = doc.first_paragraph_is_empty()
     emit_rich(doc, document.title, report, styles, para="title", char="title", where="제목",
               into=0 if frame else None)
+    # ⚠️ 쪽나눔은 **다음 문단**의 속성이다. 그 문단은 아직 없으므로 자리만 적어 두고
+    #    전부 방출한 뒤에 준다. 빈 문단을 하나 끼워 넣는 방법은 쓰지 않는다 —
+    #    새 쪽 맨 위에 빈 줄이 남는다.
+    pending_breaks: list[tuple[int, str]] = []
     for index, block in enumerate(document.blocks, 1):
         kind, where = block["type"], f"{index}번째 {block['type']}"
-        if kind == "heading":
+        if kind == "pagebreak":
+            pending_breaks.append((doc.paragraph_count(), where))
+        elif kind == "footnote":
+            if doc.paragraph_count() == 0:
+                report.warnings.append(f"{where}: 앞에 본문이 없어 각주를 달지 못했습니다")
+            else:
+                doc.append_footnote(block["text"])
+        elif kind == "heading":
             emit_rich(doc, block["text"], report, styles, para=f"heading{block['level']}",
                       char=f"heading{block['level']}", where=where)
         elif kind == "paragraph":
@@ -352,6 +363,11 @@ def build(raw: object, output: str | Path) -> Report:
                 prefix = f"{item_no}. " if mark is None else f"{mark} "
                 emit_rich(doc, prefix + item, report, styles, para="list", where=where)
         report.blocks += 1
+    for at, where in pending_breaks:
+        if at < doc.paragraph_count():
+            doc.set_page_break(at)
+        else:
+            report.warnings.append(f"{where}: 뒤에 내용이 없어 쪽을 넘기지 않았습니다")
     doc.save(output)
     return report
 

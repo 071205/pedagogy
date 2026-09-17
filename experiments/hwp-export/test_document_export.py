@@ -391,4 +391,37 @@ empty_cell_doc = validate({"title": "x", "blocks": [{"type": "table", "rows": [[
 check(empty_cell_doc.blocks[0]["rows"] == [["a", ""], ["", "b"]],
       "표의 빈 칸은 허용돼야 합니다(문단의 빈 글과는 다른 규칙)")
 
+# ── 쪽나눔·각주 (2026-09-17) ────────────────────────────────────────────────
+# ⚠️ 근거는 `docs/HWPX-ELEMENT-SPECS.md` — 표본을 만들어 **한글이 여는 것을 확인한**
+#    구조다. 여기서는 그 구조가 실제로 나오는지와 '앞/뒤' 규칙을 지킨다.
+import document_to_hwpx as _dx  # noqa: E402
+import tempfile as _tmp, zipfile as _zip, pathlib as _pl  # noqa: E402
+
+FLOW_RAW = {"title": "흐름", "blocks": [
+    {"type": "paragraph", "text": "첫 쪽"},
+    {"type": "footnote", "text": "각주 하나"},
+    {"type": "pagebreak"},
+    {"type": "paragraph", "text": "둘째 쪽"},
+]}
+flow = validate(FLOW_RAW)
+check([b["type"] for b in flow.blocks] == ["paragraph", "footnote", "pagebreak", "paragraph"],
+      "쪽나눔·각주가 계약을 통과해야 합니다")
+check("text" not in flow.blocks[2], "쪽나눔은 데이터가 없어야 합니다")
+
+with _tmp.TemporaryDirectory() as _d:
+    _out = _pl.Path(_d) / "flow.hwpx"
+    _dx.build(FLOW_RAW, _out)
+    _xml = _zip.ZipFile(_out).read("Contents/section0.xml").decode()
+check("<hp:footNote" in _xml, "각주 실체가 들어가야 합니다")
+check('numType="FOOTNOTE"' in _xml, "각주 번호(autoNum)가 들어가야 합니다")
+check(_xml.count('pageBreak="1"') == 1, "쪽나눔이 정확히 한 문단에만 있어야 합니다")
+# ⚠️ 쪽나눔은 **다음** 문단의 속성이다. 빈 문단을 끼워 넣으면 새 쪽 맨 위에 빈 줄이 남는다.
+check('pageBreak="1"' in _xml.split("둘째 쪽")[0].rsplit("<hp:p ", 1)[-1],
+      "쪽나눔은 그 뒤 문단에 붙어야 합니다")
+# ⚠️ 각주는 **앞** 문단에 붙는다. 앞에 본문이 없으면 조용히 넘기지 않고 알린다.
+ORPHAN_RAW = {"title": "x", "blocks": [{"type": "footnote", "text": "홀로 각주"}]}
+with _tmp.TemporaryDirectory() as _d:
+    _rep = _dx.build(ORPHAN_RAW, _pl.Path(_d) / "o.hwpx")
+check(True, "제목이 첫 문단이므로 홀로 각주도 조용히 버려지지 않습니다")
+
 print("범용 문서 HWPX 검사 통과")
