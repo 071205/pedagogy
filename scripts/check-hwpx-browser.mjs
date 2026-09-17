@@ -104,6 +104,10 @@ function signals(xml) {
     scripts: grab(sec, /<hp:script\b[^>]*>([\s\S]*?)<\/hp:script>/g).map(strip),
     paraCount: (sec.match(/<hp:p\b/g) || []).length,
     paraRefs: grab(sec, /<hp:p\b[^>]*paraPrIDRef="([^"]*)"/g),
+    /* ⚠️ `styleIDRef` 를 안 보고 있었다 — 그래서 각주 본문이 **각주(14)가 아니라
+       미주(15) 스타일**로 나가던 것을 이 대조가 놓쳤다. 두 스타일이 같은 paraPr·charPr
+       을 가리켜 `paraRefs` 로는 똑같아 보였고 PDF 로도 안 보였다. 빼지 말 것. */
+    styleRefs: grab(sec, /<hp:p\b[^>]*styleIDRef="([^"]*)"/g),
     charRefs: grab(sec, /<hp:run\b[^>]*charPrIDRef="([^"]*)"/g),
     tables: (sec.match(/<hp:tbl\b/g) || []).length,
     pictures: (sec.match(/<hp:pic\b/g) || []).length,
@@ -254,6 +258,104 @@ print(json.dumps({"browser": shape(sys.argv[1]), "python": shape(sys.argv[2])}))
       console.log(`      → ${outDir}/${name}-browser.hwpx · ${name}-python.hwpx`);
     }
   }
+
+  /* ── 검증기 자기검사 ───────────────────────────────────────────────────
+   * `strictValidate()` 는 **사용자에게 나가기 직전 마지막 관문**이다 — `toBlob()` 이 부른다.
+   * ⚠️ 예전에는 파이썬 `save()` 만 검사하고 브라우저는 아무것도 안 봤다. 그런데 실제로
+   *    사용자에게 나가는 것은 **브라우저 경로다.** 깨진 문서가 그대로 한글까지 가서
+   *    "파일을 읽거나 저장하는데 오류가 있습니다" 한 줄만 돌려받았다.
+   * ⚠️ **항상 통과하는 검사는 없느니만 못하다.** 그래서 고장을 심어 빨간불이 나는지 본다.
+   *    심는 고장은 전부 **XML 문법은 완벽한데 한글만 거부하는** 모양이다 — 파서로는
+   *    절대 안 잡히고 개수·참조를 세어야 보인다.
+   * ⚠️ 그리고 파이썬과 **같은 판정을 내는지**까지 본다. 검증기도 사본이라 갈라진다. */
+  const BREAK_LABELS = ["정상", "없는 스타일을 가리키는 문단", "itemCnt 가 실제와 다른 표",
+                        "규격이 금지한 itemCnt=0", "없는 글꼴을 가리키는 fontRef",
+                        "필수 파트가 빠짐"];
+
+  const jsVerdict = await page.evaluate(async (url) => {
+    const H = window.PedagogyHwpx;
+    const pick = (doc, prefix, name) => doc
+      .part(prefix === "hp" ? "Contents/section0.xml" : "Contents/header.xml")
+      .xml.getElementsByTagNameNS(H.NS[prefix], name)[0];
+    const BREAKS = {
+      "정상": () => {},
+      "없는 스타일을 가리키는 문단": (d) => pick(d, "hp", "p").setAttribute("styleIDRef", "9999"),
+      "itemCnt 가 실제와 다른 표": (d) => pick(d, "hh", "styles").setAttribute("itemCnt", "999"),
+      "규격이 금지한 itemCnt=0": (d) => pick(d, "hh", "charProperties").setAttribute("itemCnt", "0"),
+      "없는 글꼴을 가리키는 fontRef": (d) => pick(d, "hh", "fontRef").setAttribute("hangul", "9999"),
+      "필수 파트가 빠짐": (d) => d.parts.delete("version.xml"),
+    };
+    const out = {};
+    for (const [label, breakIt] of Object.entries(BREAKS)) {
+      const doc = await H.HwpxDocument.blank(url);
+      breakIt(doc);
+      try { doc.strictValidate(); out[label] = []; }
+      catch (e) { out[label] = String(e.message).split("; ").sort(); }
+    }
+    return out;
+  }, "experiments/hwp-export/templates/blank.hwpx");
+
+  const pyProbe = spawnSync(python, ["-c", `
+import json, sys
+sys.path.insert(0, ${JSON.stringify(expDir)})
+from pedagogy_hwpx import HwpxDocument, NS, qn
+
+TEMPLATE = ${JSON.stringify(join(expDir, "templates", "blank.hwpx"))}
+
+def head(d): return d.get_part("Contents/header.xml").element
+def body(d): return d.get_part("Contents/section0.xml").element
+
+BREAKS = {
+    "정상": lambda d: None,
+    "없는 스타일을 가리키는 문단": lambda d: next(body(d).iter(qn("hp", "p"))).set("styleIDRef", "9999"),
+    "itemCnt 가 실제와 다른 표": lambda d: head(d).find(".//hh:styles", namespaces=NS).set("itemCnt", "999"),
+    "규격이 금지한 itemCnt=0": lambda d: head(d).find(".//hh:charProperties", namespaces=NS).set("itemCnt", "0"),
+    "없는 글꼴을 가리키는 fontRef": lambda d: next(head(d).iter(qn("hh", "fontRef"))).set("hangul", "9999"),
+    "필수 파트가 빠짐": lambda d: d.remove_part("version.xml"),
+}
+out = {}
+for label, break_it in BREAKS.items():
+    doc = HwpxDocument.open(TEMPLATE)
+    break_it(doc)
+    try:
+        doc.strict_validate()
+        out[label] = []
+    except ValueError as e:
+        out[label] = sorted(str(e).split("; "))
+print(json.dumps(out, ensure_ascii=False))
+`], { encoding: "utf8" });
+  if (pyProbe.status !== 0) {
+    failures++;
+    console.log("  ❌ 검증기 자기검사 — 파이썬 쪽을 돌리지 못했습니다");
+    console.log("      " + String(pyProbe.stderr || "").trim().split("\n").slice(-1)[0]);
+  } else {
+    const pyVerdict = JSON.parse(pyProbe.stdout);
+    console.log("\n검증기 자기검사 — 고장을 심어 본다");
+    for (const label of BREAK_LABELS) {
+      const js = jsVerdict[label] || [];
+      const py = pyVerdict[label] || [];
+      const wantCaught = label !== "정상";
+      if (wantCaught && !js.length) {
+        failures++;
+        console.log(`  ❌ ${label} — 브라우저 검증이 **통과시켰습니다.** 이 검사는 헛돕니다`);
+        continue;
+      }
+      if (!wantCaught && js.length) {
+        failures++;
+        console.log(`  ❌ 정상 문서를 브라우저 검증이 거부합니다: ${js[0]}`);
+        continue;
+      }
+      if (JSON.stringify(js) !== JSON.stringify(py)) {
+        failures++;
+        console.log(`  ❌ ${label} — 브라우저와 파이썬의 판정이 다릅니다`);
+        console.log(`      브라우저: ${JSON.stringify(js).slice(0, 240)}`);
+        console.log(`      파이썬  : ${JSON.stringify(py).slice(0, 240)}`);
+        continue;
+      }
+      console.log(`  ✅ ${label}${wantCaught ? ` — 양쪽 모두 잡았습니다 (${js.length}건, 같은 말)` : " — 양쪽 모두 통과"}`);
+    }
+  }
+
 } finally {
   if (browser) await browser.close();
   server.kill();

@@ -380,10 +380,40 @@ class HwpxDocument:
         paragraphs[paragraph_index].set("pageBreak", "1")
         self._section(section_index).mark_modified()
 
+    # ⚠️ 각주 본문 문단의 스타일을 **이름으로 찾는다. 숫자를 박지 말 것.**
+    #    박아 뒀다가 실제로 틀렸다 — 우리 `blank.hwpx` 는 각주=14·미주=15 인데 코드는
+    #    15(미주)를 기본값으로 쓰고 있었다. 두 스타일이 같은 paraPr(10)·charPr(3) 을
+    #    가리켜서 **PDF 를 눈으로 봐도 드러나지 않았다.** 골격이 바뀌거나 다른 문서를
+    #    열면 그때 조용히 깨진다(시험지 틀에서 15 는 `머리쪽번호` 다).
+    _NOTE_STYLE_NAMES = {"footNote": ("각주", "Footnote"), "endNote": ("미주", "Endnote")}
+
+    def _note_style_refs(self, tag: str = "footNote") -> tuple[str, str, str]:
+        """(styleIDRef, paraPrIDRef, charPrIDRef) — 머리글의 스타일 표에서 이름으로 찾는다.
+
+        ⚠️ **못 찾으면 첫 스타일로 떨어진다.** 없는 id 를 가리키면 한글이 문서를 통째로
+           열지 못한다 — 모양이 조금 다른 것보다 못 여는 것이 훨씬 나쁘다.
+           `reference_validation_errors()` 가 그 끊어진 참조를 잡는 바로 그 경우다.
+        """
+        head = self.get_part("Contents/header.xml").element
+        styles = head.find(".//hh:styles", namespaces=NS)
+        entries = [s for s in (styles if styles is not None else [])
+                   if _local(s) == "style" and s.get("id") is not None]
+        if not entries:
+            return ("0", "0", "0")
+        wanted = self._NOTE_STYLE_NAMES[tag]
+        for style in entries:
+            if (style.get("name") in wanted) or (style.get("engName") in wanted):
+                return (style.get("id"), style.get("paraPrIDRef") or "0",
+                        style.get("charPrIDRef") or "0")
+        first = entries[0]
+        return (first.get("id"), first.get("paraPrIDRef") or "0",
+                first.get("charPrIDRef") or "0")
+
     def append_footnote(self, text: str, *, section_index: int = 0,
                         paragraph_index: int | None = None, number: int | None = None,
-                        char_pr_id: str | None = None, note_para_pr_id: str = "10",
-                        note_style_id: str = "15", note_char_pr_id: str = "3") -> int:
+                        char_pr_id: str | None = None, note_para_pr_id: str | None = None,
+                        note_style_id: str | None = None,
+                        note_char_pr_id: str | None = None) -> int:
         """본문 문단 **끝에** 각주를 매단다. 붙인 번호를 돌려준다.
 
         근거는 `docs/HWPX-ELEMENT-SPECS.md` — 생성한 표본이 한글에서 열리는 것을 확인한
@@ -392,7 +422,12 @@ class HwpxDocument:
         ⚠️ 서식(구분선·간격·번호 방식)은 `secPr` 의 `<hp:footNotePr>` 에 **이미 있다.**
         골격에 들어 있으므로 여기서 만들지 않는다.
         ⚠️ 번호는 **두 곳**에 적는다 — `<hp:footNote number>` 와 `<hp:autoNum num>`.
+        ⚠️ 각주 본문 스타일은 `_note_style_refs()` 가 **이름으로** 찾는다(위 경고 참고).
         """
+        style_id, para_pr_id, note_char = self._note_style_refs("footNote")
+        note_style_id = style_id if note_style_id is None else note_style_id
+        note_para_pr_id = para_pr_id if note_para_pr_id is None else note_para_pr_id
+        note_char_pr_id = note_char if note_char_pr_id is None else note_char_pr_id
         paragraph = self._target_paragraph(section_index, paragraph_index, char_pr_id)
         runs = [node for node in paragraph if _local(node) == "run"]
         run = runs[-1] if runs else etree.SubElement(

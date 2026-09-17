@@ -31,6 +31,32 @@
     opf: "http://www.idpf.org/2007/opf/",
   };
 
+  /* 아래 네 표는 파이썬 `PedagogyHwpx` 의 사본이다 — 한쪽만 고치지 말 것.
+     `_SECTION_REFS` · `_HEADER_REFS` · `item_count_errors()` 의 목록 · 필수 부품. */
+  const SECTION_REFS = [
+    ["run", "charPrIDRef", "charProperties", "charPr"],
+    ["p", "paraPrIDRef", "paraProperties", "paraPr"],
+    ["p", "styleIDRef", "styles", "style"],
+    ["tbl", "borderFillIDRef", "borderFills", "borderFill"],
+    ["tc", "borderFillIDRef", "borderFills", "borderFill"],
+  ];
+  const HEADER_REFS = [
+    ["paraPr", "tabPrIDRef", "tabProperties", "tabPr"],
+    ["style", "paraPrIDRef", "paraProperties", "paraPr"],
+    ["style", "charPrIDRef", "charProperties", "charPr"],
+  ];
+  const ITEM_COUNTS = [
+    ["fontfaces", "fontface"], ["borderFills", "borderFill"],
+    ["charProperties", "charPr"], ["tabProperties", "tabPr"],
+    ["numberings", "numbering"], ["paraProperties", "paraPr"],
+    ["styles", "style"], ["bullets", "bullet"],
+  ];
+  const REQUIRED_PARTS = ["Contents/content.hpf", "Contents/header.xml",
+                          "Contents/section0.xml", "mimetype", "version.xml"];
+
+  /* 파이썬 `PedagogyHwpx._NOTE_STYLE_NAMES` 의 사본이다 — 한쪽만 고치지 말 것. */
+  const NOTE_STYLE_NAMES = { footNote: ["각주", "Footnote"], endNote: ["미주", "Endnote"] };
+
   const MM_TO_HWPUNIT = 7200 / 25.4;
   const MARKS = ["①", "②", "③", "④", "⑤"];        // 선지
   const HGND = ["ㄱ", "ㄴ", "ㄷ", "ㄹ", "ㅁ", "ㅂ"];   // <보기> 항목
@@ -562,8 +588,31 @@
        근거는 `docs/HWPX-ELEMENT-SPECS.md` — 한글이 여는 것을 확인한 구조다.
        ⚠️ 본문 run 안(`<hp:t>` 뒤)에 `<hp:ctrl>` 로 들어간다. 새 run 을 만들지 않는다.
        ⚠️ 번호는 `<hp:footNote number>` 와 `<hp:autoNum num>` **두 곳**에 적는다. */
+    /* 각주 본문 문단의 스타일을 **이름으로 찾는다. 숫자를 박지 말 것.**
+       박아 뒀다가 실제로 틀렸다 — `blank.hwpx` 는 각주=14·미주=15 인데 코드는 15(미주)를
+       기본값으로 쓰고 있었다. 두 스타일이 같은 paraPr(10)·charPr(3) 을 가리켜 **PDF 를
+       눈으로 봐도 드러나지 않았다.**
+       ⚠️ 못 찾으면 **첫 스타일로 떨어진다** — 없는 id 를 가리키면 한글이 문서를 통째로
+       열지 못한다. 모양이 조금 다른 것보다 못 여는 것이 훨씬 나쁘다. */
+    _noteStyleRefs(tag) {
+      const head = this.part("Contents/header.xml").xml;
+      const styles = firstByLocal(head.documentElement, "hh", "styles");
+      const entries = styles ? childrenOf(styles, "hh", "style").filter((s) => s.getAttribute("id") != null) : [];
+      if (!entries.length) return { styleId: "0", paraPrId: "0", charPrId: "0" };
+      const wanted = NOTE_STYLE_NAMES[tag];
+      const pick = entries.find((s) => wanted.includes(s.getAttribute("name"))
+                                    || wanted.includes(s.getAttribute("engName"))) || entries[0];
+      return { styleId: pick.getAttribute("id"),
+               paraPrId: pick.getAttribute("paraPrIDRef") || "0",
+               charPrId: pick.getAttribute("charPrIDRef") || "0" };
+    }
+
     appendFootnote(text, { sectionIndex = 0, paragraphIndex, number, charPrId,
-                           noteParaPrId = "10", noteStyleId = "15", noteCharPrId = "3" } = {}) {
+                           noteParaPrId, noteStyleId, noteCharPrId } = {}) {
+      const refs = this._noteStyleRefs("footNote");
+      if (noteStyleId == null) noteStyleId = refs.styleId;
+      if (noteParaPrId == null) noteParaPrId = refs.paraPrId;
+      if (noteCharPrId == null) noteCharPrId = refs.charPrId;
       const p = this._targetParagraph(sectionIndex, paragraphIndex, charPrId);
       const runs = [...p.childNodes].filter((n) => n.nodeType === 1 && n.localName === "run");
       const run = runs.length ? runs[runs.length - 1]
@@ -725,7 +774,159 @@
       return value;
     }
 
+    /** 파이썬 `append_inline_equation` 의 사본 — 그쪽도 `append_equation` 의 별칭이다. */
+    appendInlineEquation(script, options) { return this.appendEquation(script, options); }
+
+    /* ══ 검증 ══════════════════════════════════════════════════════════
+     * 파이썬 엔진의 검증을 옮긴 것이다.
+     * ⚠️ **사용자에게 실제로 나가는 것은 이 브라우저 경로다.** 파이썬 `save()` 만
+     *    검사하고 여기를 비워 두면, 깨진 문서가 아무 검사 없이 사용자 한글까지 가서
+     *    **"파일을 읽거나 저장하는데 오류가 있습니다" 한 줄**만 돌려받는다 — 한글은
+     *    어디가 문제인지 말하지 않는다. 그 진단을 우리가 대신 내는 것이 이 코드다.
+     */
+    _sectionPaths() {
+      return [...this.parts.keys()]
+        .filter((p) => p.startsWith("Contents/section") && p.endsWith(".xml"));
+    }
+
+    /** 머리글의 참조 표에 실제로 있는 id 들. 표 자체가 없으면 null. */
+    _headerIds(collection, item) {
+      const head = this.part("Contents/header.xml").xml.documentElement;
+      const node = firstByLocal(head, "hh", collection);
+      if (!node) return null;
+      const ids = new Set();
+      for (const child of childrenOf(node, "hh", item)) {
+        const id = child.getAttribute("id");
+        if (id != null) ids.add(id);
+      }
+      return ids;
+    }
+
+    validationErrors() {
+      return REQUIRED_PARTS.filter((p) => !this.parts.has(p)).map((p) => "missing " + p);
+    }
+
+    /** 참조표의 `itemCnt` 가 실제 자식 수와 맞는가.
+     *  ⚠️ 한글이 문서를 못 열던 진짜 원인이 이것이었다 — `<styles itemCnt="1"/>` 라고
+     *     **선언만 하고 안이 비어** 있었다. XML 문법은 완벽해 파서로는 절대 안 잡힌다. */
+    itemCountErrors() {
+      const head = this.part("Contents/header.xml").xml.documentElement;
+      const errors = [];
+      for (const [collection, item] of ITEM_COUNTS) {
+        const node = firstByLocal(head, "hh", collection);
+        if (!node) continue;
+        const declared = node.getAttribute("itemCnt");
+        if (declared == null) continue;
+        const actual = childrenOf(node, "hh", item).length;
+        if (Number(declared) !== actual) {
+          errors.push(collection + " 의 itemCnt 는 " + declared + " 인데 실제 " + item
+            + " 은 " + actual + "개입니다 — 선언과 내용이 다르면 한글이 문서를 열지 못합니다");
+        }
+        /* ⚠️ KS X 6101(OWPML) 9.3.2.1 — `itemCnt` 는 positiveInteger 다.
+           빈 표를 자리만 만들어 두면 규격 위반이고, 실제로 한글이 열지 못했다. */
+        if (Number(declared) < 1) {
+          errors.push(collection + " 의 itemCnt 가 " + declared + " 입니다 — 규격(KS X 6101)은 "
+            + "1 이상만 허용합니다. 쓰지 않는 표는 빈 채로 두지 말고 빼야 합니다");
+        }
+      }
+      return errors;
+    }
+
+    /** 오류는 아니지만 의심스러운 참조.
+     *  ⚠️ 참조표가 **통째로 없는데** 가리키는 경우는 오류로 보지 않는다 — 그런 문서를
+     *     한글이 멀쩡히 여는 것을 확인했다. 오류로 막으면 정상 문서를 거부하게 된다. */
+    referenceWarnings() {
+      const warnings = new Set();
+      for (const [scope, refs] of [["본문", SECTION_REFS], ["머리글", HEADER_REFS]]) {
+        const roots = scope === "본문"
+          ? this._sectionPaths().map((path) => this.part(path).xml.documentElement)
+          : [this.part("Contents/header.xml").xml.documentElement];
+        const prefix = scope === "본문" ? "hp" : "hh";
+        for (const [tag, attribute, collection, item] of refs) {
+          if (this._headerIds(collection, item) !== null) continue;
+          for (const root of roots) {
+            const nodes = Array.from(root.getElementsByTagNameNS(NS[prefix], tag));
+            if (nodes.some((n) => n.getAttribute(attribute) != null)) {
+              warnings.add(scope + "의 <" + tag + " " + attribute + "> 가 가리키는 "
+                + collection + " 표가 문서에 없습니다");
+              break;
+            }
+          }
+        }
+      }
+      return [...warnings].sort();
+    }
+
+    referenceValidationErrors() {
+      const errors = [];
+      const hpf = this.part("Contents/content.hpf").xml.documentElement;
+      for (const node of Array.from(hpf.getElementsByTagNameNS(NS.opf, "item"))) {
+        const href = node.getAttribute("href");
+        if (href != null && !this.parts.has(href)) {
+          errors.push("manifest references missing part: " + href);
+        }
+      }
+      errors.push(...this.itemCountErrors());
+
+      const tables = new Map();
+      for (const [, , collection, item] of [...SECTION_REFS, ...HEADER_REFS]) {
+        if (!tables.has(collection)) tables.set(collection, this._headerIds(collection, item));
+      }
+      const check = (scope, root, refs) => {
+        const prefix = scope === "본문" ? "hp" : "hh";
+        for (const [tag, attribute, collection] of refs) {
+          const known = tables.get(collection);
+          if (known == null) continue;   // 표가 통째로 없는 것은 경고로만 본다(위 참고)
+          for (const node of Array.from(root.getElementsByTagNameNS(NS[prefix], tag))) {
+            const value = node.getAttribute(attribute);
+            if (value != null && !known.has(value)) {
+              errors.push(scope + '의 <' + tag + ' ' + attribute + '="' + value + '">가 '
+                + collection + " 에 없는 id 를 가리킵니다");
+            }
+          }
+        }
+      };
+      for (const path of this._sectionPaths()) {
+        check("본문", this.part(path).xml.documentElement, SECTION_REFS);
+      }
+      const head = this.part("Contents/header.xml").xml.documentElement;
+      check("머리글", head, HEADER_REFS);
+
+      /* 글꼴 참조는 위 규칙에 안 맞는다 — `<hh:fontRef hangul="0" latin="0" …/>` 처럼
+         **언어마다 속성이 따로** 있고 각각 그 언어의 `<hh:fontface lang="…">` 안을
+         가리킨다. 원래 깨져 있던 것이 정확히 이 참조였으므로 따로 센다. */
+      const faces = firstByLocal(head, "hh", "fontfaces");
+      if (faces) {
+        const byLang = new Map();
+        for (const face of childrenOf(faces, "hh", "fontface")) {
+          const ids = new Set();
+          for (const font of childrenOf(face, "hh", "font")) {
+            const id = font.getAttribute("id");
+            if (id != null) ids.add(id);
+          }
+          byLang.set((face.getAttribute("lang") || "").toUpperCase(), ids);
+        }
+        for (const ref of Array.from(head.getElementsByTagNameNS(NS.hh, "fontRef"))) {
+          for (const attr of Array.from(ref.attributes)) {
+            const known = byLang.get(attr.name.toUpperCase());
+            if (!known || !known.has(attr.value)) {
+              errors.push('머리글의 <fontRef ' + attr.name + '="' + attr.value + '">가 '
+                + "fontface lang=" + attr.name.toUpperCase() + " 에 없는 글꼴을 가리킵니다");
+            }
+          }
+        }
+      }
+      // 같은 원인이 수십 번 반복되면 읽기 어렵다. 종류별로 한 줄씩만 남긴다.
+      return [...new Set(errors)];
+    }
+
+    strictValidate() {
+      const errors = this.validationErrors().concat(this.referenceValidationErrors());
+      if (errors.length) throw new Error(errors.join("; "));
+    }
+
     async toBlob() {
+      this.strictValidate();
       const encoder = new TextEncoder();
       const files = new Map();
       for (const [name, part] of this.parts) {
