@@ -322,6 +322,17 @@
     return out;
   }
 
+  /** 첨자 앞에 붙을 밑글자가 이미 나왔는가. 파이썬 `_has_base` 의 사본이다. */
+
+  function hasBase(out) {
+
+    const tail = out.join("").replace(/\s+$/, "");
+
+    return !!tail && !"{([,".includes(tail[tail.length - 1]);
+
+  }
+
+
   function texToHwp(tex) {
     const out = [];
     let i = 0;
@@ -333,6 +344,9 @@
         if (c === "^" || c === "_") {
           // ⚠️ 첨자 범위를 반드시 중괄호로 묶는다. `x^2-a` 를 그대로 옮기면 HWP 가
           //    뒤를 더 먹어 x^(2−a) 로 조판한다 — 수식이 조용히 다른 뜻이 된다.
+          // ⚠️ HWP 는 첨자 앞에 밑글자를 요구한다. 조합·순열의 앞머리 아래첨자
+          //    (₆C₂)처럼 없으면 한글이 수식 전체를 빈 것으로 조판한다(실물로 확인).
+          if (!hasBase(out)) out.push("{}");
           const [arg, next] = readGroup(tex, i + 1);
           out.push(c + "{" + texToHwp(arg) + "}");
           i = next; continue;

@@ -163,6 +163,12 @@ def _split_top(body: str, sep: str) -> list[str]:
     return out
 
 
+
+def _has_base(out: list[str]) -> bool:
+    """첨자 앞에 붙을 밑글자가 이미 나왔는가. 없으면 HWP 가 수식을 통째로 버린다."""
+    tail = "".join(out).rstrip()
+    return bool(tail) and tail[-1] not in "{([,"
+
 def convert(tex: str) -> str:
     """LaTeX 수식 한 덩어리를 HWP 수식 스크립트로 바꾼다."""
     out: list[str] = []
@@ -182,6 +188,13 @@ def convert(tex: str) -> str:
                 #    LaTeX 의 `x^2-a` 는 x²−a 지만, 그대로 옮기면 HWP 는 `^` 가 뒤를 더
                 #    먹어 x^(2−a) 로 조판한다(한글에서 실제로 그렇게 나왔다).
                 #    수식이 조용히 다른 뜻이 되는 종류의 버그라 예외 없이 묶는다.
+                # ⚠️ **HWP 는 첨자 앞에 밑글자를 요구한다.** 조합·순열의 앞머리
+                #    아래첨자(`_6\\mathrm{C}_2` → ₆C₂)처럼 밑글자가 없으면 한글이
+                #    **수식 전체를 빈 것으로 조판한다** — 오류도 안 낸다.
+                #    실물 한글로 네 후보를 재 봤다(`{}` · `""` · `~` · 없음):
+                #    빈 중괄호가 간격을 벌리지 않고 제 모양을 낸다.
+                if not _has_base(out):
+                    out.append("{}")
                 arg, i = _read_group(tex, i + 1)
                 out.append(c + "{" + convert(arg) + "}")
                 continue

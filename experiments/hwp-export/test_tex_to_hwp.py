@@ -175,6 +175,19 @@ try:
 except UnsupportedTex:
     check("닫히지 않은 중괄호에 예외", True)
 
+print("\n[6] 첨자 앞에 밑글자가 없으면 한글이 수식을 통째로 버린다")
+# ⚠️ 이건 **실물 한글로 재서** 나온 규칙이다(2026-09-17). `_{6}rm {C}_{2}` 는 오류도 없이
+#    빈 것으로 조판됐고, 빈 중괄호를 밑글자로 세운 `{}_{6}rm {C}_{2}` 만 ₆C₂ 가 나왔다.
+#    조합·순열은 확률과 통계에서 계속 나오므로 발문이 통째로 빈칸이 됐다.
+check("조합 ₆C₂ 앞에 빈 밑글자", convert(r"_6\mathrm{C}_2").startswith("{}"),
+      convert(r"_6\mathrm{C}_2"))
+check("순열 ₅P₂ 앞에 빈 밑글자", convert(r"_5\mathrm{P}_2").startswith("{}"),
+      convert(r"_5\mathrm{P}_2"))
+check("이미 있으면 덧붙이지 않는다", convert(r"{}_6\mathrm{C}_2").count("{}") == 1,
+      convert(r"{}_6\mathrm{C}_2"))
+check("밑글자가 있으면 그대로", convert("x_6") == "x_{6}", convert("x_6"))
+check("sum 뒤 첨자는 그대로", "{}" not in convert(r"\sum_{k=1}^{5}"), convert(r"\sum_{k=1}^{5}"))
+
 print()
 if fails:
     print(f"실패 {len(fails)}건 / 통과 {passes}건")
