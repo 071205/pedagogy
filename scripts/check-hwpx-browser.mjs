@@ -83,6 +83,16 @@ cases.push(["extra-blocks", {
     { type: "footnote", text: "둘째 각주 — 번호가 이어져야 한다" },
   ],
 }]);
+/* 머리말·꼬리말은 블록이 아니라 **문서 수준 값**이라 위 표본에 섞이지 않는다.
+   ⚠️ 붙는 자리가 흐름 밖(첫 문단의 secPr run)이라 문단 수·글자 조각만 봐서는 갈라진 것을
+      못 본다 — 그래서 `signals()` 가 머리말 상자를 따로 뽑는다. */
+cases.push(["page-notes", {
+  version: 1,
+  title: "머리말·꼬리말",
+  header: "PEDAGOGY 머리말",
+  footer: "PEDAGOGY 꼬리말",
+  blocks: [{ type: "paragraph", text: "본문 한 줄" }],
+}]);
 
 /* ── 결과에서 뽑아낼 신호 ─────────────────────────────────────────────────
  * 조판 결과를 실제로 결정하는 것들만 본다. 직렬화 차이(속성 순서·공백)는 무시한다. */
@@ -116,6 +126,19 @@ function signals(xml) {
     paraPrCount: (head.match(/<hh:paraPr\b/g) || []).length,
     borderFills: (head.match(/<hh:borderFill\b/g) || []).length,
     borderRefs: grab(head, /<hh:border\b[^>]*borderFillIDRef="([^"]*)"/g),
+    /* 머리말·꼬리말 — **어디에 붙었는지까지** 본다.
+       ⚠️ `secPr` 안에 사본을 두고 `<hp:headerApply>` 로 가리키면 한글이 파일은 열어 주고
+          **아무것도 찍지 않는다**(2026-09-17 실측). 그래서 개수만 세지 않고 자리를 함께 본다. */
+    pageNotes: [...sec.matchAll(/<hp:(header|footer)\b[^>]*applyPageType="([^"]*)"[^>]*>[\s\S]*?<\/hp:\1>/g)]
+      .map((m) => `${m[1]}:${m[2]}:${(m[0].match(/vertAlign="([^"]*)"/) || [])[1]}`
+                + `:${(m[0].match(/textWidth="([^"]*)"/) || [])[1]}`
+                + `:${(m[0].match(/textHeight="([^"]*)"/) || [])[1]}`
+                + `:${strip((m[0].match(/<hp:t\b[^>]*>([\s\S]*?)<\/hp:t>/) || [])[1] || "")}`
+                /* ⚠️ 글자 모양 참조까지 본다. 안 보면 머리말이 **본문이 아니라 제목
+                   모양(19pt)** 으로 나가던 것을 놓친다 — 각주가 미주 스타일로 나가던
+                   REV-2026-094 와 같은 종류다(REV-2026-096). */
+                + `:${(m[0].match(/<hp:run\b[^>]*charPrIDRef="([^"]*)"/) || [])[1]}`),
+    pageNoteApplies: (sec.match(/<hp:(headerApply|footerApply)\b/g) || []).length,
     manifestItems: (hpf.match(/<opf:item\b/g) || []).length,
   };
 }

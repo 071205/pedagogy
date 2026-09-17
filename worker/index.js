@@ -514,6 +514,8 @@ const DOCUMENT_SYSTEM_PROMPT = `너는 한국어 문서 조판 도우미다.
 {
   "version": 1,
   "title": "문서 제목",
+  "header": "쪽 위에 반복될 머리말(필요 없으면 이 줄을 뺀다)",
+  "footer": "쪽 아래에 반복될 꼬리말(필요 없으면 이 줄을 뺀다)",
   "blocks": [
     { "type": "heading", "level": 1, "text": "제목글" },
     { "type": "paragraph", "text": "문단" },
@@ -534,6 +536,8 @@ const DOCUMENT_SYSTEM_PROMPT = `너는 한국어 문서 조판 도우미다.
 - 지원하는 type만 쓴다: heading, paragraph, equation, bullets, numbered, quote, footnote, pagebreak.
 - footnote는 **바로 앞 문단 끝**에 달린다. 글 가운데 지점은 가리키지 못하므로 각주를 달 문단
   다음에 놓는다. pagebreak는 데이터가 없고, **뒤에 오는 내용이 새 쪽에서 시작**한다는 표시다.
+- header·footer는 블록이 아니라 문서 전체에 걸리는 값이고 **각각 120자 이하 한 줄**이다.
+  사용자가 머리말·꼬리말을 달라고 했을 때만 넣고, 아니면 그 줄을 아예 뺀다.
 - heading level은 1, 2, 3 중 하나다. 표·이미지·HTML·HWPX/XML 블록은 만들지 않는다.
 - 사용자가 제공하지 않은 사실·출처·인용은 지어내지 않는다. 필요한 정보가 없으면 [확인 필요]라고 적는다.
 - 한국어 문장으로 쓰고, 본문은 읽기 좋은 짧은 문단으로 나눈다.
@@ -548,6 +552,15 @@ function validateDocumentResponse(document) {
   }
   if (!Array.isArray(document.blocks) || !document.blocks.length || document.blocks.length > 180) {
     throw new Error("AI 문서 블록이 유효하지 않습니다");
+  }
+  // 머리말·꼬리말은 블록이 아니라 문서 수준 값이다. 없어도 되고, 있으면 짧은 글이어야
+  // 한다 — 계약(`document_schema.py` 의 MAX_PAGE_NOTE)과 같은 120자다.
+  for (const field of ["header", "footer"]) {
+    const value = document[field];
+    if (value === undefined || value === null) continue;
+    if (typeof value !== "string" || value.length > 120) {
+      throw new Error("AI 문서 머리말·꼬리말이 유효하지 않습니다");
+    }
   }
   for (const block of document.blocks) {
     if (!block || typeof block !== "object") throw new Error("AI 문서 블록 형식이 아닙니다");

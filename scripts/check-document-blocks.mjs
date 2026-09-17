@@ -1,11 +1,17 @@
-/* 범용 문서 블록이 **네 경계에서 함께** 늘어났는가 — 베타
+/* 범용 문서 블록이 **다섯 경계에서 함께** 늘어났는가 — 베타
  *
- * 새 블록 하나는 네 곳을 동시에 고쳐야 실제로 쓸 수 있다:
+ * 새 블록 하나는 다섯 곳을 동시에 고쳐야 실제로 쓸 수 있다:
  *
  *   ① `document_schema.py`      — 조판 계약(무엇을 받아 HWPX 로 만드는가)
  *   ② `worker/index.js` 프롬프트 — AI 에게 무엇을 만들라고 하는가
  *   ③ `worker/index.js` 검증     — AI 응답에서 무엇을 받아들이는가
- *   ④ `document-editor.html`     — 브라우저 검증·미리보기
+ *   ④ `document-editor.html` 의 `validate()`  — 브라우저 검증
+ *   ⑤ `document-editor.html` 의 `render()`    — 브라우저 미리보기
+ *
+ * ⚠️ **④ 와 ⑤ 를 한 칸으로 세지 말 것.** 예전에는 `validate()` 만 봤고, 그래서
+ *    `pagebreak`·`footnote` 가 계약·Worker·조판기에는 들어갔는데 **미리보기에서만
+ *    빠진 채로 검사가 초록불이었다.** 그 둘을 넣으면 `render()` 의 마지막 `else` 가
+ *    목록 블록으로 보고 `b.items` 를 훑어 **미리보기가 통째로 죽었다**(REV-2026-095).
  *
  * 한 곳만 늘리면 **AI 가 정확히 만들어도 Worker 가 502 로 버리고, 사용자가 JSON 으로
  * 직접 넣어도 브라우저에서 막힌다.** 실제로 그렇게 됐다(REV-2026-013) — 조판기와 계약만
@@ -64,13 +70,24 @@ const editorBlocks = new Set([
     .flatMap((m) => [...m[1].matchAll(/"([a-z]+)"/g)].map((x) => x[1])),
 ]);
 
+/** ⑤ 브라우저 — render() 가 **그리는** type. validate() 와 별개로 봐야 한다.
+ *  ⚠️ 통과하는 것과 그려지는 것은 다른 문제다 — 그래서 두 표면을 따로 읽는다. */
+const renderFn = editor.slice(editor.indexOf("function render(doc)"));
+const renderBody = renderFn.slice(0, renderFn.indexOf("\nfunction "));
+const renderBlocks = new Set([
+  ...[...renderBody.matchAll(/b\.type\s*===\s*"([a-z]+)"/g)].map((m) => m[1]),
+  ...[...renderBody.matchAll(/\[([^\]]*)\]\.includes\(b\.type\)/g)]
+    .flatMap((m) => [...m[1].matchAll(/"([a-z]+)"/g)].map((x) => x[1])),
+]);
+
 const show = (s) => [...s].sort().join(", ") || "(없음)";
 const missing = (want, have) => [...want].filter((b) => !have.has(b)).sort();
 
 const aiExpected = new Set([...contract].filter((b) => !AI_CANNOT_PRODUCE.has(b)));
 
 const gaps = [
-  ["브라우저 검증(document-editor.html)", missing(contract, editorBlocks), contract],
+  ["브라우저 검증(document-editor.html 의 validate)", missing(contract, editorBlocks), contract],
+  ["브라우저 미리보기(document-editor.html 의 render)", missing(contract, renderBlocks), contract],
   ["Worker 검증(validateDocumentResponse)", missing(aiExpected, workerBlocks), aiExpected],
   ["Worker 프롬프트(DOCUMENT_SYSTEM_PROMPT)", missing(aiExpected, promptBlocks), aiExpected],
 ];
@@ -94,8 +111,8 @@ if (extra.length) {
 }
 
 if (failed) {
-  console.error("\n새 블록은 계약·Worker 프롬프트·Worker 검증·브라우저 네 곳을 함께 고쳐야 "
-    + "실제로 쓸 수 있습니다 (REV-2026-013).");
+  console.error("\n새 블록은 계약·Worker 프롬프트·Worker 검증·브라우저 검증·브라우저 "
+    + "미리보기 다섯 곳을 함께 고쳐야 실제로 쓸 수 있습니다 (REV-2026-013 · REV-2026-095).");
   process.exit(1);
 }
 console.log(`문서 블록 경계 일치 — 계약 ${contract.size}종 `

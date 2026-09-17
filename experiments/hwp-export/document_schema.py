@@ -4,7 +4,9 @@ AI에게 HWPX/XML을 직접 만들게 하지 않는다. 이 계약을 통과한 
 HWPX 조판기로 넘긴다. 새 블록을 추가할 때는 여기와 두 출력기를 함께 확장해야 한다.
 
 지원 블록: heading·paragraph·equation·quote·bullets·numbered·table·image·box
-          ·examples(<보기> ㄱㄴㄷ)·choices(선지 ①②③④⑤).
+          ·examples(<보기> ㄱㄴㄷ)·choices(선지 ①②③④⑤)·pagebreak·footnote.
+
+문서 수준 값(블록이 아니다): title·header(머리말)·footer(꼬리말).
 
 표 칸 안에는 수식을 넣을 수 없다(`_cell_text` 가 `$` 를 거절한다) — 조용히 글자 그대로
 찍히면 사용자가 렌더된 줄 착각한다.
@@ -31,6 +33,8 @@ from pedagogy_hwpx import MARKS, image_size  # noqa: E402
 
 
 MAX_TITLE = 180
+# 머리말·꼬리말은 쪽마다 한 줄로 앉는다 — 제목만큼 길 이유가 없다.
+MAX_PAGE_NOTE = 120
 MAX_BLOCKS = 180
 MAX_TEXT = 12_000
 MAX_ITEMS = 80
@@ -74,9 +78,18 @@ class DocumentValidationError(ValueError):
 class Document:
     title: str
     blocks: list[dict[str, Any]]
+    # ⚠️ 머리말·꼬리말은 **블록이 아니다.** 글의 흐름에 끼는 것이 아니라 구역 전체에
+    #    걸리는 문서 수준 값이라 최상위에 둔다(한글도 구역당 하나로 모델링한다).
+    header: str | None = None
+    footer: str | None = None
 
     def as_dict(self) -> dict[str, Any]:
-        return {"version": 1, "title": self.title, "blocks": self.blocks}
+        out: dict[str, Any] = {"version": 1, "title": self.title, "blocks": self.blocks}
+        if self.header is not None:
+            out["header"] = self.header
+        if self.footer is not None:
+            out["footer"] = self.footer
+        return out
 
 
 def _text(value: Any, where: str, *, limit: int = MAX_TEXT) -> str:
@@ -109,6 +122,15 @@ def validate(raw: Any) -> Document:
     if not isinstance(raw, dict):
         raise DocumentValidationError("문서는 JSON 객체여야 합니다")
     title = _text(raw.get("title"), "title", limit=MAX_TITLE)
+    # 없으면 없는 것이고, 있으면 글자여야 한다. 빈 글자는 '안 넣은 것' 과 같게 본다 —
+    # 빈 머리말 상자를 만들면 쪽마다 빈 줄 하나가 생긴다.
+    page_notes: dict[str, str | None] = {}
+    for field in ("header", "footer"):
+        value = raw.get(field)
+        if value is None or (isinstance(value, str) and not value.strip()):
+            page_notes[field] = None
+            continue
+        page_notes[field] = _text(value, field, limit=MAX_PAGE_NOTE)
     blocks = raw.get("blocks")
     if not isinstance(blocks, list) or not blocks:
         raise DocumentValidationError("blocks가 한 개 이상 필요합니다")
@@ -239,4 +261,5 @@ def validate(raw: Any) -> Document:
                           "pixels": size})
         else:
             raise DocumentValidationError(f"{where}.type은 지원하지 않는 블록입니다")
-    return Document(title=title, blocks=clean)
+    return Document(title=title, blocks=clean,
+                    header=page_notes["header"], footer=page_notes["footer"])

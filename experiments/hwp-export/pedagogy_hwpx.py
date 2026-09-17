@@ -276,7 +276,10 @@ class HwpxDocument:
         paragraph = self._paragraphs(section_index)[paragraph_index]
         if para_pr_id is not None:
             paragraph.set("paraPrIDRef", str(para_pr_id))
-        for run in paragraph.iter(qn("hp", "run")):
+        # ⚠️ **직계 run 만 건드린다.** 예전에는 `iter()` 로 깊이 훑어, 이 문단에 매달린
+        #    머리말·꼬리말·각주의 **속 문단 run 까지** 덮어썼다. 그것들은 제 스타일을
+        #    가진 별도 글이라, 본문 제목 모양(19pt)이 머리말에 그대로 찍혔다(REV-2026-096).
+        for run in [node for node in paragraph if _local(node) == "run"]:
             # 구역 정의(secPr)를 안고 있는 run 은 건드리지 않는다 — 글자 모양을 바꿀
             # 대상이 아니고, 잘못 손대면 쪽 설정이 흔들린다.
             if any(_local(child) == "secPr" for child in run):
@@ -409,6 +412,95 @@ class HwpxDocument:
         return (first.get("id"), first.get("paraPrIDRef") or "0",
                 first.get("charPrIDRef") or "0")
 
+    _PAGE_NOTE_ALIGN = {"header": "TOP", "footer": "BOTTOM"}
+    _PAGE_TYPES = ("BOTH", "EVEN", "ODD")
+
+    def _page_note_box(self, section_index: int, tag: str) -> tuple[str, str]:
+        """머리말·꼬리말 상자의 (textWidth, textHeight) — **골격의 쪽 설정에서 잰다.**
+
+        ⚠️ 숫자를 박지 말 것. 표본이 쓴 42520·4252 는 우연이 아니라 '쪽 폭 − 좌우 여백'
+           과 '머리말(꼬리말) 여백' 이었다(`docs/HWPX-ELEMENT-SPECS.md`). 박아 두면
+           쪽 크기나 여백이 다른 골격에서 조용히 어긋난다.
+        """
+        page = self._section(section_index).element.find(f".//{{*}}pagePr")
+        if page is None:
+            return ("0", "0")
+        margin = page.find("{*}margin")
+        if margin is None:
+            return (page.get("width") or "0", "0")
+        def num(value: str | None) -> int:
+            try:
+                return int(value or 0)
+            except ValueError:
+                return 0
+        width = num(page.get("width")) - num(margin.get("left")) - num(margin.get("right"))
+        height = num(margin.get("header" if tag == "header" else "footer"))
+        return (str(max(width, 0)), str(max(height, 0)))
+
+    def _set_page_note(self, tag: str, text: str, *, section_index: int, page_type: str,
+                       para_pr_id: str | None, style_id: str | None,
+                       char_pr_id: str | None) -> None:
+        """구역의 머리말/꼬리말을 **정한다**(이어 붙이지 않는다 — 한 구역에 하나다).
+
+        ⚠️ **본문 첫 문단의 run 안에 `<hp:ctrl>` 로 매단다.** `secPr` 안에 사본을 두고
+           `<hp:headerApply>` 로 가리키는 형태는 **한글이 파일을 열기는 하는데 머리말을
+           아예 찍지 않는다** — 2026-09-17 에 두 변종을 PDF 로 뽑아 확인했다(근거는
+           `docs/HWPX-ELEMENT-SPECS.md`). 한글이 제 손으로 저장한 시험지 틀도 이 형태다.
+        """
+        if page_type not in self._PAGE_TYPES:
+            raise ValueError(f"page_type 은 {'·'.join(self._PAGE_TYPES)} 중 하나여야 합니다")
+        paragraphs = self._paragraphs(section_index)
+        if not paragraphs:
+            self.append_paragraph("", section_index=section_index)
+            paragraphs = self._paragraphs(section_index)
+        first = paragraphs[0]
+        runs = [node for node in first if _local(node) == "run"]
+        # 쪽 설정(secPr)을 안고 있는 run 이 실물이 쓰는 자리다.
+        host = next((run for run in runs
+                     if any(_local(child) == "secPr" for child in run)), None)
+        if host is None:
+            host = runs[0] if runs else etree.SubElement(
+                first, qn("hp", "run"), charPrIDRef="0")
+        # 같은 갈래가 이미 있으면 갈아 끼운다 — 두 개가 남으면 한글이 둘 다 그린다.
+        for ctrl in [node for node in host if _local(node) == "ctrl"]:
+            if any(_local(child) == tag and child.get("applyPageType") == page_type
+                   for child in ctrl):
+                host.remove(ctrl)
+        self._control += 1
+        ctrl = etree.SubElement(host, qn("hp", "ctrl"))
+        note = etree.SubElement(ctrl, qn("hp", tag), id=str(2_000_000 + self._control),
+                                applyPageType=page_type)
+        box_w, box_h = self._page_note_box(section_index, tag)
+        sub_list = etree.SubElement(note, qn("hp", "subList"), id="", textDirection="HORIZONTAL",
+                               lineWrap="BREAK", vertAlign=self._PAGE_NOTE_ALIGN[tag],
+                               linkListIDRef="0", linkListNextIDRef="0",
+                               textWidth=box_w, textHeight=box_h,
+                               hasTextRef="0", hasNumRef="0")
+        note_p = etree.SubElement(sub_list, qn("hp", "p"), paraPrIDRef=str(para_pr_id or "0"),
+                                  styleIDRef=str(style_id or "0"), pageBreak="0",
+                                  columnBreak="0", merged="0", id="0")
+        run = etree.SubElement(note_p, qn("hp", "run"), charPrIDRef=str(char_pr_id or "0"))
+        body = etree.SubElement(run, qn("hp", "t"))
+        body.set(XML_SPACE, "preserve")
+        body.text = text
+        self._section(section_index).mark_modified()
+
+    def set_header(self, text: str, *, section_index: int = 0, page_type: str = "BOTH",
+                   para_pr_id: str | None = None, style_id: str | None = None,
+                   char_pr_id: str | None = None) -> None:
+        """쪽 위에 오는 머리말을 정한다. 같은 갈래가 있으면 갈아 끼운다."""
+        self._set_page_note("header", text, section_index=section_index,
+                            page_type=page_type, para_pr_id=para_pr_id,
+                            style_id=style_id, char_pr_id=char_pr_id)
+
+    def set_footer(self, text: str, *, section_index: int = 0, page_type: str = "BOTH",
+                   para_pr_id: str | None = None, style_id: str | None = None,
+                   char_pr_id: str | None = None) -> None:
+        """쪽 아래에 오는 꼬리말을 정한다. 같은 갈래가 있으면 갈아 끼운다."""
+        self._set_page_note("footer", text, section_index=section_index,
+                            page_type=page_type, para_pr_id=para_pr_id,
+                            style_id=style_id, char_pr_id=char_pr_id)
+
     def append_footnote(self, text: str, *, section_index: int = 0,
                         paragraph_index: int | None = None, number: int | None = None,
                         char_pr_id: str | None = None, note_para_pr_id: str | None = None,
@@ -438,11 +530,11 @@ class HwpxDocument:
         ctrl = etree.SubElement(run, qn("hp", "ctrl"))
         note = etree.SubElement(ctrl, qn("hp", "footNote"), number=str(num),
                                 suffixChar="41", instid=str(1_000_000 + self._control))
-        sub = etree.SubElement(note, qn("hp", "subList"), id="", textDirection="HORIZONTAL",
+        sub_list = etree.SubElement(note, qn("hp", "subList"), id="", textDirection="HORIZONTAL",
                                lineWrap="BREAK", vertAlign="TOP", linkListIDRef="0",
                                linkListNextIDRef="0", textWidth="0", textHeight="0",
                                hasTextRef="0", hasNumRef="0")
-        note_p = etree.SubElement(sub, qn("hp", "p"), paraPrIDRef=note_para_pr_id,
+        note_p = etree.SubElement(sub_list, qn("hp", "p"), paraPrIDRef=note_para_pr_id,
                                   styleIDRef=note_style_id, pageBreak="0", columnBreak="0",
                                   merged="0", id="0")
         mark_run = etree.SubElement(note_p, qn("hp", "run"), charPrIDRef=note_char_pr_id)

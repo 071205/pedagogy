@@ -56,6 +56,9 @@
 
   /* 파이썬 `PedagogyHwpx._NOTE_STYLE_NAMES` 의 사본이다 — 한쪽만 고치지 말 것. */
   const NOTE_STYLE_NAMES = { footNote: ["각주", "Footnote"], endNote: ["미주", "Endnote"] };
+  /* 파이썬 `_PAGE_NOTE_ALIGN`·`_PAGE_TYPES` 의 사본이다 — 한쪽만 고치지 말 것. */
+  const PAGE_NOTE_ALIGN = { header: "TOP", footer: "BOTTOM" };
+  const PAGE_TYPES = ["BOTH", "EVEN", "ODD"];
 
   const MM_TO_HWPUNIT = 7200 / 25.4;
   const MARKS = ["①", "②", "③", "④", "⑤"];        // 선지
@@ -502,7 +505,10 @@
     setParagraphStyle(idx, { paraPrId, charPrId, sectionIndex = 0 } = {}) {
       const p = this.paragraphs(sectionIndex)[idx];
       if (paraPrId != null) p.setAttribute("paraPrIDRef", String(paraPrId));
-      for (const run of p.getElementsByTagNameNS(NS.hp, "run")) {
+      /* ⚠️ **직계 run 만 건드린다.** 예전에는 문단을 깊이 훑어, 매달린 머리말·꼬리말·
+         각주의 **속 문단 run 까지** 덮어썼다 — 본문 제목 모양이 머리말에 찍혔다
+         (REV-2026-096). 파이썬 `set_paragraph_style` 의 사본이다. */
+      for (const run of childrenOf(p, "hp", "run")) {
         // 구역 정의(secPr)를 안고 있는 run 은 건드리지 않는다 — 쪽 설정이 흔들린다.
         if (childrenOf(run, "hp", "secPr").length) continue;
         if (charPrId != null) run.setAttribute("charPrIDRef", String(charPrId));
@@ -606,6 +612,67 @@
                paraPrId: pick.getAttribute("paraPrIDRef") || "0",
                charPrId: pick.getAttribute("charPrIDRef") || "0" };
     }
+
+    /** 머리말·꼬리말 상자의 (textWidth, textHeight) — **골격의 쪽 설정에서 잰다.**
+     *  ⚠️ 숫자를 박지 말 것. 표본이 쓴 42520·4252 는 우연이 아니라 '쪽 폭 − 좌우 여백'
+     *     과 '머리말(꼬리말) 여백' 이었다. 박아 두면 다른 골격에서 조용히 어긋난다. */
+    _pageNoteBox(sectionIndex, tag) {
+      const page = firstByLocal(this.section(sectionIndex).documentElement, "hp", "pagePr");
+      if (!page) return { width: "0", height: "0" };
+      const margin = childrenOf(page, "hp", "margin")[0];
+      if (!margin) return { width: page.getAttribute("width") || "0", height: "0" };
+      const num = (v) => { const n = parseInt(v, 10); return Number.isFinite(n) ? n : 0; };
+      const width = num(page.getAttribute("width"))
+                  - num(margin.getAttribute("left")) - num(margin.getAttribute("right"));
+      const height = num(margin.getAttribute(tag === "header" ? "header" : "footer"));
+      return { width: String(Math.max(width, 0)), height: String(Math.max(height, 0)) };
+    }
+
+    /** 구역의 머리말/꼬리말을 **정한다**(이어 붙이지 않는다 — 한 구역에 하나다).
+     *  ⚠️ **본문 첫 문단의 run 안에 `<hp:ctrl>` 로 매단다.** `secPr` 안에 사본을 두고
+     *     `<hp:headerApply>` 로 가리키는 형태는 **한글이 파일을 열기는 하는데 머리말을
+     *     아예 찍지 않는다** — 2026-09-17 에 두 변종을 PDF 로 뽑아 확인했다(근거는
+     *     `docs/HWPX-ELEMENT-SPECS.md`). 한글이 제 손으로 저장한 시험지 틀도 이 형태다. */
+    _setPageNote(tag, text, { sectionIndex = 0, pageType = "BOTH",
+                              paraPrId, styleId, charPrId } = {}) {
+      if (!PAGE_TYPES.includes(pageType)) {
+        throw new Error("pageType 은 " + PAGE_TYPES.join("·") + " 중 하나여야 합니다");
+      }
+      let ps = this.paragraphs(sectionIndex);
+      if (!ps.length) { this.appendParagraph("", { sectionIndex }); ps = this.paragraphs(sectionIndex); }
+      const first = ps[0];
+      const runs = childrenOf(first, "hp", "run");
+      // 쪽 설정(secPr)을 안고 있는 run 이 실물이 쓰는 자리다.
+      let host = runs.find((run) => childrenOf(run, "hp", "secPr").length);
+      if (!host) host = runs[0] || sub(first, "hp:run", { charPrIDRef: "0" });
+      // 같은 갈래가 이미 있으면 갈아 끼운다 — 두 개가 남으면 한글이 둘 다 그린다.
+      for (const ctrl of childrenOf(host, "hp", "ctrl")) {
+        if (childrenOf(ctrl, "hp", tag).some((n) => n.getAttribute("applyPageType") === pageType)) {
+          host.removeChild(ctrl);
+        }
+      }
+      this._control += 1;
+      const ctrl = sub(host, "hp:ctrl");
+      const note = sub(ctrl, "hp:" + tag, { id: String(2000000 + this._control),
+                                            applyPageType: pageType });
+      const box = this._pageNoteBox(sectionIndex, tag);
+      const list = sub(note, "hp:subList", { id: "", textDirection: "HORIZONTAL",
+        lineWrap: "BREAK", vertAlign: PAGE_NOTE_ALIGN[tag], linkListIDRef: "0",
+        linkListNextIDRef: "0", textWidth: box.width, textHeight: box.height,
+        hasTextRef: "0", hasNumRef: "0" });
+      const notePara = sub(list, "hp:p", { paraPrIDRef: String(paraPrId ?? 0),
+        styleIDRef: String(styleId ?? 0), pageBreak: "0", columnBreak: "0",
+        merged: "0", id: "0" });
+      const run = sub(notePara, "hp:run", { charPrIDRef: String(charPrId ?? 0) });
+      const t = sub(run, "hp:t");
+      t.setAttributeNS("http://www.w3.org/XML/1998/namespace", "xml:space", "preserve");
+      t.textContent = text;
+    }
+
+    /** 쪽 위에 오는 머리말을 정한다. 같은 갈래가 있으면 갈아 끼운다. */
+    setHeader(text, options = {}) { this._setPageNote("header", text, options); }
+    /** 쪽 아래에 오는 꼬리말을 정한다. 같은 갈래가 있으면 갈아 끼운다. */
+    setFooter(text, options = {}) { this._setPageNote("footer", text, options); }
 
     appendFootnote(text, { sectionIndex = 0, paragraphIndex, number, charPrId,
                            noteParaPrId, noteStyleId, noteCharPrId } = {}) {

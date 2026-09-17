@@ -322,6 +322,13 @@ def build(raw: object, output: str | Path) -> Report:
     #    그렇다고 그냥 두면 문서 맨 위에 빈 줄이 하나 남는다. 제목을 그 문단에 이어 쓴다.
     #    (`mock_to_hwpx` 가 시험지 틀에 첫 문항을 이어 쓰는 것과 같은 이유다.)
     frame = doc.first_paragraph_is_empty()
+    # ⚠️ 머리말·꼬리말은 블록이 아니라 **구역 전체에 걸리는 값**이라 흐름 밖에서 정한다.
+    #    글자 모양은 이 문서의 **본문**을 따른다 — 골격 기본값으로 두면 문서 글꼴과
+    #    따로 노는 줄이 쪽마다 앉는다. (실물에서 잰 '머리말 전용 모양' 은 아직 없다.)
+    if document.header:
+        doc.set_header(document.header, char_pr_id=styles["char_body"])
+    if document.footer:
+        doc.set_footer(document.footer, char_pr_id=styles["char_body"])
     emit_rich(doc, document.title, report, styles, para="title", char="title", where="제목",
               into=0 if frame else None)
     # ⚠️ 쪽나눔은 **다음 문단**의 속성이다. 그 문단은 아직 없으므로 자리만 적어 두고

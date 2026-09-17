@@ -280,6 +280,11 @@
     // ⚠️ 골격의 첫 문단은 지우면 안 된다 — 구역·쪽 정의(secPr)가 그 안에 있다.
     //    그렇다고 그냥 두면 문서 맨 위에 빈 줄이 남는다. 제목을 그 문단에 이어 쓴다.
     const frame = doc.firstParagraphIsEmpty();
+    /* ⚠️ 머리말·꼬리말은 블록이 아니라 **구역 전체에 걸리는 값**이라 흐름 밖에서 정한다.
+       글자 모양은 골격 기본값(0)을 쓴다 — 실물 표본으로 확인한 조합이 그것이다.
+       파이썬 `build()` 의 사본이다. */
+    if (docJson.header) doc.setHeader(docJson.header, { charPrId: styles.char_body });
+    if (docJson.footer) doc.setFooter(docJson.footer, { charPrId: styles.char_body });
     emitRich(doc, docJson.title, report, styles,
              { para: "title", char: "title", where: "제목", into: frame ? 0 : null });
     /* ⚠️ 쪽나눔은 **다음 문단**의 속성이다. 그 문단이 아직 없으므로 자리만 적어 두고

@@ -23,6 +23,8 @@ d.save_to_path("/tmp/probe.hwpx")
 PY
 
 # ② 한글이 받아 주는지 본다 — 받지 않으면 그 XML 은 근거가 아니다
+#    ⚠️ 한글이 **자고 있으면 첫 판정이 거짓 실패로 나온다**(창이 뜨기 전에 검사가 포기한다).
+#       한 건만 ❌ 이고 뒤 파일은 ✅ 라면 파일이 아니라 콜드 스타트를 의심하고 다시 돌린다.
 npm run test:hwpx-opens -- /tmp/probe.hwpx
 
 # ③ 통과했으면 XML 을 읽어 근거로 삼는다. blank.hwpx 와 요소 집합을 차집합하면
@@ -33,6 +35,7 @@ els=lambda p:set(re.findall(r'<(hp:[a-zA-Z]+)', zipfile.ZipFile(p).read('Content
 print(sorted(els('/tmp/probe.hwpx') - els('experiments/hwp-export/templates/blank.hwpx')))"
 
 # ④ 우리 엔진으로 같은 것을 낸 뒤 ②를 다시 돌리고, PDF 를 뽑아 눈으로 본다.
+node scripts/hwp-to-pdf.mjs 결과.hwpx        # 한글의 '파일 → PDF로 저장하기' 를 눌러 준다
 ```
 
 ⚠️ **④의 '눈으로 본다' 를 건너뛰지 말 것.** 2026-09-17 에 조합 기호 ₆C₂ 가 **파일은
@@ -55,10 +58,11 @@ print(sorted(els('/tmp/probe.hwpx') - els('experiments/hwp-export/templates/blan
 각주 스타일을 숫자로 박은 것(`REV-2026-094`)과 **브라우저 엔진에 검증이 아예 없던 것**
 (`HANDOFF-2026-143`). 가져온 것은 *아이디어*뿐이고 코드는 우리가 썼다.
 
-## 알아낸 것 — 둘 다 **구현 완료**(2026-09-17)
+## 알아낸 것 — 셋 다 **구현 완료**(쪽나눔·각주 2026-09-17 · 머리말꼬리말 2026-09-18)
 
-계약 블록 `pagebreak` · `footnote` 로 쓴다. 파이썬·JS 양쪽에 있고 `test:hwpx-browser` 가
-대조하며, 실물 한글로 PDF 를 뽑아 각주 표시·구분선·번호 이어짐·쪽 넘김을 눈으로 확인했다.
+계약 블록 `pagebreak` · `footnote`, 문서 수준 값 `header` · `footer` 로 쓴다. 파이썬·JS
+양쪽에 있고 `test:hwpx-browser` 가 대조하며, 실물 한글로 PDF 를 뽑아 각주 표시·구분선·번호
+이어짐·쪽 넘김·세 쪽에 걸친 머리말 되풀이를 눈으로 확인했다.
 
 ### 쪽 나눔 — 근거: 시험지 변환기(실물 PDF 로 확인)
 
@@ -115,25 +119,80 @@ print(sorted(els('/tmp/probe.hwpx') - els('experiments/hwp-export/templates/blan
 `blank.hwpx` 에 들어 있으므로 새로 만들 필요가 없다 — **실체만 매달면 된다.**
 ⚠️ `instid` 는 문서 안에서 겹치지 않아야 한다.
 
+### 머리말·꼬리말 — 근거: **두 변종을 PDF 로 뽑아 갈랐다**(2026-09-18)
+
+**본문 첫 문단에서 `secPr` 를 안고 있는 run 안에 `<hp:ctrl>` 로 매단다.**
+
+```xml
+<hp:p …>
+  <hp:run charPrIDRef="0">
+    <hp:secPr …>…</hp:secPr>
+    <hp:ctrl><hp:colPr …/></hp:ctrl>
+    <hp:ctrl>
+      <hp:header id="2000001" applyPageType="BOTH">
+        <hp:subList id="" textDirection="HORIZONTAL" lineWrap="BREAK" vertAlign="TOP"
+                    linkListIDRef="0" linkListNextIDRef="0"
+                    textWidth="42520" textHeight="4252" hasTextRef="0" hasNumRef="0">
+          <hp:p paraPrIDRef="0" styleIDRef="0" …><hp:run charPrIDRef="0">
+            <hp:t>머리말 글</hp:t></hp:run></hp:p>
+        </hp:subList>
+      </hp:header>
+    </hp:ctrl>
+    <!-- 꼬리말은 같은 모양에 tag 만 hp:footer, subList 의 vertAlign 만 BOTTOM -->
+  </hp:run>
+```
+
+⚠️ **`secPr` 안에 사본을 두고 `<hp:headerApply>` 로 가리키는 형태는 쓰지 말 것.**
+한글이 **파일은 멀쩡히 열어 주고 머리말·꼬리말을 아예 찍지 않는다.** 표본 생성기
+(`python-hwpx`)는 두 자리에 **모두** 쓰는데, 어느 쪽이 일하는지 가르려고 변종 둘을 만들어
+각각 PDF 로 뽑아 보고 알아낸 것이다:
+
+| 변종 | 한글이 여는가 | 실제로 찍히는가 |
+|---|---|---|
+| 본문 `run/ctrl` 만 (`headerApply` 없음) | ✅ | ✅ 머리말·꼬리말 둘 다 |
+| `secPr` 사본 + `headerApply` 만 | ✅ | ❌ **아무것도 안 나온다** |
+
+한글이 **제 손으로 저장한** 시험지 틀(`exam-math.hwpx`)도 본문 `run/ctrl` 형태이고
+`headerApply` 가 아예 없다. 이 저장소가 반복해 겪은 "열리는데 빈 것으로 조판된다" 의
+전형이라, **여는 것까지만 보고 근거로 삼았으면 그대로 틀렸을 것이다.**
+
+⚠️ **`subList` 의 `textWidth`·`textHeight` 를 숫자로 박지 말 것.** 표본의 42520·4252 는
+우연이 아니라 **'쪽 폭 − 좌우 여백'** 과 **'머리말(꼬리말) 여백'** 이다. 골격에서 재어 쓴다
+(`_page_note_box()` / `_pageNoteBox()`).
+⚠️ `applyPageType` 은 `BOTH`·`EVEN`·`ODD`. 한글은 제 파일에 `EVEN`/`ODD` 쌍을 쓰지만
+`BOTH` 하나로도 정상으로 찍히는 것을 확인했다.
+⚠️ **머리말은 블록이 아니다.** 글의 흐름에 끼는 것이 아니라 구역 전체에 걸리므로 계약에서도
+`blocks` 가 아니라 **최상위 `header`·`footer`**(각 120자)로 받는다.
+⚠️ **속 문단의 글자 모양을 본문 스타일이 덮어쓰지 않게 할 것**(`REV-2026-096`).
+`set_paragraph_style()` 이 문단을 깊이 훑던 시절, 제목을 첫 문단에 이어 쓰는 순간 그 문단에
+매달린 **머리말 속 run 까지 제목 모양(19pt)으로 바뀌었다.** 각주도 같은 자리에 있었다.
+지금은 **직계 run 만** 건드린다.
+
 ## 아직 근거가 없는 것
 
 | 요소 | 무엇이 필요한가 |
 |---|---|
-| 머리말·꼬리말 | 시험지 쪽은 `capture_page_headers()` 로 **실물에서 떠다 쓴다**(본문 첫 문단의 `<hp:ctrl><hp:header>`). 일반 문서용으로 **새로 만드는** 근거는 없다 |
 | 상자 안의 표·그림 | 계약이 재귀 구조가 되어야 한다 — 블록 안에 블록 |
 | 지문(passage) | 시험지 전용 개념이라 일반 문서 계약에 넣을지부터 결정이 필요하다 |
 
-## 새 블록 하나를 실제로 쓸 수 있게 하려면 — 여덟 곳
+## 새 블록 하나를 실제로 쓸 수 있게 하려면 — 아홉 곳
 
 ⚠️ 한 곳만 늘리면 **AI 가 정확히 만들어도 Worker 가 502 로 버리고 브라우저에서도 막힌다**
-(`REV-2026-013` 에서 실제로 그랬다). `check-document-blocks.mjs` 가 네 곳을 대조한다.
+(`REV-2026-013` 에서 실제로 그랬다). `check-document-blocks.mjs` 가 **다섯 경계**를 대조한다.
 
 | | 파이썬 | 자바스크립트(사본) |
 |---|---|---|
 | 엔진 원시 기능 | `pedagogy_hwpx.py` | `hwpx-engine.js` |
 | 블록 → 문단 | `document_to_hwpx.py` | `hwpx-document.js` |
 | 계약 | `document_schema.py` | `document-editor.html` 의 `validate()` |
+| **미리보기** | — | `document-editor.html` 의 **`render()`** |
 | AI 경계 | — | `worker/index.js` 의 프롬프트 + `validateDocumentResponse` |
+
+⚠️ **`validate()` 와 `render()` 를 한 칸으로 세지 말 것**(`REV-2026-095`). 예전에는 검사가
+`validate()` 만 봤고, 그래서 `pagebreak`·`footnote` 가 계약·Worker·조판기에는 들어갔는데
+**미리보기에서만 빠진 채로 검사가 초록불이었다.** 그 둘을 넣으면 `render()` 의 마지막
+`else` 가 목록 블록으로 보고 `b.items` 를 훑어 **미리보기가 통째로 죽었다.**
+**통과하는 것과 그려지는 것은 다른 경계다.**
 
 ⚠️ **사본은 갈라진다** — `npm run test:hwpx-browser` 가 같은 문서 JSON 을 양쪽에 넣어
 결과를 대조한다. 한쪽만 고치지 말 것.
