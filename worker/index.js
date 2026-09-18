@@ -31,6 +31,7 @@
 
 import { verifyIdToken } from "./auth.js";
 import { AppCheckError, verifyAppCheckToken } from "./app-check.js";
+import { GEMINI_STAGING_MODEL, buildGeminiRequest, decodeGeminiEnvelope } from "./gemini.js";
 
 const DEFAULT_DAILY_LIMIT = 50;
 // 환경 변수 오타나 잘못된 Billing claim 매핑이 비용 상한을 무력화하지 않게 하는
@@ -374,8 +375,14 @@ export function createWorker({
         return json({ error: "이미지 형식이 아닙니다" }, 400, cors);
       }
     }
-    if (!env.ANTHROPIC_KEY) {
+    let provider;
+    try {
+      provider = providerConfig(env);
+    } catch {
       return json({ error: "AI 기능을 일시적으로 사용할 수 없습니다. 잠시 후 다시 시도해 주세요." }, 503, cors);
+    }
+    if (!documentMode && provider.name === "gemini" && mimeType === "image/gif") {
+      return json({ error: "이미지 형식이 아닙니다" }, 400, cors);
     }
 
     const limit = dailyLimit(env, user.claims);
@@ -647,6 +654,28 @@ function configuredModel(env) {
   return String(env.AI_MODEL || "claude-haiku-4-5");
 }
 
+function geminiApiKey(env) {
+  // Secret stores and terminal input commonly retain a trailing newline. API keys
+  // cannot contain whitespace; normalizing avoids turning an otherwise valid key
+  // into a local Header/fetch exception before Gemini can return a safe status.
+  return String(env.GEMINI_API_KEY || "").trim();
+}
+
+function providerConfig(env) {
+  const name = String(env.AI_PROVIDER || "anthropic").trim().toLowerCase() || "anthropic";
+  if (name === "anthropic") {
+    if (!env.ANTHROPIC_KEY) throw new Error("Anthropic key unavailable");
+    return { name, model: configuredModel(env) };
+  }
+  if (name === "gemini") {
+    if (!geminiApiKey(env) || String(env.GEMINI_MODEL || "") !== GEMINI_STAGING_MODEL) {
+      throw new Error("Gemini staging configuration unavailable");
+    }
+    return { name, model: GEMINI_STAGING_MODEL };
+  }
+  throw new Error("Unsupported AI provider");
+}
+
 function safeModel(value) {
   const model = String(value || "");
   return /^[A-Za-z0-9._:-]{1,128}$/.test(model) ? model : "unknown";
@@ -680,6 +709,30 @@ function aiTelemetry({ task, model, response, data, outcome, startedAt }) {
     output_tokens: safeTokenCount(usage.output_tokens),
     stop_reason: stopReason == null ? null
       : ALLOWED_STOP_REASONS.has(stopReason) ? stopReason : "unknown",
+    duration_ms: elapsedMs(startedAt),
+    http_status: safeHttpStatus(response?.status),
+  };
+}
+
+function geminiStopReason(reason) {
+  if (reason == null) return null;
+  if (reason === "STOP") return "end_turn";
+  if (reason === "MAX_TOKENS") return "max_tokens";
+  if (["SAFETY", "RECITATION", "BLOCKLIST", "PROHIBITED_CONTENT", "SPII"].includes(reason)) return "refusal";
+  return "unknown";
+}
+
+function geminiTelemetry({ task, model, response, data, outcome, startedAt }) {
+  return {
+    event: AI_USAGE_EVENT,
+    provider: "gemini",
+    task,
+    model: safeModel(data?.model || model),
+    outcome,
+    input_tokens: safeTokenCount(data?.inputTokens),
+    output_tokens: safeTokenCount(data?.outputTokens),
+    thinking_tokens: safeTokenCount(data?.thinkingTokens),
+    stop_reason: geminiStopReason(data?.finishReason),
     duration_ms: elapsedMs(startedAt),
     http_status: safeHttpStatus(response?.status),
   };
@@ -737,7 +790,8 @@ async function anthropicResponse(env, requestBody, task) {
     }));
   }
   try {
-    return { response, data: await response.json(), model, startedAt };
+    const data = await response.json();
+    return { response, data, model, startedAt };
   } catch {
     throw new AiGenerationError("AI 응답을 해석하지 못했습니다", aiTelemetry({
       task, model, response, outcome: "json_parse_error", startedAt,
@@ -745,10 +799,73 @@ async function anthropicResponse(env, requestBody, task) {
   }
 }
 
+async function geminiResponse(env, requestBody, task) {
+  const { model } = providerConfig(env);
+  const apiKey = geminiApiKey(env);
+  const startedAt = Date.now();
+  const controller = new AbortController();
+  let timedOut = false;
+  const timer = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, 60_000);
+  try {
+    let response;
+    try {
+      response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_STAGING_MODEL}:generateContent`, {
+        method: "POST",
+        // Do not follow a redirect with the API key. `manual` preserves the
+        // redirect as an HTTP failure so safe telemetry retains its status;
+        // `error` instead rejects fetch and hides that distinction.
+        redirect: "manual",
+        signal: controller.signal,
+        headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
+        body: JSON.stringify(requestBody),
+      });
+    } catch {
+      throw new AiGenerationError("AI 공급자 연결 실패", geminiTelemetry({ task, model, outcome: "request_error", startedAt }));
+    }
+    if (!response.ok) {
+      console.error("Gemini API 오류:", response.status);
+      throw new AiGenerationError("AI 공급자 오류 (" + response.status + ")", geminiTelemetry({
+        task, model, response, outcome: "http_error", startedAt,
+      }));
+    }
+    let raw;
+    try { raw = await response.json(); }
+    catch {
+      throw new AiGenerationError(timedOut ? "AI 공급자 연결 실패" : "AI 응답을 해석하지 못했습니다", geminiTelemetry({
+        task, model, response, outcome: timedOut ? "request_error" : "json_parse_error", startedAt,
+      }));
+    }
+    const data = decodeGeminiEnvelope(raw);
+    if (data.invalid) {
+      throw new AiGenerationError("AI 응답을 해석하지 못했습니다", geminiTelemetry({
+        task, model, response, data, outcome: "json_parse_error", startedAt,
+      }));
+    }
+    if (data.blocked || data.finishReason !== "STOP") {
+      throw new AiGenerationError("AI 응답이 완료되지 않았습니다", geminiTelemetry({
+        task, model, response, data, outcome: "validation_error", startedAt,
+      }));
+    }
+    return { response, data, model, startedAt };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export async function callAI(env, imageBase64, mimeType) {
-  if (!env.ANTHROPIC_KEY) throw new Error("ANTHROPIC_KEY 가 설정되지 않았습니다");
   const task = "problem_image";
-  const { response, data, model, startedAt } = await anthropicResponse(env, {
+  const provider = providerConfig(env);
+  if (provider.name === "gemini" && mimeType === "image/gif") throw new Error("Gemini GIF unsupported");
+  const requestBody = provider.name === "gemini" ? buildGeminiRequest({
+    system: SYSTEM_PROMPT,
+    parts: [
+      { inlineData: { mimeType: mimeType || "image/png", data: imageBase64 } },
+      { text: "이 이미지의 문제를 지정된 JSON 구조로 변환해 줘." },
+    ],
+  }) : {
       model: env.AI_MODEL || "claude-haiku-4-5",
       max_tokens: 4096,
       system: SYSTEM_PROMPT,
@@ -764,10 +881,16 @@ export async function callAI(env, imageBase64, mimeType) {
           ],
         },
       ],
-    }, task);
-  const telemetry = aiTelemetry({ task, model, response, data, outcome: "success", startedAt });
+    };
+  const result = provider.name === "gemini"
+    ? await geminiResponse(env, requestBody, task)
+    : await anthropicResponse(env, requestBody, task);
+  const { response, data, model, startedAt } = result;
+  const telemetry = provider.name === "gemini"
+    ? geminiTelemetry({ task, model, response, data, outcome: "success", startedAt })
+    : aiTelemetry({ task, model, response, data, outcome: "success", startedAt });
   try {
-    const text = data?.content?.[0]?.text;
+    const text = provider.name === "gemini" ? data.text : data?.content?.[0]?.text;
     if (typeof text !== "string") throw new Error("AI 응답 text가 문자열이 아닙니다");
     const parsed = JSON.parse(text.replace(/```json|```/g, "").trim());
     const problems = Array.isArray(parsed) ? parsed : parsed?.problems;
@@ -782,16 +905,25 @@ export async function callAI(env, imageBase64, mimeType) {
 }
 
 export async function callDocumentAI(env, prompt) {
-  if (!env.ANTHROPIC_KEY) throw new Error("ANTHROPIC_KEY 가 설정되지 않았습니다");
   const task = "document";
-  const { response, data, model, startedAt } = await anthropicResponse(env, {
+  const provider = providerConfig(env);
+  const requestBody = provider.name === "gemini" ? buildGeminiRequest({
+    system: DOCUMENT_SYSTEM_PROMPT,
+    parts: [{ text: prompt }],
+  }) : {
       model: env.AI_MODEL || "claude-haiku-4-5",
       max_tokens: 4096,
       system: DOCUMENT_SYSTEM_PROMPT,
       messages: [{ role: "user", content: [{ type: "text", text: prompt }] }],
-    }, task);
-  const telemetry = aiTelemetry({ task, model, response, data, outcome: "success", startedAt });
-  const text = data?.content?.[0]?.text || "";
+    };
+  const result = provider.name === "gemini"
+    ? await geminiResponse(env, requestBody, task)
+    : await anthropicResponse(env, requestBody, task);
+  const { response, data, model, startedAt } = result;
+  const telemetry = provider.name === "gemini"
+    ? geminiTelemetry({ task, model, response, data, outcome: "success", startedAt })
+    : aiTelemetry({ task, model, response, data, outcome: "success", startedAt });
+  const text = provider.name === "gemini" ? data.text : data?.content?.[0]?.text || "";
   try {
     return aiGeneration(JSON.parse(text.replace(/```json|```/g, "").trim()), telemetry);
   } catch {

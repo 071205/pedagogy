@@ -1,0 +1,39 @@
+# 승인된 합성 검증 전용 Worker. production `wrangler.toml`과 함께 쓰지 않는다.
+# 배포 명령은 반드시 이 파일을 명시한다:
+#   npx wrangler deploy --config wrangler.staging.toml
+name = "pedagogy-ai-staging"
+main = "index.js"
+# Cloudflare 대시보드에서 2026-09-14에 확인한 staging Worker의 compatibility date.
+compatibility_date = "2026-09-13"
+
+[vars]
+# Firebase Console의 격리 staging 프로젝트/웹 앱과 대조 완료. 공개 식별자만 둔다.
+FIREBASE_PROJECT_ID = "pedagogy-ai-staging"
+FIREBASE_PROJECT_NUMBER = "450368559700"
+FIREBASE_APP_IDS = "1:450368559700:web:5e8f86074f042dd7d12bc1"
+# 실제 staging token 발급 비율을 관찰하기 전에는 거절하지 않는다. production에는 적용 금지.
+APP_CHECK_MODE = "monitor"
+# 합성 검증은 로컬 서버에서만 한다. production GitHub Pages origin을 넣지 않는다.
+ALLOWED_ORIGINS = "http://127.0.0.1:8787,http://localhost:8787"
+# 기존 승인 범위(이미지 1회 + 문서 1회)를 호출 수로도 제한한다. 금액 상한은 아니다.
+DAILY_LIMIT = "2"
+GLOBAL_DAILY_LIMIT = "2"
+AI_KILL_SWITCH = "0"
+AI_PROVIDER = "gemini"
+GEMINI_MODEL = "gemini-3.1-flash-lite"
+
+# `GEMINI_API_KEY`는 이 파일이나 공개 설정에 넣지 않는다. 배포 직전 staging Worker에만
+# secret으로 등록되어 있음을 이름만 확인하고, 값은 조회·출력하지 않는다.
+
+[[durable_objects.bindings]]
+name = "QUOTA"
+class_name = "DailyQuota"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["DailyQuota"]
+
+# OPS-7의 승인된 두 합성 호출에서만 100%로 올리고, 결과 확인 직후 10%로 복원한다.
+[observability]
+enabled = true
+head_sampling_rate = 0.1

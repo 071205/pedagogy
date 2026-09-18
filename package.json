@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "check:review-hygiene": "node scripts/check-review-hygiene.mjs",
-    "test:worker": "node worker/quota.test.mjs && node worker/app-check.test.mjs && node worker/worker-contract.test.mjs && node reviews/audits/2026-09-13/worker-telemetry-review.mjs && node scripts/check-audit-safety.mjs && node scripts/check-review-followup.mjs",
+    "test:worker": "node worker/quota.test.mjs && node worker/app-check.test.mjs && node worker/worker-contract.test.mjs && node worker/gemini.test.mjs && node reviews/audits/2026-09-13/worker-telemetry-review.mjs && node scripts/check-audit-safety.mjs && node scripts/check-review-followup.mjs",
     "test:ai-image": "node scripts/check-ai-image.mjs",
     "test:fixtures": "node scripts/check-fixtures.mjs",
     "fix:icons": "node scripts/clean-mac-icons.mjs",

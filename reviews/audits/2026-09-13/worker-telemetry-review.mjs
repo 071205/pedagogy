@@ -82,7 +82,7 @@ for (const [name, signature, leak] of [
   ['baseline', null, null],
   ['document-prompt-leak', 'export async function callDocumentAI(env, prompt) {', 'console.error(prompt);'],
   ['image-input-leak', 'export async function callAI(env, imageBase64, mimeType) {', 'console.error(imageBase64);'],
-  ['provider-response-leak', 'const telemetry = aiTelemetry({ task, model, response, data, outcome: "success", startedAt });', 'console.error(data);'],
+  ['provider-response-leak', 'const data = await response.json();', 'console.error(data);'],
   ['uid-leak', 'user = await verifyToken(token, env.FIREBASE_PROJECT_ID);', 'console.error(user.uid);'],
 ]) {
   const variant = signature ? source.replace(signature, `${signature} ${leak}`) : source;

@@ -1,6 +1,6 @@
 # 리뷰 현황
 
-마지막 정리: 2026-09-13
+마지막 정리: 2026-09-17
 
 **이 파일은 새 세션이 매번 읽는다.** 그래서 여기에는 *지금 필요한 것*만 둔다 —
 열린 이슈, 지금 하는 일, 최근 검토 다섯. 지난 과정은 `handoffs/` 파일과 git 이 기억한다
@@ -13,19 +13,48 @@
 | --- | --- | --- | --- |
 | `REV-2026-074` | `P2` | macOS 폴더 아이콘 파일이 새 Git 폴더에서 재발해 refs를 오염시킨다 | `issues/2026-09/2026-09-09-rules-macos-icon-files-corrupt-git-refs.md` |
 | `REV-2026-075` | `P2` | AI 문서에 들어갔다 나오면 로그인이 안 된다(재현 절차 없음) | `issues/2026-09/2026-09-09-document-editor-login-after-return.md` |
+| `REV-2026-093` | `P2` | staging Gemini 이미지·문서 요청이 provider HTTP 응답 전에 모두 실패한다 | `issues/2026-09/2026-09-14-gemini-staging-provider-request-error.md` |
 
 ⚠️ 이 표는 `npm run check:review-hygiene` 가 **실제 이슈 파일의 상태와 양방향으로**
 대조한다. 지난 요약을 지워도 안전한 이유가 이 대조다 — 남은 한 곳이 정확해야
 '줄인 것' 이 '잊은 것' 이 되지 않는다.
 
-## 지금 하는 일
+## 지금 하는 일 — **갈래가 둘이고 한 작업 폴더에 섞여 있다**
+
+⚠️ **새 세션은 먼저 `git status` 를 보고 어느 갈래의 파일인지 가를 것.** 커밋되지 않은
+변경이 두 갈래 것이 함께 있다. 남의 갈래 파일을 함께 커밋하지 말 것.
+
+### A. 한글 조판 엔진 (Claude · 2026-09-17)
+
+**머리말·꼬리말을 구현했다 — 미커밋**(`HANDOFF-2026-144`). 엔진의 남은 미구현 요소
+셋 중 첫째다. 그 과정에서 **어제 커밋의 결함 둘**을 재현해 고쳤다 —
+미리보기가 `pagebreak`·`footnote` 에서 **통째로 죽던 것**(`REV-2026-095` · P1)과
+문단 모양이 **머리말·각주 속까지 덮어쓰던 것**(`REV-2026-096`).
+⚠️ **여는 것만 보고 근거로 삼았으면 틀렸다** — `secPr` 에 넣은 머리말은 한글이 파일을
+열어 주고도 **아무것도 안 찍는다**(PDF 로 갈랐다).
+
+앞선 `HANDOFF-2026-143` 은 `main` 에 올라가 있다(`64e7217`, **미푸시·미검토**).
+
+⚠️ **`git add -A` 를 쓰지 말 것** — 이 작업 폴더에는 B 갈래 변경과 `transcript.txt` 가
+함께 있다(`HANDOFF-2026-134`).
+
+**다음 할 일**: 남은 미구현 요소는 **상자 안의 표·그림**(계약이 재귀 구조가 되어야 한다)과
+**지문**(일반 문서 계약에 넣을지부터 결정이 필요하다)이다. 절차는
+[`docs/HWPX-ELEMENT-SPECS.md`](../docs/HWPX-ELEMENT-SPECS.md) 의 ①~④.
+
+### B. 비용 개선 레일 (Codex)
 
 비용 개선의 유일한 경로: [통합 레일·현재 단계](../docs/DEV-TOKEN-ROADMAP.md).
-개발 DEV-1~5 → 서비스 OPS-6~10 순서다. 지금 위치는 **OPS-6**(staging 대상·접근 정보 대기).
+DEV-1~5 → OPS-6A·6B~10 → REL-11~15 순서다. **OPS-6A 독립 재검토까지 완료**했고,
+OPS-6B의 staging secret·전용 config·QUOTA 배포까지 끝냈고 OPS-7 승인 2회도 실행했다. 인증·quota·
+안전 로그는 확인했지만 이미지·문서 모두 provider HTTP 응답 전 `request_error`로 실패했다. logs 10%와
+임시 인증은 복원했다. Terra medium의 key 끝 공백·redirect 상태 보강을 Sol medium이 독립 승인했다.
+기존 2회/$1 승인은 소진됐으며, 다음 Terra medium staging 재검증은 새 이미지 1회·문서 1회·재시도 0회·
+최대 $1 승인 대기다. production 제외는 그대로 유지한다.
 
 | 갈래 | 어디를 읽나 |
 | --- | --- |
-| 제품 전반·함정 | [`CLAUDE.md`](../../CLAUDE.md) |
+| 제품 전반·함정 | [`CLAUDE.md`](../CLAUDE.md) |
 | 보안 구조·미배포 항목 | [`docs/SECURITY-ARCHITECTURE.md`](../docs/SECURITY-ARCHITECTURE.md) · [`docs/SECURITY-OPERATIONS-CHECKLIST.md`](../docs/SECURITY-OPERATIONS-CHECKLIST.md) |
 | 상용 출시 차단 항목 | [`docs/COMMERCIAL-LAUNCH.md`](../docs/COMMERCIAL-LAUNCH.md) · `npm run check:launch` |
 | 과목별 조판 근거 | `docs/ENGLISH-SUBJECT-DESIGN.md` · `docs/INQUIRY-SUBJECT-DESIGN.md` · `docs/MOCK-STYLE-DESIGN.md` |
@@ -33,19 +62,34 @@
 
 ## 최근 검토
 
-[HANDOFF-2026-134](handoffs/2026-09/2026-09-13-new-chat-ops6-context.md): 새 채팅 인계. staging 합성 2회·$1 한도 승인과 production 제외를 반영했다. 대상·접근 정보가 없어 OPS-6 대기이며 배포·실호출은 하지 않았다.
+[HANDOFF-2026-144](handoffs/2026-09/2026-09-18-header-footer-element.md): 머리말·꼬리말을 구현했다
+(문서 수준 값 `header`·`footer`). ⚠️ `secPr` 에 넣고 `headerApply` 로 가리키면 **한글이 파일은
+열어 주고 아무것도 안 찍는다** — 변종 둘을 PDF 로 뽑아 갈랐다. 그 과정에서 어제 커밋의 결함 둘을
+재현해 고쳤다(`REV-2026-095` P1 미리보기 사망 · `REV-2026-096` 속 run 덮어쓰기). 깨보기 셋으로
+검사가 실제로 잡는 것까지 확인했다. **미검토 · 미커밋.**
 
-[HANDOFF-2026-133](handoffs/2026-09/2026-09-13-ai-measurement-deployment-prep.md): Worker 측정 배포 준비 완료. 공개 health만 읽었고 staging/version/binding/secret/콘솔 증적은 미확인이다.
+[HANDOFF-2026-143](handoffs/2026-09/2026-09-17-engine-browser-validation-and-note-style.md):
+브라우저 엔진 `toBlob()` 이 이제 `strictValidate()` 를 부른다(예전엔 파이썬 `save()` 만 검사했고
+정작 사용자에게 나가는 경로는 아무것도 안 봤다). 각주 본문 스타일을 이름으로 찾게 고쳤다
+(`REV-2026-094` — 미주 스타일로 나가고 있었다). 고장 다섯을 심어 브라우저·파이썬이 **같은 문구로**
+잡는 것과, 실물 한글 PDF 눈검사까지 확인했다. **미검토 · `main` 에 올라감(`64e7217`, 미푸시).**
 
-[HANDOFF-2026-132](handoffs/2026-09/2026-09-13-development-token-effect-check.md): 첫 분리의 탐색 범위와 검증 부담을 비교했다. **개발 토큰 절감은 입증되지 않아** 추가 프런트 분리를 보류한다.
+[HANDOFF-2026-142](handoffs/2026-09/2026-09-14-gemini-staging-fetch-boundary-fix.md): key 끝 공백을
+제거하고 redirect를 키를 따라 보내지 않는 안전한 HTTP 상태로 남겼다. padded key·302·red mutation 회귀
+통과. Sol medium이 trim 제거 변이와 전체 Worker를 독립 재검증해 수정 자체를 승인했다. 실호출 추가 0회,
+다음 Terra medium 재검증은 새 승인 대기.
 
-[HANDOFF-2026-131](handoffs/2026-09/2026-09-13-ai-image-helper-extraction.md): AI 이미지 전처리·응답 변환 classic script 추출을 독립 승인했다. 주입·전역 계약·`file://` 로딩·정규화 우회 변이를 재확인했고 재현 결함은 없다.
+[HANDOFF-2026-141](handoffs/2026-09/2026-09-14-ops7-staging-smoke-failure.md): staging 합성 이미지·문서를
+각 1회만 실행했으나 모두 `request_error`/502였다. 인증·quota·안전 로그를 확인하고 logs 10%, 임시 계정·
+익명 provider를 복원했다. 다음 Terra medium 진단, 재호출은 새 승인 필요.
 
-[HANDOFF-2026-130](handoffs/2026-09/2026-09-13-ai-image-extraction-design.md): 추출 범위를 호환 표면·회귀·실패 주입·복귀 조건으로 고정했다.
+[HANDOFF-2026-140](handoffs/2026-09/2026-09-14-ops6b-staging-preflight.md): staging preflight 뒤 승인 범위에서
+Gemini 전용 key 하나만 남기고 Cloudflare secret·제품 Worker·QUOTA를 배포했다. version·secret 이름·health를
+확인했고 실제 Gemini 호출은 0회다. 다음 OPS-7/Sol medium.
 
 ## 지난 기록을 찾는 법
 
-핸드오프는 135개이고 전부 그대로 있다. 목록을 여기 두지 않는 이유는 **찾는 방법이
+과거 핸드오프는 전부 그대로 있다. 목록을 여기 두지 않는 이유는 **찾는 방법이
 목록보다 빠르기 때문**이다.
 
 ```bash
