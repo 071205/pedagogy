@@ -39,8 +39,13 @@ function skip(why) {
 
 if (!existsSync(expDir)) skip("experiments/hwp-export 가 없습니다");
 if (!existsSync(join(root, "hwpx-engine.js"))) skip("hwpx-engine.js 가 없습니다");
-if (spawnSync(python, ["-c", "import lxml"], { encoding: "utf8" }).status !== 0)
-  skip("lxml 이 없습니다 (pip install -r experiments/hwp-export/requirements.txt)");
+/* ⚠️ 어느 파이썬인지 함께 묻는다 — 이름만 말하면 PATH 때문에 건너뛴 것을 알 수 없다. */
+const lxmlProbe = spawnSync(python, ["-c", "import sys;print(sys.executable);import lxml"], { encoding: "utf8" });
+if (lxmlProbe.status !== 0) {
+  const used = (lxmlProbe.stdout || "").trim().split("\n")[0] || python;
+  skip(`${used} 에 lxml 이 없습니다 (다른 파이썬이면 HWPX_PYTHON=<경로>, `
+     + `없으면 pip install -r experiments/hwp-export/requirements.txt)`);
+}
 
 let chromium;
 try { ({ chromium } = await import("playwright")); }

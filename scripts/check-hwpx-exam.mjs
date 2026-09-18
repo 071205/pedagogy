@@ -289,7 +289,10 @@ let pyRoles;
 try {
   pyRoles = JSON.parse(execFileSync(PYTHON, ["-c", PY], { cwd: ROOT, encoding: "utf8" }));
 } catch (e) {
-  skip("파이썬 쪽을 돌리지 못했습니다: " + String(e.message).split("\n")[0].slice(0, 120));
+  /* ⚠️ 어느 파이썬으로 시도했는지 말한다 — `lxml` 이 있는 파이썬이 PATH 앞에 없을 때
+     이 메시지만 보고는 원인을 알 수 없다(2026-09-19). */
+  skip(`${PYTHON} 로 파이썬 쪽을 돌리지 못했습니다 (다른 파이썬이면 HWPX_PYTHON=<경로>): `
+     + String(e.message).split("\n")[0].slice(0, 120));
 }
 
 /* ── JS 쪽 (진짜 브라우저) ────────────────────────────────────────────── */

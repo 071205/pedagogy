@@ -49,14 +49,21 @@ const python = process.env.HWPX_PYTHON || "python3";
 // CI 처럼 '반드시 돌아야 하는' 자리에서는 건너뛰기를 실패로 본다. 건너뛰기가 통과로
 // 보이면 이 파일이 막으려던 '도는 줄 알았는데 안 돌던' 상태가 그대로 재현된다.
 const required = process.env.HWPX_REQUIRE === "1";
-const probe = spawnSync(python, ["-c", "import lxml"], { encoding: "utf8" });
+/* ⚠️ **어느 파이썬을 썼는지 함께 묻는다.** 이름(`python3`)만 말하면 PATH 앞에 다른
+ *    파이썬이 와서 건너뛰는 것을 알 수 없다 — 2026-09-19 에 같은 세션 안에서 한 번은
+ *    12건 실행, 한 번은 전부 건너뜀을 겪고도 원인을 찾는 데 한참 걸렸다.
+ *    `sys.executable` 을 먼저 찍고 import 하므로, 실패해도 경로는 손에 남는다. */
+const probe = spawnSync(python, ["-c", "import sys;print(sys.executable);import lxml"], { encoding: "utf8" });
+const used = (probe.stdout || "").trim().split("\n")[0] || python;
 if (probe.status !== 0) {
   const how = "pip install -r experiments/hwp-export/requirements.txt";
   if (required) {
-    console.error(`HWPX_REQUIRE=1 인데 lxml 이 없습니다 (설치: ${how})`);
+    console.error(`HWPX_REQUIRE=1 인데 ${used} 에 lxml 이 없습니다 (설치: ${how})`);
     process.exit(1);
   }
-  console.log(`lxml 이 없어 HWPX 검사를 건너뜁니다 (설치: ${how})`);
+  console.log(`${used} 에 lxml 이 없어 HWPX 검사를 건너뜁니다 — 통과가 아닙니다.`);
+  console.log(`  · 다른 파이썬에 있다면: HWPX_PYTHON=<경로> npm run test:hwpx`);
+  console.log(`  · 없다면 설치: ${how}`);
   process.exit(0);
 }
 
