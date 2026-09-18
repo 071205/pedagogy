@@ -476,6 +476,24 @@ CI 에는 실물 틀이 없으므로 `test_structure` · `test_sections` · `tes
 
 ⚠️ 이 검사들은 한동안 **어떤 실행 경로에도 걸려 있지 않았다.** 편집기 규칙을 옮겨 적은
 사본이 어긋나도 아무도 모르는 상태였다. 새 검사를 만들면 러너에 거는 것까지 해야 한다.
+**2026-09-19 에 전수 대조했다** — 검사 스크립트 30개 중 자동 경로가 없던 것은 여섯이고,
+넷은 의도된 제외(`check:launch` 출시 게이트 · `test:hwpx-parity` 깜빡임 · `test:hwpx-opens`
+한글 앱 필요 · `test:all` 은 묶음 자체)이며 `check:review-copy` 는 주문형 도구다.
+**`check:review-hygiene` 만 진짜 구멍이라 `check:fast` 맨 앞에 걸었다** — 의존성 없는 순수
+Node 라 즉시 끝나고, 기록이 어긋나면 긴 검사를 기다리기 전에 멈춘다.
+
+⚠️ **`check:fast` 는 `lxml` 이 없으면 HWPX 검사 셋을 건너뛰면서 초록불을 낸다.**
+이 컴퓨터에서 `lxml` 은 **`/opt/anaconda3/bin/python3` 에만** 있는데, PATH 앞에 다른 파이썬이
+오면 `test:hwpx` · `test:hwpx-exam` · `test:hwpx-browser` 가 **아무것도 검사하지 않고 exit 0**
+이 된다(2026-09-19 에 같은 세션 안에서 한 번은 12건 실행, 한 번은 전부 건너뜀을 겪었다).
+로그에 `⏭`·'건너뜁니다' 가 찍히므로 **요약만 보지 말고 그 줄을 볼 것.** 확실히 하려면:
+
+```bash
+HWPX_PYTHON=/opt/anaconda3/bin/python3 npm run test:hwpx
+```
+
+CI 는 안전하다 — 별도 `hwpx` 작업이 venv 에 의존성을 깔고 `HWPX_REQUIRE=1` 로 돌려
+건너뜀을 실패로 만든다. 위험한 것은 **로컬에서 초록불을 보고 검증됐다고 믿는 것**이다.
 
 **선지 배치 정답표.** `experiments/hwp-export/samples/choice-layout-truth.json` 은 **진짜
 편집기를 브라우저에 띄워 받아 적은 답**이고, `test_layout.py` 가 파이썬 변환기를 그것과

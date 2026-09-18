@@ -62,6 +62,12 @@ DEV-1~5 → OPS-6A·6B~10 → REL-11~15 순서다. **2026-09-19 에 Claude 가 �
 
 ## 최근 검토
 
+[HANDOFF-2026-146](handoffs/2026-09/2026-09-19-check-coverage-map.md): 검사 30개의 실행/건너뜀을
+전수 대조했다. 자동 경로가 없던 여섯 중 다섯은 의도된 제외였고 **`check:review-hygiene` 만 진짜
+구멍이라 `check:fast` 맨 앞에 걸었다**(깨보기로 첫 단계에서 멈추는 것 확인). ⚠️ **`check:fast` 는
+`lxml` 이 없으면 HWPX 셋을 건너뛰며 초록불을 낸다** — 같은 세션에서 한 번은 12건 실행, 한 번은 전부
+건너뜀. CI 는 `HWPX_REQUIRE=1` 로 안전하고 위험한 것은 로컬이다. **미검토.**
+
 [HANDOFF-2026-145](handoffs/2026-09/2026-09-19-ops7-gemini-thinking-level.md): OPS-7 의 502 는
 `thinkingLevel: "minimal"` 이었다 — Gemini 3 은 `low·medium·high` 를 받는다. 승인 2회 중 **첫 회는
 로그 표본 10% 에 걸려 통째로 잃었고**, 둘째를 `wrangler tail` 로 받아 `http_error·400·토큰 null` 을
@@ -84,10 +90,6 @@ DEV-1~5 → OPS-6A·6B~10 → REL-11~15 순서다. **2026-09-19 에 Claude 가 �
 제거하고 redirect를 키를 따라 보내지 않는 안전한 HTTP 상태로 남겼다. padded key·302·red mutation 회귀
 통과. Sol medium이 trim 제거 변이와 전체 Worker를 독립 재검증해 수정 자체를 승인했다. 실호출 추가 0회,
 다음 Terra medium 재검증은 새 승인 대기.
-
-[HANDOFF-2026-141](handoffs/2026-09/2026-09-14-ops7-staging-smoke-failure.md): staging 합성 이미지·문서를
-각 1회만 실행했으나 모두 `request_error`/502였다. 인증·quota·안전 로그를 확인하고 logs 10%, 임시 계정·
-익명 provider를 복원했다. 다음 Terra medium 진단, 재호출은 새 승인 필요.
 
 ## 지난 기록을 찾는 법
 
