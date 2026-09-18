@@ -722,13 +722,32 @@ function geminiStopReason(reason) {
   return "unknown";
 }
 
-function geminiTelemetry({ task, model, response, data, outcome, startedAt }) {
+/* 공급자가 준 **표준 오류 코드만** 남긴다(INVALID_ARGUMENT·RESOURCE_EXHAUSTED 등).
+ * ⚠️ 메시지·본문은 남기지 않는다 — 원문 비노출 계약을 깨지 않으려는 것이다. 이 칸이
+ *    없던 동안에는 공급자 400·503·404 가 화면에서도 로그에서도 똑같은 502 한 줄이라,
+ *    원인을 알아내는 데 승인된 실호출을 한 번씩 써야 했다(2026-09-19 에 두 번 그랬다). */
+function safeProviderStatus(value) {
+  const code = String(value || "");
+  return /^[A-Z][A-Z_]{2,39}$/.test(code) ? code : null;
+}
+
+async function providerErrorStatus(response) {
+  try {
+    const body = await response.clone().json();
+    return safeProviderStatus(body?.error?.status);
+  } catch {
+    return null;
+  }
+}
+
+function geminiTelemetry({ task, model, response, data, outcome, startedAt, providerStatus = null }) {
   return {
     event: AI_USAGE_EVENT,
     provider: "gemini",
     task,
     model: safeModel(data?.model || model),
     outcome,
+    provider_error_status: providerStatus,
     input_tokens: safeTokenCount(data?.inputTokens),
     output_tokens: safeTokenCount(data?.outputTokens),
     thinking_tokens: safeTokenCount(data?.thinkingTokens),
@@ -826,9 +845,10 @@ async function geminiResponse(env, requestBody, task) {
       throw new AiGenerationError("AI 공급자 연결 실패", geminiTelemetry({ task, model, outcome: "request_error", startedAt }));
     }
     if (!response.ok) {
-      console.error("Gemini API 오류:", response.status);
+      const providerStatus = await providerErrorStatus(response);
+      console.error("Gemini API 오류:", response.status, providerStatus || "");
       throw new AiGenerationError("AI 공급자 오류 (" + response.status + ")", geminiTelemetry({
-        task, model, response, outcome: "http_error", startedAt,
+        task, model, response, outcome: "http_error", startedAt, providerStatus,
       }));
     }
     let raw;

@@ -56,9 +56,11 @@ production `worker/wrangler.toml`은 수정하지 않았으며, 이 선언도 �
 | --- | --- |
 | 실행 범위 | staging에만 logs 100% version `32c03142-05f8-4647-89bb-8307d0009f89`를 배포하고 합성 PNG 1회·개인정보 없는 문서 prompt 1회를 실행했다. provider 시도 2회, 재시도 0회로 기존 승인을 모두 사용했다. |
 | 인증·App Check | 무효 Firebase 토큰은 provider·quota 전에 401로 거절됐다. 임시 익명 계정의 유효 토큰은 통과했다. App Check 토큰은 없어서 `monitor` 실패 로그가 남았지만 설정대로 거절하지 않았다. |
+| staging 프로젝트 위치 | ⚠️ **두 번째 구글 계정(`console.firebase.google.com/u/1`)에 있다.** 이 컴퓨터의 Firebase CLI 는 첫 계정이라 `403 PERMISSION_DENIED` 가 나고 `projects:list` 에도 안 보인다 — 프로젝트가 사라진 것이 아니다(2026-09-19 확인). |
+| 로그 표본 | ⚠️ **10% 로는 검증 호출이 기록되지 않는다**(2026-09-19 에 실제로 1회를 통째로 잃었다). 표본율을 올리는 대신 **`wrangler tail` 을 붙인다** — `recordMetric` 기본값이 `console.log` 라 표본율과 무관하게 전부 보이고, 배포·복원할 것이 없다. |
 | quota·응답 | 두 유효 요청 모두 사용자·전역 quota의 reserve·consume을 완료한 뒤 이미지·문서 각각 502를 반환했다. 실패도 이미 소비됐으므로 429 확인용 세 번째 요청은 보내지 않았다. |
 | 안전 로그 | 두 작업의 `ai_usage`는 provider `gemini`, 각 task, `outcome=request_error`, 미확인 token/HTTP 필드를 null로 남겼다. 요청 이미지·prompt·응답·UID·인증 토큰·secret은 기록하지 않았다. |
-| 복원 | staging logs를 version `eeb668aa-1f81-4fc4-bb6b-a8546176613c`에서 10%로 복원했다. 임시 익명 계정을 삭제하고 익명 로그인 제공업체도 비활성화했다. production은 배포·설정·호출 모두 0건이다. |
+| 복원 | staging logs를 version `eeb668aa-1f81-4fc4-bb6b-a8546176613c`에서 10%로 복원했다. 임시 익명 계정을 삭제하고 익명 로그인 제공업체도 비활성화했다. production은 배포·설정·호출 모두 0건이다. ⚠️ **익명 로그인은 실제로는 꺼져 있지 않았다** — 2026-09-19 에 콘솔에서 '사용 설정됨' 을 확인했다(`REV-2026-093`). 이후 회차가 다시 켜고 기록하지 못한 것으로 보이며, 남은 검증 1회를 위해 켠 채로 둔다. |
 
 provider HTTP 응답 자체가 없어서 모델 접근·출력 구조·실제 token 측정은 미확인이다. 기존 2회/$1 승인은
 소진됐으며 추가 호출로 원인을 탐색하지 않는다. 다음은 Terra medium의 외부 호출 없는 credential 전달·header·

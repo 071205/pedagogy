@@ -45,12 +45,12 @@
 ### B. 비용 개선 레일 (Codex)
 
 비용 개선의 유일한 경로: [통합 레일·현재 단계](../docs/DEV-TOKEN-ROADMAP.md).
-DEV-1~5 → OPS-6A·6B~10 → REL-11~15 순서다. **OPS-6A 독립 재검토까지 완료**했고,
-OPS-6B의 staging secret·전용 config·QUOTA 배포까지 끝냈고 OPS-7 승인 2회도 실행했다. 인증·quota·
-안전 로그는 확인했지만 이미지·문서 모두 provider HTTP 응답 전 `request_error`로 실패했다. logs 10%와
-임시 인증은 복원했다. Terra medium의 key 끝 공백·redirect 상태 보강을 Sol medium이 독립 승인했다.
-기존 2회/$1 승인은 소진됐으며, 다음 Terra medium staging 재검증은 새 이미지 1회·문서 1회·재시도 0회·
-최대 $1 승인 대기다. production 제외는 그대로 유지한다.
+DEV-1~5 → OPS-6A·6B~10 → REL-11~15 순서다. **2026-09-19 에 Claude 가 이어받았다** — 5일째
+미커밋이던 이 갈래를 커밋하고(`e68b73f`), OPS-7 문서 호출 2회로 **502 의 원인을 확정**했다:
+`thinkingLevel: "minimal"` 은 Gemini 2.5 값이라 `gemini-3.1-flash-lite` 가 **400** 을 냈다.
+`"low"` 로 고치고, 공급자 **표준 오류 코드만** telemetry 에 남기게 했다(`HANDOFF-2026-145`).
+⚠️ **실제 성공은 아직 못 봤다** — 오늘 한도 2/2 소진. UTC 날짜가 바뀐 뒤(한국 09:00) 문서 1회,
+새 승인 필요. production 제외는 그대로다.
 
 | 갈래 | 어디를 읽나 |
 | --- | --- |
@@ -61,6 +61,12 @@ OPS-6B의 staging secret·전용 config·QUOTA 배포까지 끝냈고 OPS-7 승�
 | 지난 종합 감사 | [2026-09-08](audits/2026-09-08/REPORT.md) · [2026-09-11](audits/2026-09-11/FOLLOWUP-REVIEW.md) |
 
 ## 최근 검토
+
+[HANDOFF-2026-145](handoffs/2026-09/2026-09-19-ops7-gemini-thinking-level.md): OPS-7 의 502 는
+`thinkingLevel: "minimal"` 이었다 — Gemini 3 은 `low·medium·high` 를 받는다. 승인 2회 중 **첫 회는
+로그 표본 10% 에 걸려 통째로 잃었고**, 둘째를 `wrangler tail` 로 받아 `http_error·400·토큰 null` 을
+확보했다. `"low"` 로 고치고 공급자 **표준 오류 코드만** 남기게 했다(메시지는 안 남긴다 — 여기가
+검토 요청 지점). 갈래 B 를 `e68b73f` 로 커밋. **미검토 · 실제 성공 미확인.**
 
 [HANDOFF-2026-144](handoffs/2026-09/2026-09-18-header-footer-element.md): 머리말·꼬리말을 구현했다
 (문서 수준 값 `header`·`footer`). ⚠️ `secPr` 에 넣고 `headerApply` 로 가리키면 **한글이 파일은
@@ -82,10 +88,6 @@ OPS-6B의 staging secret·전용 config·QUOTA 배포까지 끝냈고 OPS-7 승�
 [HANDOFF-2026-141](handoffs/2026-09/2026-09-14-ops7-staging-smoke-failure.md): staging 합성 이미지·문서를
 각 1회만 실행했으나 모두 `request_error`/502였다. 인증·quota·안전 로그를 확인하고 logs 10%, 임시 계정·
 익명 provider를 복원했다. 다음 Terra medium 진단, 재호출은 새 승인 필요.
-
-[HANDOFF-2026-140](handoffs/2026-09/2026-09-14-ops6b-staging-preflight.md): staging preflight 뒤 승인 범위에서
-Gemini 전용 key 하나만 남기고 Cloudflare secret·제품 Worker·QUOTA를 배포했다. version·secret 이름·health를
-확인했고 실제 Gemini 호출은 0회다. 다음 OPS-7/Sol medium.
 
 ## 지난 기록을 찾는 법
 

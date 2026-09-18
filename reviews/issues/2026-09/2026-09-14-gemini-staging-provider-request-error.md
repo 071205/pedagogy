@@ -93,3 +93,61 @@ Gemini 에 닿기 전에 **우리 Worker 의 429** 에 막힌다 — 코덱스�
 **`2026-09-15T00:00Z`(한국 09:00) 이후에는 한도가 새로 시작되므로, 설정을 하나도 건드리지 않고
 문서 경로 1회만 다시 부르면 된다.** 한도를 임시로 올려 지금 부르는 것은 같은 값을 두 번 바꾸는
 일이고, 코덱스가 이미 한 번 그렇게 했다가 복원했다.
+
+## 2026-09-19 — 원인 확정: **`thinkingLevel: "minimal"` 을 Gemini 3 모델에 보냈다**
+
+승인 범위에서 staging 문서 경로를 **2회** 불렀다(재시도 0회 · production 0건). 둘 다 502.
+
+| 회차 | 결과 | 얻은 것 |
+|---|---|---|
+| 1회 | HTTP 502 · 2,533ms | **아무것도** — 로그 표본이 10% 라 `ai_usage` 가 기록되지 않았다 |
+| 2회 | HTTP 502 · 1,892ms | `wrangler tail` 로 실시간 수집 → **원인 확정** |
+
+2회차 telemetry:
+
+```
+outcome: 'http_error' · http_status: 400 · duration_ms: 344
+input_tokens: null · output_tokens: null · thinking_tokens: null
+```
+
+**Gemini 가 요청을 400 으로 거절했다.** 토큰이 전부 null 인 것이 '모델이 아무것도 처리하지
+않았다' 는 뜻이고, 344ms 라는 시간도 그와 맞는다. 키·egress·공유 용량(503)이 아니다.
+
+⚠️ 우리가 보내던 `generationConfig.thinkingConfig.thinkingLevel` 이 **`"minimal"`** 이었다.
+공식 문서상 **Gemini 3 계열은 `low`·`medium`·`high`** 를 받고 `minimal` 은 Gemini 2.5 계열
+(과 예외적으로 `gemini-3.6-flash`)의 값이다. 우리 모델은 `gemini-3.1-flash-lite` 다.
+
+### 왜 09-14 에는 이미지가 성공했는가 — 확인하지 못했다
+
+그 회차의 로그 증적이 이 저장소에 없다(세션이 끊겨 기록되지 않았고, 그 뒤 표본도 10% 였다).
+**그때와 지금의 요청 본문이 같았는지 확인할 방법이 없다.** 성공 보고를 부정하지도, 근거로
+삼지도 않는다 — 다음 검증이 그 자리를 대신한다.
+
+## 처리 기록 (이어서)
+
+- `2026-09-19` — `Claude / Opus 5`:
+  - **수정 ①(결함)**: `worker/gemini.js` 의 `thinkingLevel` 을 `"minimal"` → **`"low"`**.
+    되돌리기 쉬운 값이라 붉은 탐침(`thinking-level`)을 그 자리에 두었다.
+  - **수정 ②(진단 가능성)**: 공급자의 **표준 오류 코드만** telemetry 에 남긴다
+    (`provider_error_status`, 예: `INVALID_ARGUMENT`). ⚠️ **메시지·본문은 남기지 않는다** —
+    `/^[A-Z][A-Z_]{2,39}$/` 를 통과하는 열거값만 받고 나머지는 버린다. 이 칸이 없어서
+    공급자 400·503·404 가 화면에서도 로그에서도 **똑같은 502 한 줄**이었고, 원인을 보려고
+    승인된 실호출을 한 번 더 써야 했다. 검사 셋을 더했다(코드 기록 · 자유 문자열 거부 ·
+    JSON 이 아닌 본문). **재시도 금지 계약은 그대로다** — 오류 본문은 `clone()` 으로 읽어
+    fetch 가 한 번인 것을 검사가 계속 지킨다.
+  - **배포**: staging version `8a4f3aa4-b70d-452e-bf76-ca5d8b29bd3d`. production 0건.
+  - **검증**: `node worker/gemini.test.mjs` · `npm run test:worker` 통과. 새 검사를 깨 보아
+    (`provider_error_status` 를 항상 null 로) 빨간불이 나는 것까지 확인했다.
+  - **남은 것**: **실제 성공을 아직 보지 못했다.** 오늘 한도 2/2 를 썼다. UTC 날짜가 바뀌면
+    (한국 09:00) **문서 1회**만 더 부르면 된다 — 새 승인이 필요하고, 그때는
+    `wrangler tail` 을 붙여 표본율과 무관하게 telemetry 를 받는다.
+  - 상태는 `in-progress` 를 유지한다(원인·수정은 섰지만 실환경 성공 증거가 없다).
+
+⚠️ **기록이 실제와 달랐다**: `docs/AI-MEASUREMENT-DEPLOYMENT-PREP.md` 와 `HANDOFF-2026-141`
+은 09-14 정리 때 **익명 로그인을 비활성화했다**고 적었는데, 2026-09-19 에 콘솔을 열어 보니
+**'사용 설정됨'** 이었다. 마지막 회차가 다시 켜고 기록하지 못한 것으로 보인다. 지금은 남은
+검증 1회를 위해 **켠 채로 둔다** — OPS-7 이 끝나면 끄는 것이 마무리 항목이다.
+
+⚠️ **staging Firebase 프로젝트는 두 번째 구글 계정(`/u/1`)에 있다.** 이 컴퓨터의 Firebase
+CLI 는 첫 계정으로 로그인돼 있어 `403 PERMISSION_DENIED` 가 나고 `projects:list` 에도
+안 보인다. 프로젝트가 없어진 것이 아니다 — 다음 사람이 같은 곳에서 헤매지 않도록 적어 둔다.

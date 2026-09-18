@@ -16,9 +16,14 @@ export function buildGeminiRequest({ system, parts }) {
       candidateCount: 1,
       maxOutputTokens: 4096,
       responseMimeType: "application/json",
-      // Gemini 3 uses levels. Minimal can still consume thinking tokens; keep
-      // reporting actual usage rather than treating this as a zero-token mode.
-      thinkingConfig: { thinkingLevel: "minimal", includeThoughts: false },
+      // Gemini 3 takes a level, and the level set differs from Gemini 2.5's.
+      // ⚠️ "minimal" belongs to 2.5 (and, as an exception, 3.6-flash). Sending it to
+      //    gemini-3.1-flash-lite returned HTTP 400 with no tokens consumed — measured
+      //    2026-09-19, and it cost two approved staging calls to see. Gemini 3 takes
+      //    low / medium / high, so "low" is the least thinking this model will accept.
+      //    A level can still consume thinking tokens; keep reporting actual usage
+      //    rather than treating this as a zero-token mode.
+      thinkingConfig: { thinkingLevel: "low", includeThoughts: false },
     },
   };
 }

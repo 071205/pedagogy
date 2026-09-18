@@ -65,11 +65,12 @@ const response = ({ text = '{"problems":[]}', finishReason = "STOP", usage = {},
   candidates: [{ finishReason, content: { parts: parts || [{ thought: true, text: "private-thought" }, { text }] } }],
 });
 
-function assertSafeGeminiMetric(metric, { outcome, status, input = null, output = null, thinking = null, stop = null }) {
+function assertSafeGeminiMetric(metric, { outcome, status, input = null, output = null, thinking = null, stop = null, providerStatus = null }) {
   assert.deepEqual(Object.keys(metric).sort(), [
     "duration_ms", "event", "http_status", "input_tokens", "model", "outcome",
-    "output_tokens", "provider", "stop_reason", "task", "thinking_tokens",
+    "output_tokens", "provider", "provider_error_status", "stop_reason", "task", "thinking_tokens",
   ]);
+  assert.equal(metric.provider_error_status, providerStatus);
   assert.equal(metric.provider, "gemini");
   assert.equal(metric.outcome, outcome);
   assert.equal(metric.http_status, status);
@@ -85,7 +86,7 @@ function assertSafeGeminiMetric(metric, { outcome, status, input = null, output 
 const built = buildGeminiRequest({ system: "system", parts: [{ text: "user" }] });
 assert.deepEqual(built.generationConfig, {
   candidateCount: 1, maxOutputTokens: 4096, responseMimeType: "application/json",
-  thinkingConfig: { thinkingLevel: "minimal", includeThoughts: false },
+  thinkingConfig: { thinkingLevel: "low", includeThoughts: false },
 });
 assert.equal(built.systemInstruction.parts[0].text, "system");
 assert.throws(() => buildGeminiRequest({ system: "", parts: [] }), TypeError);
@@ -113,8 +114,9 @@ const baselineGemini = { buildGeminiRequest, decodeGeminiEnvelope };
 for (const [name, needle, replacement, check] of [
   ["max-output", "maxOutputTokens: 4096", "maxOutputTokens: 4095", (mod) =>
     assert.equal(mod.buildGeminiRequest({ system: "s", parts: [{ text: "p" }] }).generationConfig.maxOutputTokens, 4096)],
-  ["thinking-minimal", 'thinkingLevel: "minimal"', 'thinkingLevel: "high"', (mod) =>
-    assert.equal(mod.buildGeminiRequest({ system: "s", parts: [{ text: "p" }] }).generationConfig.thinkingConfig.thinkingLevel, "minimal")],
+  // ⚠️ 되돌리기 쉬운 값이라 붉은 탐침을 둔다 — "minimal" 로 돌아가면 이 모델이 400 을 낸다.
+  ["thinking-level", 'thinkingLevel: "low"', 'thinkingLevel: "minimal"', (mod) =>
+    assert.equal(mod.buildGeminiRequest({ system: "s", parts: [{ text: "p" }] }).generationConfig.thinkingConfig.thinkingLevel, "low")],
   ["missing-thinking", "thinkingTokens: usage.thoughtsTokenCount", "thinkingTokens: usage.thoughtsTokenCount ?? 0", (mod) =>
     assert.equal(mod.decodeGeminiEnvelope({ candidates: [{ finishReason: "STOP", content: { parts: [{ text: "{}" }] } }] }).thinkingTokens, null)],
 ]) {
@@ -168,7 +170,7 @@ assertRedWorkerMutation("gemini-body-key-log", "response = await fetch(`https://
     assert.equal(JSON.stringify(entries).includes(env.GEMINI_API_KEY), false);
   } finally { globalThis.fetch = originalFetch; console.error = originalError; }
 `);
-assertRedWorkerMutation("gemini-http-second-fetch", "console.error(\"Gemini API 오류:\", response.status);", "await fetch(\"https://retry.invalid/\", {}); console.error(\"Gemini API 오류:\", response.status);", `
+assertRedWorkerMutation("gemini-http-second-fetch", "console.error(\"Gemini API 오류:\", response.status, providerStatus || \"\");", "await fetch(\"https://retry.invalid/\", {}); console.error(\"Gemini API 오류:\", response.status, providerStatus || \"\");", `
   const originalFetch = globalThis.fetch; let fetches = 0;
   try {
     globalThis.fetch = async () => { fetches++; return new Response("provider failed", { status: 529 }); };
@@ -320,6 +322,36 @@ for (const [name, makeResponse, expected] of [
   assert.equal(fetches, 1, "HTTP failure must not retry or fall back to another provider");
   assert.deepEqual(subject.calls, ["reserve", "consume"]);
   assertSafeGeminiMetric(subject.metrics[0], { outcome: "http_error", status: 529 });
+}
+
+/* 공급자가 준 표준 오류 코드는 남기고, 메시지는 남기지 않는다.
+   ⚠️ 이 칸이 없던 동안 공급자 400 과 503 이 화면·로그에서 똑같은 502 한 줄이라,
+      원인을 알아내는 데 승인된 실호출을 한 번씩 써야 했다(2026-09-19). */
+{
+  const subject = fixtureWorker(); let fetches = 0;
+  const result = await mockFetch(async () => {
+    fetches++;
+    return Response.json({ error: { code: 400, status: "INVALID_ARGUMENT", message: "private field detail" } }, { status: 400 });
+  }, () => subject.worker.fetch(request({ imageBase64: "safe", mimeType: "image/png" }), env));
+  assert.equal(result.status, 502);
+  assert.equal(fetches, 1, "reading the error body must not cost a second fetch");
+  assertSafeGeminiMetric(subject.metrics[0], { outcome: "http_error", status: 400, providerStatus: "INVALID_ARGUMENT" });
+}
+
+// 코드가 아닌 것은 버린다 — 자유 문자열이 이 칸으로 새어 나가면 안 된다.
+{
+  const subject = fixtureWorker();
+  await mockFetch(async () => Response.json({ error: { status: "사람이 읽는 문장 that is not a code" } }, { status: 400 }),
+    () => subject.worker.fetch(request({ imageBase64: "safe", mimeType: "image/png" }), env));
+  assertSafeGeminiMetric(subject.metrics[0], { outcome: "http_error", status: 400 });
+}
+
+// 본문이 JSON 이 아니어도 실패로 번지지 않는다.
+{
+  const subject = fixtureWorker();
+  await mockFetch(async () => new Response("<html>gateway</html>", { status: 502 }),
+    () => subject.worker.fetch(request({ imageBase64: "safe", mimeType: "image/png" }), env));
+  assertSafeGeminiMetric(subject.metrics[0], { outcome: "http_error", status: 502 });
 }
 
 // The document path sends only text and still runs the existing document validator.
