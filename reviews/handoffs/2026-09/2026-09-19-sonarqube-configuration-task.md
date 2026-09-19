@@ -18,3 +18,22 @@
 3. 만약 위 방법 대신 UI 상에서 처리하기로 결정한다면, SonarQube Cloud 대시보드에서 해당 이슈들을 `Resolve as False Positive` 혹은 `Accept`로 일괄 처리하도록 가이드라인 문서(`docs/OPERATIONS-RUNBOOK.md` 등)에 기록합니다.
 
 이 작업이 완료되면 소나큐브 리포트에서 가짜 Security Blocker들이 사라지고, 실제 서비스 코드(`worker/`, `index.html`)에 숨어있는 **Reliability(안정성) D등급(140건)**에 해당하는 진짜 버그(Null 에러, 예외 처리 누락 등)들만 집중적으로 분석하고 고칠 수 있게 됩니다.
+
+## 처리 기록 — 2026-09-20 Codex
+
+기존 `sonar-project.properties`는 SonarQube Cloud **Automatic Analysis가 읽는 파일이 아니었다**.
+커밋 `1cc6425` 분석 화면에 `sonar.tests is not configured` 경고가 그대로 남았고,
+`scripts/`·`experiments/`가 상위 보안 이슈에 계속 표시되는 것으로 독립 확인했다. 당시 기준은
+27k LOC, 열린 이슈 835건(Security 163 · Reliability 143 · Maintainability 702)이었다.
+
+- 자동 분석용 `.sonarcloud.properties`로 교체했다.
+- `sonar.sources=.`를 제거하고 실제 브라우저 앱·Worker·로컬 서버·Rules·CI 설정만 명시했다.
+- `scripts/`, `experiments/`, `reviews/`, `tests/`, `.claude/`, fixture와 생성 템플릿 데이터는
+  제품 분석 범위 밖에 뒀다. 이 파일들은 사용자 입력을 받는 배포 코드가 아니라 로컬 검사·생성 도구다.
+- 같은 `worker/`에 섞인 `*.test.mjs`만 test scope로 분류해 main/test 중복을 막았다.
+- Python 3.12/3.13을 명시해 Python 버전 경고와 버전 추측에 따른 오탐을 줄였다.
+- `scripts/check-sonar-scope.mjs`와 `npm run check:sonar`를 추가하고 `check:fast` 앞부분에 연결했다.
+  새 런타임 파일 누락, 저장소 전체 재포함, Worker 테스트 분류 누락을 검사하며 고장 주입 3건도 잡는다.
+
+로컬 검증: `npm run check:sonar` 통과(분석 가능 추적 파일 97개 대조, 자기검사 3/3),
+`git diff --check` 통과. 실제 Cloud 재분석 결과는 이 변경을 `main`에 올린 뒤 대시보드에서 대조한다.

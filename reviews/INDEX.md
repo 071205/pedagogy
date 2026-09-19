@@ -70,7 +70,10 @@ DEV-1~5 → OPS-6A·6B~10 → REL-11~15 순서다. OPS-7의 최신 증거는
 staging 결제 미연결로 고정했다. 활성 version·한도·logs를 재확인하고 Firebase 익명 제공업체를
 비활성화했다. 다음은 사용자의 결제 연결 여부 결정이며 production 변경·추가 호출 0건.
 
-[HANDOFF-2026-148](handoffs/2026-09/2026-09-19-sonarqube-configuration-task.md): SonarQube Cloud 분석에서 `scripts/`와 `experiments/` 폴더 내 도구들이 Path Traversal로 오탐(Security E등급)되는 문제를 해결하기 위한 지시서. `sonar-project.properties`를 추가하여 오탐을 제거하고 실제 제품 버그(Reliability D등급) 140건 수정에 집중하도록 안내함. **미검토 · 코드 작업 대기 중.**
+[HANDOFF-2026-148](handoffs/2026-09/2026-09-19-sonarqube-configuration-task.md): 기존
+`sonar-project.properties`가 Automatic Analysis에서 무시된 사실을 분석 경고와 이슈 경로로 확인했다.
+`.sonarcloud.properties`의 명시적 제품 허용목록으로 교체하고 Worker 테스트만 별도 분류했으며,
+범위 회귀 검사와 고장 주입 3건을 `check:fast`에 연결했다. **Cloud 재분석 결과 확인 대기.**
 
 [HANDOFF-2026-147](handoffs/2026-09/2026-09-19-ecc-analysis-and-borrowed-guards.md): 외부 하네스
 ECC(MIT)를 받아 읽고 **기법 셋만** 우리 것으로 만들었다(코드 0줄). 통째로 넣으면 설명만 세션당
