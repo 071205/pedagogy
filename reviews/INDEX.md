@@ -71,6 +71,8 @@ DEV-1~5 → OPS-6A·6B~10 → REL-11~15 순서다. **2026-09-19 에 Claude 가 �
 
 ## 최근 검토
 
+[HANDOFF-2026-148](handoffs/2026-09/2026-09-19-sonarqube-configuration-task.md): SonarQube Cloud 분석에서 `scripts/`와 `experiments/` 폴더 내 도구들이 Path Traversal로 오탐(Security E등급)되는 문제를 해결하기 위한 지시서. `sonar-project.properties`를 추가하여 오탐을 제거하고 실제 제품 버그(Reliability D등급) 140건 수정에 집중하도록 안내함. **미검토 · 코드 작업 대기 중.**
+
 [HANDOFF-2026-147](handoffs/2026-09/2026-09-19-ecc-analysis-and-borrowed-guards.md): 외부 하네스
 ECC(MIT)를 받아 읽고 **기법 셋만** 우리 것으로 만들었다(코드 0줄). 통째로 넣으면 설명만 세션당
 ≈26,600 토큰이라 비용 레일과 반대다. `.claude/` 에 짝 파일 알림 · `git add -A` 가드 · HWPX 새 요소
