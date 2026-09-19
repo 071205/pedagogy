@@ -1,4 +1,4 @@
-# staging Gemini 요청이 provider HTTP 응답 전에 실패한다
+# staging Gemini 요청이 결제 전제 미충족으로 실패한다
 
 - ID: `REV-2026-093`
 - 날짜: `2026-09-14`
@@ -10,9 +10,10 @@
 
 ## 요약과 영향
 
-승인된 격리 staging에서 합성 문제 이미지와 문서 요청을 각 1회 실행했지만 두 요청 모두 Gemini의
-HTTP 응답을 받기 전에 `request_error`로 끝나 Worker가 502를 반환했다. production은 건드리지 않아
-실사용 영향은 확인되지 않았지만, OPS-7의 모델 접근·출력·token 측정과 이후 OPS-8을 진행할 수 없다.
+초기 격리 staging 요청은 HTTP 응답 전 실패했으나 후속 안전 telemetry와 콘솔 대조로 현재 차단 원인을
+확정했다. Gemini는 `400 FAILED_PRECONDITION`을 반환하고 staging Google Cloud 프로젝트에는 결제 계정이
+연결돼 있지 않다. production 영향은 없지만 결제 연결 여부가 정해질 때까지 OPS-7 성공 검증과 OPS-8을
+진행할 수 없다.
 
 ## 재현 절차
 
@@ -185,3 +186,13 @@ duration_ms: 361 · 토큰 전부 null
 
 - 오늘 호출: **문서 1회**(승인 범위), 재시도 0회, production 0건. 오늘 남은 한도 1회.
 - 임시 익명 계정은 만들고 지웠다. 익명 로그인은 검증이 끝날 때까지 켠 채로 둔다.
+
+## 2026-09-20 — 새 채팅 전 마감
+
+- staging Worker 활성 version `8a4f3aa4-b70d-452e-bf76-ca5d8b29bd3d`, 호출 한도 2/2,
+  logs 10%, 모델 `gemini-3.1-flash-lite`를 읽기 전용으로 재확인했다.
+- Firebase 두 번째 계정(`/u/1`)에서 익명 로그인 제공업체를 끄고, 새로고침 뒤 `사용 중지됨`을 확인했다.
+- 임시 인증 파일과 이번 검증 계정은 없다. 사용자 목록의 2026-09-14 익명 테스트 사용자 1개는 남아 있다.
+  영구 삭제는 별도 확인이 필요한 정리 항목이며, 제공업체가 꺼져 있어 새 익명 로그인은 불가능하다.
+- 추가 provider 호출과 production 변경은 0건이다. 다음 행동은 사용자의 staging 결제 연결 여부 결정이다.
+  상태는 `in-progress`를 유지한다.

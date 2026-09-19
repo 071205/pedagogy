@@ -9,52 +9,25 @@
 
 ## 현재 위치
 
-- **OPS-7 원인 확정(2026-09-19 둘째) — staging 프로젝트에 결제 계정이 없다.**
-  승인받은 1회를 부르자 `provider_error_status: FAILED_PRECONDITION` 이 나왔고, 공식 문서가
-  그것을 "전제 조건 미충족(예: 결제 비활성화)" 으로 정의한다. Google Cloud 콘솔도
-  **"이 프로젝트에 결제 계정이 연결되어 있지 않습니다"** 라고 한다.
-  ⚠️ **아래 `thinkingLevel` 진단은 틀렸다** — 오류 코드를 못 본 채 문서에서 추론한 것이었다.
-  `"low"` 로 고친 것은 규격상 맞지만 502 의 원인이 아니다.
-  ⚠️ **남은 것은 사람이 정할 일이다** — staging 프로젝트에 결제 계정을 연결할지. 결제 수단을
-  다는 일이라 에이전트가 하지 않는다. 연결 전에는 OPS-7·8 이 더 갈 수 없다.
-- ~~**OPS-7 원인이 다시 바뀌었다(2026-09-19) — `thinkingLevel: "minimal"` 이 Gemini 3 에 안 맞아 400 이었다.**~~
-  승인 범위에서 문서 1회를 불러 502 를 받았는데 **로그 표본 10% 에 걸려 아무것도 남지 않았고**,
-  추가 승인 1회를 `wrangler tail` 을 붙여 불러 `http_error · 400 · 토큰 전부 null` 을 확보했다.
-  공식 문서상 Gemini 3 은 `low·medium·high` 를 받고 `minimal` 은 2.5 계열 값이다. `"low"` 로 고쳤고
-  **공급자 표준 오류 코드만** telemetry 에 남기게 했다(메시지는 안 남긴다). staging version
-  `8a4f3aa4-b70d-452e-bf76-ca5d8b29bd3d` 배포, production 0건.
-  ⚠️ **실제 성공은 아직 못 봤다.** 오늘 한도 2/2 소진 — UTC 날짜가 바뀐 뒤(한국 09:00) 문서 1회.
-  ⚠️ 09-14 의 '이미지 성공' 은 **로그 증적이 없어** 그때 본문이 지금과 같았는지 확인할 수 없다.
-  자세한 것은 [REV-2026-093](../reviews/issues/2026-09/2026-09-14-gemini-staging-provider-request-error.md).
-- ~~**OPS-7 원인 규명됨 · 이미지 경로 성공 · 문서 경로 1회 재시도만 남았다(한국 09-15 09:00 이후).**~~
-  ⚠️ 원인은 키·egress 가 아니라 **신규 프로젝트의 Gemini 2.5 접근 제한**이었다(2.5 가 404).
-  `gemini-3.1-flash-lite` 로 바꾸자 **합성 이미지가 성공**했고 — 같은 키로 성공한 것이 근거다 —
-  이어진 문서 요청만 Gemini 의 **503(공유 용량 포화 · 우리 결함 아님)** 으로 실패했다.
-  ⚠️ **일일 한도는 UTC 날짜로 센다.** 코덱스 호출이 `2026-09-14T15:3xZ` 라 같은 UTC 날짜인 동안은
-  Gemini 에 닿기 전에 **우리 429** 에 막힌다. `2026-09-15T00:00Z`(한국 09:00) 뒤에는 설정을 하나도
-  건드리지 않고 **문서 1회**만 다시 부르면 된다. 자세한 것은
-  [REV-2026-093](../reviews/issues/2026-09/2026-09-14-gemini-staging-provider-request-error.md).
-- **OPS-6A·6B 완료 / OPS-7 진단 수정 독립 승인·staging 재검증 승인 대기 — 다음 GPT-5.6 Terra · medium.**
-  [REV-2026-091](../reviews/issues/2026-09/2026-09-14-gemini-response-body-timeout-gap.md)·
-  [REV-2026-092](../reviews/issues/2026-09/2026-09-14-gemini-missing-token-red-probe-invalid.md)를 해결했다.
-- DEV-0~5와 OPS-6A·6B 완료. OPS-7 **첫 회차**는 두 경로 모두 provider 연결 단계의 `request_error`로
-  502가 됐다(승인된 2회 소진). **둘째 회차**에서 2.5 의 404 를 보고 모델을 바꿔 이미지가 성공했다 —
-  위 첫 항목이 지금 상태다. production은 무수정이며 마지막 배포는 `2026-09-01`(`6e472e0b`) 로 확인했다.
-- staging 로그는 검증 동안만 100%로 올렸다가 version `eeb668aa-1f81-4fc4-bb6b-a8546176613c`에서
-  10%로 복원했다. 임시 익명 계정은 삭제했고 익명 로그인도 다시 비활성화했다. 다음은 외부 호출 없는
-  Terra medium 원인 진단이며, 수정 뒤 실호출 재검증에는 새 대상·횟수·금액 승인이 필요하다.
-  [준비 기록](AI-MEASUREMENT-DEPLOYMENT-PREP.md)의 확인 출처와 재확인 항목을 따른다.
-- Terra medium은 API key 끝 공백/줄바꿈을 header 전에 제거하고, provider redirect를 `manual`로 처리해
-  key를 다른 origin으로 넘기지 않으면서 3xx 상태를 안전 telemetry에 남기도록 보강했다. 실제 호출은
-  추가하지 않았다. Sol medium이 별도 trim 제거 변이, 단일 fetch·manual redirect·로그 비노출과 Worker
-  전체 회귀를 확인해 수정 자체를 승인했다. 실환경 원인은 아직 확정되지 않아 이슈는 닫지 않는다.
+- **DEV-0~5와 OPS-6A·6B 완료 / OPS-7은 외부 조건 대기.** 최신 실호출의 안전 telemetry는
+  `http_status=400`, `provider_error_status=FAILED_PRECONDITION`이었고 Google Cloud 콘솔은
+  staging 프로젝트에 결제 계정이 없음을 확인했다. 현재 502의 확정 원인은 이 결제 전제 미충족이다.
+- `gemini-3.1-flash-lite`, `thinkingLevel="low"`, 공급자 표준 오류 코드 allowlist는 코드·staging에
+  반영됐다. `thinkingLevel="minimal"` 가설은 원인이 아니었지만 규격 수정 자체는 유지한다.
+  staging 활성 version은 `8a4f3aa4-b70d-452e-bf76-ca5d8b29bd3d`; 한도 2/2·logs 10%다.
+- 2026-09-20 마감에서 Firebase 익명 로그인 제공업체를 **사용 중지됨**으로 재확인했다.
+  임시 인증 파일과 이번 테스트 계정은 남아 있지 않다. 2026-09-14 생성된 익명 테스트 사용자 1개는
+  계정 삭제 확인이 필요한 별도 정리 항목으로 남겼다. production 배포·설정·호출은 0건이다.
+- 다음 결정은 사용자가 staging 프로젝트에 결제 계정을 연결할지 여부다. 연결하면 새 호출 승인 후
+  Terra medium이 `wrangler tail`을 붙이고 문서 1회를 검증한다. 연결하지 않으면 OPS-7을
+  공급자 부적격/접근 불가로 마감하고 OPS-10에서 Gemini 보류를 결정한다. OPS-8은 성공 데이터가 없어 대기다.
 - 사용자 요청: **“비용 개선 레일대로 다음 단계 진행해.”** 또는 “개발 토큰 레일대로 다음 단계 진행해.”
   위 표현과 기존 “서비스 비용 레일대로 다음 단계 진행해” 모두 이 문서의 현재 단계 한 개를 실행한다.
 - 남은 순서: **OPS-7 진단·재검증 → OPS-8~10(비용 검증 마감) → REL-11~15(출시 준비)**.
   2026-09-14 사용자 재개 요청을 반영했다. 승인된 범위에서 단계별로 진행하며 설계/구현/독립 검토 상태를 구분한다.
-- 배포·유료 호출은 OPS-6에서 대상·예산을 구체화하고 승인받은 범위에서 실행한다. 격리 staging 합성
-  2회·$1 승인은 OPS-7의 두 실패 시도로 소진됐으며 production에는 적용되지 않았다.
-- 마지막 인계: [HANDOFF-142](../reviews/handoffs/2026-09/2026-09-14-gemini-staging-fetch-boundary-fix.md).
+- 배포·유료 호출은 대상·횟수·예산 승인을 구체화한 뒤 실행한다. 지금까지 받은 실호출 승인은 모두
+  소진됐으며 production에는 적용되지 않았다.
+- 마지막 인계: [HANDOFF-149](../reviews/handoffs/2026-09/2026-09-20-ops7-billing-blocker-handoff.md).
 
 ## 보존하는 결과와 범위
 
@@ -81,7 +54,7 @@
 | DEV-5. 개발 효과 확인 | 완료 | GPT-5.6 Terra / medium | 전체 흐름의 절감 근거 없음. 변환 내부 탐색만 개선, 추가 분리 보류 |
 | OPS-6A. 공급자·staging 계약 설계 | 완료 | GPT-5.6 Sol / medium 검토 완료 | REV-091·092 해결 독립 승인, Worker 및 Chromium regression 158/158 통과. 실제 접근/개인 자료 적격성은 6B에서 확인 |
 | OPS-6B. 서비스 배포 준비 | 완료 | GPT-5.6 Terra / medium | staging 전용 Gemini key·secret, 제품 Worker, QUOTA/migration, 2회 limits, 10% logs 배포. version·health·key 정리 확인, 호출 0회 |
-| OPS-7. 측정 실환경 검증 | 진단 수정 독립 승인 — 새 실호출 승인 대기 | 새 승인 후 GPT-5.6 Terra / medium 재검증 | 키 정규화·manual redirect 보강을 Sol이 승인. 기존 2회/$1 소진; staging 이미지 1·문서 1·재시도 0·최대 $1의 새 승인 전 배포/호출 금지 |
+| OPS-7. 측정 실환경 검증 | 외부 조건 대기 — staging 결제 미연결 | 사용자 결제 연결 결정 후 GPT-5.6 Terra / medium | `FAILED_PRECONDITION`과 콘솔로 결제 미연결 확정. 연결 시 새 승인 후 문서 1회; 미연결 유지 시 Gemini 보류로 마감 |
 | OPS-8. 서비스 표본 분석 | OPS-7 후, 데이터 필요 | GPT-5.6 Terra / medium | 구 E: 작업별 토큰·실패·응답 시간 분포와 한계 |
 | OPS-9. 출력 한도 판단 | OPS-8 후 | GPT-6 Astra / high 판단 → 변경 시 Terra / medium 구현 → Sol / medium 검토 | 구 F: 4096 유지 결정 또는 검증된 작업별 한도 변경 |
 | OPS-10. 공급자 판단·비용 검증 마감 | OPS-9 후 | GPT-6 Astra / high | Gemini 검증 결과와 한계, 채택/보류/Anthropic 복귀 결정. 비교 실험은 별도 예산 |
@@ -366,3 +339,5 @@ REL-15는 독립 검토자가 실제 release 산출물·환경과 코드 검사/
 | 2026-09-14 | OPS-7 실호출 실패·대기 | HANDOFF-141. staging 로그 100%에서 합성 이미지·문서를 각 1회, 재시도 0회 실행했다. 인증 거절·CORS·quota 소비·App Check monitor·안전 `ai_usage`는 확인했으나 두 provider 시도 모두 HTTP 응답 전 `request_error`/502였다. 로그 10% 복원, 익명 계정 삭제·provider 비활성화, production 무수정. 다음 Terra medium 외부 호출 없는 원인 진단; 재검증은 새 승인 필요. |
 | 2026-09-14 | OPS-7 진단 수정 완료 | HANDOFF-142. secret 끝 공백 제거와 manual redirect 안전 상태 보존을 추가하고 padded key·302·red mutation 회귀를 통과했다. 원인은 아직 확정하지 않았고 실호출 0회 추가. 다음 Sol medium 독립 검토, 재검증은 새 승인 필요. |
 | 2026-09-14 | OPS-7 진단 수정 독립 승인 | HANDOFF-142 검토 기록. Sol medium이 trim 제거 변이를 별도로 실패시키고 manual redirect·단일 fetch·안전 telemetry와 Worker 전체를 재검증했다. 수정 결함 없음, 실호출·배포 0회. `REV-093`은 실환경 재검증까지 유지; 다음 Terra medium은 새 2회/$1 승인 대기. |
+| 2026-09-19 | OPS-7 원인 확정·외부 조건 대기 | HANDOFF-145·REV-093. 표준 오류 코드 `FAILED_PRECONDITION`과 콘솔로 staging 결제 미연결을 확정했다. Gemini 3.1 Flash-Lite·thinking low·안전 오류 telemetry 배포. production 무수정. |
+| 2026-09-20 | OPS-7 새 채팅 인계 | HANDOFF-149. 활성 staging 한도 2/2·logs 10%·version을 재확인하고 Firebase 익명 제공업체를 비활성화했다. 다음은 사용자 결제 연결 여부 결정이며 그 전 추가 호출 없음. |
