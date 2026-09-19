@@ -107,7 +107,7 @@
   src:local('Adobe Caslon Pro Bold'), local('AdobeCaslonPro-Bold'), local('ACaslonPro-Bold');
   font-weight:700; font-style:normal; font-display:swap;
 }
-/* Pretendard 는 위 <head> 의 <link> 로 옮겼다 — 여기에 @import 로 두면
+/* Pretendard 는 문서 head의 link 요소로 옮겼다 — 여기에 @import 로 두면
    CSS 규격상 @font-face 뒤라서 규칙 자체가 무시된다. */
 
 /* ===== Toss Design System ===== */
@@ -323,7 +323,7 @@ label.btn input{display:none}
       순서를 뒤집으면 최신 브라우저가 `vh` 를 쓰게 된다. */
 #mockView{background:var(--bg)}
 #mockView iframe{width:100%;height:100%;border:0;display:block}
-#mockModeBtn.on{background:var(--accent,#3182F6);border-color:transparent;color:#fff}
+#mockModeBtn.on{background:#175CD3;border-color:transparent;color:#fff}
 #mockFallback{padding:48px;color:var(--text-secondary);font-size:14px;line-height:1.8;max-width:760px}
 #mockFallback code{background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:2px 7px;
   font:12px/1.6 ui-monospace,Menlo,monospace;color:var(--text-primary)}
@@ -1691,7 +1691,7 @@ input:focus-visible,textarea:focus-visible{outline:none}
     <button id="saveBtn">저장</button>
     <span id="saveStatus" style="font-size:12px;color:var(--text-tertiary);min-width:54px;white-space:nowrap"></span>
     <button id="loadBtn" class="btn">불러오기</button>
-    <input id="loadInput" type="file" accept="application/json" style="display:none">
+    <input id="loadInput" aria-label="문제집 JSON 불러오기" type="file" accept="application/json" style="display:none">
     <!-- ⚠️ 편집기에서도 설정에 닿아야 한다. 한컴 규격서 고지를 `설정 → 정보` 로 옮기는
          전제 조건이다(`HANDOFF-2026-098` 3번: "모든 편집기에서 키보드와 터치로 항상
          접근 가능하고 뒤로 돌아갈 경로가 생긴 뒤에만"). 라이브러리를 거쳐 두 번 누르는
@@ -1798,7 +1798,7 @@ input:focus-visible,textarea:focus-visible{outline:none}
       <button id="newSetBtn" class="btn-accent">+ 새 문제집</button>
       <button id="exportAllBtn">전체 내보내기</button>
       <button id="importAllBtn">가져오기</button>
-      <input id="importAllInput" type="file" accept="application/json" style="display:none">
+      <input id="importAllInput" aria-label="전체 문제집 JSON 가져오기" type="file" accept="application/json" style="display:none">
     </div>
   </div>
   <div id="selectBar" class="select-bar" hidden>
@@ -1828,7 +1828,7 @@ input:focus-visible,textarea:focus-visible{outline:none}
       <div class="lib-actions" id="mocksActions">
         <button id="newMockBtn" class="btn-accent">+ 새 모의고사</button>
         <button id="importMockBtn">가져오기</button>
-        <input id="importMockInput" type="file" accept="application/json" style="display:none">
+        <input id="importMockInput" aria-label="모의고사 JSON 가져오기" type="file" accept="application/json" style="display:none">
       </div>
     </div>
     <div id="mockGrid" class="lib-grid"></div>
@@ -2059,7 +2059,7 @@ function setEditorActions(on){
         <div style="display:flex;gap:8px;align-items:flex-start">
           <textarea id="qAnswer" aria-label="문항 정답" placeholder="LaTeX 가능  예) $\frac{45}{2}$" rows="2"></textarea>
           <button id="qAnswerImgBtn" type="button" class="btn" aria-label="정답 이미지 넣기" style="cursor:pointer;white-space:nowrap;flex-shrink:0;align-self:flex-start">📎</button>
-          <input id="qAnswerImg" type="file" accept="image/*" style="display:none">
+          <input id="qAnswerImg" aria-label="정답 이미지 파일" type="file" accept="image/*" style="display:none">
           <button id="qAnswerImgClear" class="btn-ghost" aria-label="정답 이미지 제거" style="display:none;flex-shrink:0;align-self:flex-start" title="이미지 제거">✕</button>
         </div>
       </div>
@@ -2103,7 +2103,7 @@ function setEditorActions(on){
         <span class="ai-dz-sub">문제 사진을 끌어다 놓거나 클릭해서 선택</span>
         <span class="ai-dz-sub">선택 시에만 AI 처리 사업자에게 전송됩니다 · 개인정보가 보이는 이미지는 올리지 마세요</span>
       </button>
-      <input id="aiImgInput" type="file" accept="image/*" style="display:none">
+      <input id="aiImgInput" aria-label="AI 분석용 문제 사진 파일" type="file" accept="image/*" style="display:none">
     </div>
     <div id="aiGenStatus" style="display:none;margin-top:6px;font-size:12px;color:var(--text-secondary);text-align:center"></div>
   </div>
@@ -2633,7 +2633,9 @@ function compressDataUrl(dataUrl, maxDim=1400, quality=0.85){
 // dataURL → Blob (Storage 업로드용)
 function dataUrlToBlob(dataUrl){
   const [header, b64]=dataUrl.split(",");
-  const mime=header.match(/:(.*?);/)[1];
+  const match=/^data:([^;,]+);base64$/.exec(header);
+  if(!match) throw new Error("지원하지 않는 data URL 형식입니다");
+  const mime=match[1];
   const bin=atob(b64); const arr=new Uint8Array(bin.length);
   for(let i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i);
   return new Blob([arr],{type:mime});
@@ -5874,7 +5876,7 @@ async function putTableImage(blk, r, c, f){
   if(uploadTooBig(f)) return false;
   if(!Array.isArray(blk.data.images)) blk.data.images=[];
   while(blk.data.images.length<blk.data.rows.length) blk.data.images.push([]);
-  const row=blk.data.images[r]; if(!Array.isArray(blk.data.images[r])) blk.data.images[r]=[];
+  if(!Array.isArray(blk.data.images[r])) blk.data.images[r]=[];
   const prev=blk.data.images[r][c];
   try{
     blk.data.images[r][c]=await fileToDataURL(f); renderPreview();   // 올라가기 전에 먼저 보여 준다

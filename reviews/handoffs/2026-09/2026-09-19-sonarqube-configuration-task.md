@@ -37,3 +37,11 @@
 
 로컬 검증: `npm run check:sonar` 통과(분석 가능 추적 파일 97개 대조, 자기검사 3/3),
 `git diff --check` 통과. 실제 Cloud 재분석 결과는 이 변경을 `main`에 올린 뒤 대시보드에서 대조한다.
+
+### 2026-09-20 후속 확인 및 정정
+
+분석 범위 변경 후 Cloud 열린 이슈는 364건(Security 21 E, Reliability 61 C,
+Maintainability 330 A; 품질별 건수는 중복 가능)이었다. 835→364 감소를 모두 오탐 해결로
+부르는 것은 부정확하다. 특히 `experiments/hwp-export`는 `serve.py`가 실행하는 변환기여서
+폴더 전체가 외부 입력과 무관하다는 위 설명은 정정한다. Worker 테스트 인식과 Python 버전
+경고도 Cloud에서 여전히 보여 설정 완전 반영을 단정할 수 없다. 후속은 HANDOFF-150 참고.

@@ -536,8 +536,8 @@ body.embedded .brand-tag{margin-left:0}
          그때는 body.embedded 가 붙어 이 로고를 숨긴다(아래 CSS). -->
     <div class="brand">PEDAGOGY</div>
     <div class="brand-tag">모의고사</div>
-    <input class="inp" id="round" value="2027학년도 9월 모의고사 대비 1회" style="margin-left:12px">
-    <select class="sel" id="elective">
+    <input class="inp" id="round" aria-label="모의고사 이름" value="2027학년도 9월 모의고사 대비 1회" style="margin-left:12px">
+    <select class="sel" id="elective" aria-label="선택 과목">
       <option>확률과 통계</option><option>미적분</option><option>기하</option>
     </select>
   </div>
@@ -768,10 +768,17 @@ function blankBlockData(type){
   return {};
 }
 
+// Split at the literal delimiter before trimming; an unanchored whitespace regex
+// retries every suffix of long whitespace runs when no delimiter follows.
+function splitConditionLines(text){
+  return text.split('(단,').map((part,i,parts)=>
+    i<parts.length-1 ? part.trimEnd() : part).join('\n(단,');
+}
+
 /* 예전 형식(stmt/conds/choices/figure) → blocks[] */
 function legacyToBlocks(p){
   const out=[];
-  const lines=String(p.stmt||'').replace(/\s*(\(단,)/g,'\n$1')
+  const lines=splitConditionLines(String(p.stmt||''))
                 .split('\n').map(x=>x.trim()).filter(Boolean);
   const condBlk=()=> (p.useCond && (p.conds||[]).length)
       ? {type:'conditions',data:{items:p.conds.slice(0,6)}} : null;
@@ -836,7 +843,7 @@ function probUnits(p){
   blocksOf(p).forEach(b=>{
     const d=b.data||{};
     if(b.type==='statement'){
-      String(d.text||'').replace(/\s*(\(단,)/g,'\n$1').split('\n')
+      splitConditionLines(String(d.text||'')).split('\n')
         .map(x=>x.trim()).filter(Boolean)
         .forEach(t=>units.push(EQ_LINE.test(t)?{k:'eq',t}:{k:'text',t}));
     }
@@ -2286,7 +2293,7 @@ async function toHwpx(){
       try{ const d=await r.json(); if(d&&d.error) msg=d.error; }catch(e){}
       toast(msg,'error'); return;
     }
-    const warn=+(r.headers.get('X-Hwpx-Warnings')||0);
+    const warn=Number(r.headers.get('X-Hwpx-Warnings')||0);
     const blob=await r.blob();
     const a=document.createElement('a');
     a.href=URL.createObjectURL(blob);
