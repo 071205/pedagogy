@@ -1,0 +1,32 @@
+{
+  "$comment": [
+    "이 저장소에서 반복된 실패 둘을 편집하는 순간으로 앞당기는 알림이다.",
+    "⚠️ 둘 다 막지 않는다 — 알리기만 하고 언제나 exit 0 이다. 실제 방어선은 검사(check:static·test:hwpx-browser 등)이고,",
+    "   이 훅들은 그 빨간불이 10분 뒤가 아니라 지금 보이게 할 뿐이다.",
+    "⚠️ 표와 규칙의 자기검사는 check:fast 에 걸려 있다(check:hooks) — 경로가 낡으면 빨간불이 난다."
+  ],
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/pair-guard.mjs\"",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/git-add-guard.mjs\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}

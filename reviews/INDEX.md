@@ -62,6 +62,12 @@ DEV-1~5 → OPS-6A·6B~10 → REL-11~15 순서다. **2026-09-19 에 Claude 가 �
 
 ## 최근 검토
 
+[HANDOFF-2026-147](handoffs/2026-09/2026-09-19-ecc-analysis-and-borrowed-guards.md): 외부 하네스
+ECC(MIT)를 받아 읽고 **기법 셋만** 우리 것으로 만들었다(코드 0줄). 통째로 넣으면 설명만 세션당
+≈26,600 토큰이라 비용 레일과 반대다. `.claude/` 에 짝 파일 알림 · `git add -A` 가드 · HWPX 새 요소
+스킬. ⚠️ **막지 않고 알리기만 하며 exit 0** — 판정은 검사가 한다. 자기검사는 `check:hooks` 로
+`check:fast` 에 걸었다. 검토 요청: **저장소가 에이전트 동작을 규정하는 첫 파일**이 옳은가. **미검토.**
+
 [HANDOFF-2026-146](handoffs/2026-09/2026-09-19-check-coverage-map.md): 검사 30개의 실행/건너뜀을
 전수 대조했다. 자동 경로가 없던 여섯 중 다섯은 의도된 제외였고 **`check:review-hygiene` 만 진짜
 구멍이라 `check:fast` 맨 앞에 걸었다**(깨보기로 첫 단계에서 멈추는 것 확인). ⚠️ **`check:fast` 는
@@ -85,11 +91,6 @@ DEV-1~5 → OPS-6A·6B~10 → REL-11~15 순서다. **2026-09-19 에 Claude 가 �
 정작 사용자에게 나가는 경로는 아무것도 안 봤다). 각주 본문 스타일을 이름으로 찾게 고쳤다
 (`REV-2026-094` — 미주 스타일로 나가고 있었다). 고장 다섯을 심어 브라우저·파이썬이 **같은 문구로**
 잡는 것과, 실물 한글 PDF 눈검사까지 확인했다. **미검토 · `main` 에 올라감(`64e7217`, 미푸시).**
-
-[HANDOFF-2026-142](handoffs/2026-09/2026-09-14-gemini-staging-fetch-boundary-fix.md): key 끝 공백을
-제거하고 redirect를 키를 따라 보내지 않는 안전한 HTTP 상태로 남겼다. padded key·302·red mutation 회귀
-통과. Sol medium이 trim 제거 변이와 전체 Worker를 독립 재검증해 수정 자체를 승인했다. 실호출 추가 0회,
-다음 Terra medium 재검증은 새 승인 대기.
 
 ## 지난 기록을 찾는 법
 
