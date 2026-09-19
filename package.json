@@ -43,7 +43,7 @@
     "@firebase/rules-unit-testing": "^5.0.2",
     "firebase": "^12.18.0",
     "pixelmatch": "^7.2.0",
-    "playwright": "^1.62.1",
+    "playwright": "^1.63.0",
     "pngjs": "^7.0.0"
   }
 }
