@@ -77,4 +77,13 @@ npx wrangler tail --config worker/wrangler.staging.toml &   # 붙여 두고
 - `npm run check:launch` 는 **빨간불이 정상**이다 — 출시 전 게이트이고 CI·`check:fast` 에
   걸려 있지 않다. 이번 변경과 무관한 항목 여덟이다.
 
+## ⚠️ 2026-09-19 (둘째) — 이 인계의 진단은 틀렸다
+
+승인받은 호출 1회를 더 부르자 `provider_error_status: FAILED_PRECONDITION` 이 나왔고,
+콘솔이 **staging 프로젝트에 결제 계정이 없음**을 확인해 주었다. `thinkingLevel` 은 원인이
+아니었다(고친 것 자체는 규격상 맞다). 자세한 것은 `REV-2026-093` 의 마지막 절.
+
+여기서 배운 것은 그대로 남긴다 — **공급자 오류를 코드 없이 추론하면 틀린다.** 이 인계에서
+넣은 `provider_error_status` 가 바로 다음 호출에서 답을 내놓았다.
+
 ## 검토 기록

@@ -151,3 +151,37 @@ input_tokens: null · output_tokens: null · thinking_tokens: null
 ⚠️ **staging Firebase 프로젝트는 두 번째 구글 계정(`/u/1`)에 있다.** 이 컴퓨터의 Firebase
 CLI 는 첫 계정으로 로그인돼 있어 `403 PERMISSION_DENIED` 가 나고 `projects:list` 에도
 안 보인다. 프로젝트가 없어진 것이 아니다 — 다음 사람이 같은 곳에서 헤매지 않도록 적어 둔다.
+
+## 2026-09-19 (둘째) — **진짜 원인: staging 프로젝트에 결제 계정이 없다**
+
+⚠️ **앞 절의 진단은 틀렸다.** `thinkingLevel: "minimal"` 이 원인이라고 적었는데, 그것은 실제
+오류 코드를 보지 못한 채 **공식 문서에서 추론한 것**이었다. 오늘 승인받은 1회를 부르자
+새로 넣은 `provider_error_status` 가 답을 그대로 내놓았다.
+
+```
+outcome: 'http_error' · http_status: 400
+provider_error_status: 'FAILED_PRECONDITION'
+duration_ms: 361 · 토큰 전부 null
+```
+
+- 공식 문서: `400 FAILED_PRECONDITION` = **"전제 조건이 충족되지 않음(예: 결제 비활성화)"**,
+  권고는 "프로젝트 결제 상태나 계정 전제 조건을 확인하라".
+- Google Cloud 콘솔(`pedagogy-ai-staging`, 둘째 계정 `/u/1`): **"결제 계정이 없는 프로젝트 —
+  이 프로젝트에 결제 계정이 연결되어 있지 않습니다."**
+
+즉 키·egress·요청 형식·모델 접근 모두 아니고 **프로젝트에 결제가 안 붙어 있는 것**이다.
+`thinkingLevel` 을 `"low"` 로 고친 것은 규격상 맞지만(Gemini 3 은 low·medium·high),
+**502 의 원인은 아니었다.** 되돌릴 이유는 없고, 원인으로 적어 둔 기록만 바로잡는다.
+
+⚠️ **여기서 배운 것**: 공급자 오류를 **코드 없이 추론하면 틀린다.** 어제 그 추론 때문에
+승인된 호출 하나를 엉뚱한 가설 검증에 쓸 뻔했다. `provider_error_status` 를 넣은 것이
+바로 그다음 호출에서 값을 했다 — 이 칸을 빼지 말 것.
+
+### 남은 것 — 사람이 정할 일
+
+**staging Google Cloud 프로젝트에 결제 계정을 연결할지**가 결정 사항이다. 결제 수단을 다는
+일이라 에이전트가 하지 않는다. 연결하지 않으면 OPS-7 은 여기서 더 갈 수 없고, OPS-8 이하도
+데이터가 없어 대기다.
+
+- 오늘 호출: **문서 1회**(승인 범위), 재시도 0회, production 0건. 오늘 남은 한도 1회.
+- 임시 익명 계정은 만들고 지웠다. 익명 로그인은 검증이 끝날 때까지 켠 채로 둔다.
