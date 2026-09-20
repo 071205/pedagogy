@@ -21,7 +21,8 @@
 
 ## 지금 하는 일
 
-2026-09-20 Sonar 후속은 HANDOFF-150에 있다. 로컬 핵심 수정·검증 후 원격 재분석은 미실행이다.
+2026-09-20 통합 레일 개정 완료. **다음은 R1 / GPT-5.6 Sol high**다.
+Sonar 최신 확인은 337건(Bugs 0·취약점 11·Code Smells 326), Quality Gate ERROR.
 작업 폴더의 사용자 미추적 `transcript.txt`는 보존한다.
 새 세션은 `git status`로 다시 확인하고 이 파일을 커밋하거나 삭제하지 않는다.
 
@@ -40,13 +41,12 @@
 **지문**(일반 문서 계약에 넣을지부터 결정이 필요하다)이다. 절차는
 [`docs/HWPX-ELEMENT-SPECS.md`](../docs/HWPX-ELEMENT-SPECS.md) 의 ①~④.
 
-### B. 비용 개선 레일 (Codex)
+### B. 보안·저장·출시·비용 통합 레일 (Codex)
 
-비용 개선의 유일한 경로: [통합 레일·현재 단계](../docs/DEV-TOKEN-ROADMAP.md).
-DEV-1~5 → OPS-6A·6B~10 → REL-11~15 순서다. OPS-7의 최신 증거는
-`400 FAILED_PRECONDITION`과 staging 프로젝트의 결제 미연결이다. `thinkingLevel="low"` 수정은
-규격상 유지하지만 실패 원인은 아니다. 2026-09-20 익명 로그인 제공업체를 비활성화했고 staging은
-한도 2/2·logs 10%로 남겼다. 다음은 사용자 결제 연결 여부 결정이다. 연결 전 추가 호출은 하지 않는다.
+실행의 유일한 경로: [통합 레일·현재 단계](../docs/DEV-TOKEN-ROADMAP.md).
+R1~R10은 보안→제품 범위→저장→독립 검토→검증/운영→출시 순서다.
+기존 OPS-7~10은 C1~C3로 편입했다. Gemini 결제 대기는 독립 보안·저장 작업을 막지 않는다.
+기존 호출 승인은 소진됐고 C1은 외부 조건 대기다. 모델·완료 조건·검사 선택은 레일을 따른다.
 
 ### C. 제품 방향 — **문제 투입 경로** (해리 ↔ 코덱스 논의 대기)
 
@@ -67,10 +67,13 @@ DEV-1~5 → OPS-6A·6B~10 → REL-11~15 순서다. OPS-7의 최신 증거는
 
 ## 최근 검토
 
+[HANDOFF-2026-152](handoffs/2026-09/2026-09-20-unified-execution-rail.md): 기존 비용·출시·Sonar·안티그래비티 제안을 단일 레일로 통합.
+R0 문서 완료, 다음 R1/Sol high. 모델 전환·최소 검사·외부 조건 대기·사용량 마감 기준 지정.
+
 [HANDOFF-2026-151](handoffs/2026-09/2026-09-20-security-reliability-verification-roadmap.md): SonarCloud 재분석 결과(Bugs 0·A등급, 취약점 11건) 반영 및 상용 출시 전 보안·안정성 다각도 검증 로드맵(DAST 침투, 카오스, 시크릿 스캔, 부하 테스트, 저장소 내장 검사) 인계. **미검토.**
 
 [HANDOFF-2026-150](handoffs/2026-09/2026-09-20-sonar-security-triage.md): Sonar 364건/48규칙 전체 목록·1차 분류.
-28건 대응 코드 변경, Chromium 158/158 및 보안 표적 검사 통과. **336건 미수정, 원격 재분석 미실행.**
+28건 대응 코드 변경, Chromium 158/158 및 보안 표적 검사 통과. **이후 재분석 337건 확인. 개별 미결 판단은 통합 R1/M1.**
 한도 종료 전 인계이며 단순 정리와 보안·구조 검토를 구분했다.
 
 [HANDOFF-2026-149](handoffs/2026-09/2026-09-20-ops7-billing-blocker-handoff.md): OPS-7의 최신 차단 원인을
@@ -80,13 +83,7 @@ staging 결제 미연결로 고정했다. 활성 version·한도·logs를 재확
 [HANDOFF-2026-148](handoffs/2026-09/2026-09-19-sonarqube-configuration-task.md): 기존
 `sonar-project.properties`가 Automatic Analysis에서 무시된 사실을 분석 경고와 이슈 경로로 확인했다.
 `.sonarcloud.properties`의 명시적 제품 허용목록으로 교체하고 Worker 테스트만 별도 분류했으며,
-범위 회귀 검사와 고장 주입 3건을 `check:fast`에 연결했다. **Cloud 재분석 결과 확인 대기.**
-
-[HANDOFF-2026-147](handoffs/2026-09/2026-09-19-ecc-analysis-and-borrowed-guards.md): 외부 하네스
-ECC(MIT)를 받아 읽고 **기법 셋만** 우리 것으로 만들었다(코드 0줄). 통째로 넣으면 설명만 세션당
-≈26,600 토큰이라 비용 레일과 반대다. `.claude/` 에 짝 파일 알림 · `git add -A` 가드 · HWPX 새 요소
-스킬. ⚠️ **막지 않고 알리기만 하며 exit 0** — 판정은 검사가 한다. 자기검사는 `check:hooks` 로
-`check:fast` 에 걸었다. 검토 요청: **저장소가 에이전트 동작을 규정하는 첫 파일**이 옳은가. **미검토.**
+범위 회귀 검사와 고장 주입 3건을 `check:fast`에 연결했다. **Cloud 반영 확인, 변환기 분석 범위는 R1 재검토 대상.**
 
 ## 지난 기록을 찾는 법
 

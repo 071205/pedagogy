@@ -3,7 +3,7 @@
 이 문서는 마케팅 체크리스트가 아니라 **결제를 열기 전 반드시 통과해야 하는 운영 게이트**다.
 `npm run check:launch`는 저장소에서 확인할 수 있는 미완성 항목을 실패로 표시한다. 콘솔·계약
 항목은 사람이 증빙을 연결해 확인한다.
-실행 순서와 진행 상태는 [통합 레일 REL-11~15](DEV-TOKEN-ROADMAP.md)에만 기록한다.
+실행 순서와 진행 상태는 [통합 레일 R1~R10·C1~C3](DEV-TOKEN-ROADMAP.md)에만 기록한다.
 2026-09-14 [감수서 대조](COMMERCIAL-AUDIT-RECONCILIATION.md)에서 추가한 아래 게이트도 포함한다.
 
 보안·소스 보호의 최종 우선순위는 [확정 설계](SECURITY-ARCHITECTURE.md), 실제 콘솔 증적과

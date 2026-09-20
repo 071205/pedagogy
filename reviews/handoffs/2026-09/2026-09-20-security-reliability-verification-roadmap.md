@@ -58,3 +58,11 @@ SonarQube(SAST) 수준을 넘어 실제 상용 서비스 출시 전 수행할 �
 1. `check:launch`를 실행하여 현재 상용 출시 게이트의 미충족 항목 목록을 확인한다.
 2. SonarCloud 잔여 11건(CSP 7건, serve.py 4건) 중 안전하게 보완 가능한 CSP 메타태그 정리를 검토한다.
 3. 로컬 환경에서 `check:rules`와 `test:cross`를 수행하여 엔진 및 보안 규칙의 무결성을 최종 점검한다.
+
+## 통합 검토 기록 — 2026-09-20 Codex
+
+실행 순서와 모델은 [활성 레일](../../../docs/DEV-TOKEN-ROADMAP.md)의 R1/R6~R8로 편입했다.
+동일 커밋의 유효한 CI 결과부터 재사용하며 전체 검사·DAST·부하를 매번 실행하지 않는다.
+현재 Bugs 0·취약점 11·Code Smells 326 수치는 API 대조했으나, ‘93% 오탐 제거’는
+제외 범위와 수정·분류 변화가 섞여 있어 확정 성과로 채택하지 않는다. 과거 Reliability impact와
+Standard Bugs도 직접 비교하지 않는다. npm audit 결과만으로 전체 공급망 검증 완료를 뜻하지 않는다.
