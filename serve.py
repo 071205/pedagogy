@@ -57,6 +57,8 @@ STATIC = {
     # 회귀 테스트. iframe 내부를 읽으려면 이 파일도 같은 출처로 떠야 하므로
     # file:// 로는 안 되고 반드시 이 화이트리스트를 거쳐야 한다.
     "/regression-test.html": ("tests/regression-test.html", "text/html; charset=utf-8"),
+    # 엄격한 source CSP를 약화하지 않고 lexical 함수에 접근하는 회귀 전용 외부 스크립트.
+    "/regression-hooks.js": ("tests/regression-hooks.js", "application/javascript; charset=utf-8"),
     # 별도 포트에서 실행하는 통합 검사. 실제 앱의 저장·새로고침·인쇄 DOM을 보되,
     # 다른 포트 origin을 써 사용 중인 편집기 localStorage와 분리한다.
     "/integration-test.html": ("tests/integration-test.html", "text/html; charset=utf-8"),
@@ -582,8 +584,8 @@ class Handler(BaseHTTPRequestHandler):
 
     # ── 한글(HWPX) 내보내기 · 베타 ────────────────────────────────────────
     # 모의고사 편집기의 저장 JSON 을 그대로 받아 한글 시험지를 만든다.
-    # 변환기는 experiments/hwp-export/ 에 있고 **제품이 아니다** — 이 엔드포인트가
-    # 유일한 연결점이라, 변환기가 없거나 의존성이 없으면 여기서 안내만 하고 끝난다.
+    # 변환기는 experiments/hwp-export/ 아래 있지만 이 엔드포인트가 직접 실행하는
+    # 선택적 로컬 런타임이다. 변환기가 없거나 의존성이 없으면 안내만 하고 끝난다.
     #
     # ⚠️ 위 do_POST 의 보안 관문(Host·Origin·X-Exam-Client·본문 크기)을 그대로
     #    지난 뒤에만 들어온다. 새 경로를 만들 때 그 검사를 건너뛰지 말 것.

@@ -99,6 +99,13 @@ async function loadFrame(iframe, src, readyGetter){
   try{ win = iframe.contentWindow; void win.document.title; }
   catch(e){ throw new Error("CROSS_ORIGIN"); }
   await waitFor(() => readyGetter(win));
+  await new Promise((resolve,reject)=>{
+    const helper=win.document.createElement("script");
+    helper.src="/regression-hooks.js?t="+Date.now();
+    helper.onload=resolve;
+    helper.onerror=()=>reject(new Error("회귀 훅 파일 로드 실패"));
+    win.document.head.appendChild(helper);
+  });
   return win;
 }
 
@@ -108,18 +115,19 @@ async function loadFrame(iframe, src, readyGetter){
    문서 내부의 스크립트끼리만 공유하는 렉시컬 스코프에 남기 때문이다(사양대로의
    동작이다). 그렇다고 eval 로 우회하면 두 파일 모두 CSP 에 unsafe-eval 이 없어
    막힌다(의도적인 보안 설정 — 테스트를 위해 풀면 안 된다).
-   대신 <script> 태그를 그 iframe 문서에 직접 넣는다. 같은 문서 안의 스크립트는
-   렉시컬 스코프를 공유하므로 이름으로 바로 참조할 수 있고, CSP 의 script-src 에
-   이미 있는 'unsafe-inline' 로 정상 실행된다(막히는 건 onerror= 같은 인라인
-   "이벤트 핸들러 속성"뿐 — 별개의 CSP 항목이다). 그렇게 모은 참조를 window 의
-   진짜 프로퍼티(__HOOKS__)에 얹어서 부모 쪽에서 읽는다. */
+   대신 self 출처의 고정 회귀 스크립트를 iframe에 불러온다. 같은 문서의 classic
+   script라 렉시컬 스코프를 공유하면서도 운영 CSP의 인라인 차단을 약화하지 않는다.
+   그 스크립트가 고정 허용 목록만 window 프로퍼티에 얹어 부모가 읽는다. */
 function installHooks(win, names){
-  const s = win.document.createElement("script");
-  s.textContent = "window.__HOOKS__={" + names.join(",") + "};";
-  win.document.head.appendChild(s);
-  s.remove();
-  if(!win.__HOOKS__) throw new Error("훅 설치 실패 — 이름이 바뀌었거나 CSP 에 막혔을 수 있어요");
-  return win.__HOOKS__;
+  const exposed=win.__REGRESSION_HOOKS__;
+  if(!exposed) throw new Error("회귀 훅 설치 실패");
+  const hooks={};
+  for(const name of names){
+    if(!(name in exposed)) throw new Error("회귀 훅 허용 목록 누락: "+name);
+    hooks[name]=exposed[name];
+  }
+  win.__HOOKS__=hooks;
+  return hooks;
 }
 
 /* 부모 문서(이 파일)에서 innerHTML 을 실행해 본다 — index.html/mock 자체의 CSP 를
@@ -316,26 +324,7 @@ async function runIndexTests(){
      올라간다. 열린 카드 자신을 위 레이어로 올렸는지 확인한다. 저장 함수는 호출하지
      않고 iframe 메모리만 복원한다. */
   await check(G, "문제집 점 세 개 메뉴가 아래 카드에 가려지지 않는다", () => {
-    const script=win.document.createElement("script");
-    script.textContent=`window.__MENU_LAYER_PROBE__=(function(){
-      var keep=sets;
-      try{
-        sets=Array.from({length:7},function(_,i){return {id:"__menu_"+i,name:"메뉴 검사 "+i,header:"",subject:"math",problems:[]};});
-        renderLibrary();
-        var cards=[].slice.call(document.querySelectorAll("#setGrid .set-card"));
-        var card=cards[0], dots=card.querySelector(".dotbtn"), menu=card.querySelector(".menu");
-        dots.click();
-        var lower=cards.find(function(c){return c.getBoundingClientRect().top>card.getBoundingClientRect().top;});
-        var mr=menu.getBoundingClientRect(), lr=lower&&lower.getBoundingClientRect();
-        /* regression-test.html의 iframe은 화면 밖에 있어 elementFromPoint()는 실제
-           포인터 hit-test 대상을 돌려주지 않는다. 대신 겹침 자체와, 그 위에 올릴
-           카드 stacking layer가 실제로 적용됐는지를 확인한다. */
-        var overlap=!!lr && mr.bottom>lr.top;
-        return {opened:card.classList.contains("menu-open"), z:getComputedStyle(card).zIndex, overlap:overlap};
-      } finally { sets=keep; renderLibrary(); }
-    })();`;
-    win.document.head.append(script); script.remove();
-    const p=win.__MENU_LAYER_PROBE__;
+    const p=win.__REGRESSION_ACTIONS__.menuLayerProbe();
     return {pass:!!p && p.opened && Number(p.z)>=30,
             note:!p ? "메뉴 검사 값을 못 읽음" : `opened=${p.opened}, z=${p.z}, overlap=${p.overlap}`};
   });
@@ -399,12 +388,7 @@ async function runIndexTests(){
     /* 표식은 실행할 때마다 달라야 한다. 고정 문자열이면, 한 번 실패해 값이 실제로
        새어 나간 뒤 그 잔재가 남아 다음 실행부터 계속 실패로 뜬다. */
     const MARK = "__WIPE_PROBE_" + Date.now() + "_" + Math.random().toString(36).slice(2) + "__";
-    const s = win.document.createElement("script");
-    s.textContent =
-      "(function(){ var keep=sets;" +
-      "  sets=[{id:'__probe__',name:" + JSON.stringify(MARK) + ",header:'',problems:[]}];" +
-      "  wiping=true; try{ writeLocalNow(); } finally { wiping=false; sets=keep; } })();";
-    win.document.head.appendChild(s); s.remove();
+    win.__REGRESSION_ACTIONS__.writeWhileWiping(MARK);
 
     const after = win.localStorage.getItem(key);
     const leaked = (after||"").includes(MARK);
@@ -500,17 +484,7 @@ async function runIndexTests(){
 
     /* isCloudSynced()가 실제 동기화 map을 읽는지 확인한다. 테스트용 id만 넣고
        try/finally로 원래 map을 복원하므로 실제 저장·클라우드 호출은 없다. */
-    const script = win.document.createElement("script");
-    script.textContent = `window.__SYNC_PROBE__=(function(){
-      var keep=cloudSynced;
-      try{
-        var s={id:"__sync_probe__",name:"x",header:"",problems:[],lineColor:"indigo",subject:"math"};
-        cloudSynced=new Map([[s.id,cloudSyncEntry(s,0)]]);
-        return {same:isCloudSynced(s,0), orderDirty:!isCloudSynced(s,1)};
-      } finally { cloudSynced=keep; }
-    })();`;
-    win.document.head.appendChild(script); script.remove();
-    const p = win.__SYNC_PROBE__;
+    const p = win.__REGRESSION_ACTIONS__.syncProbe();
     return {pass: subjectChanged && colorChanged && p && p.same && p.orderDirty,
             note: p && p.orderDirty ? undefined : "순서 또는 설정 변경이 동기화에서 빠짐"};
   });
@@ -521,9 +495,7 @@ async function runIndexTests(){
     const local=[{id,name:"남은 로컬",header:"",problems:[{blocks:[]}]}];
     const merged=win.mergeSets(cloud,local,{[id]:10});
     /* mergeSets()가 tombstone map에 남긴 테스트 id는 즉시 제거한다. */
-    const script=win.document.createElement("script");
-    script.textContent=`deletedIds.delete(${JSON.stringify(id)});`;
-    win.document.head.appendChild(script); script.remove();
+    win.__REGRESSION_ACTIONS__.deleteId(id);
     return {pass: merged.length===0 && H.shouldUseCloudResult(cloud,merged)===true,
             note: merged.length===0 ? undefined : "tombstone이 오래된 로컬을 막지 못함"};
   });
@@ -1482,30 +1454,12 @@ async function runIndexTests(){
   });
 
   await check(G, "라이브러리 카드에 과목이 표시된다", () => {
-    /* sets 는 let 선언이라 바깥에서 대입할 수 없다 — iframe 안에 스크립트를
-       넣어 통째로 실행한다. 실데이터를 잠깐 바꾸므로 반드시 지킬 것:
+    /* sets 는 let 선언이라 바깥에서 대입할 수 없다 — 회귀 전용 외부 스크립트의
+       고정 동작으로 검사한다. 실데이터를 잠깐 바꾸므로 반드시 지킬 것:
          · 전부 동기로 (중간에 저장 타이머가 끼어들 틈을 주지 않는다)
          · try/finally 로 원래 배열을 되돌린다 (예외가 나도)
          · renderLibrary() 만 부른다 — 저장 함수는 건드리지 않는다 */
-    const s = win.document.createElement("script");
-    s.textContent = `window.__LIBTEST__ = (function(){
-      var before = sets;
-      try{
-        sets = [
-          {id:"__t1", name:"수학 것", subject:"math", header:"", problems:[]},
-          {id:"__t2", name:"미지정",  subject:"all",  header:"", problems:[]},
-        ];
-        renderLibrary();
-        var cards = [].slice.call(document.querySelectorAll(".set-card"));
-        var tag0 = cards[0] && cards[0].querySelector(".set-subj");
-        var tag1 = cards[1] && cards[1].querySelector(".set-subj");
-        return { n: cards.length,
-                 first: tag0 ? tag0.textContent : null,
-                 secondHasTag: !!tag1 };
-      } finally { sets = before; renderLibrary(); }
-    })();`;
-    win.document.head.appendChild(s); s.remove();
-    const r = win.__LIBTEST__;
+    const r = win.__REGRESSION_ACTIONS__.libraryProbe();
     if(!r) return {pass:false, note:"iframe 안에서 실행되지 않음"};
     return { pass: r.n===2 && r.first==="수학" && r.secondHasTag===false,
              note: r.first==="수학"

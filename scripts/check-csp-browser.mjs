@@ -39,7 +39,11 @@ try {
               if (!route.request().url().startsWith(base + '/')) return route.abort();
               if (broken && route.request().url() === `${base}/${file}`) {
                 const response = await route.fetch();
-                return route.fulfill({ response, body: (await response.text()).replace(/script-src-attr\s+'none';/g, '') });
+                const body = (await response.text())
+                  .replace(/\s*'sha256-[^']+'/g, '')
+                  .replace(/script-src\s+'self'/, "script-src 'self' 'unsafe-inline'")
+                  .replace(/script-src-attr\s+'none';/g, '');
+                return route.fulfill({ response, body });
               }
               return route.continue();
             });
@@ -64,7 +68,9 @@ try {
               return window.__cspProbe;
             });
             assert.equal(result.attribute, broken ? 1 : 0, `${engine}/${file}: inline attribute ${broken ? 'mutation must execute' : 'must be blocked'}`);
-            assert.deepEqual([result.property, result.listener, result.script], [1, 1, 1], 'existing JS callbacks and script blocks must work');
+            assert.deepEqual([result.property, result.listener], [1, 1], 'registered JS callbacks must work');
+            assert.equal(result.script, broken ? 1 : 0,
+              `${engine}/${file}: injected inline script ${broken ? 'mutation must execute' : 'must be blocked'}`);
             if(!broken && file!=='mock-exam-editor.html') {
               const loaded=await page.evaluate(()=>new Promise(resolve=>{
                 const script=document.createElement('script');
@@ -83,7 +89,7 @@ try {
             }
           } finally { await context.close(); }
         }
-        console.log(`CSP ${engine}/${file}: blocked attribute, working callbacks, red mutation confirmed`);
+        console.log(`CSP ${engine}/${file}: blocked injected script/attribute, working callbacks, red mutation confirmed`);
       }
     } finally { await browser.close(); }
   }

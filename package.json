@@ -36,7 +36,7 @@
     "check:public": "node scripts/build-public.mjs --check",
     "build:review-copy": "node scripts/build-review-copy.mjs",
     "check:review-copy": "node scripts/build-review-copy.mjs && node scripts/check-review-copy.mjs",
-    "test:public": "node scripts/build-public.test.mjs",
+    "test:public": "node scripts/check-source-csp.mjs && node scripts/build-public.test.mjs",
     "test:csp": "node scripts/check-csp-browser.mjs",
     "test:public-browser": "node scripts/check-public-browser.mjs",
     "test:auth-navigation": "node scripts/check-auth-navigation.mjs"

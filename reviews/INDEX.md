@@ -21,8 +21,9 @@
 
 ## 지금 하는 일
 
-2026-09-20 통합 레일 개정 완료. **다음은 R1 / GPT-5.6 Sol high**다.
-Sonar 최신 확인은 337건(Bugs 0·취약점 11·Code Smells 326), Quality Gate ERROR.
+2026-09-20 통합 레일 R1 자기검증 완료. **다음은 R2 / GPT-6 Astra high**다.
+루트 HTML script hash 잠금·외부 CSP host wildcard 제거·HWPX 런타임 Sonar 편입을 마쳤다.
+기준 Sonar는 337건(Bugs 0·취약점 11·Code Smells 326), Quality Gate ERROR이며 새 분석 대조 전이다.
 작업 폴더의 사용자 미추적 `transcript.txt`는 보존한다.
 새 세션은 `git status`로 다시 확인하고 이 파일을 커밋하거나 삭제하지 않는다.
 
@@ -67,6 +68,10 @@ R1~R10은 보안→제품 범위→저장→독립 검토→검증/운영→출�
 
 ## 최근 검토
 
+[HANDOFF-2026-153](handoffs/2026-09/2026-09-20-sonar-security-r1.md): 실제 Pages가 루트 HTML을
+서비스하는 경계를 확인해 source script 5개를 hash로 잠그고 외부 host wildcard를 제거했다.
+HWPX 런타임 9개를 Sonar 범위에 포함했으며 11개 finding을 수정/오탐/수용 위험으로 분류. **독립 검토 대기.**
+
 [HANDOFF-2026-152](handoffs/2026-09/2026-09-20-unified-execution-rail.md): 기존 비용·출시·Sonar·안티그래비티 제안을 단일 레일로 통합.
 R0 문서 완료, 다음 R1/Sol high. 모델 전환·최소 검사·외부 조건 대기·사용량 마감 기준 지정.
 
@@ -79,11 +84,6 @@ R0 문서 완료, 다음 R1/Sol high. 모델 전환·최소 검사·외부 조�
 [HANDOFF-2026-149](handoffs/2026-09/2026-09-20-ops7-billing-blocker-handoff.md): OPS-7의 최신 차단 원인을
 staging 결제 미연결로 고정했다. 활성 version·한도·logs를 재확인하고 Firebase 익명 제공업체를
 비활성화했다. 다음은 사용자의 결제 연결 여부 결정이며 production 변경·추가 호출 0건.
-
-[HANDOFF-2026-148](handoffs/2026-09/2026-09-19-sonarqube-configuration-task.md): 기존
-`sonar-project.properties`가 Automatic Analysis에서 무시된 사실을 분석 경고와 이슈 경로로 확인했다.
-`.sonarcloud.properties`의 명시적 제품 허용목록으로 교체하고 Worker 테스트만 별도 분류했으며,
-범위 회귀 검사와 고장 주입 3건을 `check:fast`에 연결했다. **Cloud 반영 확인, 변환기 분석 범위는 R1 재검토 대상.**
 
 ## 지난 기록을 찾는 법
 

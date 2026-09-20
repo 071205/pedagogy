@@ -32,6 +32,17 @@ const ANALYZABLE = /\.(?:html|js|mjs|py)$/;
 const INTENTIONALLY_OUTSIDE = /^(?:scripts|experiments|reviews|tests|\.claude)\//;
 const GENERATED_DATA = new Set(['blank-template-data.js', 'exam-template-data.js']);
 const WORKER_TEST = /^worker\/.*\.test\.mjs$/;
+const RUNTIME_HWPX = new Set([
+  'experiments/hwp-export/mock_to_hwpx.py',
+  'experiments/hwp-export/document_to_hwpx.py',
+  'experiments/hwp-export/document_schema.py',
+  'experiments/hwp-export/pedagogy_hwpx.py',
+  'experiments/hwp-export/tex_to_hwp.py',
+  'experiments/hwp-export/template.py',
+  'experiments/hwp-export/exam_profile.py',
+  'experiments/hwp-export/exam_style.py',
+  'experiments/hwp-export/make_math_probe.py',
+]);
 
 export function violations(text, tracked) {
   const props = parseProperties(text);
@@ -46,7 +57,7 @@ export function violations(text, tracked) {
   }
 
   const expectedMain = tracked.filter(file => ANALYZABLE.test(file)
-    && !INTENTIONALLY_OUTSIDE.test(file)
+    && (!INTENTIONALLY_OUTSIDE.test(file) || RUNTIME_HWPX.has(file))
     && !GENERATED_DATA.has(file)
     && !WORKER_TEST.test(file));
   for (const file of expectedMain) {
@@ -88,6 +99,7 @@ const mutations = [
   text.replace(/sonar\.sources=[\s\S]*?\n\n# Worker/, 'sonar.sources=.\n\n# Worker'),
   text.replace(/\s*worker,\\\n/, '\n'),
   text.replace('sonar.test.inclusions=worker/**/*.test.mjs', 'sonar.test.inclusions='),
+  text.replace(/\s*experiments\/hwp-export\/mock_to_hwpx\.py,\\\n/, '\n'),
 ];
 const red = mutations.filter(mutated => violations(mutated, tracked).length > 0).length;
 if (red !== mutations.length) console.error('  ❌ Sonar scope self-check failed to reject a broken configuration');

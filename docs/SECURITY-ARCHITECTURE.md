@@ -1,6 +1,6 @@
 # 상용 출시 보안·소스 보호 아키텍처
 
-결정일: 2026-09-11. 기준 코드: `90536cb`와 이번 작업의 로컬 diff.
+결정일: 2026-09-11, R1 재검토: 2026-09-20. 기준 코드: `f865073`와 R1 diff.
 **설계는 확정했지만 상용 출시 승인은 아니다.** App Check 코드와 공개 빌드의 외부 스크립트 분리까지 구현했다. 운영 배포·저장소 비공개
 전환·콘솔 enforcement는 실행하거나 확인하지 않았다. 남은 증적은
 [운영 체크리스트](SECURITY-OPERATIONS-CHECKLIST.md)에 기록한다.
@@ -9,12 +9,12 @@
 
 | 순서 | 결정 | 현재 코드와의 차이 / 완료 조건 |
 | --- | --- | --- |
-| P0 · 1단계 | 공개 산출물 허용 목록, 이벤트 속성 CSP, CI 최소 권한 | 이번 구현. 허용된 입력 17개와 추출 스크립트 5개로 공개 파일 22개를 생성하고 고장 주입 검사. 실제 호스팅은 미전환 |
+| P0 · 1단계 | 공개 산출물 허용 목록, 이벤트 속성 CSP, CI 최소 권한 | 허용된 입력 17개와 추출 스크립트 5개로 공개 파일 22개를 생성. 루트 HTML의 인라인 스크립트 5개도 hash로 잠금. 실제 호스팅은 미전환 |
 | P0 · 출시 전 | private source → 검증된 public build → 상용 호스트 | 원본·이력·리뷰·Worker를 비공개 저장소에서 관리. GitHub Pages에서 상용 서비스 이전 |
 | P0 · 출시 전 | Firebase와 Worker에 각각 App Check 강제 | 클라이언트 전송·Worker 검증 코드는 완료. site key·staging 양성/음성·운영 enforce는 미완료 |
 | P0 · 출시 전 | 전역 AI 횟수 상한 + 운영 중단 + 공급자별 비용 통제 | 개인/전역 DO와 kill switch는 있음. 금액 상한·Firebase 총량·운영 반영은 별도 |
 | P0 · 출시 전 | GitHub ruleset·비밀 보호·배포 권한 분리 | SHA 고정·CODEOWNERS·Dependabot 파일은 있음. 필수 리뷰·상태 검사·실제 활성화는 콘솔 증적 필요 |
-| P1 · 공개 호스트 전환 때 | HTTP CSP, 페이지별 frame-ancestors, 외부 스크립트 분리 | 개발 원본은 inline script를 유지하고 공개 빌드는 외부 스크립트와 인라인 실행 차단 CSP를 사용한다. 현재 iframe 모의고사 구조를 보존해야 함 |
+| P1 · 공개 호스트 전환 때 | HTTP CSP, 페이지별 frame-ancestors, 외부 스크립트 분리 | 원본 inline script는 정확한 hash만 허용하고 공개 빌드는 외부 파일로 분리한다. 현재 Pages는 원본 루트를 서비스하므로 검증 산출물 승격은 아직 안 됨 |
 | P1 · 유료 저장량 약속 전 | 서버가 사전 승인하는 저장/업로드 원장 | 현재 Rules는 개별 문서/파일만 제한. 업로드 후 삭제는 엄격한 비용 상한이 아님 |
 | P2 · 계약 요구에 따라 | DLP·CSPM·선별 서버 조판 | 이름 정규식 마스킹이나 난독화를 보안 보증으로 판매하지 않음 |
 
@@ -140,6 +140,34 @@ reCAPTCHA iframe·스크립트, Firestore transport, Storage 이미지, blob 인
 현재 로컬 렌더 연동을 갑자기 CSP에서 지우지 말고 웹 전용/로컬 동반 앱 정책을 나눈다.
 [CSP 전달 제약](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CSP),
 [Cloudflare 정적 자산 헤더](https://developers.cloudflare.com/workers/static-assets/headers/)
+
+### 5.1 R1 실제 배포·Sonar 보안 판정 (2026-09-20)
+
+GitHub Pages의 `/pedagogy/` 응답은 당시 루트 `index.html`과 460,544바이트가 동일했고,
+응답에 CSP·nosniff·Referrer-Policy 헤더가 없었다. 따라서 `dist/public`의 강화가 서비스에
+적용됐다는 이전 가정은 틀렸다. 배포 설정을 추측해 바꾸지 않고, 현재 실제로 서비스되는
+루트 세 편집기의 인라인 script 5개를 SHA-256으로 잠갔다. 공개 빌드는 이를 외부 script로
+분리하면서 source 전용 hash를 제거한다. 익명 실서비스 로드에서 관찰된 외부 요청은
+`cdn.jsdelivr.net`, `www.gstatic.com`뿐이었고 CSP 오류는 없었다. 로그인·App Check의 미실행
+경로는 Firebase의 알려진 개별 endpoint만 허용하고, `*.googleapis.com`, `*.firebaseio.com`,
+`*.googleusercontent.com`은 제거했다. 실제 site key와 로그인 계정 검증은 R7의 staging 항목이다.
+
+기준 Sonar 분석은 revision `f8650730e8572a1a097f92872340d80ed69d69a9`, analysis
+`2fcbf1a2-7615-425d-aa5b-d244ef23016c`이다. Quality Gate는 new security rating 5만 실패했고
+new reliability/maintainability 1, duplication 0%, hotspots reviewed 100%는 통과했다.
+R1 변경 전 미해결 11건의 판정은 다음과 같다. Sonar 상태는 독립 검토와 새 분석 전에 바꾸지 않았다.
+
+| finding | 판정 | 근거 / 남은 조건 |
+| --- | --- | --- |
+| `AaC7AmY_QT3MxfJYIgti` · S5131 | 근거 있는 오탐 | 추적된 두 흐름은 사용자 내용→HWPX 변환→ZIP bytes다. 고정 HWPX MIME·고정 attachment 이름·nosniff를 쓰며 HTML 응답이 아니다. JSON·정적 파일의 다른 `_send` 호출도 MIME이 고정이다 |
+| `AaC4hiZNGvjr3YIaEa1y`, `AaC4hiiTGvjr3YIaEa_e`, `AaC4higoGvjr3YIaEa9K` · S7039 unsafe-inline | script 위험 수정, style 잔여 수용 | 세 페이지의 script `unsafe-inline`을 정확한 hash로 교체했다. style `unsafe-inline`은 기존 style 태그·속성 때문에 남으며 script 속성은 `none`이다. 새 분석에서 old ID 해결 여부를 확인한다 |
+| `AaC4hihRGvjr3YIaEa_H` · S7039 unsafe-inline | 수용 위험 | 정적 법무 페이지의 style만 inline이다. script와 사용자 입력 경로가 없고 `default-src 'none'`이다 |
+| `AaC4hiZNGvjr3YIaEa1z`, `AaC4hiiTGvjr3YIaEa_f`, `AaC4higoGvjr3YIaEa9L` · S7039 wildcard | 호스트 wildcard 수정, loopback 포트 수용 | 외부 `*.` 호스트는 제거했다. 남은 `:*`는 사용자가 선택한 로컬 서버 포트를 찾기 위한 `127.0.0.1`·`localhost` 전용이다 |
+| `AaC4hijuGvjr3YIaEbCC`, `AaC4hijuGvjr3YIaEbCD`, `AaC4hijuGvjr3YIaEbCN` · S5332 | 의도된 로컬 기능의 수용 위험 | 기본 bind는 127.0.0.1이며 Host·Origin·custom header·크기·timeout을 검사한다. LAN은 명시적 `--lan`, 사설 IP, 경고, `/font` 차단 조건이다. 인증 없는 HTTPS 대체는 로컬 사용성을 깨므로 R1에서 흉내 내지 않는다 |
+
+로컬 HTTP와 style inline은 위험이 0이라는 뜻이 아니다. 범위를 exact loopback/private-network로
+제한한 수용 결정이며, 공개 호스트의 HTTP response CSP와 LAN 인증/TLS가 제품 요구가 되면 새
+설계로 바꾼다. `NOSONAR`, 분석 폴더 제외, sink 이름 변경으로 finding을 숨기지 않는다.
 
 API는 자체 도메인 route로 옮긴 뒤 기본 `workers.dev`와 preview URL 우회 경로를 비활성화하거나
 같은 보호를 검증한다. WAF/IP rate limit은 NAT 교실 환경에서 오탐을 측정하고, app ID·UID별

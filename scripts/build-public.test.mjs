@@ -21,6 +21,8 @@ try {
   const policy=publicIndex.match(/http-equiv="Content-Security-Policy" content="([\s\S]*?)"/i)?.[1];
   assert.doesNotMatch(policy.match(/(?:^|;)\s*script-src\s+([^;]+)/)?.[1]||'', /'unsafe-inline'/,
     'public script policy must reject injected script blocks');
+  assert.doesNotMatch(policy.match(/(?:^|;)\s*script-src\s+([^;]+)/)?.[1]||'', /'sha256-/,
+    'externalized public scripts must not retain source-only inline hashes');
   assert.deepEqual(Object.keys(first), [...PUBLIC_FILES]);
   assert.deepEqual(await buildPublic(root), first, 'build must be byte-reproducible');
   for (const file of PUBLIC_INPUTS.filter(file=>!['index.html','mock-exam-editor.html','document-editor.html'].includes(file))) {

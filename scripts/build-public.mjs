@@ -39,7 +39,9 @@ function splitScripts(file,bytes) {
     (_tag,before,policy,after)=>{
       policyCount++;
       return before+policy.replace(/(^|;)\s*script-src\s+([^;]+)/,
-        (_rule,boundary,values)=>`${boundary} script-src ${values.replace(/\s*'unsafe-inline'/g,'')}`)+after;
+        (_rule,boundary,values)=>`${boundary} script-src ${values
+          .replace(/\s*'unsafe-inline'/g,'')
+          .replace(/\s*'sha256-[^']+'/g,'')}`)+after;
     });
   if(policyCount!==1) throw Error(`Missing public CSP: ${file}`);
   return [[file,Buffer.from(html)],...scripts];

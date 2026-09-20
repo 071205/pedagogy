@@ -11,11 +11,11 @@
 <meta name="color-scheme" content="dark light">
 
 <!-- ══ 콘텐츠 보안 정책 ══
-     이 앱은 인라인 스크립트 블록으로만 이뤄져 있어 'unsafe-inline' 을 뺄 수 없다.
-     이벤트 핸들러 속성(onerror=, onclick=)은 script-src-attr 'none' 으로
-     별도 차단한다. unsafe-inline 만 두면 속성도 실행된다. JS가 등록한
-     onclick 함수·addEventListener 는 유지된다. 인라인 script 블록은 아직
-     허용되므로 이 정책이 HTML 정규화·이스케이프를 대체하지는 않는다.
+     인라인 스크립트 블록은 아래 SHA-256으로 정확한 바이트만 허용한다.
+     블록을 수정하면 `npm run test:public`이 새 해시가 필요하다고 실패한다.
+     이벤트 핸들러 속성(onerror=, onclick=)은 script-src-attr 'none'으로
+     별도 차단한다. JS가 등록한 onclick 함수·addEventListener는 유지된다.
+     CSP는 HTML 정규화·이스케이프를 대체하지 않는다.
      connect-src 는 Firestore/Storage/Auth·AI 프록시·로컬 렌더 서버를 모두 담는다.
 
      ⚠️ 구글 로그인은 apis.google.com 의 gapi 를 불러 숨은 iframe 으로 팝업과
@@ -25,12 +25,12 @@
      어렵다 — 새 로그인만 깨진다). 실제로 한 번 그랬으니 손대지 말 것. -->
 <meta http-equiv="Content-Security-Policy" content="
   default-src 'self';
-  script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
+  script-src 'self' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-Vz46SoZ8aK7a0/ePP4H9gFs7Lkf4p9F0IVilcN4PXO4=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
   script-src-attr 'none';
   style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
   font-src 'self' data: https://cdn.jsdelivr.net;
-  img-src 'self' data: blob: https://firebasestorage.googleapis.com https://storage.googleapis.com https://lh3.googleusercontent.com https://*.googleusercontent.com;
-  connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://dawn-shape-2664.dbruddl79.workers.dev http://127.0.0.1:* http://localhost:*;
+  img-src 'self' data: blob: https://firebasestorage.googleapis.com https://storage.googleapis.com https://lh3.googleusercontent.com;
+  connect-src 'self' https://firestore.googleapis.com https://firebasestorage.googleapis.com https://storage.googleapis.com https://firebaseappcheck.googleapis.com https://firebaseinstallations.googleapis.com https://recaptchaenterprise.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com https://dawn-shape-2664.dbruddl79.workers.dev http://127.0.0.1:* http://localhost:*;
   frame-src 'self' https://pedagogy-huryul.firebaseapp.com https://accounts.google.com https://apis.google.com https://www.google.com;
   worker-src 'self' blob:;
   object-src 'none';

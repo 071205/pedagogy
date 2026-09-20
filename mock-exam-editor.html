@@ -5,13 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>PEDAGOGY — 모의고사 편집기</title>
 
-<!-- 본체(index.html)와 같은 기준의 CSP.
+<!-- 본체(index.html)와 같은 기준의 CSP. 인라인 스크립트는 정확한 SHA-256만
+     허용하며, 본문을 바꾸면 `npm run test:public`에서 해시 갱신을 요구한다.
      이 편집기는 로컬 렌더 서버(serve.py)에 /health·/render 를 부르고 글꼴도
      거기서 받아오므로 connect-src·font-src 에 로컬 주소를 넣는다.
      img-src 에 data: 가 필요한 이유는 정본 미리보기를 base64 PNG 로 받기 때문이다. -->
 <meta http-equiv="Content-Security-Policy" content="
   default-src 'self';
-  script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
+  script-src 'self' 'sha256-W33H9M3EPXeqrRMJLxwL/rypiQkm38uQkwhibxWqr7k=' https://cdn.jsdelivr.net;
   script-src-attr 'none';
   style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
   font-src 'self' data: https://cdn.jsdelivr.net http://127.0.0.1:* http://localhost:*;
