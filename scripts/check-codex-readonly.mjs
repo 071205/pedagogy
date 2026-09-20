@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import assert from 'node:assert/strict';
-import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { delimiter, join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -77,7 +77,37 @@ try {
   assert.match(timeout.stderr, /exceeded 0\.2 seconds/);
   assert.match(timeout.stderr, /waiting forever/);
 
-  process.stdout.write('Codex read-only bridge checks passed.\n');
+  /* ── 스킬이 낡지 않았는지 ──
+     ⚠️ `.claude/skills/codex-review` 는 이 래퍼와 `CLAUDE.md` 의 협업 절을 가리킨다.
+        가리키는 것이 사라지거나 이름이 바뀌면 **스킬이 조용히 틀린 안내를 한다.**
+        훅·표와 같은 이유로 여기서 함께 본다. */
+  const skill = new URL('../.claude/skills/codex-review/SKILL.md', import.meta.url);
+  assert.ok(existsSync(skill), 'codex-review 스킬이 없습니다');
+  const skillText = readFileSync(skill, 'utf8');
+
+  for (const flag of ['--prompt', '--output', '--progress', '--timeout-seconds']) {
+    assert.ok(skillText.includes(flag), `스킬이 안내하는 ${flag} 가 사라졌습니다`);
+    assert.ok(readFileSync(new URL('./ask-codex-readonly.mjs', import.meta.url), 'utf8').includes(flag),
+      `래퍼에 ${flag} 가 없는데 스킬이 안내하고 있습니다`);
+  }
+
+  /* 스킬이 가리키는 상대 경로가 전부 실재해야 한다 */
+  const links = [...skillText.matchAll(/\]\((\.\.\/[^)]+)\)/g)].map(m => m[1]);
+  assert.ok(links.length >= 3, '스킬의 문서 링크가 사라졌습니다');
+  for (const link of links) {
+    assert.ok(existsSync(new URL(link, skill)), `스킬이 가리키는 경로가 없습니다: ${link}`);
+  }
+
+  /* 스킬이 "정답표" 라고 부르는 절이 CLAUDE.md 에 실제로 있어야 한다 */
+  const claude = readFileSync(new URL('../CLAUDE.md', import.meta.url), 'utf8');
+  assert.match(claude, /Claude → Codex .{0,6}협업/, 'CLAUDE.md 의 협업 절이 사라졌습니다');
+  assert.match(claude, /foreground/, 'CLAUDE.md 의 foreground 규칙이 사라졌습니다');
+  /* 스킬이 가르치는 마무리 계약이 CLAUDE.md 와 같은 문장이어야 한다 */
+  const closing = '합의 / 미합의 / 근거 / 다음 행동';
+  assert.ok(claude.includes(closing), 'CLAUDE.md 의 왕복 마무리 계약이 바뀌었습니다');
+  assert.ok(skillText.includes(closing), '스킬이 안내하는 마무리 계약이 CLAUDE.md 와 다릅니다');
+
+  process.stdout.write(`Codex read-only bridge checks passed. 스킬 링크 ${links.length}개 확인.\n`);
 } finally {
   rmSync(temporaryDirectory, { recursive: true, force: true });
 }
