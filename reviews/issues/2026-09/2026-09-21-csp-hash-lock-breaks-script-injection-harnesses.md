@@ -86,9 +86,17 @@ npm run test:ai-image
 - `CLAUDE.md` 의 `installHooks()` 설명이 "`'unsafe-inline'` 이 있다" 를 전제하고 있어 정정했고,
   **인라인을 고치면 해시를 다시 계산해야 한다**는 함정도 같은 파일에 넣었다.
 
-### 남은 것
+### 나머지 넷 — 확인했다 (2026-09-21 추가)
 
-⚠️ 같은 기법을 쓰는 **`scripts/check-public-browser.mjs` · `scripts/check-csp-browser.mjs` ·
-`tests/regression-test.html` · `tests/integration-test.html`** 는 **확인하지 않았다.**
-앞의 둘은 `check:fast` 경로에 없고 뒤의 둘은 사람이 여는 것이라 관문을 막지 않았다.
-그래서 이 이슈를 닫되, **그 넷은 열어 둔 항목으로 남긴다.**
+| 파일 | 결과 |
+|---|---|
+| `scripts/check-public-browser.mjs` | ✅ **정상. 오히려 반대 성격이다** — 주입을 시도하고 **막히는 것**을 단언한다(`:50` `public CSP must block arbitrary script blocks`). R1 의 잠금이 바로 이 검사가 원하는 것이다. 실행해 통과 확인 |
+| `scripts/check-csp-browser.mjs` | ✅ 같은 성격(`:73`). 실행해 통과 확인 |
+| `tests/regression-test.html` | ✅ **158/158 통과 · 실패 0**(브라우저로 실제로 열어 확인). 두 iframe 모두 `__HOOKS__` 가 실제로 들어가 있다 |
+| `tests/integration-test.html` | ⬜ **열어 보지 않았다** |
+
+⚠️ **회귀 스위트에 남는 불확실성 하나**: `index.html` iframe 의 `__HOOKS__` 는 키가 **1개**인데
+모의고사 쪽은 2개다. 주입이 막힌 자리를 부모에서 직접 대입하는 경로로 메운 것으로 보이나
+**확인하지 않았다.** 그리고 화면에 **건너뜀 3건**이 있다 — `158/158 통과` 라는 표시와 별개다
+(**건너뜀은 통과가 아니다**). 이 스위트는 사람이 여는 도구라 관문을 막지 않으므로
+이슈는 닫되, **그 둘은 다음 사람이 볼 것으로 남긴다.**
