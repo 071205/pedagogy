@@ -16,7 +16,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from pedagogy_hwpx import HwpxDocument  # noqa: E402
 
-from make_math_probe import apply_layout  # noqa: E402  (용지·단·글꼴 설정 재사용)
+from exam_layout import apply_layout  # noqa: E402  (용지·단·글꼴 설정 재사용)
 from tex_to_hwp import UnsupportedTex, convert  # noqa: E402
 
 # 모의고사 편집기가 쓰는 것과 같은 방식으로, LaTeX 로만 적는다.

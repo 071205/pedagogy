@@ -41,7 +41,7 @@ const RUNTIME_HWPX = new Set([
   'experiments/hwp-export/template.py',
   'experiments/hwp-export/exam_profile.py',
   'experiments/hwp-export/exam_style.py',
-  'experiments/hwp-export/make_math_probe.py',
+  'experiments/hwp-export/exam_layout.py',
 ]);
 
 export function violations(text, tracked) {
@@ -54,6 +54,13 @@ export function violations(text, tracked) {
   for (const root of ['scripts', 'experiments', 'reviews', 'tests', '.claude']) {
     if (sources.includes(root)) bad.push(`developer-only directory is in main scope: ${root}`);
     if (tests.includes(root)) bad.push(`developer-only directory is in test scope: ${root}`);
+  }
+  for (const file of ['experiments/hwp-export/make_math_probe.py',
+    'experiments/hwp-export/hwp_export_cli.py']) {
+    if (sources.includes(file)) bad.push(`local CLI is in main scope: ${file}`);
+  }
+  for (const file of RUNTIME_HWPX) {
+    if (!existsSync(resolve(ROOT, file))) bad.push(`configured runtime file is missing: ${file}`);
   }
 
   const expectedMain = tracked.filter(file => ANALYZABLE.test(file)

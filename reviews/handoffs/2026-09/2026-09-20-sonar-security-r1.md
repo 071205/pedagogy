@@ -23,16 +23,20 @@ hook가 차단되어, self 출처의 명시적 `tests/regression-hooks.js`로 �
 
 - 기준 분석 `f8650730...`에는 보안 11건과 new security rating E가 있다. S5131 한 건은 HTML이
   아니라 고정 MIME·attachment·nosniff HWPX ZIP sink로 이어지는 근거 있는 오탐이다.
-- S7039는 script 위험과 style 위험을 분리했다. script `unsafe-inline`과 외부 hostname wildcard는
-  수정했다. style `unsafe-inline`과 exact loopback의 임의 포트는 기능상 수용 위험으로 남겼다.
+- S7039는 script 위험과 style 위험을 분리했다. script `unsafe-inline`, 외부 hostname wildcard,
+  loopback 임의 포트, 법무 페이지 style inline은 수정했다. 세 편집기의 style 속성만 수용 위험이다.
 - S5332 세 건은 기본 loopback과 명시적 LAN 모드를 분리해 수용했다. LAN은 인증 없는 사설망
   서버이므로 공용망에서 안전하다는 뜻이 아니다.
 - Sonar 상태를 임의로 accept/false-positive 처리하지 않았다. 새 분석의 old/new ID와 새로 포함된
   HWPX 모듈 finding을 독립 검토자가 대조해 달라. `NOSONAR`나 분석 제외는 사용하지 않았다.
+- `6adf121` 분석은 `_send` XSS를 제거하고 Security E→C를 확인했지만 HWPX 범위에서 19건을
+  노출했다. 16건은 HWPX XML namespace URI 오탐이다. 세 CLI 경로 finding은 서버 런타임과
+  로컬 CLI 모듈을 구조적으로 분리해 후속 코드에서 제거했다.
 
 ## 검증
 
-- `npm run test:public`: source hash 5개, 실패 주입 9/9, 공개 산출물·비밀/맵/symlink 거절 통과.
+- `npm run test:public`: source script hash 5개·법무 style hash 1개, 실패 주입 12/12,
+  공개 산출물·비밀/맵/symlink 거절 통과.
 - `npm run test:csp`: Chromium 세 페이지에서 임의 inline script/속성 차단, 등록 callback 유지,
   CSP 약화 실패 주입 통과.
 - `npm run test:public-browser`: 네 공개 페이지 편집/인쇄/mock 저장, strict CSP red probe,
@@ -41,6 +45,8 @@ hook가 차단되어, self 출처의 명시적 `tests/regression-hooks.js`로 �
   inline test hook가 새 CSP에 차단돼 2건, 외부 hook 전환 중 4건이 실패했고 원인을 수정한 뒤 통과했다.
 - `python3 scripts/test-server-download.py`: 실제 loopback에서 HWPX MIME/attachment/nosniff와
   오류 경계 통과. `node scripts/check-sonar-scope.mjs`: 범위 대조와 실패 주입 4/4 통과.
+- Anaconda Python(lxml)에서 HWPX 10개 비네트워크 검사와 endpoint 2개, 문서·시험지 CLI 생성,
+  동시성·예외 회복 통과. 검토용 사본 3개 앱 부팅·Typst 동일 결과도 통과.
 - 실제 Pages 익명 로드: index/document는 GitHub Pages·jsDelivr·gstatic, mock은 여기에 로컬
   8080/8787/8788 probe만 요청했고 CSP 오류가 없었다. 로그인/App Check 실계정 검증은 R7로 남겼다.
 

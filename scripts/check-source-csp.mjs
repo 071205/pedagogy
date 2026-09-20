@@ -20,7 +20,9 @@ function violations(file, html) {
   const bad = [];
   if (!scriptPolicy) bad.push(`${file}: script-src is missing`);
   if (/'unsafe-inline'|'unsafe-eval'/.test(scriptPolicy)) bad.push(`${file}: unsafe script policy`);
-  if (/(?:https|wss):\/\/\*\./.test(policy || '')) bad.push(`${file}: wildcard network host`);
+  if (/(?:https|wss):\/\/\*\.|(?:https?|wss):\/\/[^;\s]+:\*/.test(policy || '')) {
+    bad.push(`${file}: wildcard network source`);
+  }
   if (!/(?:^|\s)'none'(?:\s|$)/.test(policy?.match(/(?:^|;)\s*script-src-attr\s+([^;]+)/)?.[1] || '')) {
     bad.push(`${file}: script-src-attr must be none`);
   }
@@ -46,4 +48,24 @@ for (const [file] of Object.entries(FILES)) {
     `${file}: CSP self-check must reject missing hash, unsafe-inline, and injected script`);
 }
 
-console.log('Source CSP: 5 inline scripts hash-locked; 9/9 failure injections rejected');
+const legal = await readFile(new URL('../legal.html', import.meta.url), 'utf8');
+const legalPolicy = legal.match(/<meta\s+http-equiv="Content-Security-Policy"\s+content="([\s\S]*?)"/i)?.[1] || '';
+const legalStylePolicy = legalPolicy.match(/(?:^|;)\s*style-src\s+([^;]+)/)?.[1] || '';
+const legalStyle = legal.match(/<style\b[^>]*>([\s\S]*?)<\/style\s*>/i)?.[1];
+const legalStyleHash = `'sha256-${createHash('sha256').update(legalStyle || '').digest('base64')}'`;
+assert.ok(legalStyle && legalStylePolicy.includes(legalStyleHash), 'legal.html: inline style hash must match');
+assert.doesNotMatch(legalStylePolicy, /'unsafe-inline'/, 'legal.html: unsafe inline style must stay disabled');
+for (const mutated of [
+  legal.replace(legalStyleHash, ''),
+  legal.replace(/style-src\s+'self'/, "style-src 'self' 'unsafe-inline'"),
+  legal.replace('</head>', '<style>body{display:none}</style></head>'),
+]) {
+  const policy = mutated.match(/<meta\s+http-equiv="Content-Security-Policy"\s+content="([\s\S]*?)"/i)?.[1] || '';
+  const stylePolicy = policy.match(/(?:^|;)\s*style-src\s+([^;]+)/)?.[1] || '';
+  const styles = [...mutated.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style\s*>/gi)].map(match =>
+    `'sha256-${createHash('sha256').update(match[1]).digest('base64')}'`);
+  assert.ok(/'unsafe-inline'/.test(stylePolicy) || styles.some(hash => !stylePolicy.includes(hash)),
+    'legal.html: style CSP failure injection must be rejected');
+}
+
+console.log('Source CSP: 5 scripts and 1 legal style hash-locked; 12/12 failure injections rejected');

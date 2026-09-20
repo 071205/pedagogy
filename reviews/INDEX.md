@@ -23,7 +23,8 @@
 
 2026-09-20 통합 레일 R1 자기검증 완료. **다음은 R2 / GPT-6 Astra high**다.
 루트 HTML script hash 잠금·외부 CSP host wildcard 제거·HWPX 런타임 Sonar 편입을 마쳤다.
-기준 Sonar는 337건(Bugs 0·취약점 11·Code Smells 326), Quality Gate ERROR이며 새 분석 대조 전이다.
+`6adf121` Sonar는 Bugs 0·취약점 29·Code Smells 390, Security C로 분석 범위 확대가 반영됐다.
+HWPX 19건 중 namespace 오탐 16건과 CLI 경로 3건을 판정·분리했고 최종 재분석 대조 전이다.
 작업 폴더의 사용자 미추적 `transcript.txt`는 보존한다.
 새 세션은 `git status`로 다시 확인하고 이 파일을 커밋하거나 삭제하지 않는다.
 

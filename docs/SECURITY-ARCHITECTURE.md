@@ -143,7 +143,7 @@ reCAPTCHA iframe·스크립트, Firestore transport, Storage 이미지, blob 인
 
 ### 5.1 R1 실제 배포·Sonar 보안 판정 (2026-09-20)
 
-GitHub Pages의 `/pedagogy/` 응답은 당시 루트 `index.html`과 460,544바이트가 동일했고,
+GitHub Pages의 `/pedagogy/` 응답은 당시 루트 `index.html`과 바이트 단위로 동일했고,
 응답에 CSP·nosniff·Referrer-Policy 헤더가 없었다. 따라서 `dist/public`의 강화가 서비스에
 적용됐다는 이전 가정은 틀렸다. 배포 설정을 추측해 바꾸지 않고, 현재 실제로 서비스되는
 루트 세 편집기의 인라인 script 5개를 SHA-256으로 잠갔다. 공개 빌드는 이를 외부 script로
@@ -160,14 +160,23 @@ R1 변경 전 미해결 11건의 판정은 다음과 같다. Sonar 상태는 독
 | finding | 판정 | 근거 / 남은 조건 |
 | --- | --- | --- |
 | `AaC7AmY_QT3MxfJYIgti` · S5131 | 근거 있는 오탐 | 추적된 두 흐름은 사용자 내용→HWPX 변환→ZIP bytes다. 고정 HWPX MIME·고정 attachment 이름·nosniff를 쓰며 HTML 응답이 아니다. JSON·정적 파일의 다른 `_send` 호출도 MIME이 고정이다 |
-| `AaC4hiZNGvjr3YIaEa1y`, `AaC4hiiTGvjr3YIaEa_e`, `AaC4higoGvjr3YIaEa9K` · S7039 unsafe-inline | script 위험 수정, style 잔여 수용 | 세 페이지의 script `unsafe-inline`을 정확한 hash로 교체했다. style `unsafe-inline`은 기존 style 태그·속성 때문에 남으며 script 속성은 `none`이다. 새 분석에서 old ID 해결 여부를 확인한다 |
-| `AaC4hihRGvjr3YIaEa_H` · S7039 unsafe-inline | 수용 위험 | 정적 법무 페이지의 style만 inline이다. script와 사용자 입력 경로가 없고 `default-src 'none'`이다 |
-| `AaC4hiZNGvjr3YIaEa1z`, `AaC4hiiTGvjr3YIaEa_f`, `AaC4higoGvjr3YIaEa9L` · S7039 wildcard | 호스트 wildcard 수정, loopback 포트 수용 | 외부 `*.` 호스트는 제거했다. 남은 `:*`는 사용자가 선택한 로컬 서버 포트를 찾기 위한 `127.0.0.1`·`localhost` 전용이다 |
+| `AaC4hiZNGvjr3YIaEa1y`, `AaC4hiiTGvjr3YIaEa_e`, `AaC4higoGvjr3YIaEa9K` · S7039 unsafe-inline | script 위험 수정, style 잔여 수용 | 세 페이지의 script `unsafe-inline`을 정확한 hash로 교체했다. style `unsafe-inline`은 기존 style 태그·속성 때문에 남으며 script 속성은 `none`이다 |
+| `AaC4hihRGvjr3YIaEa_H` · S7039 unsafe-inline | 수정 | 정적 법무 페이지에는 style 속성이 없어 유일한 style 블록도 정확한 SHA-256으로 잠갔다 |
+| `AaC4hiZNGvjr3YIaEa1z`, `AaC4hiiTGvjr3YIaEa_f`, `AaC4higoGvjr3YIaEa9L` · S7039 wildcard | 수정 | 외부 `*.` 호스트를 제거했고 로컬 연결도 코드가 실제 탐색하는 8080·8787·8788만 열었다. 임의 `--port`에서 앱 자체를 열 때는 `'self'`가 적용된다 |
 | `AaC4hijuGvjr3YIaEbCC`, `AaC4hijuGvjr3YIaEbCD`, `AaC4hijuGvjr3YIaEbCN` · S5332 | 의도된 로컬 기능의 수용 위험 | 기본 bind는 127.0.0.1이며 Host·Origin·custom header·크기·timeout을 검사한다. LAN은 명시적 `--lan`, 사설 IP, 경고, `/font` 차단 조건이다. 인증 없는 HTTPS 대체는 로컬 사용성을 깨므로 R1에서 흉내 내지 않는다 |
 
 로컬 HTTP와 style inline은 위험이 0이라는 뜻이 아니다. 범위를 exact loopback/private-network로
 제한한 수용 결정이며, 공개 호스트의 HTTP response CSP와 LAN 인증/TLS가 제품 요구가 되면 새
 설계로 바꾼다. `NOSONAR`, 분석 폴더 제외, sink 이름 변경으로 finding을 숨기지 않는다.
+
+revision `6adf121` 재분석에서 `_send` S5131은 실제로 사라졌고 Security rating은 E(5)에서
+C(3)로 개선됐다. 분석 범위를 넓혀 HWPX 모듈에서 19건이 새로 드러났다. S5332 16건은
+`http://www.hancom.co.kr/...` 등 XML namespace 식별자를 네트워크 요청으로 오인한 것으로,
+문자열을 HTTPS나 난독화로 바꾸면 문서 규격을 깨뜨린다. 근거 있는 오탐으로 분류한다.
+S8707 세 건은 서버 흐름이 아니라 `document_to_hwpx.py`, `mock_to_hwpx.py`,
+`make_math_probe.py`를 직접 실행한 로컬 사용자가 입력·출력 경로를 고르는 CLI 기능이었다.
+판정만 숨기지 않고 `exam_layout.py` 런타임과 `hwp_export_cli.py` 로컬 어댑터를 분리해 Sonar
+main scope가 서버에서 실행되는 코드만 포함하도록 경계를 명시했다.
 
 API는 자체 도메인 route로 옮긴 뒤 기본 `workers.dev`와 preview URL 우회 경로를 비활성화하거나
 같은 보호를 검증한다. WAF/IP rate limit은 NAT 교실 환경에서 오탐을 측정하고, app ID·UID별

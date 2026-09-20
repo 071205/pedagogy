@@ -11,6 +11,7 @@
  * 그리고 만든 다음 문법 검사와 **실제 브라우저 부팅**으로 안 깨졌는지 확인한다.
  */
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -33,6 +34,7 @@ export const PROGRAM_FILES = Object.freeze([
   'experiments/hwp-export/mock_to_hwpx.py', 'experiments/hwp-export/document_to_hwpx.py',
   'experiments/hwp-export/document_schema.py', 'experiments/hwp-export/template.py',
   'experiments/hwp-export/exam_profile.py', 'experiments/hwp-export/exam_style.py',
+  'experiments/hwp-export/exam_layout.py',
   'experiments/hwp-export/requirements.txt',
   'experiments/hwp-export/templates/blank.hwpx',
   'experiments/hwp-export/templates/exam-math.hwpx',
@@ -253,13 +255,38 @@ export function stripHtml(src) {
   return collapse(out);
 }
 
+function refreshCspHashes(html) {
+  const bodies = { script: [], style: [] };
+  for (const match of html.matchAll(/<(script|style)\b([^>]*)>([\s\S]*?)<\/\1\s*>/gi)) {
+    const kind = match[1].toLowerCase();
+    if (kind === 'script' && /\bsrc\s*=/i.test(match[2])) continue;
+    bodies[kind].push(match[3]);
+  }
+  return html.replace(/(<meta\s+http-equiv="Content-Security-Policy"\s+content=")([\s\S]*?)(")/i,
+    (_tag, before, policy, after) => {
+      for (const kind of ['script', 'style']) {
+        const directive = new RegExp(`(^|;)\\s*${kind}-src\\s+([^;]+)`);
+        policy = policy.replace(directive, (rule, boundary, values) => {
+          if (!/'sha256-[^']+'/.test(values)) return rule;
+          const hashes = bodies[kind].map(body =>
+            `'sha256-${createHash('sha256').update(body).digest('base64')}'`).join(' ');
+          return `${boundary} ${kind}-src ${values.replace(/\s*'sha256-[^']+'/g, '')} ${hashes}`;
+        });
+      }
+      return before + policy + after;
+    });
+}
+
 /** 빈 줄이 셋 이상 이어지면 줄인다 — 주석을 들어내고 남은 구멍. */
 function collapse(text) {
   return text.replace(/[ \t]+$/gm, '').replace(/\n{4,}/g, '\n\n\n');
 }
 
 export function stripFile(rel, bytes) {
-  if (/\.html$/.test(rel)) return Buffer.from(stripTypstTemplates(stripHtml(bytes.toString('utf8'))));
+  if (/\.html$/.test(rel)) {
+    const stripped = stripTypstTemplates(stripHtml(bytes.toString('utf8')));
+    return Buffer.from(refreshCspHashes(stripped));
+  }
   if (/\.(js|mjs|rules)$/.test(rel)) return Buffer.from(stripTypstTemplates(stripJs(bytes.toString('utf8'))));
   if (/\.py$/.test(rel)) {
     const args = KEEP_MODULE_DOC.has(rel) ? ['--keep-module-doc'] : [];

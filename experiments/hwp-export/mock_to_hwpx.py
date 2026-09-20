@@ -31,7 +31,7 @@ from pedagogy_hwpx import (HGND, MARKS, HwpxDocument, MM_TO_HWPUNIT,  # noqa: E4
 import exam_profile  # noqa: E402
 import template as tmpl  # noqa: E402
 import exam_style  # noqa: E402
-from make_math_probe import HP, apply_layout  # noqa: E402
+from exam_layout import HP, apply_layout  # noqa: E402
 from tex_to_hwp import UnsupportedTex, convert  # noqa: E402
 
 # 조판 규격을 읽어 올 실물 시험지. 없으면 exam_profile 의 임시 기본값으로 내려간다.
@@ -1216,26 +1216,6 @@ def _build(data: dict, out: Path, *, ref: str | Path | None = None,
     return rep
 
 
-def main(argv: list[str]) -> int:
-    if len(argv) < 2:
-        print(__doc__)
-        return 2
-    src = Path(argv[1])
-    out = Path(argv[2]) if len(argv) > 2 else src.with_suffix(".hwpx")
-    data = json.loads(src.read_text(encoding="utf-8"))
-
-    imgs = [Path(argv[3])] if len(argv) > 3 else [src.parent]
-    rep = build(data, out, images=imgs)
-    print("조판 규격 출처:", PROFILE.get("_source") or "(없음)")
-    print(f"문항 {rep.problems}개, 수식 {rep.equations}개, 그림 {rep.figures}개, 단나눔 {rep.breaks}회, 쪽나눔 {rep.pages}회, 벌린 줄 {rep.padded}개, 태그 {rep.tags}개, 확인사항 {rep.notes}개 → {out} ({out.stat().st_size:,} bytes)")
-    if rep.warnings:
-        print(f"\n⚠️ 경고 {len(rep.warnings)}건 (조용히 넘기지 않습니다):")
-        for w in rep.warnings[:20]:
-            print("  -", w)
-        return 1
-    print("경고 없음")
-    return 0
-
-
 if __name__ == "__main__":
-    raise SystemExit(main(sys.argv))
+    from hwp_export_cli import mock_main
+    raise SystemExit(mock_main(build, PROFILE))
