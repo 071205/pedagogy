@@ -1,9 +1,9 @@
-# CSP 해시 잠금이 스크립트 주입 방식 검사를 막는다 — `test:ai-image` 빨간불
+# CSP 해시 잠금이 스크립트 주입·고장 주입 검사를 막는다 — `check:fast` 빨간불
 
 - ID: `REV-2026-097`
 - 날짜: `2026-09-21`
 - 보고자: `Claude / Opus 5`
-- 상태: `open`
+- 상태: `resolved`
 - 심각도: `P2`
 - 영향 영역: `tests`, `security`
 - 관련 인계: `HANDOFF-2026-153`(R1 · **독립 검토 대기**)
@@ -60,3 +60,35 @@ npm run test:ai-image
 - `2026-09-21` — `Claude / Opus 3`: 등록. B1(문제집 크기 방어) 작업 중 `check:fast` 를 돌리다
   발견했고, 작업분을 치우고 재현해 **선행 결함**임을 확인했다. 수정은 하지 않았다 —
   R1 의 독립 검토(`HANDOFF-2026-153`)와 함께 판단할 항목으로 남긴다.
+
+## 수정 (2026-09-21 · `Claude / Opus 5`)
+
+⚠️ **등록할 때 본 것보다 범위가 넓었다.** 주입식 검사 둘뿐이 아니라 **고장 주입(깨보기)
+기법 전체**가 막혀 있었다.
+
+| 막힌 것 | 왜 | 고친 방법 |
+|---|---|---|
+| `check-ai-image.mjs` 의 `__AI_IMAGE_HOOKS__` 주입 | 인라인 주입이 CSP 에 차단 | **주입을 없앴다.** `prepImageForAI`·`aiBlocksToProblem` 은 최상위 `function` 이라 window 에 있고, `AI_MAX_DIM` 같은 `const` 도 `page.evaluate` 가 **전역 렉시컬로 읽는다** |
+| 같은 파일의 `redProbe` 가 `addScriptTag({content})` 로 바꾼 사본을 덧씌움 | 같음 | **route 로 `pedagogy-ai-image.js` 파일 자체를 갈아 끼운다.** ⚠️ 예전 방식은 차단되면 **원본이 남아 깨보기가 조용히 통과**했다 — 더 나쁜 실패다 |
+| `check-mock-library-ui.mjs` 의 `FAKE_CLOUD` 주입 | 같음 | 문자열을 **함수로 바꿔 `page.evaluate(installFakeCloud)`** 로 넘긴다. 함수 안의 `fbDb=`·`fbReady=` 대입이 **전역 `let` 바인딩에 그대로 닿는다**(`window.fbDb=` 는 닿지 못한다) |
+| 같은 파일의 **고장 주입**(`redBody()`) | ⚠️ **index.html 을 고쳐서 서빙하면 그 블록의 해시가 안 맞아 앱이 통째로 안 뜬다** | 새 공용 헬퍼 **`scripts/lib/csp-rehash.mjs`** 가 고친 HTML 의 인라인 해시를 **다시 계산**한다. CSP 를 지우지 않는다 — 지우면 깨보기가 제품과 다른 보안 자세를 시험하게 된다 |
+
+⚠️ **옛 커밋을 그대로 서빙하는 깨보기는 멀쩡하다**(`check-library-ui` · `check-sets-cloud-size`).
+그 HTML 은 **자기 정책과 자기 스크립트가 일치**하기 때문이다. 문제는 **고쳐서 서빙할 때**다.
+
+### 검증
+
+- `npm run test:ai-image` 통과 + 그 안의 자기검사(깨보기가 exit 1 · AssertionError)까지 통과.
+- `MOCK_UI_RED=1 node scripts/check-mock-library-ui.mjs` → **"고장 9개에서 계약 8개가 빨간불"**
+  으로 되살아났다(고치기 전에는 `page()` 가 8초 타임아웃으로 **크래시**했다 —
+  ⚠️ `check()` 의 `try` **밖**이라 실패로 기록되지도 않았다).
+- **`npm run check:fast` 종료코드 0 · 건너뜀 0건.**
+- `CLAUDE.md` 의 `installHooks()` 설명이 "`'unsafe-inline'` 이 있다" 를 전제하고 있어 정정했고,
+  **인라인을 고치면 해시를 다시 계산해야 한다**는 함정도 같은 파일에 넣었다.
+
+### 남은 것
+
+⚠️ 같은 기법을 쓰는 **`scripts/check-public-browser.mjs` · `scripts/check-csp-browser.mjs` ·
+`tests/regression-test.html` · `tests/integration-test.html`** 는 **확인하지 않았다.**
+앞의 둘은 `check:fast` 경로에 없고 뒤의 둘은 사람이 여는 것이라 관문을 막지 않았다.
+그래서 이 이슈를 닫되, **그 넷은 열어 둔 항목으로 남긴다.**

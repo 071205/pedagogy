@@ -8,6 +8,7 @@
 import {chromium} from 'playwright';
 import {spawn} from 'node:child_process';
 import fs from 'node:fs';
+import {rehashInlineScripts} from './lib/csp-rehash.mjs';
 import assert from 'node:assert/strict';
 
 const base='http://127.0.0.1:18883';
@@ -46,7 +47,10 @@ function redBody(){
     if(!html.includes(from)) throw new Error('고장 주입 지점을 못 찾았습니다: '+from.slice(0,40));
     html=html.replace(from,to);
   }
-  return html;
+  /* ⚠️ 고친 인라인 스크립트는 CSP 해시가 안 맞아 **통째로 차단된다**(`REV-2026-097`).
+     해시를 다시 계산하지 않으면 깨보기가 '고장을 잡았다' 가 아니라 '앱이 안 떴다' 로
+     터져서 값을 잃는다. 정책은 그대로 두고 해시만 맞춘다. */
+  return rehashInlineScripts(html);
 }
 
 async function page(){
@@ -75,44 +79,48 @@ async function page(){
       tombstone·병합·구독)은 **코드가 아니라 동작**이라 정적 검사로는 못 본다.
       그래서 앱이 부르는 API 표면만 페이지 안에서 흉내 내고, 그 위에서 실제
       `flushMocksToCloud()`·`watchMocks()`·`deleteMockEverywhere()` 를 돌린다. */
-const FAKE_CLOUD=`
-window.__cloud={docs:new Map(),subs:[],writes:0};
-function __col(uid){
-  const key=id=>uid+'/'+id;
-  const fire=(changes)=>window.__cloud.subs.forEach(f=>f({docChanges:()=>changes}));
-  const ref=id=>({id,
-    set:async d=>{ window.__cloud.writes++;
-      window.__cloud.docs.set(key(id),JSON.parse(JSON.stringify(d)));
-      fire([{doc:{id,data:()=>window.__cloud.docs.get(key(id))}}]); },
-    delete:async()=>{ window.__cloud.docs.delete(key(id)); }});
-  const mine=()=>[...window.__cloud.docs.entries()]
-    .filter(([k])=>k.startsWith(uid+'/')).map(([k,d])=>({id:k.slice(uid.length+1),data:()=>d}));
-  return {doc:ref,
-    get:async()=>{ const docs=mine(); return {docs,forEach:cb=>docs.forEach(cb)}; },
-    onSnapshot:(next)=>{ window.__cloud.subs.push(next);
-      return ()=>{ window.__cloud.subs=window.__cloud.subs.filter(f=>f!==next); }; }};
+/* ⚠️ **인라인 `<script>` 로 주입하지 않는다**(`REV-2026-097`). `index.html` 의 인라인
+   스크립트는 CSP 해시로 잠겨 있고 `'unsafe-inline'` 이 없어 주입이 **조용히 차단된다** —
+   오류도 안 나고 `window.__cloud` 만 undefined 가 되어 검사 여덟이 한꺼번에 터진다.
+   ⚠️ `page.evaluate(함수)` 는 CSP 를 타지 않고, 함수 안의 `fbDb=`·`fbReady=` 대입은
+   `index.html` 의 전역 `let` 바인딩에 그대로 닿는다(`window.fbDb=` 는 닿지 못한다). */
+function installFakeCloud(){
+  window.__cloud={docs:new Map(),subs:[],writes:0};
+  function __col(uid){
+    const key=id=>uid+'/'+id;
+    const fire=(changes)=>window.__cloud.subs.forEach(f=>f({docChanges:()=>changes}));
+    const ref=id=>({id,
+      set:async d=>{ window.__cloud.writes++;
+        window.__cloud.docs.set(key(id),JSON.parse(JSON.stringify(d)));
+        fire([{doc:{id,data:()=>window.__cloud.docs.get(key(id))}}]); },
+      delete:async()=>{ window.__cloud.docs.delete(key(id)); }});
+    const mine=()=>[...window.__cloud.docs.entries()]
+      .filter(([k])=>k.startsWith(uid+'/')).map(([k,d])=>({id:k.slice(uid.length+1),data:()=>d}));
+    return {doc:ref,
+      get:async()=>{ const docs=mine(); return {docs,forEach:cb=>docs.forEach(cb)}; },
+      onSnapshot:(next)=>{ window.__cloud.subs.push(next);
+        return ()=>{ window.__cloud.subs=window.__cloud.subs.filter(f=>f!==next); }; }};
+  }
+  /* 다른 기기가 쓴 것처럼 밀어 넣는다 */
+  window.__remote=(uid,doc)=>{
+    window.__cloud.docs.set(uid+'/'+doc.id,JSON.parse(JSON.stringify(doc)));
+    window.__cloud.subs.forEach(f=>f({docChanges:()=>[{doc:{id:doc.id,data:()=>doc}}]}));
+  };
+  fbReady=true;
+  fbDb={batch(){const ops=[];return{
+      set:(r,d)=>ops.push(['s',r,d]), delete:r=>ops.push(['d',r]),
+      commit:async()=>{ for(const [k,r,d] of ops) k==='s'?await r.set(d):await r.delete(); }};},
+    collection:()=>({doc:uid=>({collection:sub=>sub==='mocks'?__col(uid):__col(uid+':other')})})};
 }
-/* 다른 기기가 쓴 것처럼 밀어 넣는다 */
-window.__remote=(uid,doc)=>{
-  window.__cloud.docs.set(uid+'/'+doc.id,JSON.parse(JSON.stringify(doc)));
-  window.__cloud.subs.forEach(f=>f({docChanges:()=>[{doc:{id:doc.id,data:()=>doc}}]}));
-};
-fbReady=true;
-fbDb={batch(){const ops=[];return{
-    set:(r,d)=>ops.push(['s',r,d]), delete:r=>ops.push(['d',r]),
-    commit:async()=>{ for(const [k,r,d] of ops) k==='s'?await r.set(d):await r.delete(); }};},
-  collection:()=>({doc:uid=>({collection:sub=>sub==='mocks'?__col(uid):__col(uid+':other')})})};
-`;
 async function cloudPage(uid='u-alice'){
   const p=await page();
-  await p.evaluate(([src,who])=>{
-    window.PEDAGOGY_PUBLIC_CONFIG={...window.PEDAGOGY_PUBLIC_CONFIG,mockCloudSchema:1};
-    const el=document.createElement('script'); el.textContent=src;
-    document.head.append(el); el.remove();
+  await p.evaluate(()=>{ window.PEDAGOGY_PUBLIC_CONFIG={...window.PEDAGOGY_PUBLIC_CONFIG,mockCloudSchema:1}; });
+  await p.evaluate(installFakeCloud);
+  await p.evaluate(who=>{
     currentUser={uid:who}; authEpoch++;
     mocks=[];mocksLoaded=false;mockCloudSynced.clear();mockDeletedIds.clear();
     mockOpenId="";mockCloudWarned=false;
-  },[FAKE_CLOUD,uid]);
+  },uid);
   return p;
 }
 const cloudDocs=(p,uid='u-alice')=>p.evaluate(who=>[...window.__cloud.docs.entries()]

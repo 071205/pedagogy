@@ -20,16 +20,19 @@ async function waitFor(page, expression){
   await page.waitForFunction(expression,undefined,{timeout:10000});
 }
 
-async function openApp(browser, url){
+/* ⚠️ **인라인 `<script>` 를 주입하지 않는다**(`REV-2026-097`). `index.html` 의 인라인
+   스크립트는 CSP 해시로 잠겨 있고 `'unsafe-inline'` 이 없어서 주입이 **조용히 차단된다**
+   — 오류도 안 나고 훅만 undefined 가 된다. 대신 두 가지를 쓴다:
+     · 실제 배선은 `page.evaluate` 로 **맨 이름**을 읽는다(전역 렉시컬·window 둘 다 보인다).
+     · 라이브러리를 바꿔 끼울 때는 **route 로 파일 자체를 갈아 준다**(CSP 를 타지 않는다).
+   ⚠️ `'unsafe-inline'` 을 되살려 예전 방식으로 돌아가지 말 것. */
+async function openApp(browser, url, mutatedLib){
   const page=await browser.newPage();
   await page.route('https://**/*',route=>route.abort());
+  if(mutatedLib) await page.route('**/pedagogy-ai-image.js',route=>route.fulfill({
+    contentType:'application/javascript; charset=utf-8', body:mutatedLib}));
   await page.goto(url,{waitUntil:'domcontentloaded'});
   await waitFor(page,()=>typeof window.PedagogyAIImage?.create==='function');
-  await page.evaluate(()=>{
-    const script=document.createElement('script');
-    script.textContent='window.__AI_IMAGE_HOOKS__={AI_MAX_DIM,AI_QUALITY,blobToBase64,prepImageForAI,aiBlocksToProblem};';
-    document.head.append(script);script.remove();
-  });
   return page;
 }
 
@@ -67,13 +70,17 @@ async function checkFactory(page){
 }
 
 async function checkActualWrapper(page){
+  /* `prepImageForAI`·`aiBlocksToProblem` 은 최상위 `function` 이라 window 에 있고,
+     `AI_MAX_DIM`·`AI_QUALITY` 는 `const` 라 window 에는 없지만 **전역 렉시컬**이라
+     `evaluate` 안에서 맨 이름으로 보인다. 그래서 주입이 필요 없다. */
   const result=await page.evaluate(async data=>{
-    const hooks=window.__AI_IMAGE_HOOKS__;
     const file=new File([Uint8Array.from(atob(data),char=>char.charCodeAt(0))],'tiny.png',{type:'image/png'});
-    const image=await hooks.prepImageForAI(file);
-    const problem=hooks.aiBlocksToProblem({title:'<긴 제목>',blocks:[{type:'choices',items:['a']}]});
-    return {constants:[hooks.AI_MAX_DIM,hooks.AI_QUALITY],image,problem};
+    const image=await prepImageForAI(file);
+    const problem=aiBlocksToProblem({title:'<긴 제목>',blocks:[{type:'choices',items:['a']}]});
+    return {constants:[AI_MAX_DIM,AI_QUALITY],image,problem,
+            wired:typeof aiImageTools==='object' && aiImageTools!==null};
   },png);
+  assert.equal(result.wired,true,'index.html 이 PedagogyAIImage 로 배선한 인스턴스를 봐야 한다');
   assert.deepEqual(result.constants,[1568,0.8]);
   assert.equal(result.image.mimeType,'image/jpeg');
   assert.ok(result.image.base64.length>0);assert.ok(result.image.bytes>0);
@@ -82,11 +89,14 @@ async function checkActualWrapper(page){
   assert.ok(result.problem.id,'actual wrapper must retain normProblem ID generation');
 }
 
-async function redProbe(page){
+/* ⚠️ 예전에는 `addScriptTag({content})` 로 바꾼 사본을 덧씌웠는데, CSP 가 그것을 막으면
+   **원본이 그대로 남아 깨보기가 조용히 통과한다**(= 검사가 헛돈다). 지금은 route 로
+   파일 자체를 갈아 끼워 바뀐 사본이 확실히 실행되게 한다. */
+async function redProbe(browser, url){
   const source=await readFile(new URL('../pedagogy-ai-image.js',import.meta.url),'utf8');
   const mutated=source.replace('return normProblem({','return ({');
   assert.notEqual(mutated,source,'mutation anchor must match');
-  await page.addScriptTag({content:mutated});
+  const page=await openApp(browser,url,mutated);
   const normalizerRan=await page.evaluate(()=>{
     const tools=window.PedagogyAIImage.create({
       fileToDataURL:async()=>'',dataUrlToJpegBlob:async()=>null,
@@ -95,6 +105,7 @@ async function redProbe(page){
     try{tools.aiBlocksToProblem({blocks:[{type:'statement',text:'test'}]});return false;}
     catch(error){return error.message==='normalizer invoked';}
   });
+  await page.close();
   assert.equal(normalizerRan,true,'AI response conversion must pass through normProblem');
 }
 
@@ -109,7 +120,7 @@ try {
   }
   browser=await chromium.launch({ignoreDefaultArgs:['--allow-file-access-from-files']});
   const httpPage=await openApp(browser,http);
-  if(red) await redProbe(httpPage);
+  if(red) await redProbe(browser,http);
   else {
     await checkFactory(httpPage);await checkActualWrapper(httpPage);
     const filePage=await openApp(browser,pathToFileURL(root+'/index.html').href);
