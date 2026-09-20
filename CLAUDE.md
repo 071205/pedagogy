@@ -282,6 +282,44 @@ environment 를 공유한다. namespace 는 의존성을 **보이게** 하려는
 않았다** — 그쪽 하네스를 통째로 넣으면 스킬·에이전트 설명만 세션당 약 26,600 토큰이고,
 그건 `docs/DEV-TOKEN-ROADMAP.md` 가 줄이려는 바로 그 비용이다.
 
+**Claude → Codex 일반 협업은 Claude 본 세션에서 저장소의 읽기 전용 래퍼를 foreground로
+호출한다.** 2026-09-21 실제 왕복에서 7초 안에 종료됐고 Claude가 읽은 결과도 최종 답변 14B와
+진행 로그 458B로 분리됐다. 직접 `codex exec`를 조합하는 호출은 PreToolUse 훅이 차단한다.
+
+**빠른 설계 티키타카 계약:** 보통 설계 판정은 기본 effort·foreground, 보안·데이터 손실·
+최종 아키텍처 게이트만 공식 `codex:codex-rescue`의 `--effort high`를 쓴다. 첫 질문은 필요한
+파일·쟁점·완료 조건과 질문
+1~2개만 보내고, 다음 왕복에는 **새로 남은 이견과
+직전 답의 필요한 부분만** 보낸다. 같은 문서 전체와 이미 합의한 근거를 다시 넣지 않는다. 최대
+3회 안에 `합의 / 미합의 / 근거 / 다음 행동`으로 닫고, 한 에이전트만 구현한 뒤 다른 쪽이 검토한다.
+
+프롬프트 파일에는 아래 저장소 래퍼를 쓴다. 직접
+`codex exec "$(cat ...)"`를 실행하거나 stdout/stderr를 한 파일에 합치면 stdin 대기와 대형
+로그가 다시 생긴다.
+```bash
+node scripts/ask-codex-readonly.mjs \
+  --prompt /tmp/pedagogy-codex/ask-codex.txt \
+  --output /tmp/pedagogy-codex/codex-final.md \
+  --progress /tmp/pedagogy-codex/codex-progress.log \
+  --timeout-seconds 300
+```
+래퍼는 일반 협업의 기본 경로다. 읽기 전용 샌드박스, stdin EOF, 비영구 세션,
+최종 답변 분리, 15분 시간 제한을 강제한다. 성공하면
+`codex-final.md`만 읽고 진행 로그는 실패했을 때만 확인한다. 질문은 한 파일에 쟁점과 완료 조건을
+묶고 같은 주제의 왕복은 최대 3회로 제한한다. 한 번에 한 에이전트만 코드를 쓰며 구현 뒤에는
+이 저장소의 `reviews/` 절차로 검토한다. 래퍼 자체 검사는 `npm run check:codex-bridge`이며 실제
+모델 호출 없이 동작한다.
+
+공식 `codex:codex-rescue` foreground도 정상 완료됐지만, 한 단어 답변 실측에서 Claude 쪽 문맥이
+약 74,145토큰까지 커졌다. 따라서 작업 상태 추적 가치가 그 비용보다 큰 고위험 최종 검토에만
+쓴다. background 호출은 실제 Codex 턴이 `interrupted`된 뒤 Claude 대기만 남은 사례가 있어
+사용하지 않는다.
+
+⚠️ **인라인 스크립트를 고치면 `<meta>` 의 CSP `sha256-` 해시를 다시 계산해야 한다**(2026-09-21).
+R1 이 `index.html` 의 인라인 셋을 해시로 잠갔다 — 한 글자만 바꿔도 **그 블록이 통째로 차단**되고,
+⚠️ **`pageerror` 가 나지 않아** 앱이 **조용히 안 뜬다**(전역이 전부 undefined 가 된다).
+`npm run test:public` 이 기대 해시를 그대로 찍어 준다. CDN 의 `integrity` 와 **별개의 잠금**이다.
+
 **이 프로젝트에서 반복된 실패 방식** — 새로 만들기 전에 한 번 읽을 것:
 1. **검사가 다 초록불인데 결과물이 틀렸다.** 한글이 파일을 못 여는 것, 수식이 글자로
    찍히는 것, 표에 선이 없는 것 — 전부 검사를 통과했고 **화면을 봐야** 보였다.
@@ -595,6 +633,10 @@ new check you add, because three separate "all-green while testing nothing" bugs
   testing convenience). The working fix, `installHooks()` in `regression-test.html`: inject a
   real `<script>` element into the iframe's own document (allowed — CSP `script-src` already
   has `'unsafe-inline'`, which is a separate grant from the event-handler-attribute block) that
+  ⚠️ **이 전제는 2026-09-21 자로 `index.html` 에서 더 이상 참이 아니다** — R1 이 인라인
+  스크립트를 **해시로 잠그고 `'unsafe-inline'` 을 제거**해 주입이 **조용히 차단된다**
+  (`REV-2026-097`). `'unsafe-inline'` 을 되살리지 말고 `page.evaluate`·`addInitScript`
+  처럼 CSP 를 타지 않는 경로로 옮길 것.
   assigns the names it can see into `window.__HOOKS__`, then read that object from the parent.
 - **XSS-probe `<img onerror>` markers need the test `<div>` attached to `document` *and* a short
   `await` before checking the flag.** A detached `div.innerHTML = "<img onerror=...>"` never

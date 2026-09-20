@@ -892,7 +892,8 @@ canonical 은 `notes: text(o.notes,1000)` 즉 **문자열**이다(`pedagogy-norm
 | 초과 시 안내 | 부수를 세어 토스트 + "이 기기에는 저장돼 있습니다" (`:5177`) | **없다** |
 | `cloudSynced` 표시 | commit 성공한 chunk 만 | — |
 
-`MOCK_DOC_MAX = 900*1024`(`:5095`), `docBytes()` 는 `TextEncoder` 로 **UTF-8 바이트**를 잰다
+`MOCK_DOC_MAX = 900*1024`(`:5095` · ⚠️ **2026-09-21 에 `CLOUD_DOC_MAX` 로 이름을 바꿨다** —
+두 경로가 같은 값을 쓴다는 것을 이름으로 드러내려는 것이다), `docBytes()` 는 `TextEncoder` 로 **UTF-8 바이트**를 잰다
 (`:5099` · 실패 시 `길이×3` 로 넉넉히). ⚠️ **한글은 3배라 글자 수로 재면 한도를 통과한다** —
 `CLAUDE.md` 가 이미 적어 둔 함정이고 모의고사는 그것을 지켰다.
 

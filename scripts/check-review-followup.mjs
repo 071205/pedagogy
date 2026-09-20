@@ -26,7 +26,7 @@ test('mock acknowledgement uses the sent document, including nested data', async
     const mockCloudSynced=new Map(); let release,sent=[],retries=0;
     const gate=new Promise(r=>release=r),mockCloudReady=()=>true;
     const sessionContext=()=>({uid:'A'}),sessionMatches=()=>true;
-    const MOCK_DOC_MAX=900*1024,MOCKS_COL=()=>({doc:id=>id});
+    const CLOUD_DOC_MAX=900*1024,MOCKS_COL=()=>({doc:id=>id});
     const fbDb={batch:()=>({set:(id,doc)=>sent.push(doc),commit:()=>gate})};
     const toast=()=>{},mockCloudWarnOnce=()=>{},scheduleMockCloud=()=>{retries++};
   `);

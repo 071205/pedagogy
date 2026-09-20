@@ -25,7 +25,7 @@
      어렵다 — 새 로그인만 깨진다). 실제로 한 번 그랬으니 손대지 말 것. -->
 <meta http-equiv="Content-Security-Policy" content="
   default-src 'self';
-  script-src 'self' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-Vz46SoZ8aK7a0/ePP4H9gFs7Lkf4p9F0IVilcN4PXO4=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
+  script-src 'self' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-0IUwLzRc6f28okNmaMOQZdc1MmsxZRtqCv5TF3bu+fQ=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
   script-src-attr 'none';
   style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
   font-src 'self' data: https://cdn.jsdelivr.net;
@@ -2982,6 +2982,11 @@ const SETS_COL = uidStr => fbDb.collection('users').doc(uidStr).collection('sets
 let cloudSynced=new Map();          // setId → {json, order}
 let deletedIds=new Map();           // setId → 삭제 시각(ms) · tombstone 로컬 사본
 let setsUnsub=null;                 // onSnapshot 해제 함수
+/* 마지막으로 '너무 큼' 이라고 말한 문제집들. 같은 구성에 대고 매 저장마다 다시 말하지
+   않으려는 것뿐이다 — 판정 자체는 저장할 때마다 다시 잰다(줄이면 바로 올라간다).
+   ⚠️ 낡아도 해롭지 않다(말하기 억제용이다). `cloudSynced` 처럼 초기화 지점을
+      늘리지 말 것 — 그 map 은 낡으면 **자료가 사라지지만** 이것은 아니다. */
+let setsOversizeKey="";
 
 /* 동기화 비교에는 모든 사용자 보이는 문제집 설정을 넣는다. lineColor·subject 를
    빼면 그 둘만 바꾼 저장은 '변화 없음'으로 오인해 다른 기기에 가지 않는다.
@@ -3507,26 +3512,44 @@ async function writeCloudSnapshot(uidAtSave,session){
     setSaveStatus(""); return;
   }
   const dirty=sets.map((s,i)=>({s,i})).filter(({s,i})=>!isCloudSynced(s,i))
-    .map(({s,i})=>({id:s.id, doc:JSON.parse(JSON.stringify(setToDoc(s,i))), entry:cloudSyncEntry(setToDoc(s,i),i)}));
+    .map(({s,i})=>{ const doc=setToDoc(s,i);
+      return {id:s.id, name:s.name||"", doc:JSON.parse(JSON.stringify(doc)), entry:cloudSyncEntry(doc,i)}; });
   // 순서만 바뀐 경우도 cloudSyncEntry 의 order 비교로 포함한다.
   if(!dirty.length){ setSaveStatus(""); return true; }
+  /* ⚠️ **한도를 넘는 문서는 batch 에 넣지 않는다.** Firestore 배치는 원자적이라, 큰 문제집
+     하나가 섞이면 **같이 올라가던 멀쩡한 문제집까지 통째로 실패한다.** 모의고사 경로는
+     예전부터 이렇게 갈랐는데 문제집 경로에만 없었다(`docs/STORAGE-CONTRACT.md` §1).
+     ⚠️ 글자 수가 아니라 **UTF-8 바이트**로 잰다 — 한글은 3배라 `.length` 로는 통과한다. */
+  const ready=[], tooBig=[];
+  dirty.forEach(d=>(docBytes(d.doc)>CLOUD_DOC_MAX?tooBig:ready).push(d));
+  const oversizeKey=tooBig.map(d=>d.id).sort().join("|");
+  if(oversizeKey!==setsOversizeKey){
+    setsOversizeKey=oversizeKey;
+    if(tooBig.length) toast(`${tooBig.map(d=>`'${d.name||"제목 없음"}'`).join(", ")}${tooBig.length>1?" 문제집들이":" 문제집이"} 너무 커서 계정에 올리지 못했어요 · 두 개 이상으로 나눠 주세요 (이 기기에는 저장돼 있습니다)`,"error");
+  }
+  if(!ready.length){ setSaveStatus(tooBig.length?"⚠ 용량 초과":"", tooBig.length?"#e57373":undefined); return false; }
   try{
     // 500개는 배치 상한. 한 번에 그만큼 바뀌는 일은 없지만 안전하게 나눠 보낸다
-    for(let off=0; off<dirty.length; off+=400){
+    for(let off=0; off<ready.length; off+=400){
       const batch=fbDb.batch();
       if(!sessionMatches(session) || wiping) return;
-      dirty.slice(off,off+400).forEach(({id,doc})=>{
+      ready.slice(off,off+400).forEach(({id,doc})=>{
         batch.set(SETS_COL(uidAtSave).doc(String(id)), doc);
       });
       await batch.commit();
       if(!sessionMatches(session) || wiping) return;
     }
-    dirty.forEach(({id,entry})=>cloudSynced.set(id, entry));
-    if(sets.some((s,i)=>!isCloudSynced(s,i))){
+    ready.forEach(({id,entry})=>cloudSynced.set(id, entry));
+    /* ⚠️ **초과본은 다시 부르는 조건에서 뺀다.** 그것들은 영영 `isCloudSynced` 가 아니므로
+       빼지 않으면 `flushToCloud` 가 **끝없이 자기를 다시 부른다.** 줄여서 구성이 바뀌면
+       다음 저장에서 다시 재어 올라간다. 모의고사도 `ready` 만 보고 재예약한다. */
+    const oversize=new Set(tooBig.map(d=>d.id));
+    if(sets.some((s,i)=>!isCloudSynced(s,i) && !oversize.has(s.id))){
       setSaveStatus("저장 중…");
       void flushToCloud(uidAtSave);
       return;
     }
+    if(tooBig.length){ setSaveStatus("⚠ 용량 초과", "#e57373"); return false; }
     setSaveStatus("✓ 저장됨", "#81c784");
     setTimeout(()=>{if(sessionMatches(session) && !hasUnsavedCloudWork()) setSaveStatus("");}, 2000);
     return true;
@@ -5090,9 +5113,11 @@ window.addEventListener("beforeunload",flushOpenMock);
    ⚠️ **그림은 문서에 담지 않는다.** 편집기가 `upload` 로 올려 주소만 남긴다.
       담아 두면 시험지 한 부가 1MB 한도를 그냥 넘는다. */
 const MOCKS_COL = uidStr => fbDb.collection('users').doc(uidStr).collection('mocks');
-/* Firestore 문서 한도는 1MiB 다. 여유를 두고 자른다 — 넘으면 그 한 부만 건너뛰고
-   **말한다**(조용히 빠지면 사용자는 계정에 있다고 믿는다). */
-const MOCK_DOC_MAX=900*1024;
+/* Firestore 문서 한도는 1MiB 다. 여유를 두고 자른다 — 넘으면 그 하나만 건너뛰고
+   **말한다**(조용히 빠지면 사용자는 계정에 있다고 믿는다).
+   ⚠️ **문제집과 모의고사가 같은 값을 쓴다.** 한쪽만 고치면 갈라진다 —
+      이름에 갈래를 넣지 않는 이유가 그것이다(`docs/STORAGE-CONTRACT.md` §1-2). */
+const CLOUD_DOC_MAX=900*1024;
 /* ⚠️ **글자 수가 아니라 바이트로 잰다.** `JSON.stringify(...).length` 는 UTF-16 코드
    단위라 한글이 실제의 1/3 로 세어진다 — 처음에 그렇게 썼다가 **1.4MB 짜리 문서가
    한도를 통과**했고(검사가 잡았다) Firestore 에서만 터졌을 것이다. */
@@ -5171,7 +5196,7 @@ function flushMocksToCloud(){
     const ready=[], tooBig=[];
     for(const e of dirty){
       const doc=JSON.parse(JSON.stringify(mockToDoc(e)));
-      (docBytes(doc)>MOCK_DOC_MAX?tooBig:ready).push({id:e.id,doc,fingerprint:mockJSON(doc)});
+      (docBytes(doc)>CLOUD_DOC_MAX?tooBig:ready).push({id:e.id,doc,fingerprint:mockJSON(doc)});
     }
     if(tooBig.length)
       toast(`모의고사 ${tooBig.length}부가 너무 커서 계정에 올리지 못했어요 · 그림을 줄이거나 문항을 나눠 주세요 (이 기기에는 저장돼 있습니다)`,"error");

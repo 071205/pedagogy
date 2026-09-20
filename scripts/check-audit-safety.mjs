@@ -72,8 +72,10 @@ test('033: ack uses sent snapshot and schedules unsent revision',async()=>{
     const cloudSyncEntry=s=>({json:JSON.stringify(s)}),isCloudSynced=s=>cloudSynced.get(s.id)?.json===JSON.stringify(s);
     const setToDoc=s=>JSON.parse(JSON.stringify(s)),SETS_COL=()=>({doc:id=>id});
     const fbDb={batch:()=>({set:(id,d)=>sent.push(d),commit:()=>gate})};
-    const hasUnsavedCloudWork=()=>true;let localDirty=false;`);
+    const hasUnsavedCloudWork=()=>true;let localDirty=false;
+    let setsOversizeKey="";const CLOUD_DOC_MAX=900*1024;`);
   const modern=src.includes('function writeCloudSnapshot(');
+  if(modern) vm.runInContext(fn('docBytes'),c);   // 크기 방어가 쓰는 진짜 함수
   vm.runInContext(modern?'const flushToCloud=()=>{retries++;};\n'+fn('writeCloudSnapshot'):fn('flushToCloud'),c);
   const pending=vm.runInContext(modern?"writeCloudSnapshot('A',sessionContext())":"flushToCloud('A')",c);
   vm.runInContext("sets[0].name='v2';release()",c);await pending;
@@ -160,7 +162,9 @@ test('033: overlapping saves serialize and eventually acknowledge latest content
     const flushLocal=()=>true,setSaveStatus=()=>{},toast=()=>{},hasUnsavedCloudWork=()=>false;
     const cloudSyncEntry=s=>({json:JSON.stringify(s)}),isCloudSynced=s=>cloudSynced.get(s.id)?.json===JSON.stringify(s);
     const setToDoc=s=>JSON.parse(JSON.stringify(s)),SETS_COL=()=>({doc:id=>id});
-    const fbDb={batch:()=>({set:(id,d)=>sent.push(d),commit:()=>new Promise(r=>gates.push(r))})};`);
+    const fbDb={batch:()=>({set:(id,d)=>sent.push(d),commit:()=>new Promise(r=>gates.push(r))})};
+    let setsOversizeKey="";const CLOUD_DOC_MAX=900*1024;`);
+  vm.runInContext(fn('docBytes'),c);              // 크기 방어가 쓰는 진짜 함수
   vm.runInContext(fn('flushToCloud')+'\n'+fn('writeCloudSnapshot'),c);
   const tick=async()=>{for(let i=0;i<10;i++)await Promise.resolve();};
   const first=vm.runInContext("flushToCloud('A')",c);await tick();

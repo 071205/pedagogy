@@ -14,6 +14,7 @@
 | `REV-2026-074` | `P2` | macOS 폴더 아이콘 파일이 새 Git 폴더에서 재발해 refs를 오염시킨다 | `issues/2026-09/2026-09-09-rules-macos-icon-files-corrupt-git-refs.md` |
 | `REV-2026-075` | `P2` | AI 문서에 들어갔다 나오면 로그인이 안 된다(재현 절차 없음) | `issues/2026-09/2026-09-09-document-editor-login-after-return.md` |
 | `REV-2026-093` | `P2` | staging Gemini가 결제 전제 미충족(`FAILED_PRECONDITION`)으로 실패한다 | `issues/2026-09/2026-09-14-gemini-staging-provider-request-error.md` |
+| `REV-2026-097` | `P2` | CSP 해시 잠금이 스크립트 주입 검사를 막아 `check:fast` 가 빨간불이다 | `issues/2026-09/2026-09-21-csp-hash-lock-breaks-script-injection-harnesses.md` |
 
 ⚠️ 이 표는 `npm run check:review-hygiene` 가 **실제 이슈 파일의 상태와 양방향으로**
 대조한다. 지난 요약을 지워도 안전한 이유가 이 대조다 — 남은 한 곳이 정확해야
@@ -83,6 +84,11 @@ R1~R10은 보안→제품 범위→저장→독립 검토→검증/운영→출�
 
 ## 최근 검토
 
+[HANDOFF-2026-156](handoffs/2026-09/2026-09-21-sets-cloud-size-defense.md): R4/B1 — 문제집 클라우드 저장에
+크기 선제 방어를 넣었다(`ready`/`tooBig` 분리 · `CLOUD_DOC_MAX` 공용화 · 무한 재시도 차단).
+초과 문서 하나가 batch 전체를 실패시키던 결함을 고쳤다. `npm run test:sets-cloud` 5건 + 깨보기.
+⚠️ 그 과정에서 선행 결함 `REV-2026-097`(CSP 해시 잠금이 주입식 검사를 막는다)을 발견했다. **독립 검토 대기.**
+
 [HANDOFF-2026-154](handoffs/2026-09/2026-09-20-gemini-quality-measurement.md): 제미나이를 **제품 프롬프트 그대로**
 재었다(호출 5회·약 7원·Worker 미경유). 수식 LaTeX 5/5, 2단 한 장에서 문항 2개 정확히 분리.
 ⚠️ 틀린 것의 원인은 모델이 아니라 **우리 계약의 빈 칸**(정답·지문·각주·출처·묶음안내)이었고,
@@ -94,12 +100,6 @@ HWPX 런타임 9개를 Sonar 범위에 포함했으며 11개 finding을 수정/�
 
 [HANDOFF-2026-152](handoffs/2026-09/2026-09-20-unified-execution-rail.md): 기존 비용·출시·Sonar·안티그래비티 제안을 단일 레일로 통합.
 R0 문서 완료, 다음 R1/Sol high. 모델 전환·최소 검사·외부 조건 대기·사용량 마감 기준 지정.
-
-[HANDOFF-2026-151](handoffs/2026-09/2026-09-20-security-reliability-verification-roadmap.md): SonarCloud 재분석 결과(Bugs 0·A등급, 취약점 11건) 반영 및 상용 출시 전 보안·안정성 다각도 검증 로드맵(DAST 침투, 카오스, 시크릿 스캔, 부하 테스트, 저장소 내장 검사) 인계. **미검토.**
-
-[HANDOFF-2026-150](handoffs/2026-09/2026-09-20-sonar-security-triage.md): Sonar 364건/48규칙 전체 목록·1차 분류.
-28건 대응 코드 변경, Chromium 158/158 및 보안 표적 검사 통과. **이후 재분석 337건 확인. 개별 미결 판단은 통합 R1/M1.**
-한도 종료 전 인계이며 단순 정리와 보안·구조 검토를 구분했다.
 
 
 ## 지난 기록을 찾는 법

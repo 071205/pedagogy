@@ -13,7 +13,7 @@
 | 결제 없음 | `service-config.js`의 `billingPortalUrl`은 비었고 Worker의 `pedagogy_plan` 소비와 서버 발급은 별개다. 결제 설계 문서는 구현 증거가 아니다. | REL-14: 서버 원장·webhook·권한 회수·결제 E2E. 사업/PG 결정 필요 |
 | 로컬 Typst 의존 | `serve.py`의 `find_typst`·컴파일 경로는 로컬 실행 의존. 별도 `hwpx-engine.js`·`hwpx-document.js` 브라우저 경로도 존재한다. 제품 전체가 서버 없이는 불가능하다는 뜻은 아니다. | REL-11/13: 웹/로컬 지원 범위와 실제 출력 검증. 클라우드 Typst 이전은 자동 채택하지 않음 |
 | 다중 기기 덮어쓰기 | `index.html`의 `mergeSets`·`mergeMocks`는 시각 기반 전체 항목 선택. `writeCloudSnapshot`은 문서 전체 batch.set이며 서버 revision 충돌 검출 없음. snapshot 수신 시 안내·로컬 저장은 있으므로 모든 손실이 무음이라는 표현은 과장이다. | REL-12: 충돌 사본/복구 보장과 두 기기 재현. 단순 서버 시각 치환으로 종료하지 않음 |
-| Firestore 단일 문서 크기 | `setToDoc`는 problems 배열 포함, Rules는 20,000문항 상한. `writeCloudSnapshot`에 용량 실패 안내가 있고 모의고사는 `MOCK_DOC_MAX=900*1024` 사전 검사가 있다. 문제집의 선제 크기 방어는 별도다. | REL-12: 경계 크기·일부 배치 실패·export 확인. subcollection은 수용량 근거가 있을 때 선택 |
+| Firestore 단일 문서 크기 | `setToDoc`는 problems 배열 포함, Rules는 20,000문항 상한. `writeCloudSnapshot`에 용량 실패 안내가 있고 모의고사는 `MOCK_DOC_MAX=900*1024` 사전 검사가 있다. ~~문제집의 선제 크기 방어는 별도다.~~ → **2026-09-21 구현**(`CLOUD_DOC_MAX` 공용 · `ready`/`tooBig` 분리 · `npm run test:sets-cloud`). 계약은 `docs/STORAGE-CONTRACT.md` §1. | REL-12: 경계 크기·일부 배치 실패·export 확인. subcollection은 수용량 근거가 있을 때 선택 |
 | App Check 미가동 | `service-config.js` site key 공란, `worker/wrangler.toml` mode off. 클라이언트 전달·Worker verifier와 회귀는 구현돼 있다. staging 등록은 enforce 증거가 아니다. | REL-13: 실제 발급·monitor→enforce·자원별 거절 증적. 비용 smoke에도 6B 계약 확인 |
 | 제품 관측 부족 | `worker/index.js`의 `aiTelemetry`는 안전한 공급자 호출 메타데이터다. 이것으로 저장·출력 퍼널/재방문을 측정할 수 없다. | REL-13: 최소 성공/실패 관측·보존/접근 정책. 추적 SDK·개인 식별 자동 도입 금지 |
 | 큰 파일·중복 엔진 | 파일 크기 자체는 결함이 아니다. `scripts/check-hwpx-browser.mjs`는 브라우저/Python 의미 대조를 구현하며 CI에도 연결돼 있다. 모든 조판의 실물 일치를 보장하지는 않는다. | 전면 분할 보류 유지. REL-13에서 공통 fixture·동등성 검사와 미검증 출력 경계 보강 |
