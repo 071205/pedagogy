@@ -26,7 +26,9 @@ R4/B3 코드 체크포인트 `2a24205` 완료: 전환 Rules·dormant revision/CA
 엄격 Rules 배포는 모두 미실행이다. 검토 전에는 R4.5나 배포를 시작하지 않는다.
 검토 후 순서는 **R4.5 구현·Codex 검토 → 남은 B4~B7 → R5 종합**이다.
 배포 대기와 B4~B7 선행 조건·담당 모델은 [통합 레일](../docs/DEV-TOKEN-ROADMAP.md)을 따른다.
-사용자 미추적 `transcript.txt`는 건드리지 말고 새 세션에서 `git status`로 다시 확인한다.
+⚠️ **제품 재설계가 열렸다** — `HANDOFF-2026-162` 가 코덱스에게 Q1~Q3(저장 구조 · R4 순서 ·
+제품 의의)를 남겼다. **Q2 가 닫히기 전 B4 를 시작하지 않는다.** 코덱스는 한도 복구 대기다.
+사용자 미추적 `transcript.txt`는 건드리지 말 것.
 
 ### A. 한글 조판 엔진 (Claude · 2026-09-17)
 
@@ -86,6 +88,10 @@ R1~R10은 보안→제품 범위→저장→독립 검토→검증/운영→출�
 체크포인트 `2a24205`. CAS 16건+깨보기 16건, Rules emulator, REV-103 10건+깨보기 7건 통과.
 **Claude Opus 5 독립 검토와 실제 3단계 배포는 대기.**
 
+[HANDOFF-2026-162](handoffs/2026-09/2026-09-22-product-restructure-open-question.md): **제품 재설계 미결** —
+사용자가 R2 를 다시 열었다(의의·부가 기능·UX). ⚠️ 꼬리표가 1MiB 를 넘긴다는 **내 의심은 틀렸다**
+(900KB ≈ 1,222문항 실측). 남은 논점은 **갈라짐**과 **R4 와의 순서**. **`ready-for-codex`.**
+
 [HANDOFF-2026-160](handoffs/2026-09/2026-09-22-agent-role-contract.md): **역할 계약을 고정했다** —
 설계/구현/검토/최종 게이트를 단계별로 나누고, **검토자는 반드시 비구현자**로 못박았다.
 ⚠️ `/codex:review`·`/codex:adversarial-review` 는 Claude 가 못 부른다(사용자 직행) ·
@@ -94,13 +100,6 @@ R1~R10은 보안→제품 범위→저장→독립 검토→검증/운영→출�
 [HANDOFF-2026-159](handoffs/2026-09/2026-09-22-n-je-editor-print-and-block-gaps.md): N제 편집기 신고 5건을
 검증했다. **인쇄 선지 넘침 보정이 컨테이너를 재어 한 번도 안 걸린다**(`REV-2026-104` · P1 · 실측
 50→50 · 0건). 레일에 **R4.5 출력 정합 안전 게이트**로 편입했다(코덱스 2왕복). **코드 변경 0줄.**
-
-[HANDOFF-2026-158](handoffs/2026-09/2026-09-21-set-sync-metadata.md): R4/B2 — owner별 ACK 기준
-`{revision, contentHash, order}`를 로컬에 보존했다. 독립 검토의 `REV-2026-101`·`102`를 해결했고
-현재 9건 + B2 이전 깨보기 7건을 확인했다. Firestore 스키마·Rules 변경은 없다. **검토 완료.**
-
-[HANDOFF-2026-156](handoffs/2026-09/2026-09-21-sets-cloud-size-defense.md): R4/B1 — 클라우드 저장 크기
-선제 방어(`ready`/`tooBig` 분리 · `CLOUD_DOC_MAX` 공용화). 6건 + 깨보기 4건.
 
 ## 지난 기록을 찾는 법
 
