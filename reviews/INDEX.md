@@ -1,10 +1,9 @@
 # 리뷰 현황
 
-마지막 정리: 2026-09-21
+마지막 정리: 2026-09-22
 
 **이 파일은 새 세션이 매번 읽는다.** 그래서 여기에는 *지금 필요한 것*만 둔다 —
-열린 이슈, 지금 하는 일, 최근 검토 다섯. 지난 과정은 `handoffs/` 파일과 git 이 기억한다
-(지우는 것은 요약뿐이고 **파일은 하나도 지우지 않는다**). 기록 규칙은
+열린 이슈, 지금 하는 일, 최근 검토 다섯. 과거는 `handoffs/`와 git에 보존한다. 기록 규칙은
 [`README.md`](README.md) 의 '기록의 수명' 절에 있다.
 
 ## 열린 이슈
@@ -13,7 +12,6 @@
 | --- | --- | --- | --- |
 | `REV-2026-074` | `P2` | macOS 폴더 아이콘 파일이 새 Git 폴더에서 재발해 refs를 오염시킨다 | `issues/2026-09/2026-09-09-rules-macos-icon-files-corrupt-git-refs.md` |
 | `REV-2026-075` | `P2` | AI 문서에 들어갔다 나오면 로그인이 안 된다(재현 절차 없음) | `issues/2026-09/2026-09-09-document-editor-login-after-return.md` |
-| `REV-2026-103` | **`P1`** | Firestore 가 선지 `cells`(중첩 배열)를 거부해 문제집 저장이 통째로 막힌다 | `issues/2026-09/2026-09-21-firestore-rejects-nested-arrays-in-choices-cells.md` |
 | `REV-2026-104` | **`P1`** | 인쇄의 선지 넘침 보정이 재는 대상이 틀려 한 번도 걸리지 않는다 | `issues/2026-09/2026-09-22-print-choice-overflow-guard-measures-wrong-element.md` |
 | `REV-2026-093` | `P2` | staging Gemini가 결제 전제 미충족(`FAILED_PRECONDITION`)으로 실패한다 | `issues/2026-09/2026-09-14-gemini-staging-provider-request-error.md` |
 
@@ -23,10 +21,11 @@
 
 ## 지금 하는 일
 
-R4/B2 owner별 로컬 동기화 기준 메타데이터 구현과 GPT-6 Astra high 독립 검토를 마쳤다.
-검토에서 재현한 pending 거짓 ACK `REV-2026-101`과 보류 snapshot의 원격 변경 누락
-`REV-2026-102`를 수정·재검토해 닫았다. **다음은 R4/B3 revision 3단계 전환**, 그 직후가 **R4.5 출력 정합 안전 게이트**(`REV-2026-104`)다
-([저장 계약](../docs/STORAGE-CONTRACT.md) §2-1·§2-3·§2-4). B4 충돌 UX는 시작하지 않는다.
+R4/B3 코드 체크포인트 `2a24205` 완료: 전환 Rules·dormant revision/CAS 클라이언트·REV-103 해결.
+**Claude Opus 5 독립 검토 대기**이며 `setRevisionSchema=0`, 실제 Rules 배포·클라이언트 활성화·
+엄격 Rules 배포는 모두 미실행이다. 검토 전에는 R4.5나 배포를 시작하지 않는다.
+검토 후 순서는 **R4.5 구현·Codex 검토 → 남은 B4~B7 → R5 종합**이다.
+배포 대기와 B4~B7 선행 조건·담당 모델은 [통합 레일](../docs/DEV-TOKEN-ROADMAP.md)을 따른다.
 사용자 미추적 `transcript.txt`는 건드리지 말고 새 세션에서 `git status`로 다시 확인한다.
 
 ### A. 한글 조판 엔진 (Claude · 2026-09-17)
@@ -83,10 +82,14 @@ R1~R10은 보안→제품 범위→저장→독립 검토→검증/운영→출�
 
 ## 최근 검토
 
+[HANDOFF-2026-161](handoffs/2026-09/2026-09-22-set-revision-cas-checkpoint.md): R4/B3 코드
+체크포인트 `2a24205`. CAS 16건+깨보기 16건, Rules emulator, REV-103 10건+깨보기 7건 통과.
+**Claude Opus 5 독립 검토와 실제 3단계 배포는 대기.**
+
 [HANDOFF-2026-160](handoffs/2026-09/2026-09-22-agent-role-contract.md): **역할 계약을 고정했다** —
 설계/구현/검토/최종 게이트를 단계별로 나누고, **검토자는 반드시 비구현자**로 못박았다.
 ⚠️ `/codex:review`·`/codex:adversarial-review` 는 Claude 가 못 부른다(사용자 직행) ·
-공식 Stop gate 는 진짜로 막으므로 **켜지 않는다**. `CLAUDE.md`·SKILL 은 **미커밋**(아래).
+공식 Stop gate 는 **켜지 않는다**. Astra 변경분 검토·재검토 완료: [REV-105](issues/2026-09/2026-09-22-rail-r45-gate-cycle.md) 해결 및 모델/상태/호출 안내 정합화. 관련 규약은 미커밋.
 
 [HANDOFF-2026-159](handoffs/2026-09/2026-09-22-n-je-editor-print-and-block-gaps.md): N제 편집기 신고 5건을
 검증했다. **인쇄 선지 넘침 보정이 컨테이너를 재어 한 번도 안 걸린다**(`REV-2026-104` · P1 · 실측
@@ -98,9 +101,6 @@ R1~R10은 보안→제품 범위→저장→독립 검토→검증/운영→출�
 
 [HANDOFF-2026-156](handoffs/2026-09/2026-09-21-sets-cloud-size-defense.md): R4/B1 — 클라우드 저장 크기
 선제 방어(`ready`/`tooBig` 분리 · `CLOUD_DOC_MAX` 공용화). 6건 + 깨보기 4건.
-
-[HANDOFF-2026-157](handoffs/2026-09/2026-09-21-codex-claude-readonly-bridge.md): Codex→Claude 읽기 전용
-foreground 래퍼와 자기검사. 종단 검사 exit 0.
 
 ## 지난 기록을 찾는 법
 
