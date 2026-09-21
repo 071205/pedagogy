@@ -83,6 +83,11 @@ R1~R10은 보안→제품 범위→저장→독립 검토→검증/운영→출�
 
 ## 최근 검토
 
+[HANDOFF-2026-160](handoffs/2026-09/2026-09-22-agent-role-contract.md): **역할 계약을 고정했다** —
+설계/구현/검토/최종 게이트를 단계별로 나누고, **검토자는 반드시 비구현자**로 못박았다.
+⚠️ `/codex:review`·`/codex:adversarial-review` 는 Claude 가 못 부른다(사용자 직행) ·
+공식 Stop gate 는 진짜로 막으므로 **켜지 않는다**. `CLAUDE.md`·SKILL 은 **미커밋**(아래).
+
 [HANDOFF-2026-159](handoffs/2026-09/2026-09-22-n-je-editor-print-and-block-gaps.md): N제 편집기 신고 5건을
 검증했다. **인쇄 선지 넘침 보정이 컨테이너를 재어 한 번도 안 걸린다**(`REV-2026-104` · P1 · 실측
 50→50 · 0건). 레일에 **R4.5 출력 정합 안전 게이트**로 편입했다(코덱스 2왕복). **코드 변경 0줄.**
@@ -91,16 +96,11 @@ R1~R10은 보안→제품 범위→저장→독립 검토→검증/운영→출�
 `{revision, contentHash, order}`를 로컬에 보존했다. 독립 검토의 `REV-2026-101`·`102`를 해결했고
 현재 9건 + B2 이전 깨보기 7건을 확인했다. Firestore 스키마·Rules 변경은 없다. **검토 완료.**
 
-[HANDOFF-2026-156](handoffs/2026-09/2026-09-21-sets-cloud-size-defense.md): R4/B1 — 문제집 클라우드 저장에
-크기 선제 방어를 넣었다(`ready`/`tooBig` 분리 · `CLOUD_DOC_MAX` 공용화 · 무한 재시도 차단).
-독립 검토에서 찾은 `REV-2026-098`·`099`를 해결해 현재 6건 + 방어 전 깨보기 4건을 확인했다.
+[HANDOFF-2026-156](handoffs/2026-09/2026-09-21-sets-cloud-size-defense.md): R4/B1 — 클라우드 저장 크기
+선제 방어(`ready`/`tooBig` 분리 · `CLOUD_DOC_MAX` 공용화). 6건 + 깨보기 4건.
 
 [HANDOFF-2026-157](handoffs/2026-09/2026-09-21-codex-claude-readonly-bridge.md): Codex→Claude 읽기 전용
-foreground 래퍼와 자기검사. 실제 종단 검사 exit 0.
-
-[HANDOFF-2026-154](handoffs/2026-09/2026-09-20-gemini-quality-measurement.md): 제미나이 실측(§C 요약).
-**독립 검토 대기.**
-
+foreground 래퍼와 자기검사. 종단 검사 exit 0.
 
 ## 지난 기록을 찾는 법
 
