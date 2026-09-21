@@ -80,6 +80,29 @@ try {
     validSet("tombstone", { deleted: true, name: "", header: "", problems: [] })));
   await assertSucceeds(deleteDoc(doc(aliceDb, "users", "alice", "sets", "set-1")));
 
+  // ── R4/B3 revision 전환 Rules ──
+  // 구 클라이언트끼리는 전환 기간에만 계속 쓰되, revision으로 승격한 문서는 절대 내려가지 않는다.
+  const transition=doc(aliceDb,"users","alice","sets","revision-transition");
+  await assertSucceeds(setDoc(transition,validSet("revision-transition")),"구 create 호환");
+  await assertSucceeds(setDoc(transition,validSet("revision-transition",{name:"구 update"})),"구 update 호환");
+  await assertSucceeds(setDoc(transition,validSet("revision-transition",{name:"승격",revision:1})),
+    "무 revision 문서는 revision 1로 한 번만 승격");
+  await assertFails(setDoc(transition,validSet("revision-transition",{name:"downgrade"})),
+    "승격 뒤 무 revision으로 되돌릴 수 없어야 한다");
+  await assertFails(setDoc(transition,validSet("revision-transition",{name:"skip",revision:3})),
+    "revision을 건너뛸 수 없어야 한다");
+  await assertSucceeds(setDoc(transition,validSet("revision-transition",{name:"정상 +1",revision:2})));
+  await assertSucceeds(setDoc(transition,validSet("revision-transition",{
+    name:"",header:"",problems:[],deleted:true,revision:3
+  })),"tombstone도 정확히 +1");
+
+  await assertSucceeds(setDoc(doc(aliceDb,"users","alice","sets","revision-create"),
+    validSet("revision-create",{revision:1})),"새 클라이언트 create는 revision 1");
+  await assertFails(setDoc(doc(aliceDb,"users","alice","sets","bad-revision-create"),
+    validSet("bad-revision-create",{revision:2})),"create revision 2는 거부");
+  await assertFails(setDoc(doc(aliceDb,"users","alice","sets","float-revision"),
+    validSet("float-revision",{revision:1.5})),"revision은 양의 정수여야 한다");
+
   // ⚠️ **규칙의 상한과 앱의 상한이 어긋나면 그 길이의 제목은 영영 저장되지 않는다.**
   //    앱은 200자까지 받아 두는데 규칙이 160자에서 끊고 있었다(외부 검토가 짚었다).
   await assertSucceeds(setDoc(doc(aliceDb, "users", "alice", "sets", "name-160"),

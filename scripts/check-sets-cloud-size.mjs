@@ -2,8 +2,8 @@
  * 계약: docs/STORAGE-CONTRACT.md §1 · 근거: docs/PROBLEM-INTAKE-DESIGN.md §20
  *
  * ⚠️ 왜 이 검사가 있나 — Firestore 배치는 **원자적**이라 한도를 넘는 문제집 하나가
- *    섞이면 **같이 올라가던 멀쩡한 문제집까지 통째로 실패한다.** 모의고사 경로는
- *    예전부터 ready/tooBig 으로 갈랐는데 문제집 경로에만 그 방어가 없었다.
+ *    섞이면 **같이 올라가던 멀쩡한 문제집까지 통째로 실패한다.** 크기뿐 아니라
+ *    Firestore 가 거부하는 중첩 배열도 문제집 하나만 격리해야 한다.
  *
  * ⚠️ 계정·네트워크를 쓰지 않는다. Firestore 는 통째로 가짜다.
  * 깨보기: SETS_SIZE_RED=1 이면 방어가 없던 33af005 의 index.html 을 대신 서빙한다.
@@ -16,7 +16,7 @@ import assert from 'node:assert/strict';
 const BASE_COMMIT='33af005';
 const base='http://127.0.0.1:18884';
 const server=spawn('python3',['serve.py','--port','18884'],{stdio:'ignore'});
-const EXPECTED_CHECKS=6;
+const EXPECTED_CHECKS=10;
 let browser, harnessFailure=null, checksRun=0;
 const failures=[];
 
@@ -40,6 +40,7 @@ async function stub(p, plan){
   if(process.env.SETS_SIZE_HARNESS_RED==='1') throw new Error('injected fixture setup failure');
   return p.evaluate(plan=>{
     window.__batched=[];      // batch.set 으로 들어간 문서 id
+    window.__batchDocs=[];
     window.__commits=0;
     window.__toasts=[];
     window.__status=[];
@@ -48,7 +49,9 @@ async function stub(p, plan){
     currentUser={uid:'u1'};
     cloudSynced.clear();
     setsOversizeKey="";
+    if(typeof setsBadShapeKey!=="undefined") setsBadShapeKey="";
     localDirty=false;
+    window.PEDAGOGY_PUBLIC_CONFIG={...(window.PEDAGOGY_PUBLIC_CONFIG||{}),setRevisionSchema:0};
     window.sessionMatches=()=>true;
     window.sessionContext=()=>({uid:'u1'});
     window.toast=(m,k)=>window.__toasts.push(String(m));
@@ -60,7 +63,7 @@ async function stub(p, plan){
        반대로 `toast`·`setSaveStatus` 등은 최상위 `function` 이라 `window.` 로 덮인다. */
     const col=()=>({doc:id=>({__id:String(id), collection:col})});
     fbDb={ collection:col, batch:()=>({
-      set(ref){ window.__batched.push(ref.__id); },
+      set(ref,doc){ window.__batched.push(ref.__id); window.__batchDocs.push(JSON.parse(JSON.stringify(doc))); },
       async commit(){ window.__commits++; }
     })};
     sets=plan.map(spec=>({
@@ -187,6 +190,90 @@ try{
     assert.ok(r.toasts.some(t=>t.includes('JSON으로 내보내')),'즉시 복구 안내가 필요하다');
     assert.ok(r.toasts.every(t=>!t.includes('이 기기에는 저장돼 있습니다')),'로컬 보존을 거짓 안내하면 안 된다');
     assert.equal(r.status.at(-1),'⚠ 로컬 저장 실패','용량 상태가 로컬 실패를 덮으면 안 된다');
+  });
+
+  // ⑦ Firestore 가 거부하는 중첩 배열도 그 문제집만 격리한다
+  await check('중첩 배열 문서가 섞여도 정상 문제집만 올라간다', async p=>{
+    await stub(p,[{id:'bad',name:'표가 든 문제집',chars:10},{id:'good',name:'정상 문제집',chars:10}]);
+    const r=await p.evaluate(async()=>{
+      sets[0].problems[0].blocks.push({type:'table',data:{rows:[["가","나"]],header:true}});
+      const ok=await writeCloudSnapshot('u1',sessionContext());
+      return {ok,batched:window.__batched,commits:window.__commits,toasts:window.__toasts,
+              status:window.__status,flushes:window.__flushCalls,synced:[...cloudSynced.keys()]};
+    });
+    assert.deepEqual(r.batched,['good'],'중첩 배열 문서가 batch 에 들어갔다');
+    assert.equal(r.commits,1); assert.deepEqual(r.synced,['good']);
+    assert.equal(r.flushes,0,'모양 오류 문서는 재귀 재시도에서 빠져야 한다');
+    assert.ok(r.toasts.some(t=>t.includes('표가 든 문제집')),'문제집 이름을 알려야 한다');
+    assert.ok(r.toasts.some(t=>t.includes('problems[0].blocks[1].data.rows[0]')),'첫 중첩 배열 경로를 알려야 한다');
+    assert.ok(r.toasts.some(t=>t.includes('이 기기에는 저장돼 있습니다')),'로컬 보존을 알려야 한다');
+    assert.ok(r.status.includes('⚠ 저장 형식 오류'));
+    assert.equal(r.ok,false); assert.ok(!r.synced.includes('bad'),'건너뛴 문서를 동기화됨으로 표시하면 안 된다');
+  });
+
+  // ⑧ paired 의 화면 모델은 유지하고 전송 경계에서만 평탄화한다
+  await check('짝 선지는 평탄화해 저장하고 손실 없이 복원한다', async p=>{
+    await stub(p,[{id:'paired',name:'짝 선지',chars:0}]);
+    const r=await p.evaluate(async()=>{
+      const cells=[["A|B","둘"],["셋",""],["\u03b1","\u03b2"],["넷","다섯"],["여섯",""]];
+      sets[0].problems[0].blocks=[{type:'choices',data:{
+        layout:'paired',pairs:2,items:["A|B 둘","셋","\u03b1 \u03b2","넷 다섯","여섯"],
+        images:["","","","",""],cells
+      }}];
+      const before=JSON.stringify(sets[0]);
+      const doc=setToDoc(sets[0],0);
+      const data=doc.problems[0].blocks[0].data;
+      const available=typeof firstNestedArrayPath==='function';
+      const badPath=available?firstNestedArrayPath(doc):'helper-missing';
+      const loaded=docToSet(doc);
+      const ok=await writeCloudSnapshot('u1',sessionContext());
+      return {available,badPath,before,after:JSON.stringify(sets[0]),ok,
+              hasCells:Object.hasOwn(data,'cells'),flat:data.cellsFlat,
+              loadedCells:loaded?.problems?.[0]?.blocks?.[0]?.data?.cells,
+              batched:window.__batched,batchDocs:window.__batchDocs};
+    });
+    assert.equal(r.available,true,'모양 가드가 있어야 한다');
+    assert.equal(r.badPath,'','평탄화한 문서에는 중첩 배열이 없어야 한다');
+    assert.equal(r.hasCells,false);
+    assert.deepEqual(r.flat,['A|B','둘','셋','','\u03b1','\u03b2','넷','다섯','여섯','']);
+    assert.deepEqual(r.loadedCells,[["A|B","둘"],["셋",""],["\u03b1","\u03b2"],["넷","다섯"],["여섯",""]]);
+    assert.equal(r.before,r.after,'전송 변환이 화면 원본을 바꾸면 안 된다');
+    assert.equal(r.ok,true); assert.deepEqual(r.batched,['paired']);
+    assert.ok(Array.isArray(r.batchDocs[0].problems[0].blocks[0].data.cellsFlat),'실제 batch 문서도 평탄해야 한다');
+  });
+
+  // ⑨ 같은 모양 오류를 저장 주기마다 반복해서 알리지 않는다
+  await check('같은 중첩 배열 오류의 토스트는 반복하지 않는다', async p=>{
+    await stub(p,[{id:'bad',name:'반복 경고',chars:10}]);
+    const r=await p.evaluate(async()=>{
+      sets[0].problems[0].blocks.push({type:'table',data:{rows:[["x"]],header:true}});
+      const first=await writeCloudSnapshot('u1',sessionContext());
+      const once=window.__toasts.length;
+      const second=await writeCloudSnapshot('u1',sessionContext());
+      return {first,second,once,total:window.__toasts.length,batched:window.__batched,
+              synced:[...cloudSynced.keys()]};
+    });
+    assert.equal(r.first,false); assert.equal(r.second,false);
+    assert.equal(r.once,1); assert.equal(r.total,1,'같은 오류 토스트를 반복하면 안 된다');
+    assert.deepEqual(r.batched,[]); assert.deepEqual(r.synced,[]);
+  });
+
+  // ⑩ 클라우드 신뢰 경계는 손상된 형제를 버리되 뒤의 정상 문항을 계속 복구한다
+  await check('손상된 cloud problem이 paired 복호화에서 전체 읽기를 끊지 않는다', async p=>{
+    await stub(p,[{id:'recover',name:'복구',chars:0}]);
+    const r=await p.evaluate(()=>{
+      const valid={id:'kept',title:'',desc:'',answer:'',answerImg:'',numLabel:'',paired:false,
+        blocks:[{type:'statement',data:{text:'kept'}}]};
+      const doc=setToDoc(sets[0],0);doc.problems=[null,valid];
+      let loaded,error='';
+      try{loaded=docToSet(doc);}catch(e){error=String(e&&e.message||e);}
+      let encoded=true;
+      try{setToDoc({...sets[0],problems:[null,valid]},0);}catch(e){encoded=false;}
+      return {error,encoded,count:loaded?.problems?.length,
+        text:loaded?.problems?.[0]?.blocks?.[0]?.data?.text};
+    });
+    assert.equal(r.error,'');assert.equal(r.encoded,true);
+    assert.equal(r.count,1);assert.equal(r.text,'kept');
   });
 
 }catch(e){ harnessFailure=e; console.error('FAIL 하네스 —', e.message); }

@@ -25,7 +25,7 @@
      어렵다 — 새 로그인만 깨진다). 실제로 한 번 그랬으니 손대지 말 것. -->
 <meta http-equiv="Content-Security-Policy" content="
   default-src 'self';
-  script-src 'self' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-OTe6JzNkcAI3tMkgiqpMo0s5TnCzwF5SJPkOCWUCZjs=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
+  script-src 'self' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-6Fk+8+kqENZpO1lAeBX/abPUUjrON5a/TqckCQ5Rr2s=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
   script-src-attr 'none';
   style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
   font-src 'self' data: https://cdn.jsdelivr.net;
@@ -2989,6 +2989,13 @@ let setsUnsub=null;                 // onSnapshot 해제 함수
    revision 이 아직 없으므로 null을 보존하고, B3의 전환 문서부터 양의 정수를 그대로 받는다. */
 const SET_SYNC_META_KEY_BASE="PM_SET_SYNC_META_V1", SET_SYNC_META_MAX=1000;
 let setSyncBase=new Map();          // setId → {revision, contentHash, order}
+/* 영속 metadata를 읽었다는 사실만으로 CAS 기준을 신뢰하지 않는다. 본문 localStorage와
+   metadata 쓰기는 원자적이지 않기 때문이다. 이 map은 현재 실행에서 서버본과 로컬본이
+   실제로 같음을 확인했거나 transaction ACK를 받은 기준만 담고, 편집 뒤에도 그대로 둔다. */
+let setWriteBase=new Map();         // setId → 검증된 직전 서버 기준(삭제 tombstone 포함)
+function setRevisionEnabled(){
+  return Number(window.PEDAGOGY_PUBLIC_CONFIG?.setRevisionSchema||0)>=1;
+}
 function setSyncMetaKeyFor(owner){ return SET_SYNC_META_KEY_BASE+":"+(owner||"guest"); }
 function syncContentHash(value){
   const s=String(value??"");
@@ -3028,7 +3035,7 @@ function writeSetSyncMeta(owner){
   try{ localStorage.setItem(setSyncMetaKeyFor(owner),JSON.stringify({v:1,entries})); return true; }
   catch(e){ console.warn("문제집 동기화 기준을 저장하지 못했습니다",e); return false; }
 }
-function loadSetSyncMeta(owner){ setSyncBase=readSetSyncMeta(owner); }
+function loadSetSyncMeta(owner){ setSyncBase=readSetSyncMeta(owner); setWriteBase=new Map(); }
 function sameSetSyncMeta(a,b){
   return !!a&&a.revision===b.revision&&a.contentHash===b.contentHash&&a.order===b.order;
 }
@@ -3040,12 +3047,15 @@ function rememberSetSyncMeta(owner,rows){
     if(!sameSetSyncMeta(setSyncBase.get(row.id),row.entry)){
       setSyncBase.set(row.id,row.entry); changed=true;
     }
+    setWriteBase.set(String(row.id),{...(row.writeEntry||row.entry),deleted:false});
   }
   return !changed||writeSetSyncMeta(owner);
 }
 function forgetSetSyncMeta(owner,id){
-  if(!owner||currentUser?.uid!==owner||!setSyncBase.delete(String(id))) return false;
-  return writeSetSyncMeta(owner);
+  if(!owner||currentUser?.uid!==owner) return false;
+  const key=String(id), changed=setSyncBase.delete(key);
+  setWriteBase.delete(key);
+  return !changed||writeSetSyncMeta(owner);
 }
 /* localStorage 본문과 기준 메타데이터는 서로 다른 쓰기다. 둘 중 하나만 성공해도 이 hash/order
    검사가 맞지 않으므로 B3는 그 값을 CAS 기준으로 쓰지 않는다. */
@@ -3053,11 +3063,27 @@ function setSyncBaseFor(s,order){
   const e=s&&setSyncBase.get(String(s.id));
   return e&&e.contentHash===syncContentHash(setJSON(s))&&e.order===normOrder(order)?e:null;
 }
+function setWriteBaseEntryFromDoc(d){
+  if(!d||!d.id) return null;
+  if(Object.hasOwn(d,"revision")&&syncRevision(d.revision)===null) return null;
+  const revision=syncRevision(d.revision), order=normOrder(d.order), deleted=d.deleted===true;
+  if(deleted) return {revision,contentHash:null,order,deleted:true};
+  /* CAS 기준은 Firestore에 실제로 쓴 문서 모양과 비교한다. docToSet() 정규화는 빈 문항에
+     기본 필드를 보탤 수 있어, 방금 ACK한 정상 문서조차 다른 지문으로 만들 수 있다. */
+  const transported={...d,problems:decodeSetProblemsFromCloud(d.problems)};
+  return {revision,contentHash:syncContentHash(setJSON(transported)),order,deleted:false};
+}
+function setWriteBaseMatchesDoc(base,d){
+  if(!base||!d||!d.id) return false;
+  const actual=setWriteBaseEntryFromDoc(d);
+  return !!actual && base.deleted===actual.deleted && base.revision===actual.revision
+    && base.order===actual.order && base.contentHash===actual.contentHash;
+}
 /* 마지막으로 '너무 큼' 이라고 말한 문제집들. 같은 구성에 대고 매 저장마다 다시 말하지
    않으려는 것뿐이다 — 판정 자체는 저장할 때마다 다시 잰다(줄이면 바로 올라간다).
    ⚠️ 낡아도 해롭지 않다(말하기 억제용이다). `cloudSynced` 처럼 초기화 지점을
       늘리지 말 것 — 그 map 은 낡으면 **자료가 사라지지만** 이것은 아니다. */
-let setsOversizeKey="";
+let setsOversizeKey="", setsBadShapeKey="";
 
 /* 동기화 비교에는 모든 사용자 보이는 문제집 설정을 넣는다. lineColor·subject 를
    빼면 그 둘만 바꾼 저장은 '변화 없음'으로 오인해 다른 기기에 가지 않는다.
@@ -3075,16 +3101,52 @@ function isCloudSynced(s, order){
   return !!prev && prev.json===setJSON({...s,folderId:liveFolderId(s.folderId)}) && prev.order===normOrder(order);
 }
 
+/* Firestore 는 배열 안에 배열을 받지 않는다. 화면·조판 모델의 paired cells 는 그대로
+   두고, 클라우드 경계에서만 평평하게 바꾼다. 구분자로 합치지 않아 셀 안의 `|` 도 보존한다. */
+function encodeSetProblemsForCloud(problems){
+  const out=JSON.parse(JSON.stringify(Array.isArray(problems)?problems:[]));
+  out.forEach(q=>(Array.isArray(q?.blocks)?q.blocks:[]).forEach(blk=>{
+    const d=blk&&blk.data;
+    if(blk?.type!=="choices"||d?.layout!=="paired"||!Array.isArray(d.cells)) return;
+    const pairs=d.pairs===3?3:2;
+    const count=Math.max(Array.isArray(d.items)?d.items.length:0,d.cells.length);
+    const flat=[];
+    for(let i=0;i<count;i++){
+      const row=Array.isArray(d.cells[i])?d.cells[i]:[];
+      for(let j=0;j<pairs;j++) flat.push(String(row[j]??""));
+    }
+    d.cellsFlat=flat;
+    delete d.cells;
+  }));
+  return out;
+}
+function decodeSetProblemsFromCloud(problems){
+  const out=JSON.parse(JSON.stringify(Array.isArray(problems)?problems:[]));
+  out.forEach(q=>(Array.isArray(q?.blocks)?q.blocks:[]).forEach(blk=>{
+    const d=blk&&blk.data;
+    if(blk?.type!=="choices"||d?.layout!=="paired"||!Array.isArray(d.cellsFlat)) return;
+    const pairs=d.pairs===3?3:2;
+    const count=Math.max(Array.isArray(d.items)?d.items.length:0,Math.ceil(d.cellsFlat.length/pairs));
+    d.cells=Array.from({length:count},(_,i)=>
+      Array.from({length:pairs},(_,j)=>String(d.cellsFlat[i*pairs+j]??"")));
+    delete d.cellsFlat;
+  }));
+  return out;
+}
+
 /* 문제집 하나를 클라우드 문서 모양으로 */
-function setToDoc(s, order){
+function setToDoc(s, order, {revision=null}={}){
   // 보안 규칙이 '문서 id == data.id' 를 확인하므로 양쪽 다 문자열로 맞춘다
   // (예전 데이터에 숫자 id 가 섞여 있으면 여기서 어긋나 저장이 거부된다)
   // ⚠️ 필드를 추가하면 firestore.rules 의 hasOnly([...]) 목록에도 넣어야 한다.
   //    안 넣으면 저장이 통째로 '권한 오류' 로 실패한다.
-  return { id:String(s.id), name:s.name||"", header:s.header||"", problems:s.problems||[],
+  const doc={ id:String(s.id), name:s.name||"", header:s.header||"",
+           problems:encodeSetProblemsForCloud(s.problems),
            lineColor:normSheetColor(s.lineColor), subject:normSubject(s.subject),
            ...(libraryCloudEnabled()?{folderId:liveFolderId(s.folderId)}:{}),
            order:normOrder(order), deleted:false, updatedAt:Date.now() };
+  const rev=syncRevision(revision); if(rev!==null) doc.revision=rev;
+  return doc;
 }
 
 /* 클라우드 문서 → 앱 모양 (신뢰 경계: 클라우드도 한 번 정규화한다.
@@ -3093,7 +3155,8 @@ function docToSet(d){
   if(!d || d.deleted) return null;
   // keepId: 문제집·문항 id 를 그대로 살려야 병합과 '마지막 보던 문항'이 이어진다
   // lossless: 내 데이터라 자르면 안 된다 (기본 500 은 가져오기 전용 방어선)
-  const s=normSet({id:d.id, name:d.name, header:d.header, problems:d.problems,
+  const s=normSet({id:d.id, name:d.name, header:d.header,
+                   problems:decodeSetProblemsFromCloud(d.problems),
                    lineColor:d.lineColor, subject:d.subject, folderId:d.folderId},
                   {keepId:true, lossless:true});
   if(!s) return null;
@@ -3128,6 +3191,27 @@ function mergeSets(cloudEntries, localSets, localStamps){
   }
   return [...out.values()].sort((a,b)=>a.order-b.order).map(x=>x.set);
 }
+/* revision 단계에서는 시각으로 승자를 정하지 않는다. 서로 다른 서버/로컬 본문이나 순서는
+   로컬 초안을 보존하고 transaction CAS가 충돌로 멈추게 한다(B4가 선택 UI를 붙인다). */
+function mergeSetsWithRevision(cloudEntries,localSets){
+  const server=new Map((cloudEntries||[]).filter(d=>d&&d.id).map(d=>[String(d.id),d]));
+  const local=new Map((localSets||[]).filter(s=>s&&s.id).map((s,i)=>[String(s.id),{s,i}]));
+  const rows=[];
+  for(const d of cloudEntries||[]){
+    if(!d||!d.id||d.deleted) continue;
+    const hit=local.get(String(d.id)), incoming=docToSet(d);
+    if(!incoming) continue;
+    /* 현재 로컬이 영속 ACK 기준과 정확히 같으면 편집 중인 초안이 아니다. 그 사이 서버 revision이
+       전진했다면 원격을 채택한다. 기준과 다를 때만 로컬 초안을 보존해 CAS 충돌로 보낸다. */
+    const localDirty=!!hit&&!setSyncBaseFor(hit.s,hit.i);
+    rows.push({s:localDirty?hit.s:incoming,order:localDirty?hit.i:normOrder(d.order)});
+  }
+  for(const [id,hit] of local){
+    if(!server.has(id)||(server.get(id)?.deleted&&!setSyncBaseFor(hit.s,hit.i)))
+      rows.push({s:hit.s,order:hit.i});
+  }
+  return rows.sort((a,b)=>a.order-b.order).map(x=>x.s);
+}
 /* 서버 snapshot 전체와 최종 로컬 배열이 실제로 같은 문서만 ACK 기준으로 전진시킨다.
    다른 원격본을 '봤다'는 이유만으로 갱신하면 다음 CAS가 충돌을 놓친다. */
 function reconcileSetSyncMeta(owner,cloudEntries,localSets,{complete=true}={}){
@@ -3139,7 +3223,11 @@ function reconcileSetSyncMeta(owner,cloudEntries,localSets,{complete=true}={}){
     const id=String(d.id); serverIds.add(id);
     const local=byId.get(id);
     if(d.deleted){
-      if(!local&&setSyncBase.delete(id)) changed=true;
+      if(!local){
+        if(setSyncBase.delete(id)) changed=true;
+        const tombstoneBase=setWriteBaseEntryFromDoc(d);
+        if(tombstoneBase) setWriteBase.set(id,tombstoneBase);
+      }
       continue;
     }
     const incoming=docToSet(d);
@@ -3147,9 +3235,14 @@ function reconcileSetSyncMeta(owner,cloudEntries,localSets,{complete=true}={}){
     const entry=setSyncMetaEntry(incoming,d.order,d.revision);
     if(syncContentHash(setJSON(local.s))!==entry.contentHash||normOrder(local.i)!==entry.order) continue;
     if(!sameSetSyncMeta(setSyncBase.get(id),entry)){ setSyncBase.set(id,entry); changed=true; }
+    const writeEntry=setWriteBaseEntryFromDoc(d);
+    if(writeEntry) setWriteBase.set(id,writeEntry);
   }
   if(complete) for(const id of [...setSyncBase.keys()]){
     if(!serverIds.has(id)){ setSyncBase.delete(id); changed=true; }
+  }
+  if(complete) for(const id of [...setWriteBase.keys()]){
+    if(!serverIds.has(id)) setWriteBase.delete(id);
   }
   return !changed||writeSetSyncMeta(owner);
 }
@@ -3227,21 +3320,32 @@ async function loadSets(){
           console.info(`구버전 클라우드 문서에서 문제집 ${arr.length}개를 서브컬렉션으로 이관합니다.`);
           // 이관은 문제집 수만큼 쓰기가 일어나 몇 초 걸릴 수 있다. 진행 중임을 알린다.
           showLibraryLoading(`처음 로그인이라 문제집 ${arr.length}개를 정리하고 있어요 · 잠시만요`);
-          const batch=fbDb.batch();
-          arr.forEach((s,i)=>{
-            if(!s||!s.id) return;
-            batch.set(SETS_COL(owner).doc(String(s.id)), setToDoc(s,i));
-            cloudEntries.push(setToDoc(s,i));
-          });
-          // 구버전 문서는 지우지 않는다 — 이관이 잘못돼도 되돌릴 수 있게 남긴다
-          batch.set(fbDb.collection('users').doc(owner),{migratedAt:Date.now()},{merge:true});
-          await batch.commit();
+          if(setRevisionEnabled()){
+            for(let i=0;i<arr.length;i++){
+              const s=arr[i]; if(!s||!s.id) continue;
+              const result=await writeSetDocRevision(owner,setToDoc(s,i),session);
+              cloudEntries.push(result.writeDoc||result.doc);
+            }
+            // 구버전 문서는 지우지 않는다 — 이관이 잘못돼도 되돌릴 수 있게 남긴다
+            await fbDb.collection('users').doc(owner).set({migratedAt:Date.now()},{merge:true});
+          }else{
+            const batch=fbDb.batch();
+            arr.forEach((s,i)=>{
+              if(!s||!s.id) return;
+              const doc=setToDoc(s,i);
+              batch.set(SETS_COL(owner).doc(String(s.id)),doc); cloudEntries.push(doc);
+            });
+            batch.set(fbDb.collection('users').doc(owner),{migratedAt:Date.now()},{merge:true});
+            await batch.commit();
+          }
           if(!sessionMatches(session)) return;
         }
       }
 
       const localWorth=localSetsWorthMerging(readLocalSets());
-      const merged=mergeSets(cloudEntries, localWorth, localStamps);
+      const merged=setRevisionEnabled()
+        ?mergeSetsWithRevision(cloudEntries,localWorth)
+        :mergeSets(cloudEntries, localWorth, localStamps);
 
       if(shouldUseCloudResult(cloudEntries, merged)){
         sets=merged;
@@ -3301,6 +3405,22 @@ function watchCloud(){
       needsFullCloudReconcile=false;
       let changed=false, warnedEditing=false;
       const changes=recoverFull?snap.docs.map(doc=>({doc})):snap.docChanges();
+      /* 같은 snapshot 앞부분의 삭제/삽입이 뒤 문서의 배열 index를 바꾸더라도, 그 변화를
+         사용자의 재정렬로 오인하지 않도록 수신 직전 순서를 고정한다. */
+      const orderBeforeChanges=new Map(sets.map((s,i)=>[String(s.id),i]));
+      const localWasDirty=(s,id,currentIndex,incomingOrder)=>{
+        const order=orderBeforeChanges.has(String(id))?orderBeforeChanges.get(String(id)):currentIndex;
+        const prev=cloudSynced.get(String(id));
+        const json=setJSON({...s,folderId:liveFolderId(s.folderId)});
+        const meta=setSyncBase.get(String(id));
+        const cleanBase=prev&&prev.json===json ? prev
+          : meta&&meta.contentHash===syncContentHash(setJSON(s)) ? meta : null;
+        if(!cleanBase) return true;
+        if(cleanBase.order===normOrder(order)) return false;
+        /* 앞선 원격 삭제로 index만 당겨졌다면 다음 서버 문서의 order도 그 index로 온다.
+           그때를 사용자의 로컬 재정렬로 오인하지 않는다. */
+        return normOrder(incomingOrder)!==normOrder(order);
+      };
       changes.forEach(ch=>{
         const d=ch.doc.data(); if(!d||!d.id) return;
         const mineIndex=sets.findIndex(s=>s.id===d.id);
@@ -3309,14 +3429,25 @@ function watchCloud(){
         if(!d.deleted){
           const incoming=docToSet(d);
           if(!incoming) return;
+          const incomingEntry=cloudSyncEntry(incoming,d.order);
+          if(setRevisionEnabled()&&mine&&localWasDirty(mine,d.id,mineIndex,d.order)){
+            const mineOrder=orderBeforeChanges.has(String(d.id))?orderBeforeChanges.get(String(d.id)):mineIndex;
+            const localEntry=cloudSyncEntry(mine,mineOrder);
+            if(localEntry.json!==incomingEntry.json||localEntry.order!==incomingEntry.order){
+              // 서버 관측값은 갱신하되 로컬 초안은 보존한다. transaction이 base 불일치를
+              // 충돌로 멈추며, B4가 둘 중 하나를 고르는 UI를 붙인다.
+              cloudSynced.set(d.id,incomingEntry);
+              return;
+            }
+          }
           if(mine && setJSON(mine)===setJSON(incoming)) {
-            cloudSynced.set(d.id,cloudSyncEntry(incoming,d.order));
+            cloudSynced.set(d.id,incomingEntry);
             // 내용은 같아도 다른 기기에서 카드 순서만 바꿨을 수 있다.
             if(mineIndex!==normOrder(d.order)) changed=true;
             return;
           }
           const localStamp=Number(localStamps[d.id])||0;
-          if(mine && localStamp>(Number(d.updatedAt)||0)) return;  // 내 로컬이 더 최신
+          if(!setRevisionEnabled()&&mine&&localStamp>(Number(d.updatedAt)||0)) return; // 구 단계 시각 병합
           if(mine && d.id===currentSetId && !warnedEditing){
             warnedEditing=true;
             toast("다른 기기에서 이 문제집이 바뀌어 최신 내용으로 맞췄어요","error");
@@ -3328,7 +3459,12 @@ function watchCloud(){
         }else{
           deletedIds.set(d.id, Number(d.updatedAt)||Date.now());
           const i=sets.findIndex(s=>s.id===d.id);
-          if(i>=0 && (Number(localStamps[d.id])||0) <= (Number(d.updatedAt)||0)){
+          if(i>=0 && setRevisionEnabled() && localWasDirty(sets[i],d.id,i,d.order)){
+            cloudSynced.delete(d.id); // 로컬 초안 보존 · transaction에서 tombstone 충돌
+            return;
+          }
+          if(i>=0 && (setRevisionEnabled()
+            || (Number(localStamps[d.id])||0) <= (Number(d.updatedAt)||0))){
             sets.splice(i,1); cloudSynced.delete(d.id); changed=true;
           }
         }
@@ -3632,6 +3768,74 @@ function flushToCloud(uidAtSave){
   cloudSaveQueue=task;
   return task;
 }
+function sameCloudSetDoc(a,b){
+  if(!a||!b||String(a.id)!==String(b.id)||!!a.deleted!==!!b.deleted
+    ||normOrder(a.order)!==normOrder(b.order)) return false;
+  if(a.deleted) return true;
+  const left=docToSet(a), right=docToSet(b);
+  return !!left&&!!right&&setJSON(left)===setJSON(right);
+}
+function setRevisionFailure(code,message,extra={}){
+  const e=new Error(message); e.code=code; Object.assign(e,extra); return e;
+}
+/* 한 문서 transaction. target은 호출 시점의 불변 snapshot이며 revision은 여기서만 붙인다. */
+async function writeSetDocRevision(owner,target,session,{allowWiping=false,useCurrentServerAsBase=false}={}){
+  const id=String(target?.id||"");
+  if(!id) throw setRevisionFailure("set-invalid","문제집 ID가 없습니다");
+  const ref=SETS_COL(owner).doc(id);
+  const expected=setWriteBase.get(id)?{...setWriteBase.get(id)}:null;
+  const desired=JSON.parse(JSON.stringify(target)); delete desired.revision;
+  return fbDb.runTransaction(async tx=>{
+    if(!sessionMatches(session)||(wiping&&!allowWiping))
+      throw setRevisionFailure("set-cancelled","세션이 바뀌었습니다");
+    const snap=await tx.get(ref);
+    if(!sessionMatches(session)||(wiping&&!allowWiping))
+      throw setRevisionFailure("set-cancelled","세션이 바뀌었습니다");
+    if(!snap.exists){
+      /* 신규 ID만 문서 부재를 정상 기대값으로 삼는다. 이미 ACK한 문서가 다른 기기나
+         운영 복구에서 사라졌다면 revision 1로 되살리지 않고 충돌로 보존한다. */
+      if(expected&&!useCurrentServerAsBase)
+        throw setRevisionFailure("set-revision-conflict","서버에서 문제집이 삭제되었습니다",{serverRevision:null});
+      const doc={...desired,revision:1};
+      if(docBytes(doc)>CLOUD_DOC_MAX) throw setRevisionFailure("set-too-big","문제집 문서가 너무 큽니다");
+      tx.set(ref,doc); return {doc,writeDoc:doc,wrote:true};
+    }
+    const server=snap.data();
+    const hasRevision=Object.hasOwn(server,"revision"), serverRevision=syncRevision(server.revision);
+    if(hasRevision&&serverRevision===null)
+      throw setRevisionFailure("set-revision-conflict","서버 revision이 올바르지 않습니다",{serverRevision:null});
+    if(sameCloudSetDoc(server,desired)){
+      if(serverRevision!==null)
+        return {doc:{...desired,revision:serverRevision},writeDoc:server,wrote:false};
+      const doc={...desired,revision:1};
+      if(docBytes(doc)>CLOUD_DOC_MAX) throw setRevisionFailure("set-too-big","문제집 문서가 너무 큽니다");
+      tx.set(ref,doc); return {doc,writeDoc:doc,wrote:true};
+    }
+    if(!useCurrentServerAsBase&&!setWriteBaseMatchesDoc(expected,server))
+      throw setRevisionFailure("set-revision-conflict","다른 기기의 문제집 변경과 겹쳤습니다",{serverRevision});
+    const revision=serverRevision===null?1:serverRevision+1;
+    if(!Number.isSafeInteger(revision))
+      throw setRevisionFailure("set-revision-conflict","서버 revision 범위를 벗어났습니다",{serverRevision});
+    const doc={...desired,revision};
+    if(docBytes(doc)>CLOUD_DOC_MAX) throw setRevisionFailure("set-too-big","문제집 문서가 너무 큽니다");
+    tx.set(ref,doc); return {doc,writeDoc:doc,wrote:true};
+  });
+}
+function acknowledgeSetWrites(owner,rows){
+  if(!rows?.length||currentUser?.uid!==owner) return;
+  /* doc은 방금 이 실행의 setToDoc에서 만든 신뢰 가능한 값이다. docToSet으로 다시 정규화하면
+     오래된 로컬 모양에 기본값을 보태 ACK 지문이 달라질 수 있으므로 경계 인코딩만 되돌린다. */
+  const decoded=rows.map(({id,doc,writeDoc})=>({
+    id:String(id),doc,writeDoc:writeDoc||doc,
+    set:{...doc,problems:decodeSetProblemsFromCloud(doc.problems)}
+  }));
+  decoded.forEach(({id,doc,set})=>{
+    if(set) cloudSynced.set(id,cloudSyncEntry(set,doc.order));
+  });
+  rememberSetSyncMeta(owner,decoded.filter(({set})=>!!set).map(({id,doc,writeDoc,set})=>({
+    id,entry:setSyncMetaEntry(set,doc.order,doc.revision),writeEntry:setWriteBaseEntryFromDoc(writeDoc)
+  })));
+}
 async function writeCloudSnapshot(uidAtSave,session){
   if(wiping) return;               // 삭제 중 — 지운 문제집을 되올리지 않는다
   const localSaved=flushLocal();   // 로컬부터 확정하고 올린다
@@ -3641,15 +3845,22 @@ async function writeCloudSnapshot(uidAtSave,session){
   }
   const dirty=sets.map((s,i)=>({s,i})).filter(({s,i})=>!isCloudSynced(s,i))
     .map(({s,i})=>{ const doc=setToDoc(s,i);
-      return {id:s.id, name:s.name||"", doc:JSON.parse(JSON.stringify(doc)), entry:cloudSyncEntry(doc,i)}; });
+      return {id:s.id, name:s.name||"", doc:JSON.parse(JSON.stringify(doc))}; });
   // 순서만 바뀐 경우도 cloudSyncEntry 의 order 비교로 포함한다.
   if(!dirty.length){ setSaveStatus(""); return true; }
   /* ⚠️ **한도를 넘는 문서는 batch 에 넣지 않는다.** Firestore 배치는 원자적이라, 큰 문제집
      하나가 섞이면 **같이 올라가던 멀쩡한 문제집까지 통째로 실패한다.** 모의고사 경로는
      예전부터 이렇게 갈랐는데 문제집 경로에만 없었다(`docs/STORAGE-CONTRACT.md` §1).
      ⚠️ 글자 수가 아니라 **UTF-8 바이트**로 잰다 — 한글은 3배라 `.length` 로는 통과한다. */
-  const ready=[], tooBig=[];
-  dirty.forEach(d=>(docBytes(d.doc)>CLOUD_DOC_MAX?tooBig:ready).push(d));
+  const revisionMode=setRevisionEnabled(), ready=[], tooBig=[], badShape=[];
+  dirty.forEach(d=>{
+    const base=setWriteBase.get(String(d.id));
+    const predictedRevision=base?.revision===null||base?.revision==null?1:base.revision+1;
+    const sized=revisionMode?{...d.doc,revision:predictedRevision}:d.doc;
+    const badPath=firstNestedArrayPath(sized);
+    if(badPath) badShape.push({...d,badPath});
+    else (docBytes(sized)>CLOUD_DOC_MAX?tooBig:ready).push(d);
+  });
   const oversizeKey=tooBig.map(d=>d.id).sort().join("|");
   const oversizeChanged=oversizeKey!==setsOversizeKey;
   setsOversizeKey=oversizeKey;
@@ -3659,34 +3870,68 @@ async function writeCloudSnapshot(uidAtSave,session){
       : "이 기기에도 저장하지 못했습니다 · 지금 JSON으로 내보내 주세요";
     toast(`${tooBig.map(d=>`'${d.name||"제목 없음"}'`).join(", ")}${tooBig.length>1?" 문제집들이":" 문제집이"} 너무 커서 계정에 올리지 못했어요 · 두 개 이상으로 나눠 주세요 (${where})`,"error");
   }
+  const badShapeKey=badShape.map(d=>`${d.id}:${d.badPath}`).sort().join("|");
+  const badShapeChanged=badShapeKey!==setsBadShapeKey;
+  setsBadShapeKey=badShapeKey;
+  if(badShape.length && (badShapeChanged || !localSaved)){
+    const where=localSaved
+      ? "이 기기에는 저장돼 있습니다"
+      : "이 기기에도 저장하지 못했습니다 · 지금 JSON으로 내보내 주세요";
+    const names=badShape.map(d=>`'${d.name||"제목 없음"}' (${d.badPath})`).join(", ");
+    toast(`${names}${badShape.length>1?" 문제집들은":" 문제집은"} 클라우드가 받을 수 없는 배열 모양이라 계정에 올리지 못했어요 (${where})`,"error");
+  }
   if(!ready.length){
-    setSaveStatus(!localSaved?"⚠ 로컬 저장 실패":tooBig.length?"⚠ 용량 초과":"",
-      (!localSaved||tooBig.length)?"#e57373":undefined);
+    setSaveStatus(!localSaved?"⚠ 로컬 저장 실패":badShape.length?"⚠ 저장 형식 오류":tooBig.length?"⚠ 용량 초과":"",
+      (!localSaved||badShape.length||tooBig.length)?"#e57373":undefined);
     return false;
   }
+  const acknowledged=[], conflicts=[];
   try{
-    // 500개는 배치 상한. 한 번에 그만큼 바뀌는 일은 없지만 안전하게 나눠 보낸다
-    for(let off=0; off<ready.length; off+=400){
-      const batch=fbDb.batch();
-      if(!sessionMatches(session) || wiping) return;
-      ready.slice(off,off+400).forEach(({id,doc})=>{
-        batch.set(SETS_COL(uidAtSave).doc(String(id)), doc);
-      });
-      await batch.commit();
-      if(!sessionMatches(session) || wiping) return;
+    if(revisionMode){
+      // 문서별 transaction이라 한 충돌이 다른 문제집 ACK를 롤백하지 않는다.
+      for(const item of ready){
+        if(!sessionMatches(session)||wiping) return;
+        try{
+          const result=await writeSetDocRevision(uidAtSave,item.doc,session);
+          if(!sessionMatches(session)||wiping) return;
+          acknowledged.push({id:item.id,doc:result.doc,writeDoc:result.writeDoc||result.doc});
+        }catch(e){
+          if(e?.code==="set-revision-conflict"){ conflicts.push(item); continue; }
+          if(e?.code==="set-too-big"){ tooBig.push(item); continue; }
+          throw e;
+        }
+      }
+    }else{
+      // 500개는 배치 상한. 한 번에 그만큼 바뀌는 일은 없지만 안전하게 나눠 보낸다
+      for(let off=0; off<ready.length; off+=400){
+        const batch=fbDb.batch();
+        if(!sessionMatches(session) || wiping) return;
+        ready.slice(off,off+400).forEach(({id,doc})=>{
+          batch.set(SETS_COL(uidAtSave).doc(String(id)), doc);
+        });
+        await batch.commit();
+        if(!sessionMatches(session) || wiping) return;
+      }
+      acknowledged.push(...ready.map(({id,doc})=>({id,doc})));
     }
-    ready.forEach(({id,entry})=>cloudSynced.set(id, entry));
-    rememberSetSyncMeta(uidAtSave,ready.map(({id,doc})=>({
-      id:String(id),entry:setSyncMetaEntry(doc,doc.order,doc.revision)
-    })));
+    acknowledgeSetWrites(uidAtSave,acknowledged);
     /* ⚠️ **초과본은 다시 부르는 조건에서 뺀다.** 그것들은 영영 `isCloudSynced` 가 아니므로
        빼지 않으면 `flushToCloud` 가 **끝없이 자기를 다시 부른다.** 줄여서 구성이 바뀌면
        다음 저장에서 다시 재어 올라간다. 모의고사도 `ready` 만 보고 재예약한다. */
-    const oversize=new Set(tooBig.map(d=>d.id));
-    if(sets.some((s,i)=>!isCloudSynced(s,i) && !oversize.has(s.id))){
+    const blocked=new Set([...tooBig,...badShape,...conflicts].map(d=>d.id));
+    if(sets.some((s,i)=>!isCloudSynced(s,i) && !blocked.has(s.id))){
       setSaveStatus("저장 중…");
       void flushToCloud(uidAtSave);
       return;
+    }
+    if(conflicts.length){
+      setSaveStatus("⚠ 동기화 충돌", "#e57373");
+      toast(`${conflicts.map(d=>`'${d.name||"제목 없음"}'`).join(", ")}의 다른 기기 변경과 겹쳐 계정에 올리지 않았어요 · 이 기기 초안은 보존했습니다`,"error");
+      return false;
+    }
+    if(badShape.length){
+      setSaveStatus(localSaved?"⚠ 저장 형식 오류":"⚠ 로컬 저장 실패", "#e57373");
+      return false;
     }
     if(tooBig.length){
       setSaveStatus(localSaved?"⚠ 용량 초과":"⚠ 로컬 저장 실패", "#e57373");
@@ -3697,6 +3942,7 @@ async function writeCloudSnapshot(uidAtSave,session){
     return true;
   }catch(e){
     if(!sessionMatches(session)) return;
+    acknowledgeSetWrites(uidAtSave,acknowledged);
     console.error('Firestore 저장 실패:', e);
     let msg="⚠ 저장 실패";
     const es=String(e?.message||e);
@@ -3803,13 +4049,24 @@ function deleteSetEverywhere(removed){
   // Deletion and ordinary/Undo saves share one queue, including an already in-flight save.
   const task=cloudSaveQueue.catch(()=>{}).then(async()=>{
     if(!sessionMatches(session) || wiping) return;
-    await SETS_COL(owner).doc(String(removed.id)).set({
+    const tombstone={
       ...setToDoc({id:removed.id,name:"",header:"",problems:[]},0),
       deleted:true, updatedAt:deletedAt
-    });
+    };
+    let acknowledged=tombstone;
+    if(setRevisionEnabled()){
+      const result=await writeSetDocRevision(owner,tombstone,session);
+      acknowledged=result.writeDoc||result.doc;
+    }else{
+      await SETS_COL(owner).doc(String(removed.id)).set(tombstone);
+    }
     if(!sessionMatches(session)) return;
     cloudSynced.delete(removed.id);
     forgetSetSyncMeta(owner,removed.id);
+    /* 같은 세션의 즉시 Undo는 방금 쓴 tombstone revision을 기준으로 복원할 수 있다.
+       영속 metadata에서는 삭제 항목을 지운다는 B2 수명 계약은 그대로 유지한다. */
+    const tombstoneBase=setWriteBaseEntryFromDoc(acknowledged);
+    if(tombstoneBase) setWriteBase.set(String(removed.id),tombstoneBase);
     for(const url of storagePathsOf(removed)) releaseImage(url);
   });
   cloudSaveQueue=task;
@@ -4116,6 +4373,16 @@ async function cloudSetDocIds(uid, {includeTombstones}){
 
 /* Firestore 는 배치 하나에 500개까지만 담긴다. 넉넉히 400개씩 끊는다. */
 async function wipeCloudSets(uid, ids, {realDelete}){
+  if(!realDelete&&setRevisionEnabled()){
+    const session=sessionContext();
+    for(const id of ids){
+      const deletedAt=Date.now();
+      const tombstone={...setToDoc({id,name:"",header:"",problems:[]},0),deleted:true,updatedAt:deletedAt};
+      await writeSetDocRevision(uid,tombstone,session,{allowWiping:true,useCurrentServerAsBase:true});
+      deletedIds.set(id,deletedAt);
+    }
+    return;
+  }
   const CHUNK=400;
   for(let i=0;i<ids.length;i+=CHUNK){
     const batch=fbDb.batch();
@@ -4205,7 +4472,7 @@ async function deleteAllSets(){
     // 로컬 — 백업은 남긴다(복구 수단)
     clearLocalKeys(keys,{keepBackup:true});
     localDirty=false; pendingLocalByOwner.delete(keys.sets);
-    sets=[]; cloudSynced.clear(); setSyncBase.clear();
+    sets=[]; cloudSynced.clear(); setSyncBase.clear(); setWriteBase.clear();
     localStamps={}; lastQIdBySet={};
     currentSetId=null; currentQId=null;
     undoStack=[]; redoStack=[]; lastSnapshot=snapshot(); updateHistButtons();
@@ -4302,7 +4569,7 @@ async function deleteAccountEverything(){
     mocks=[]; mocksLoaded=false; mockOpenId="";
     mockCloudSynced.clear(); mockDeletedIds.clear();
     localDirty=false; pendingLocalByOwner.delete(keys.sets);
-    sets=[]; cloudSynced.clear(); setSyncBase.clear(); deletedIds.clear();
+    sets=[]; cloudSynced.clear(); setSyncBase.clear(); setWriteBase.clear(); deletedIds.clear();
     localStamps={}; lastQIdBySet={};
     currentSetId=null; currentQId=null;
     undoStack=[]; redoStack=[];
@@ -5262,6 +5529,27 @@ const MOCKS_COL = uidStr => fbDb.collection('users').doc(uidStr).collection('moc
    ⚠️ **문제집과 모의고사가 같은 값을 쓴다.** 한쪽만 고치면 갈라진다 —
       이름에 갈래를 넣지 않는 이유가 그것이다(`docs/STORAGE-CONTRACT.md` §1-2). */
 const CLOUD_DOC_MAX=900*1024;
+/* Firestore 가 거부하는 것은 배열의 **직접 원소가 다시 배열인 경우**다. 배열 안의 객체가
+   다른 배열 필드를 갖는 것은 허용되므로, 객체를 건너뛴 배열까지 오탐하지 않는다. */
+function firstNestedArrayPath(value,path=""){
+  if(Array.isArray(value)){
+    for(let i=0;i<value.length;i++){
+      const next=`${path}[${i}]`;
+      if(Array.isArray(value[i])) return next;
+      const found=firstNestedArrayPath(value[i],next);
+      if(found) return found;
+    }
+    return "";
+  }
+  if(value&&typeof value==="object"){
+    for(const [key,item] of Object.entries(value)){
+      const next=path?`${path}.${key}`:key;
+      const found=firstNestedArrayPath(item,next);
+      if(found) return found;
+    }
+  }
+  return "";
+}
 /* ⚠️ **글자 수가 아니라 바이트로 잰다.** `JSON.stringify(...).length` 는 UTF-16 코드
    단위라 한글이 실제의 1/3 로 세어진다 — 처음에 그렇게 썼다가 **1.4MB 짜리 문서가
    한도를 통과**했고(검사가 잡았다) Firestore 에서만 터졌을 것이다. */
@@ -8103,7 +8391,7 @@ const onAuth=async (user)=>{
     if(setsUnsub){ setsUnsub(); setsUnsub=null; }   // 이전 계정 구독 해제
     if(prefsUnsub){ prefsUnsub(); prefsUnsub=null; }
     clearTimeout(prefsSaveTimer);
-    cloudSynced.clear(); setSyncBase.clear(); deletedIds.clear();
+    cloudSynced.clear(); setSyncBase.clear(); setWriteBase.clear(); deletedIds.clear();
     sets=[]; currentSetId=null; currentQId=null;
     /* ⚠️ 모의고사도 계정별 저장소다 — 갈아 끼우지 않으면 앞 계정 자료가 새 계정 화면에 남는다.
        구독·지문·tombstone 까지 함께 버려야 앞 계정의 문서가 새 계정으로 올라가지 않는다. */

@@ -10,6 +10,11 @@
 window.PEDAGOGY_PUBLIC_CONFIG = Object.freeze({
   // 1 = folder schema release; set to 0 before deploying against pre-folder Rules.
   libraryCloudSchema: 1,
+  /* 문제집 revision/CAS 3단계 전환.
+   * 0 = 구 batch 쓰기(현재 운영 Rules 호환), 1 = transaction + revision.
+   * 반드시 전환 Rules를 먼저 배포한 뒤 1로 올리고, 모든 공개 클라이언트 전환을 확인한 뒤
+   * revision 필수 strict Rules를 배포한다. */
+  setRevisionSchema: 0,
   /* 모의고사 클라우드 동기화. 0 = 이 기기에만 저장 · 1 = 계정 동기화.
    * **2026-09-09 에 mocks 규칙을 실제로 배포한 뒤 1 로 올렸다**
    * (`firebase deploy --only firestore:rules --project pedagogy-huryul` → Deploy complete).

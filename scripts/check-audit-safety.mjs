@@ -66,18 +66,18 @@ for(const aba of [false,true]) test('032: stale load discarded '+(aba?'A-B-A':'A
   await pending;assert.equal(vm.runInContext('writes.length',c),0);
 });
 test('033: ack uses sent snapshot and schedules unsent revision',async()=>{
-  const c=context(`let currentUser={uid:'A'},sets=[{id:'s',name:'v1'}],cloudSynced=new Map(),wiping=false;
+  const c=context(`let currentUser={uid:'A'},sets=[{id:'s',name:'v1',problems:[]}],cloudSynced=new Map(),setWriteBase=new Map(),wiping=false;
     let sent=[],release,retries=0;const gate=new Promise(r=>release=r);
     const flushLocal=()=>true,setSaveStatus=()=>{},toast=()=>{};
     const cloudSyncEntry=s=>({json:JSON.stringify(s)}),isCloudSynced=s=>cloudSynced.get(s.id)?.json===JSON.stringify(s);
     const setToDoc=s=>JSON.parse(JSON.stringify(s)),SETS_COL=()=>({doc:id=>id});
-    const rememberSetSyncMeta=()=>true,setSyncMetaEntry=()=>({});
+    const rememberSetSyncMeta=()=>true,setSyncMetaEntry=()=>({}),setRevisionEnabled=()=>false;
     const fbDb={batch:()=>({set:(id,d)=>sent.push(d),commit:()=>gate})};
     const hasUnsavedCloudWork=()=>true;let localDirty=false;
-    let setsOversizeKey="";const CLOUD_DOC_MAX=900*1024;`);
+    let setsOversizeKey="",setsBadShapeKey="";const CLOUD_DOC_MAX=900*1024;`);
   const modern=src.includes('function writeCloudSnapshot(');
-  if(modern) vm.runInContext(fn('docBytes'),c);   // 크기 방어가 쓰는 진짜 함수
-  vm.runInContext(modern?'const flushToCloud=()=>{retries++;};\n'+fn('writeCloudSnapshot'):fn('flushToCloud'),c);
+  if(modern) vm.runInContext(fn('docBytes')+'\n'+fn('firstNestedArrayPath')+'\n'+fn('decodeSetProblemsFromCloud'),c);
+  vm.runInContext(modern?'const flushToCloud=()=>{retries++;};\n'+fn('acknowledgeSetWrites')+'\n'+fn('writeCloudSnapshot'):fn('flushToCloud'),c);
   const pending=vm.runInContext(modern?"writeCloudSnapshot('A',sessionContext())":"flushToCloud('A')",c);
   vm.runInContext("sets[0].name='v2';release()",c);await pending;
   assert.equal(vm.runInContext('sent[0].name',c),'v1');
@@ -139,7 +139,7 @@ test('032: repeated auth notification preserves edits; switching flushes old own
     let mockCloudSynced=new Map(),mockDeletedIds=new Map(),mockCloudWarned=false;
     let libFolderFilter="",libPicking=false,uiLangPref="system";
     const libPicked=new Set(),readLibMeta=()=>{},applyUiLang=()=>{};
-    let cloudSynced=new Map(),setSyncBase=new Map(),deletedIds=new Map(),pendingLocalByOwner=new Map(),writes=[];
+    let cloudSynced=new Map(),setSyncBase=new Map(),setWriteBase=new Map(),deletedIds=new Map(),pendingLocalByOwner=new Map(),writes=[];
     let authInitialized=true,prevUid='A',localStamps={},lastSnapshot=null,undoStack=[],redoStack=[];
     const flushLocal=()=>{writes.push(currentUser?.uid);return true;},setsKey=()=>currentUser?.uid,flushOpenMock=()=>{};
     const migrateSharedLocalCache=()=>{},migrateSharedAuxKeys=()=>{},loadLastQ=()=>{},readStamps=()=>({}),loadSetSyncMeta=()=>{};
@@ -158,16 +158,16 @@ test('032: repeated auth notification preserves edits; switching flushes old own
 });
 
 test('033: overlapping saves serialize and eventually acknowledge latest content',async()=>{
-  const c=context(`let currentUser={uid:'A'},sets=[{id:'s',name:'v1'}],cloudSynced=new Map(),wiping=false,localDirty=false;
+  const c=context(`let currentUser={uid:'A'},sets=[{id:'s',name:'v1',problems:[]}],cloudSynced=new Map(),setWriteBase=new Map(),wiping=false,localDirty=false;
     let sent=[],gates=[],cloudSaveQueue=Promise.resolve();
     const flushLocal=()=>true,setSaveStatus=()=>{},toast=()=>{},hasUnsavedCloudWork=()=>false;
     const cloudSyncEntry=s=>({json:JSON.stringify(s)}),isCloudSynced=s=>cloudSynced.get(s.id)?.json===JSON.stringify(s);
     const setToDoc=s=>JSON.parse(JSON.stringify(s)),SETS_COL=()=>({doc:id=>id});
-    const rememberSetSyncMeta=()=>true,setSyncMetaEntry=()=>({});
+    const rememberSetSyncMeta=()=>true,setSyncMetaEntry=()=>({}),setRevisionEnabled=()=>false;
     const fbDb={batch:()=>({set:(id,d)=>sent.push(d),commit:()=>new Promise(r=>gates.push(r))})};
-    let setsOversizeKey="";const CLOUD_DOC_MAX=900*1024;`);
-  vm.runInContext(fn('docBytes'),c);              // 크기 방어가 쓰는 진짜 함수
-  vm.runInContext(fn('flushToCloud')+'\n'+fn('writeCloudSnapshot'),c);
+    let setsOversizeKey="",setsBadShapeKey="";const CLOUD_DOC_MAX=900*1024;`);
+  vm.runInContext(fn('docBytes')+'\n'+fn('firstNestedArrayPath')+'\n'+fn('decodeSetProblemsFromCloud'),c);
+  vm.runInContext(fn('flushToCloud')+'\n'+fn('acknowledgeSetWrites')+'\n'+fn('writeCloudSnapshot'),c);
   const tick=async()=>{for(let i=0;i<10;i++)await Promise.resolve();};
   const first=vm.runInContext("flushToCloud('A')",c);await tick();
   vm.runInContext("sets[0].name='v2';flushToCloud('A')",c);await tick();
