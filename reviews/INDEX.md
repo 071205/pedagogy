@@ -13,7 +13,7 @@
 | --- | --- | --- | --- |
 | `REV-2026-074` | `P2` | macOS 폴더 아이콘 파일이 새 Git 폴더에서 재발해 refs를 오염시킨다 | `issues/2026-09/2026-09-09-rules-macos-icon-files-corrupt-git-refs.md` |
 | `REV-2026-075` | `P2` | AI 문서에 들어갔다 나오면 로그인이 안 된다(재현 절차 없음) | `issues/2026-09/2026-09-09-document-editor-login-after-return.md` |
-| `REV-2026-098` | **`P1`** | Firestore 가 선지 `cells`(중첩 배열)를 거부해 문제집 저장이 통째로 막힌다 | `issues/2026-09/2026-09-21-firestore-rejects-nested-arrays-in-choices-cells.md` |
+| `REV-2026-103` | **`P1`** | Firestore 가 선지 `cells`(중첩 배열)를 거부해 문제집 저장이 통째로 막힌다 | `issues/2026-09/2026-09-21-firestore-rejects-nested-arrays-in-choices-cells.md` |
 | `REV-2026-093` | `P2` | staging Gemini가 결제 전제 미충족(`FAILED_PRECONDITION`)으로 실패한다 | `issues/2026-09/2026-09-14-gemini-staging-provider-request-error.md` |
 
 ⚠️ 이 표는 `npm run check:review-hygiene` 가 **실제 이슈 파일의 상태와 양방향으로**
@@ -99,9 +99,6 @@ foreground 래퍼와 자기검사를 추가했다. 한도 회복 뒤 1회 실제
 ⚠️ 틀린 것의 원인은 모델이 아니라 **우리 계약의 빈 칸**(정답·지문·각주·출처·묶음안내)이었고,
 같은 입력에 결과가 흔들려 **무검토 자동 완성이 배제**됐다. **독립 검토 대기.**
 
-[HANDOFF-2026-153](handoffs/2026-09/2026-09-20-sonar-security-r1.md): 실제 Pages가 루트 HTML을
-서비스하는 경계를 확인해 source script 5개를 hash로 잠그고 외부 host wildcard를 제거했다.
-HWPX 런타임 9개를 Sonar 범위에 포함했으며 11개 finding을 수정/오탐/수용 위험으로 분류. **독립 검토 대기.**
 
 ## 지난 기록을 찾는 법
 
