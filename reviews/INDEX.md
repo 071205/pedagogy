@@ -14,6 +14,7 @@
 | `REV-2026-074` | `P2` | macOS 폴더 아이콘 파일이 새 Git 폴더에서 재발해 refs를 오염시킨다 | `issues/2026-09/2026-09-09-rules-macos-icon-files-corrupt-git-refs.md` |
 | `REV-2026-075` | `P2` | AI 문서에 들어갔다 나오면 로그인이 안 된다(재현 절차 없음) | `issues/2026-09/2026-09-09-document-editor-login-after-return.md` |
 | `REV-2026-103` | **`P1`** | Firestore 가 선지 `cells`(중첩 배열)를 거부해 문제집 저장이 통째로 막힌다 | `issues/2026-09/2026-09-21-firestore-rejects-nested-arrays-in-choices-cells.md` |
+| `REV-2026-104` | **`P1`** | 인쇄의 선지 넘침 보정이 재는 대상이 틀려 한 번도 걸리지 않는다 | `issues/2026-09/2026-09-22-print-choice-overflow-guard-measures-wrong-element.md` |
 | `REV-2026-093` | `P2` | staging Gemini가 결제 전제 미충족(`FAILED_PRECONDITION`)으로 실패한다 | `issues/2026-09/2026-09-14-gemini-staging-provider-request-error.md` |
 
 ⚠️ 이 표는 `npm run check:review-hygiene` 가 **실제 이슈 파일의 상태와 양방향으로**
@@ -71,7 +72,6 @@ R1~R10은 보안→제품 범위→저장→독립 검토→검증/운영→출�
 ⚠️ **R2 를 "라우팅하지 않는다" 로 닫았다**(§19 · 코덱스 2차 검토). 자동 모델 라우팅 없음 ·
 저해상도는 호출 전 거절 · **공급자 호출당 한 쪽** · 쪽별 순차 + 부분 성공.
 ⚠️ "대용량은 앤트로픽" 은 잘림을 못 고친다 — **앤트로픽도 `max_tokens:4096`** 이다.
-⚠️ **구현 0줄** — 남은 것은 모델 등급·쪽 수 비용 상한이고 **C3** 로 넘겼다.
 
 | 갈래 | 어디를 읽나 |
 | --- | --- |
@@ -83,6 +83,10 @@ R1~R10은 보안→제품 범위→저장→독립 검토→검증/운영→출�
 
 ## 최근 검토
 
+[HANDOFF-2026-159](handoffs/2026-09/2026-09-22-n-je-editor-print-and-block-gaps.md): N제 편집기 신고 5건을
+검증했다. **인쇄 선지 넘침 보정이 컨테이너를 재어 한 번도 안 걸린다**(`REV-2026-104` · P1 · 실측
+50→50 · 0건). 나머지 넷은 지금/R4 뒤/하지 않음으로 갈랐다(코덱스 합의). **코드 변경 0줄.**
+
 [HANDOFF-2026-158](handoffs/2026-09/2026-09-21-set-sync-metadata.md): R4/B2 — owner별 ACK 기준
 `{revision, contentHash, order}`를 로컬에 보존했다. 독립 검토의 `REV-2026-101`·`102`를 해결했고
 현재 9건 + B2 이전 깨보기 7건을 확인했다. Firestore 스키마·Rules 변경은 없다. **검토 완료.**
@@ -92,12 +96,10 @@ R1~R10은 보안→제품 범위→저장→독립 검토→검증/운영→출�
 독립 검토에서 찾은 `REV-2026-098`·`099`를 해결해 현재 6건 + 방어 전 깨보기 4건을 확인했다.
 
 [HANDOFF-2026-157](handoffs/2026-09/2026-09-21-codex-claude-readonly-bridge.md): Codex→Claude 읽기 전용
-foreground 래퍼와 자기검사를 추가했다. 한도 회복 뒤 1회 실제 종단 검사도 exit 0으로 확인했다.
+foreground 래퍼와 자기검사. 실제 종단 검사 exit 0.
 
-[HANDOFF-2026-154](handoffs/2026-09/2026-09-20-gemini-quality-measurement.md): 제미나이를 **제품 프롬프트 그대로**
-재었다(호출 5회·약 7원·Worker 미경유). 수식 LaTeX 5/5, 2단 한 장에서 문항 2개 정확히 분리.
-⚠️ 틀린 것의 원인은 모델이 아니라 **우리 계약의 빈 칸**(정답·지문·각주·출처·묶음안내)이었고,
-같은 입력에 결과가 흔들려 **무검토 자동 완성이 배제**됐다. **독립 검토 대기.**
+[HANDOFF-2026-154](handoffs/2026-09/2026-09-20-gemini-quality-measurement.md): 제미나이 실측(§C 요약).
+**독립 검토 대기.**
 
 
 ## 지난 기록을 찾는 법
