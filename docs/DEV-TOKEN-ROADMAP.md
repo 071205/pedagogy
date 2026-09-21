@@ -1,11 +1,11 @@
 # PEDAGOGY 통합 실행 레일 — 보안·저장·출시·비용
 
-개정: 2026-09-21 · 기준 코드: `7da657c` · 작성: Codex.
+개정: 2026-09-21 · 기준 코드: `fdcf622` + `HANDOFF-2026-158` · 작성: Codex.
 사용자 요청: 기존 비용 레일과 Sonar·안티그래비티 검증 제안을 합쳐, 모델을 직접 바꿔 실행한다.
 **실행 순서·현재 단계는 이 문서 한 곳에서만 관리한다.**
 [이전 레일](DEV-TOKEN-ROADMAP-ARCHIVE-2026-09-20.md)은 완료 증거·계약 보관본이다.
 
-## 현재 위치 — R4/B1 완료·독립 검토 결과 반영 → R4/B2 다음
+## 현재 위치 — R4/B2 완료·독립 검토 반영 → R4/B3 다음
 
 - **R4/B1 구현**: `34b6331` · [HANDOFF-2026-156](../reviews/handoffs/2026-09/2026-09-21-sets-cloud-size-defense.md).
   `writeCloudSnapshot()` 직렬화 직후 `ready`/`tooBig`을 분리하고 문제집·모의고사가
@@ -16,8 +16,21 @@
 - **완료 검사**: `npm run test:sets-cloud` — 현재 6건 통과, 방어 전 `33af005`에서 assertion 4건
   실패. fixture 오류 주입은 하네스 실패 exit 1이며 `test:public`·`test:worker`·`test:library-ui`·
   `check:static`도 변경 묶음에서 통과했다.
-- **다음 구현**: [저장 계약](STORAGE-CONTRACT.md) §2-2·§4의 **R4/B2(owner별 로컬 동기화
-  메타데이터)**. B2는 다음 Sol high 세션에서 시작한다.
+- **R4/B2 구현**: [저장 계약](STORAGE-CONTRACT.md) §2-2대로 owner별
+  `PM_SET_SYNC_META_V1:<uid>`에 `{revision, contentHash, order}`를 보존한다. `cloudSynced`와
+  ACK 기준을 분리하고 성공 commit·실제로 채택한 동일 서버본만 기준을 전진시킨다. guest·다른
+  owner·초과본·실패 commit은 기록하지 않으며 삭제 수명도 로컬 본문과 맞췄다.
+- **독립 검토 반영**: GPT-6 Astra high가 pending local snapshot을 실패 commit의 ACK로 기록하는
+  `REV-2026-101`과, 이를 단순 차단했을 때 같은 query에 섞인 다른 문제집 변경이 누락되는
+  `REV-2026-102`를 재현했다. pending/cache는 ACK하지 않고 metadata 확정 이벤트의 전체 docs로
+  보류 변경을 복구하도록 수정했으며, 같은 검토자가 좁은 재검토에서 둘 다 해결 확인했다.
+- **검증**: `npm run test:set-sync-meta` 현재 9건 통과 + B2 직전 `fdcf622`에서 7건 실패.
+  `test:sets-cloud`, `test:review-contracts`, `test:library-ui`, `test:mock-library-ui`,
+  `test:audit-browser` 158/158, `test:ai-image`, `test:worker`, `test:public`, `check:static` 통과.
+- **다음(Sol high)**: **R4/B3 revision 전환 규칙 → 클라이언트 → 엄격 규칙**. 계약은
+  [저장 계약](STORAGE-CONTRACT.md) §2-1·§2-3·§2-4, 시작 파일은 `firestore.rules`,
+  `service-config.js`, `index.html`의 `setToDoc`·`setSyncBaseFor`·`writeCloudSnapshot`·`watchCloud`·
+  `deleteSetEverywhere`, `scripts/verify-rules-emulator.mjs`다. B4 충돌 UX는 시작하지 않는다.
 
 ## 이전 위치 — R3 왕복 2회
 
@@ -268,8 +281,9 @@ C1을 진행하지 않기로 사용자가 결정하면 C2는 미검증으로 남
 
 다음 요청은 아래 문장을 그대로 쓰면 된다.
 
-> 통합 레일 R2 진행. GPT-6 Astra high로 개인용 웹의 출시 범위와 PDF/다중 입력 편입 여부를
-> 한 장의 결정안으로 정리해줘. 구현은 하지 말고 사용자 결정이 필요한 항목을 분리해줘.
+> 통합 레일 R4/B3를 Sol high로 진행해줘. `HANDOFF-2026-158`과 저장 계약 §2-1·§2-3·§2-4를
+> 기준으로 전환 Rules → revision 클라이언트 → 엄격 Rules 순서를 지키고, B1/B2를 반복하거나
+> B4 충돌 UX를 시작하지 마. Rules 배포 전에는 emulator 검사와 독립 검토 근거를 먼저 남겨.
 
 단계가 끝나면 이 문서의 현재 위치/해당 상태와 기존 인계의 검증·미결·다음 모델을 갱신한다.
 새 설계 또는 구현은 reviews 규약에 따라 인계를 만들고 INDEX는 최근 다섯 건만 유지한다.

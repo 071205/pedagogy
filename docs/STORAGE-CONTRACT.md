@@ -88,6 +88,26 @@
 (`{revision, 내용 해시, order}`)를 새로 만든다.
 ⚠️ `stampsKey` 의 **시각은 편집·병합 보조값으로만** 남기고 **CAS 근거로 쓰지 않는다.**
 
+**B2 구현 계약**:
+
+- 키는 `PM_SET_SYNC_META_V1:<uid>`. guest에는 쓰지 않고 계정 전환 때 해당 owner 것만 읽는다.
+- 값은 `{v:1, entries:[{id, revision, contentHash, order}]}`. B3 전 구형 서버 문서는
+  `revision:null`, B3 전환 뒤에는 양의 정수만 허용한다. `0`을 구형 revision처럼 쓰지 않는다.
+- `contentHash`는 기존 `setJSON()` 결과의 버전형 짧은 지문이다. 사용자 내보내기 JSON이나
+  Firestore 문서에는 들어가지 않으며 비밀·무결성 경계로 쓰지 않는다.
+- **현재 관측 서버 상태인 `cloudSynced`와 마지막 ACK 기준을 분리한다.** 성공한 commit 또는
+  최종 로컬 내용·order와 실제로 같은 서버본을 채택했을 때만 기준을 전진시킨다. 다른 원격본을
+  관측했거나 commit·크기 검사가 실패했을 때는 전진시키지 않는다.
+- Firestore의 `metadata.hasPendingWrites:true`인 로컬 지연 보상 snapshot과
+  `metadata.fromCache:true`인 cache snapshot은 서버 ACK가 아니다. 이 둘은 `cloudSynced`나
+  영속 기준을 전진시키지 않고, 서버 확정 snapshot 또는 성공한 commit만 ACK로 인정한다.
+- query snapshot 하나에 pending 로컬 쓰기와 다른 문서의 확정 원격 변경이 함께 올 수 있다.
+  비확정 snapshot을 보류했다면 metadata 확정 이벤트를 구독하고, 첫 서버 확정 때 전체 `docs`를
+  한 번 적용해 빈 `docChanges()` 때문에 다른 문서 변경·tombstone을 잃지 않는다.
+- 본문과 메타데이터 localStorage 쓰기는 원자적이지 않다. B3가 기준을 쓸 때는 현재 로컬의
+  `contentHash`와 `order`가 모두 맞아야 하며, 하나라도 다르면 **기준 없음**으로 처리한다.
+- 개별 삭제 ACK에서는 해당 항목을 지우고, 모든 문제집·계정 삭제에서는 owner 키를 지운다.
+
 ### 2-3. ⚠️ 시각 비교를 충돌 판정에서 뺀다
 
 지금 `watchCloud` 는 `localStamp > d.updatedAt` 으로 덮어쓰고 `mergeSets` 는 `updatedAt` 으로
@@ -195,7 +215,7 @@ UID 격리**라 "서비스가 보관하지 않는다" 가 성립하지 않고, �
 | 묶음 | 내용 | 스키마/Rules | 선행 |
 |---|---|---|---|
 | **B1** | **크기 방어**(§1) | **없음** | 없음 — **먼저 한다** |
-| B2 | 로컬 동기화 메타데이터(§2-2) | 없음(로컬 키) | B1 |
+| **B2** | **로컬 동기화 메타데이터(§2-2) — 구현·독립 검토 완료** | 없음(로컬 키) | B1 |
 | B3 | `revision` 전환 규칙 배포 → 클라이언트 → 엄격 규칙(§2-4) | **있음 · 3단계** | B2 |
 | B4 | 충돌 UX(§2-5) | 없음 | B3 |
 | B5 | `AttemptLedger` DO + 계정 삭제 파기(§3-3) | DO 바인딩·마이그레이션 | 독립 |

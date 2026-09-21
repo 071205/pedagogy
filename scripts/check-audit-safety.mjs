@@ -71,6 +71,7 @@ test('033: ack uses sent snapshot and schedules unsent revision',async()=>{
     const flushLocal=()=>true,setSaveStatus=()=>{},toast=()=>{};
     const cloudSyncEntry=s=>({json:JSON.stringify(s)}),isCloudSynced=s=>cloudSynced.get(s.id)?.json===JSON.stringify(s);
     const setToDoc=s=>JSON.parse(JSON.stringify(s)),SETS_COL=()=>({doc:id=>id});
+    const rememberSetSyncMeta=()=>true,setSyncMetaEntry=()=>({});
     const fbDb={batch:()=>({set:(id,d)=>sent.push(d),commit:()=>gate})};
     const hasUnsavedCloudWork=()=>true;let localDirty=false;
     let setsOversizeKey="";const CLOUD_DOC_MAX=900*1024;`);
@@ -138,10 +139,10 @@ test('032: repeated auth notification preserves edits; switching flushes old own
     let mockCloudSynced=new Map(),mockDeletedIds=new Map(),mockCloudWarned=false;
     let libFolderFilter="",libPicking=false,uiLangPref="system";
     const libPicked=new Set(),readLibMeta=()=>{},applyUiLang=()=>{};
-    let cloudSynced=new Map(),deletedIds=new Map(),pendingLocalByOwner=new Map(),writes=[];
+    let cloudSynced=new Map(),setSyncBase=new Map(),deletedIds=new Map(),pendingLocalByOwner=new Map(),writes=[];
     let authInitialized=true,prevUid='A',localStamps={},lastSnapshot=null,undoStack=[],redoStack=[];
     const flushLocal=()=>{writes.push(currentUser?.uid);return true;},setsKey=()=>currentUser?.uid,flushOpenMock=()=>{};
-    const migrateSharedLocalCache=()=>{},migrateSharedAuxKeys=()=>{},loadLastQ=()=>{},readStamps=()=>({});
+    const migrateSharedLocalCache=()=>{},migrateSharedAuxKeys=()=>{},loadLastQ=()=>{},readStamps=()=>({}),loadSetSyncMeta=()=>{};
     const $=()=>({style:{}}),updatePlanBadge=()=>{},inAppBrowserName=()=>null,showInAppNotice=()=>{};
     const bootLibrary=async()=>{},loadSets=async()=>{},showLibraryLoading=()=>{},snapshot=()=>'',updateHistButtons=()=>{},showLibrary=()=>{};`);
   const start=src.indexOf('const onAuth=async (user)=>{');
@@ -162,6 +163,7 @@ test('033: overlapping saves serialize and eventually acknowledge latest content
     const flushLocal=()=>true,setSaveStatus=()=>{},toast=()=>{},hasUnsavedCloudWork=()=>false;
     const cloudSyncEntry=s=>({json:JSON.stringify(s)}),isCloudSynced=s=>cloudSynced.get(s.id)?.json===JSON.stringify(s);
     const setToDoc=s=>JSON.parse(JSON.stringify(s)),SETS_COL=()=>({doc:id=>id});
+    const rememberSetSyncMeta=()=>true,setSyncMetaEntry=()=>({});
     const fbDb={batch:()=>({set:(id,d)=>sent.push(d),commit:()=>new Promise(r=>gates.push(r))})};
     let setsOversizeKey="";const CLOUD_DOC_MAX=900*1024;`);
   vm.runInContext(fn('docBytes'),c);              // 크기 방어가 쓰는 진짜 함수

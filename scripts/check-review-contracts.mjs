@@ -96,7 +96,7 @@ try{
    let release,callback;const gate=new Promise(r=>release=r),remote=new Map();
    const emit=d=>callback?.({docChanges:()=>[{doc:{data:()=>d}}]});
    fbDb={collection:()=>({doc:()=>({collection:()=>({
-     onSnapshot:cb=>{callback=cb;return ()=>{};},
+     onSnapshot:(...args)=>{callback=typeof args[0]==='function'?args[0]:args[1];return ()=>{};},
      doc:id=>({id,set:async d=>{await gate;remote.set(id,d);emit(d);}})
    })})}),batch:()=>{const docs=[];return {set:(ref,d)=>docs.push([ref.id,d]),commit:async()=>{for(const [id,d] of docs){remote.set(id,d);emit(d);}}};}};
    sets=[{id:'s',name:'s',header:'',problems:[]},{id:'keep',name:'keep',header:'',problems:[]}];

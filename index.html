@@ -25,7 +25,7 @@
      어렵다 — 새 로그인만 깨진다). 실제로 한 번 그랬으니 손대지 말 것. -->
 <meta http-equiv="Content-Security-Policy" content="
   default-src 'self';
-  script-src 'self' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-cPVUJfxNRYdXtf0L+kCltOPRJMRD/iIeC67M9qtEZXg=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
+  script-src 'self' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-OTe6JzNkcAI3tMkgiqpMo0s5TnCzwF5SJPkOCWUCZjs=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
   script-src-attr 'none';
   style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
   font-src 'self' data: https://cdn.jsdelivr.net;
@@ -2982,6 +2982,77 @@ const SETS_COL = uidStr => fbDb.collection('users').doc(uidStr).collection('sets
 let cloudSynced=new Map();          // setId → {json, order}
 let deletedIds=new Map();           // setId → 삭제 시각(ms) · tombstone 로컬 사본
 let setsUnsub=null;                 // onSnapshot 해제 함수
+
+/* revision CAS 의 기준은 `cloudSynced` 와 수명이 다르다.
+   cloudSynced 는 현재 탭에서 관측한 서버 상태·dirty 판정용이라 수동 저장 때도 비우지만,
+   이 map 은 이 owner의 로컬 사본이 마지막으로 실제 ACK한 기준이다. B2에서는 서버 문서에
+   revision 이 아직 없으므로 null을 보존하고, B3의 전환 문서부터 양의 정수를 그대로 받는다. */
+const SET_SYNC_META_KEY_BASE="PM_SET_SYNC_META_V1", SET_SYNC_META_MAX=1000;
+let setSyncBase=new Map();          // setId → {revision, contentHash, order}
+function setSyncMetaKeyFor(owner){ return SET_SYNC_META_KEY_BASE+":"+(owner||"guest"); }
+function syncContentHash(value){
+  const s=String(value??"");
+  let a=0x811c9dc5, b=0x9e3779b9, c=0x85ebca6b, d=0xc2b2ae35;
+  for(let i=0;i<s.length;i++){
+    const n=s.charCodeAt(i)+i;
+    a=Math.imul(a^n,0x01000193); b=Math.imul(b^n,0x85ebca6b);
+    c=Math.imul(c^n,0xc2b2ae35); d=Math.imul(d^n,0x27d4eb2f);
+  }
+  const hex=n=>(n>>>0).toString(16).padStart(8,"0");
+  return `v1:${s.length.toString(36)}:${hex(a)}${hex(b)}${hex(c)}${hex(d)}`;
+}
+function syncRevision(v){ return Number.isInteger(v)&&v>0?v:null; }
+function setSyncMetaEntry(s,order,revision){
+  return {revision:syncRevision(revision),contentHash:syncContentHash(setJSON(s)),order:normOrder(order)};
+}
+function normSetSyncMeta(raw){
+  const out=new Map(), rows=raw&&raw.v===1&&Array.isArray(raw.entries)?raw.entries:[];
+  for(const row of rows.slice(0,SET_SYNC_META_MAX)){
+    const id=typeof row?.id==="string"?row.id.slice(0,128):"";
+    const hash=typeof row?.contentHash==="string"&&/^v1:[0-9a-z]+:[0-9a-f]{32}$/.test(row.contentHash)
+      ?row.contentHash:"";
+    if(!id||!hash) continue;
+    out.set(id,{revision:syncRevision(row.revision),contentHash:hash,order:normOrder(row.order)});
+  }
+  return out;
+}
+function readSetSyncMeta(owner){
+  if(!owner) return new Map();
+  try{ return normSetSyncMeta(JSON.parse(localStorage.getItem(setSyncMetaKeyFor(owner))||"null")); }
+  catch(e){ console.warn("문제집 동기화 기준을 읽지 못했습니다",e); return new Map(); }
+}
+function writeSetSyncMeta(owner){
+  if(!owner||currentUser?.uid!==owner) return false;
+  const entries=[...setSyncBase].slice(0,SET_SYNC_META_MAX)
+    .map(([id,e])=>({id,revision:e.revision,contentHash:e.contentHash,order:e.order}));
+  try{ localStorage.setItem(setSyncMetaKeyFor(owner),JSON.stringify({v:1,entries})); return true; }
+  catch(e){ console.warn("문제집 동기화 기준을 저장하지 못했습니다",e); return false; }
+}
+function loadSetSyncMeta(owner){ setSyncBase=readSetSyncMeta(owner); }
+function sameSetSyncMeta(a,b){
+  return !!a&&a.revision===b.revision&&a.contentHash===b.contentHash&&a.order===b.order;
+}
+function rememberSetSyncMeta(owner,rows){
+  if(!owner||currentUser?.uid!==owner) return false;
+  let changed=false;
+  for(const row of rows||[]){
+    if(!row||!row.id||!row.entry) continue;
+    if(!sameSetSyncMeta(setSyncBase.get(row.id),row.entry)){
+      setSyncBase.set(row.id,row.entry); changed=true;
+    }
+  }
+  return !changed||writeSetSyncMeta(owner);
+}
+function forgetSetSyncMeta(owner,id){
+  if(!owner||currentUser?.uid!==owner||!setSyncBase.delete(String(id))) return false;
+  return writeSetSyncMeta(owner);
+}
+/* localStorage 본문과 기준 메타데이터는 서로 다른 쓰기다. 둘 중 하나만 성공해도 이 hash/order
+   검사가 맞지 않으므로 B3는 그 값을 CAS 기준으로 쓰지 않는다. */
+function setSyncBaseFor(s,order){
+  const e=s&&setSyncBase.get(String(s.id));
+  return e&&e.contentHash===syncContentHash(setJSON(s))&&e.order===normOrder(order)?e:null;
+}
 /* 마지막으로 '너무 큼' 이라고 말한 문제집들. 같은 구성에 대고 매 저장마다 다시 말하지
    않으려는 것뿐이다 — 판정 자체는 저장할 때마다 다시 잰다(줄이면 바로 올라간다).
    ⚠️ 낡아도 해롭지 않다(말하기 억제용이다). `cloudSynced` 처럼 초기화 지점을
@@ -3057,6 +3128,37 @@ function mergeSets(cloudEntries, localSets, localStamps){
   }
   return [...out.values()].sort((a,b)=>a.order-b.order).map(x=>x.set);
 }
+/* 서버 snapshot 전체와 최종 로컬 배열이 실제로 같은 문서만 ACK 기준으로 전진시킨다.
+   다른 원격본을 '봤다'는 이유만으로 갱신하면 다음 CAS가 충돌을 놓친다. */
+function reconcileSetSyncMeta(owner,cloudEntries,localSets,{complete=true}={}){
+  if(!owner||currentUser?.uid!==owner) return false;
+  const serverIds=new Set(), byId=new Map((localSets||[]).map((s,i)=>[String(s.id),{s,i}]));
+  let changed=false;
+  for(const d of cloudEntries||[]){
+    if(!d||!d.id) continue;
+    const id=String(d.id); serverIds.add(id);
+    const local=byId.get(id);
+    if(d.deleted){
+      if(!local&&setSyncBase.delete(id)) changed=true;
+      continue;
+    }
+    const incoming=docToSet(d);
+    if(!incoming||!local) continue;
+    const entry=setSyncMetaEntry(incoming,d.order,d.revision);
+    if(syncContentHash(setJSON(local.s))!==entry.contentHash||normOrder(local.i)!==entry.order) continue;
+    if(!sameSetSyncMeta(setSyncBase.get(id),entry)){ setSyncBase.set(id,entry); changed=true; }
+  }
+  if(complete) for(const id of [...setSyncBase.keys()]){
+    if(!serverIds.has(id)){ setSyncBase.delete(id); changed=true; }
+  }
+  return !changed||writeSetSyncMeta(owner);
+}
+/* Firestore listener는 서버 commit 전에 로컬 지연 보상 snapshot을 보낸다. 그 상태나
+   오프라인 cache를 서버 ACK처럼 쓰면, 실제 commit이 거절돼도 cloudSynced와 B3의 CAS 기준이
+   실패한 초안으로 전진한다. metadata가 없는 테스트/구 SDK snapshot만 기존처럼 허용한다. */
+function isServerAcknowledgedSnapshot(snap){
+  return snap?.metadata?.hasPendingWrites!==true && snap?.metadata?.fromCache!==true;
+}
 /* 정상 클라우드 읽기에서 tombstone을 하나라도 받았다면, 빈 병합 결과도 권위 있는
    결과다. 새 계정처럼 문서가 정말 하나도 없을 때만 로컬 캐시를 이관 후보로 쓴다. */
 function shouldUseCloudResult(cloudEntries, merged){
@@ -3104,6 +3206,13 @@ async function loadSets(){
     try{
       const snap=await withTimeout(SETS_COL(owner).get(), CLOUD_READ_MS, "문제집 읽기");
       if(!sessionMatches(session)) return;
+      if(!isServerAcknowledgedSnapshot(snap)){
+        console.info("서버 미확정 문제집 snapshot은 ACK 기준으로 사용하지 않습니다.");
+        loadSetsLocal();
+        void loadLibraryPrefs(session);
+        watchCloud();
+        return;
+      }
       const cloudEntries=snap.docs.map(d=>d.data()).filter(Boolean);
       /* ⚠️ 폴더 **이름 목록**은 문제집과 다른 문서에 있다 — 함께 읽어야 칩에 이름이 뜬다.
          ⚠️ 이것이 실패해도 문제집 읽기는 계속한다(폴더는 편의, 문제집은 본체다). */
@@ -3141,6 +3250,7 @@ async function loadSets(){
         void loadLibraryPrefs(session);
         cloudSynced=new Map(cloudEntries.filter(e=>!e.deleted)
           .map(e=>{ const s=docToSet(e); return s?[s.id,cloudSyncEntry(s,e.order)]:null; }).filter(Boolean));
+        reconcileSetSyncMeta(owner,cloudEntries,sets);
         writeLocalNow();       // 클라우드에서 막 읽어 온 결과 — 즉시 확정
         // 병합으로 로컬에만 있던 게 올라가야 하면 저장
         if(merged.some((s,i)=>!isCloudSynced(s,i))) saveSets();
@@ -3172,11 +3282,26 @@ function watchCloud(){
   if(!currentUser || !fbReady) return;
   const owner=currentUser.uid;
   const session=sessionContext();
+  /* pending/cache snapshot을 건너뛸 때 그 안의 다른 기기 변경도 함께 보류된다. 다음 서버 확정
+     metadata 이벤트에서 docChanges()는 비어 있을 수 있으므로 전체 docs를 한 번 재적용한다. */
+  let needsFullCloudReconcile=false;
   try{
-    setsUnsub=SETS_COL(owner).onSnapshot(snap=>{
+    setsUnsub=SETS_COL(owner).onSnapshot({includeMetadataChanges:true},snap=>{
       if(!sessionMatches(session)) return;
+      /* pending snapshot 전체를 무시해야 한다. reconcile만 막고 cloudSynced를 갱신하면
+         실패한 commit 뒤 저장 완료 표시·재시도 판정이 여전히 거짓이 된다. */
+      if(!isServerAcknowledgedSnapshot(snap)){
+        needsFullCloudReconcile=true;
+        return;
+      }
+      const recoverFull=needsFullCloudReconcile&&Array.isArray(snap.docs);
+      /* 실제 Firestore QuerySnapshot에는 docs가 있다. 일부 하네스처럼 없으면, 버린 delta를
+         복구할 근거가 생길 때까지 ACK/적용하지 않는다. */
+      if(needsFullCloudReconcile&&!recoverFull) return;
+      needsFullCloudReconcile=false;
       let changed=false, warnedEditing=false;
-      snap.docChanges().forEach(ch=>{
+      const changes=recoverFull?snap.docs.map(doc=>({doc})):snap.docChanges();
+      changes.forEach(ch=>{
         const d=ch.doc.data(); if(!d||!d.id) return;
         const mineIndex=sets.findIndex(s=>s.id===d.id);
         const mine=mineIndex>=0?sets[mineIndex]:null;
@@ -3230,6 +3355,9 @@ function watchCloud(){
         writeLocalNow();       // 다른 기기에서 온 변경 — 즉시 확정
         refreshAfterHistory();
       }
+      const complete=Array.isArray(snap.docs);
+      const entries=(complete?snap.docs:changes.map(ch=>ch.doc)).map(doc=>doc.data()).filter(Boolean);
+      reconcileSetSyncMeta(owner,entries,sets,{complete});
     },err=>{
       console.warn('클라우드 구독 실패:', err);
       warnOnce("watch","다른 기기의 변경을 실시간으로 받지 못해요 · 새로고침하면 최신 내용이 보입니다");
@@ -3548,6 +3676,9 @@ async function writeCloudSnapshot(uidAtSave,session){
       if(!sessionMatches(session) || wiping) return;
     }
     ready.forEach(({id,entry})=>cloudSynced.set(id, entry));
+    rememberSetSyncMeta(uidAtSave,ready.map(({id,doc})=>({
+      id:String(id),entry:setSyncMetaEntry(doc,doc.order,doc.revision)
+    })));
     /* ⚠️ **초과본은 다시 부르는 조건에서 뺀다.** 그것들은 영영 `isCloudSynced` 가 아니므로
        빼지 않으면 `flushToCloud` 가 **끝없이 자기를 다시 부른다.** 줄여서 구성이 바뀌면
        다음 저장에서 다시 재어 올라간다. 모의고사도 `ready` 만 보고 재예약한다. */
@@ -3678,6 +3809,7 @@ function deleteSetEverywhere(removed){
     });
     if(!sessionMatches(session)) return;
     cloudSynced.delete(removed.id);
+    forgetSetSyncMeta(owner,removed.id);
     for(const url of storagePathsOf(removed)) releaseImage(url);
   });
   cloudSaveQueue=task;
@@ -3942,7 +4074,8 @@ async function migrateFoldersToCloud(session){
 
 function accountLocalKeys(){
   return { sets:setsKey(), backup:backupKey(), lastQ:lastQKey(),
-           stamps:stampsKey(), lastSet:lastSetKey(), libMeta:libMetaKey() };
+           stamps:stampsKey(), lastSet:lastSetKey(), libMeta:libMetaKey(),
+           syncMeta:setSyncMetaKeyFor(currentUser&&currentUser.uid) };
 }
 /* ⚠️ 모의고사 키는 **일부러 위 목록에 넣지 않았다.** '모든 문제집 삭제' 는 이름 그대로
    문제집만 지운다 — 모의고사는 다른 라이브러리이므로 함께 지우면 놀란다.
@@ -4072,7 +4205,7 @@ async function deleteAllSets(){
     // 로컬 — 백업은 남긴다(복구 수단)
     clearLocalKeys(keys,{keepBackup:true});
     localDirty=false; pendingLocalByOwner.delete(keys.sets);
-    sets=[]; cloudSynced.clear();
+    sets=[]; cloudSynced.clear(); setSyncBase.clear();
     localStamps={}; lastQIdBySet={};
     currentSetId=null; currentQId=null;
     undoStack=[]; redoStack=[]; lastSnapshot=snapshot(); updateHistButtons();
@@ -4169,7 +4302,7 @@ async function deleteAccountEverything(){
     mocks=[]; mocksLoaded=false; mockOpenId="";
     mockCloudSynced.clear(); mockDeletedIds.clear();
     localDirty=false; pendingLocalByOwner.delete(keys.sets);
-    sets=[]; cloudSynced.clear(); deletedIds.clear();
+    sets=[]; cloudSynced.clear(); setSyncBase.clear(); deletedIds.clear();
     localStamps={}; lastQIdBySet={};
     currentSetId=null; currentQId=null;
     undoStack=[]; redoStack=[];
@@ -7970,7 +8103,7 @@ const onAuth=async (user)=>{
     if(setsUnsub){ setsUnsub(); setsUnsub=null; }   // 이전 계정 구독 해제
     if(prefsUnsub){ prefsUnsub(); prefsUnsub=null; }
     clearTimeout(prefsSaveTimer);
-    cloudSynced.clear(); deletedIds.clear();
+    cloudSynced.clear(); setSyncBase.clear(); deletedIds.clear();
     sets=[]; currentSetId=null; currentQId=null;
     /* ⚠️ 모의고사도 계정별 저장소다 — 갈아 끼우지 않으면 앞 계정 자료가 새 계정 화면에 남는다.
        구독·지문·tombstone 까지 함께 버려야 앞 계정의 문서가 새 계정으로 올라가지 않는다. */
@@ -7981,6 +8114,7 @@ const onAuth=async (user)=>{
   }
   const changedOwner=(currentUser?.uid||null)!==(user?.uid||null);
   currentUser=user;
+  loadSetSyncMeta(user&&user.uid);
   if(changedOwner){
     readLibMeta(); libPicked.clear(); libFolderFilter=""; libPicking=false;
     $("#selDeleteBtn").disabled=false;

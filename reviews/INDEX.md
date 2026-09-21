@@ -21,10 +21,11 @@
 
 ## 지금 하는 일
 
-R4/B1 크기 방어와 GPT-6 Astra high 독립 검토 반영을 마쳤다. `REV-2026-098`·`099`는 같은
-범위에서 해결·검증했다. **다음은 R4/B2(owner별 로컬 동기화 메타데이터)**다([저장 계약](../docs/STORAGE-CONTRACT.md) §2-2·§4).
-작업 폴더의 사용자 미추적 `transcript.txt`와 `AGENTS.md`의 협업 규칙 변경은 보존한다.
-새 세션은 `git status`로 다시 확인하고 이 파일을 커밋하거나 삭제하지 않는다.
+R4/B2 owner별 로컬 동기화 기준 메타데이터 구현과 GPT-6 Astra high 독립 검토를 마쳤다.
+검토에서 재현한 pending 거짓 ACK `REV-2026-101`과 보류 snapshot의 원격 변경 누락
+`REV-2026-102`를 수정·재검토해 닫았다. **다음은 R4/B3 revision 3단계 전환**이다
+([저장 계약](../docs/STORAGE-CONTRACT.md) §2-1·§2-3·§2-4). B4 충돌 UX는 시작하지 않는다.
+사용자 미추적 `transcript.txt`는 건드리지 말고 새 세션에서 `git status`로 다시 확인한다.
 
 ### A. 한글 조판 엔진 (Claude · 2026-09-17)
 
@@ -81,6 +82,10 @@ R1~R10은 보안→제품 범위→저장→독립 검토→검증/운영→출�
 
 ## 최근 검토
 
+[HANDOFF-2026-158](handoffs/2026-09/2026-09-21-set-sync-metadata.md): R4/B2 — owner별 ACK 기준
+`{revision, contentHash, order}`를 로컬에 보존했다. 독립 검토의 `REV-2026-101`·`102`를 해결했고
+현재 9건 + B2 이전 깨보기 7건을 확인했다. Firestore 스키마·Rules 변경은 없다. **검토 완료.**
+
 [HANDOFF-2026-156](handoffs/2026-09/2026-09-21-sets-cloud-size-defense.md): R4/B1 — 문제집 클라우드 저장에
 크기 선제 방어를 넣었다(`ready`/`tooBig` 분리 · `CLOUD_DOC_MAX` 공용화 · 무한 재시도 차단).
 독립 검토에서 찾은 `REV-2026-098`·`099`를 해결해 현재 6건 + 방어 전 깨보기 4건을 확인했다.
@@ -96,10 +101,6 @@ foreground 래퍼와 자기검사를 추가했다. 한도 회복 뒤 1회 실제
 [HANDOFF-2026-153](handoffs/2026-09/2026-09-20-sonar-security-r1.md): 실제 Pages가 루트 HTML을
 서비스하는 경계를 확인해 source script 5개를 hash로 잠그고 외부 host wildcard를 제거했다.
 HWPX 런타임 9개를 Sonar 범위에 포함했으며 11개 finding을 수정/오탐/수용 위험으로 분류. **독립 검토 대기.**
-
-[HANDOFF-2026-152](handoffs/2026-09/2026-09-20-unified-execution-rail.md): 기존 비용·출시·Sonar·안티그래비티 제안을 단일 레일로 통합.
-R0 문서 완료, 다음 R1/Sol high. 모델 전환·최소 검사·외부 조건 대기·사용량 마감 기준 지정.
-
 
 ## 지난 기록을 찾는 법
 
