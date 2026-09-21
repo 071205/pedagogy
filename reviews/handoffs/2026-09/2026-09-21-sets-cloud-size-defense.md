@@ -3,9 +3,9 @@
 - ID: `HANDOFF-2026-156`
 - 날짜: `2026-09-21`
 - 작성자: `Claude / Opus 5`
-- 상태: `ready-for-review`
+- 상태: `reviewed`
 - 영향 영역: `index.html`, `tests`, `docs`
-- 관련 이슈: `REV-2026-097`(이 작업 중 발견 · **선행 결함**)
+- 관련 이슈: `REV-2026-097`(선행 결함 · 해결), `REV-2026-098`(해결), `REV-2026-099`(해결)
 
 ## 한 일
 
@@ -32,10 +32,10 @@ R3 합의를 [`docs/STORAGE-CONTRACT.md`](../../../docs/STORAGE-CONTRACT.md) 로
 ## 검증
 
 - **새 검사 `npm run test:sets-cloud`** — 진짜 브라우저에서 `writeCloudSnapshot` 을 돌린다
-  (계정·네트워크 없음, Firestore 는 통째로 가짜). **5건**: 한글 바이트 계산 · **혼합 batch** ·
-  무한 재시도 없음 · 경계값 · 줄이면 재업로드 + 원본 불변.
+  (계정·네트워크 없음, Firestore 는 통째로 가짜). **6건**: 한글 바이트 계산 · **혼합 batch** ·
+  무한 재시도 없음 · 정확한 900KiB 경계 · 줄이면 재업로드 + 원본 불변 · 로컬 quota 복구 안내.
 - **깨보기**: `SETS_SIZE_RED=1` 이 방어 없던 `33af005` 의 `index.html` 을 대신 서빙한다 →
-  **2건이 빨간불**(혼합 batch · 초과본 업로드). 러너에 그 형태로 걸어 두었다.
+  **4건이 빨간불**. 별도 fixture 오류 주입은 깨보기 성공으로 세지 않고 exit 1이다.
 - `check:fast` 에 `test:mock-library` 바로 뒤로 넣었다.
 - `test:worker` · `test:mock-library` · `test:library-ui` · `check:static` · `test:public` 통과.
 
@@ -70,3 +70,9 @@ R1 의 CSP 해시 잠금이 `'unsafe-inline'` 을 없애 **`<script>` 주입으�
 
 ## 검토 기록
 
+- `2026-09-21` · `Codex / GPT-6 Astra high` · 실제 diff·계약·브라우저 경로를 독립 검토했다.
+  정확한 900KiB 경계, 혼합 batch, ACK 범위, 재시도 제외, 원본 불변은 확인했고 로컬 저장 실패
+  오안내(`REV-2026-098`)와 고장 주입 하네스 오판(`REV-2026-099`)을 재현해 등록했다.
+- `2026-09-21` · `Codex / GPT-6 Astra high` · `REV-2026-098` 해결을 실제 저장 경로로 재확인했다.
+  `REV-2026-099`의 1차 수정에 남은 fixture 오류 오판도 찾아 후속 수정·실패 주입으로 닫았다.
+  B1의 사용자 데이터·ACK·재시도 계약에 남은 재현 결함은 없다. 다음은 계약 §2-2·§4의 B2다.

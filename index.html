@@ -25,7 +25,7 @@
      어렵다 — 새 로그인만 깨진다). 실제로 한 번 그랬으니 손대지 말 것. -->
 <meta http-equiv="Content-Security-Policy" content="
   default-src 'self';
-  script-src 'self' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-0IUwLzRc6f28okNmaMOQZdc1MmsxZRtqCv5TF3bu+fQ=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
+  script-src 'self' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-cPVUJfxNRYdXtf0L+kCltOPRJMRD/iIeC67M9qtEZXg=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
   script-src-attr 'none';
   style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
   font-src 'self' data: https://cdn.jsdelivr.net;
@@ -3506,7 +3506,7 @@ function flushToCloud(uidAtSave){
 }
 async function writeCloudSnapshot(uidAtSave,session){
   if(wiping) return;               // 삭제 중 — 지운 문제집을 되올리지 않는다
-  flushLocal();                    // 로컬부터 확정하고 올린다
+  const localSaved=flushLocal();   // 로컬부터 확정하고 올린다
   if(!currentUser || currentUser.uid!==uidAtSave){
     console.warn("저장 예약 뒤 계정이 바뀌어 건너뜁니다.");
     setSaveStatus(""); return;
@@ -3523,11 +3523,19 @@ async function writeCloudSnapshot(uidAtSave,session){
   const ready=[], tooBig=[];
   dirty.forEach(d=>(docBytes(d.doc)>CLOUD_DOC_MAX?tooBig:ready).push(d));
   const oversizeKey=tooBig.map(d=>d.id).sort().join("|");
-  if(oversizeKey!==setsOversizeKey){
-    setsOversizeKey=oversizeKey;
-    if(tooBig.length) toast(`${tooBig.map(d=>`'${d.name||"제목 없음"}'`).join(", ")}${tooBig.length>1?" 문제집들이":" 문제집이"} 너무 커서 계정에 올리지 못했어요 · 두 개 이상으로 나눠 주세요 (이 기기에는 저장돼 있습니다)`,"error");
+  const oversizeChanged=oversizeKey!==setsOversizeKey;
+  setsOversizeKey=oversizeKey;
+  if(tooBig.length && (oversizeChanged || !localSaved)){
+    const where=localSaved
+      ? "이 기기에는 저장돼 있습니다"
+      : "이 기기에도 저장하지 못했습니다 · 지금 JSON으로 내보내 주세요";
+    toast(`${tooBig.map(d=>`'${d.name||"제목 없음"}'`).join(", ")}${tooBig.length>1?" 문제집들이":" 문제집이"} 너무 커서 계정에 올리지 못했어요 · 두 개 이상으로 나눠 주세요 (${where})`,"error");
   }
-  if(!ready.length){ setSaveStatus(tooBig.length?"⚠ 용량 초과":"", tooBig.length?"#e57373":undefined); return false; }
+  if(!ready.length){
+    setSaveStatus(!localSaved?"⚠ 로컬 저장 실패":tooBig.length?"⚠ 용량 초과":"",
+      (!localSaved||tooBig.length)?"#e57373":undefined);
+    return false;
+  }
   try{
     // 500개는 배치 상한. 한 번에 그만큼 바뀌는 일은 없지만 안전하게 나눠 보낸다
     for(let off=0; off<ready.length; off+=400){
@@ -3549,7 +3557,10 @@ async function writeCloudSnapshot(uidAtSave,session){
       void flushToCloud(uidAtSave);
       return;
     }
-    if(tooBig.length){ setSaveStatus("⚠ 용량 초과", "#e57373"); return false; }
+    if(tooBig.length){
+      setSaveStatus(localSaved?"⚠ 용량 초과":"⚠ 로컬 저장 실패", "#e57373");
+      return false;
+    }
     setSaveStatus("✓ 저장됨", "#81c784");
     setTimeout(()=>{if(sessionMatches(session) && !hasUnsavedCloudWork()) setSaveStatus("");}, 2000);
     return true;

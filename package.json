@@ -5,8 +5,9 @@
   "scripts": {
     "check:review-hygiene": "node scripts/check-review-hygiene.mjs",
     "check:sonar": "node scripts/check-sonar-scope.mjs",
-    "check:hooks": "node .claude/hooks/pair-guard.mjs --selftest && node .claude/hooks/git-add-guard.mjs --selftest && node .claude/hooks/codex-call-guard.mjs --selftest && node scripts/check-codex-readonly.mjs",
+    "check:hooks": "node .claude/hooks/pair-guard.mjs --selftest && node .claude/hooks/git-add-guard.mjs --selftest && node .claude/hooks/codex-call-guard.mjs --selftest && node scripts/check-codex-readonly.mjs && node scripts/check-claude-readonly.mjs",
     "check:codex-bridge": "node scripts/check-codex-readonly.mjs",
+    "check:claude-bridge": "node scripts/check-claude-readonly.mjs",
     "test:worker": "node worker/quota.test.mjs && node worker/app-check.test.mjs && node worker/worker-contract.test.mjs && node worker/gemini.test.mjs && node reviews/audits/2026-09-13/worker-telemetry-review.mjs && node scripts/check-audit-safety.mjs && node scripts/check-review-followup.mjs",
     "test:ai-image": "node scripts/check-ai-image.mjs",
     "test:fixtures": "node scripts/check-fixtures.mjs",

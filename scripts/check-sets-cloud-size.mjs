@@ -16,7 +16,9 @@ import assert from 'node:assert/strict';
 const BASE_COMMIT='33af005';
 const base='http://127.0.0.1:18884';
 const server=spawn('python3',['serve.py','--port','18884'],{stdio:'ignore'});
-let browser;const failures=[];
+const EXPECTED_CHECKS=6;
+let browser, harnessFailure=null, checksRun=0;
+const failures=[];
 
 async function open(){
   const p=await browser.newPage({viewport:{width:1280,height:900},locale:'ko-KR'});
@@ -35,6 +37,7 @@ async function open(){
 /* Firestore·토스트·상태표시를 전부 가짜로 바꾸고, 지정한 크기의 문제집들을 만든다.
    bigKoreanChars 가 0 이면 그 문제집은 작다. */
 async function stub(p, plan){
+  if(process.env.SETS_SIZE_HARNESS_RED==='1') throw new Error('injected fixture setup failure');
   return p.evaluate(plan=>{
     window.__batched=[];      // batch.set 으로 들어간 문서 id
     window.__commits=0;
@@ -45,7 +48,7 @@ async function stub(p, plan){
     currentUser={uid:'u1'};
     cloudSynced.clear();
     setsOversizeKey="";
-    window.flushLocal=()=>{};
+    localDirty=false;
     window.sessionMatches=()=>true;
     window.sessionContext=()=>({uid:'u1'});
     window.toast=(m,k)=>window.__toasts.push(String(m));
@@ -72,8 +75,13 @@ async function stub(p, plan){
 
 async function check(name,run){
   let p;
-  try{ p=await open(); await run(p); console.log('PASS',name); }
-  catch(e){ failures.push(name); console.error('FAIL',name,'—',e.message); }
+  try{ p=await open(); }
+  catch(e){ throw new Error(`${name} 페이지 준비 실패 — ${e.message}`); }
+  try{ checksRun++; await run(p); console.log('PASS',name); }
+  catch(e){
+    if(e?.code!=='ERR_ASSERTION') throw new Error(`${name} 실행 실패 — ${e.message}`);
+    failures.push(name); console.error('FAIL',name,'—',e.message);
+  }
   finally{ if(p) await p.close(); }
 }
 
@@ -116,15 +124,29 @@ try{
     assert.equal(r.flushes, 0, '초과본은 재시도 조건에서 빠져야 한다');
   });
 
-  // ④ 경계값 — 한도 아래는 그대로 올라간다
-  await check('한도 바로 아래는 정상 업로드된다', async p=>{
-    const sizes=await stub(p,[{id:'edge',name:'경계',chars:250000}]);
-    assert.ok(sizes[0].bytes<900*1024, '표본이 한도 아래여야 한다');
-    const r=await p.evaluate(async()=>{ const ok=await writeCloudSnapshot('u1',sessionContext());
-      return {ok, batched:window.__batched, toasts:window.__toasts}; });
-    assert.deepEqual(r.batched, ['edge']);
-    assert.equal(r.toasts.length, 0, '한도 아래인데 경고하면 안 된다');
-    assert.equal(r.ok, true);
+  // ④ 정확한 경계값 — 900KiB 까지는 올라가고 1바이트 초과부터 빠진다
+  await check('정확히 900KiB는 업로드되고 1바이트 초과는 제외된다', async p=>{
+    await stub(p,[{id:'edge',name:'경계',chars:0}]);
+    const r=await p.evaluate(async()=>{
+      const limit=900*1024;
+      const text=sets[0].problems[0].blocks[0].data;
+      const baseBytes=docBytes(setToDoc(sets[0],0));
+      text.text='a'.repeat(limit-baseBytes);
+      const atLimit=docBytes(setToDoc(sets[0],0));
+      const first=await writeCloudSnapshot('u1',sessionContext());
+      const firstBatch=[...window.__batched];
+      text.text+='a';
+      window.__batched=[]; window.__toasts=[];
+      const overLimit=docBytes(setToDoc(sets[0],0));
+      const second=await writeCloudSnapshot('u1',sessionContext());
+      return {limit,atLimit,overLimit,first,firstBatch,second,
+              secondBatch:window.__batched,toasts:window.__toasts};
+    });
+    assert.equal(r.atLimit,r.limit,'표본이 정확히 한도여야 한다');
+    assert.equal(r.overLimit,r.limit+1,'두 번째 표본이 정확히 1바이트 초과여야 한다');
+    assert.equal(r.first,true); assert.deepEqual(r.firstBatch,['edge']);
+    assert.equal(r.second,false); assert.deepEqual(r.secondBatch,[]);
+    assert.ok(r.toasts.some(t=>t.includes('경계')),'초과한 문제집을 이름으로 알려야 한다');
   });
 
   // ⑤ 줄이면 다시 올라간다 + 원본은 변하지 않는다
@@ -146,12 +168,36 @@ try{
     assert.equal(r.after.ok, true);
   });
 
-}catch(e){ failures.push('하네스'); console.error('FAIL 하네스 —', e.message); }
+  // ⑥ 로컬도 실패하면 저장됐다고 말하지 않고 즉시 내보내기를 안내한다
+  await check('초과본의 로컬 저장 실패는 JSON 내보내기를 안내한다', async p=>{
+    await stub(p,[{id:'big',name:'큰 문제집',chars:330000}]);
+    const r=await p.evaluate(async()=>{
+      setsOversizeKey='big';       // 앞서 크기 경고를 한 구성이어도 복구 안내는 다시 보여야 한다
+      localDirty=true;
+      const original=Storage.prototype.setItem;
+      Storage.prototype.setItem=function(){ throw new DOMException('quota','QuotaExceededError'); };
+      try{
+        const ok=await writeCloudSnapshot('u1',sessionContext());
+        return {ok,batched:window.__batched,synced:[...cloudSynced.keys()],
+                dirty:localDirty,toasts:window.__toasts,status:window.__status};
+      }finally{ Storage.prototype.setItem=original; }
+    });
+    assert.equal(r.ok,false); assert.deepEqual(r.batched,[]); assert.deepEqual(r.synced,[]);
+    assert.equal(r.dirty,true,'로컬 저장 실패 상태를 유지해야 한다');
+    assert.ok(r.toasts.some(t=>t.includes('JSON으로 내보내')),'즉시 복구 안내가 필요하다');
+    assert.ok(r.toasts.every(t=>!t.includes('이 기기에는 저장돼 있습니다')),'로컬 보존을 거짓 안내하면 안 된다');
+    assert.equal(r.status.at(-1),'⚠ 로컬 저장 실패','용량 상태가 로컬 실패를 덮으면 안 된다');
+  });
+
+}catch(e){ harnessFailure=e; console.error('FAIL 하네스 —', e.message); }
 finally{ if(browser) await browser.close(); server.kill(); }
 
+if(harnessFailure){ process.exit(1); }
 if(process.env.SETS_SIZE_RED==='1'){
+  if(checksRun!==EXPECTED_CHECKS){ console.error(`깨보기 실패 — ${EXPECTED_CHECKS}건 중 ${checksRun}건만 실행됐다.`); process.exit(1); }
   if(failures.length){ console.log(`깨보기 OK — 방어 없는 ${BASE_COMMIT} 에서 ${failures.length}건 실패`); process.exit(0); }
   console.error('깨보기 실패 — 방어가 없는데도 전부 통과했다. 검사가 헛돈다.'); process.exit(1);
 }
 if(failures.length){ console.error('실패:', failures.join(', ')); process.exit(1); }
-console.log('문제집 크기 방어 통과 — 5건');
+if(checksRun!==EXPECTED_CHECKS){ console.error(`실패: ${EXPECTED_CHECKS}건 중 ${checksRun}건만 실행됐다.`); process.exit(1); }
+console.log(`문제집 크기 방어 통과 — ${EXPECTED_CHECKS}건`);

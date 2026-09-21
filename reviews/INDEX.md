@@ -1,6 +1,6 @@
 # 리뷰 현황
 
-마지막 정리: 2026-09-20
+마지막 정리: 2026-09-21
 
 **이 파일은 새 세션이 매번 읽는다.** 그래서 여기에는 *지금 필요한 것*만 둔다 —
 열린 이슈, 지금 하는 일, 최근 검토 다섯. 지난 과정은 `handoffs/` 파일과 git 이 기억한다
@@ -21,11 +21,9 @@
 
 ## 지금 하는 일
 
-2026-09-20 통합 레일 R1 자기검증 완료. **다음은 R2 / GPT-6 Astra high**다.
-루트 HTML script hash 잠금·외부 CSP host wildcard 제거·HWPX 런타임 Sonar 편입을 마쳤다.
-`6adf121` Sonar는 Bugs 0·취약점 29·Code Smells 390, Security C로 분석 범위 확대가 반영됐다.
-HWPX 19건 중 namespace 오탐 16건과 CLI 경로 3건을 판정·분리했고 최종 재분석 대조 전이다.
-작업 폴더의 사용자 미추적 `transcript.txt`는 보존한다.
+R4/B1 크기 방어와 GPT-6 Astra high 독립 검토 반영을 마쳤다. `REV-2026-098`·`099`는 같은
+범위에서 해결·검증했다. **다음은 R4/B2(owner별 로컬 동기화 메타데이터)**다([저장 계약](../docs/STORAGE-CONTRACT.md) §2-2·§4).
+작업 폴더의 사용자 미추적 `transcript.txt`와 `AGENTS.md`의 협업 규칙 변경은 보존한다.
 새 세션은 `git status`로 다시 확인하고 이 파일을 커밋하거나 삭제하지 않는다.
 
 ### A. 한글 조판 엔진 (Claude · 2026-09-17)
@@ -85,8 +83,10 @@ R1~R10은 보안→제품 범위→저장→독립 검토→검증/운영→출�
 
 [HANDOFF-2026-156](handoffs/2026-09/2026-09-21-sets-cloud-size-defense.md): R4/B1 — 문제집 클라우드 저장에
 크기 선제 방어를 넣었다(`ready`/`tooBig` 분리 · `CLOUD_DOC_MAX` 공용화 · 무한 재시도 차단).
-초과 문서 하나가 batch 전체를 실패시키던 결함을 고쳤다. `npm run test:sets-cloud` 5건 + 깨보기.
-⚠️ 그 과정에서 선행 결함 `REV-2026-097`(CSP 해시 잠금이 주입식 검사를 막는다)을 발견했다. **독립 검토 대기.**
+독립 검토에서 찾은 `REV-2026-098`·`099`를 해결해 현재 6건 + 방어 전 깨보기 4건을 확인했다.
+
+[HANDOFF-2026-157](handoffs/2026-09/2026-09-21-codex-claude-readonly-bridge.md): Codex→Claude 읽기 전용
+foreground 래퍼와 자기검사를 추가했다. 한도 회복 뒤 1회 실제 종단 검사도 exit 0으로 확인했다.
 
 [HANDOFF-2026-154](handoffs/2026-09/2026-09-20-gemini-quality-measurement.md): 제미나이를 **제품 프롬프트 그대로**
 재었다(호출 5회·약 7원·Worker 미경유). 수식 LaTeX 5/5, 2단 한 장에서 문항 2개 정확히 분리.

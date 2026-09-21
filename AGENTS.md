@@ -35,6 +35,24 @@
 - 모델이나 작업을 넘길 때는 수정 범위·검증 결과·미결 항목·다음 행동을 기존 인계에 남긴다.
   과거 기록 전체를 복사하지 말고 관련 파일과 로그를 연결한다.
 
+## Claude ↔ Codex 협업 호출
+
+일반 설계·진단은 Claude 본 세션에서 `scripts/ask-codex-readonly.mjs`를 **foreground**로 호출한다.
+직접 `codex exec`를 조합하지 않는다. 래퍼는 stdin 종료, `read-only` 샌드박스, 최종 답변과 진행
+로그 분리, 시간 제한을 강제한다. 성공하면 최종 답변만 읽고 진행 로그는 실패 분석 때만 읽는다.
+질문은 1~2개씩 나누고 같은 주제의 왕복은 최대 3회로 제한한다.
+
+설치된 `codex@openai-codex` 플러그인의 `codex:codex-rescue`는 관리형 작업 상태가 꼭 필요한
+보안·데이터 손실·최종 아키텍처 검토에만 foreground로 쓴다. 한 단어 실측에서도 Claude 쪽 문맥
+비용이 컸고 background에서는 Codex 중단 뒤 대기만 남은 사례가 있었으므로 일반 왕복이나
+background에는 쓰지 않는다. 한 번에 한 에이전트만 구현하며 변경은 위 리뷰 규약을 따른다.
+
+Codex 세션에서 Claude의 독립 의견이 필요하면 `scripts/ask-claude-readonly.mjs`를
+**foreground**로 호출한다. 래퍼는 Claude Code를 `restricted`·`plan`·세션 비저장으로 실행하고
+최종 답변과 진행 로그를 분리하며 시간 제한을 강제한다. 먼저 `claude auth status`가 로그인 상태인지
+확인하고, 직접 `claude -p`를 조합하거나 background 호출로 우회하지 않는다. 질문은 1~2개씩,
+같은 주제의 왕복은 최대 3회이며 답은 코드·검사로 독립 확인한다.
+
 ## 통합 실행 레일 이어받기
 
 사용자가 다음 단계, 비용 개선 또는 모델 전환 후 계속 진행을 요청하면

@@ -1,30 +1,23 @@
 # PEDAGOGY 통합 실행 레일 — 보안·저장·출시·비용
 
-개정: 2026-09-20 · 기준 코드: `f865073` · 작성: Codex.
+개정: 2026-09-21 · 기준 코드: `7da657c` · 작성: Codex.
 사용자 요청: 기존 비용 레일과 Sonar·안티그래비티 검증 제안을 합쳐, 모델을 직접 바꿔 실행한다.
 **실행 순서·현재 단계는 이 문서 한 곳에서만 관리한다.**
 [이전 레일](DEV-TOKEN-ROADMAP-ARCHIVE-2026-09-20.md)은 완료 증거·계약 보관본이다.
 
-## 현재 위치 — R3 설계 합의 완료(왕복 4회), 계약 문서화 → R4 구현 대기
+## 현재 위치 — R4/B1 완료·독립 검토 결과 반영 → R4/B2 다음
 
-- **R3 전 구간 합의**: [문제 투입 설계 §20~§23](PROBLEM-INTAKE-DESIGN.md).
-  크기 방어 · revision CAS · 쪽별 staging · **별도 `AttemptLedger` DO(7일 항목별 만료)** ·
-  **(다) 48시간 후 재실행 허용** + **Service Worker outbox** 로 브라우저 내구성 보강.
-- ⚠️ **원자성은 없다.** AI 호출·Firestore 쓰기·ledger 확정은 다른 시스템이라 한 트랜잭션으로
-  못 묶는다 — `worker/index.js:83` 이 이미 인정한다. 계약은 그 전제 위에 선다.
-- ⚠️ **`AttemptLedger` 는 `DailyQuota` 에 얹지 않는다.** `quotaKey()` 가 UTC 날짜를 키에 넣어
-  (`worker/index.js:92`) 자정을 넘기면 다른 객체가 되고, alarm 이 첫 예약 때 한 번만 걸려
-  `deleteAll()` 하므로(`:176`·`:205`) **항목마다 48시간이 아니다.**
-- ⚠️ 키는 클라이언트가 조립하지 않는다 — **서버가 인증 UID 를 포함해 HMAC** 으로 만든다.
-
-### R3 에서 드러난 기존 결함 둘 (⚠️ 둘 다 재현 안 함 · 코드 확인)
-
-1. **문제집 클라우드 저장에 크기 선제 방어가 없다.** 모의고사는 `ready`/`tooBig` 로 가르는데
-   (`index.html:5174`) 문제집은 `dirty` 를 전부 batch 에 넣는다(`:3514`). Firestore batch 는
-   원자적이라 **초과 문서 하나가 그 flush 전체를 실패시킨다.**
-2. **선언과 동작이 다르다.** `worker/index.js:12` 는 "계정 삭제 때 **즉시 파기**" 라고 적는데
-   실제 `DELETE` 는 **403** 이고 최대 48시간을 기다린다(`:317`). 담기는 것이 카운터와 ID 뿐이라
-   영향은 제한적이지만 **둘 중 하나는 고쳐야 한다.**
+- **R4/B1 구현**: `34b6331` · [HANDOFF-2026-156](../reviews/handoffs/2026-09/2026-09-21-sets-cloud-size-defense.md).
+  `writeCloudSnapshot()` 직렬화 직후 `ready`/`tooBig`을 분리하고 문제집·모의고사가
+  `CLOUD_DOC_MAX`와 `docBytes()`를 공유한다. 정상 문서만 batch·ACK하고 초과본 재귀 재시도를 막았다.
+- **독립 검토 반영**: GPT-6 Astra high가 정확한 921,600바이트 경계, 혼합 batch, ACK 범위,
+  재시도 제외, 원본 불변을 확인했다. 로컬 quota와 크기 초과가 겹칠 때의 거짓 보존 안내
+  `REV-2026-098` 및 깨보기의 하네스 오판 `REV-2026-099`도 같은 범위에서 수정·검증해 닫았다.
+- **완료 검사**: `npm run test:sets-cloud` — 현재 6건 통과, 방어 전 `33af005`에서 assertion 4건
+  실패. fixture 오류 주입은 하네스 실패 exit 1이며 `test:public`·`test:worker`·`test:library-ui`·
+  `check:static`도 변경 묶음에서 통과했다.
+- **다음 구현**: [저장 계약](STORAGE-CONTRACT.md) §2-2·§4의 **R4/B2(owner별 로컬 동기화
+  메타데이터)**. B2는 다음 Sol high 세션에서 시작한다.
 
 ## 이전 위치 — R3 왕복 2회
 
