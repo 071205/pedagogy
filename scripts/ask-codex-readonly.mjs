@@ -21,9 +21,15 @@ function usage() {
   node scripts/ask-codex-readonly.mjs \\
     --prompt <prompt-file> --output <final-answer-file> \\
     [--progress <progress-log>] [--timeout-seconds <seconds>]
+    [--model <codex-model>] [--effort low|medium|high]
 
 The wrapper always invokes Codex with a read-only sandbox, sends the prompt via
-stdin, closes stdin, and stores only the final assistant message in --output.`;
+stdin, closes stdin, and stores only the final assistant message in --output.
+
+--model / --effort pick the Codex model for this call. Without them Codex falls
+back to ~/.codex/config.toml, which is a machine-wide default the rail does not
+control — pass them explicitly so the stage's assignment in
+docs/DEV-TOKEN-ROADMAP.md is the one that actually runs.`;
 }
 
 function parseArgs(argv) {
@@ -31,7 +37,8 @@ function parseArgs(argv) {
   for (let index = 0; index < argv.length; index += 1) {
     const name = argv[index];
     if (name === '--help' || name === '-h') return { help: true };
-    if (!['--prompt', '--output', '--progress', '--timeout-seconds'].includes(name)) {
+    if (!['--prompt', '--output', '--progress', '--timeout-seconds',
+          '--model', '--effort'].includes(name)) {
       throw new Error(`Unknown option: ${name}`);
     }
     const value = argv[index + 1];
@@ -55,7 +62,10 @@ function parseArgs(argv) {
   if (new Set([prompt, output, progress]).size !== 3) {
     throw new Error('--prompt, --output, and --progress must be different files');
   }
-  return { prompt, output, progress, timeoutSeconds };
+  /* ⚠️ 이 함수는 **고른 것만 돌려준다** — 새 옵션을 여기 안 더하면 파싱은 되는데
+     조용히 버려진다. 실제로 `--model` 을 그렇게 잃어 기본 모델로 갔다(2026-09-22). */
+  return { prompt, output, progress, timeoutSeconds,
+           model: options.model, effort: options.effort };
 }
 
 function progressTail(path) {
@@ -74,7 +84,7 @@ function killProcessTree(child, signal) {
   }
 }
 
-async function runCodex({ prompt, output, progress, timeoutSeconds }) {
+async function runCodex({ prompt, output, progress, timeoutSeconds, model, effort }) {
   const promptText = readFileSync(prompt, 'utf8');
   if (!promptText.trim()) throw new Error(`Prompt file is empty: ${prompt}`);
 
@@ -89,14 +99,22 @@ async function runCodex({ prompt, output, progress, timeoutSeconds }) {
 
   try {
     process.stdout.write(`Codex review started (read-only, timeout: ${timeoutSeconds}s)\n`);
-    child = spawn('codex', [
+    /* 모델을 안 넘기면 `~/.codex/config.toml` 의 기계 전역 기본값으로 간다.
+       레일(`docs/DEV-TOKEN-ROADMAP.md`)이 단계마다 모델을 정해 두는데, 그 배정이
+       호출에 **한 번도 닿지 않고 있었다**(2026-09-22 에 알았다 — 설계 판정 셋이
+       전부 Sol medium 으로 갔다). 명시하면 레일이 적은 것이 실제로 도는 것이 된다. */
+    const codexArgs = [
       'exec',
       '--sandbox', 'read-only',
       '--ephemeral',
       '--color', 'never',
       '--output-last-message', temporaryOutput,
-      '-',
-    ], {
+    ];
+    if (model) codexArgs.push('--model', model);
+    if (effort) codexArgs.push('-c', `model_reasoning_effort="${effort}"`);
+    codexArgs.push('-');
+    process.stdout.write(`model: ${model || '(config.toml 기본값)'} · effort: ${effort || '(기본값)'}\n`);
+    child = spawn('codex', codexArgs, {
       cwd: process.cwd(),
       detached: process.platform !== 'win32',
       stdio: ['pipe', 'ignore', progressFd],
