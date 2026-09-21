@@ -241,7 +241,12 @@ function normBlock(b, opts={}){
           **평문**이다(가름표가 사용자 눈에 닿지 않는다).
        ⚠️ **파생이 한 곳에서만 일어나야 한다** — `pairedItemText()` 를 편집기도 같이 쓴다.
        ⚠️ 예전 데이터는 `items` 에 `|` 로 들어 있다. 여기서 **한 번 이관**한다. */
-    let cells=Array.isArray(d.cells)
+    /* ⚠️ **짝 배치가 아니면 `cells` 를 버린다**(`REV-2026-098`). 배치를 '짝' 으로 바꿨다가
+       되돌리면 `cells` 가 남는데, 그것이 **Firestore 가 못 받는 중첩 배열**이라
+       그 문제집 하나 때문에 **그 저장 묶음 전체가 실패**했다(실제로 그랬다).
+       ⚠️ 화면에 쓰이지도 않는다 — 아래 `finalItems` 가 짝일 때만 `cells` 를 본다.
+       ⚠️ 짝 배치일 때의 `cells` 는 여전히 중첩 배열이다. 그쪽은 별도 항목이다. */
+    let cells=(layout==="paired" && Array.isArray(d.cells))
       ? d.cells.slice(0,lossless?undefined:5).map(r=>
           (Array.isArray(r)?r:[]).slice(0,pairs).map(v=>text(v)))
       : null;
