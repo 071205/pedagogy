@@ -25,7 +25,7 @@
      어렵다 — 새 로그인만 깨진다). 실제로 한 번 그랬으니 손대지 말 것. -->
 <meta http-equiv="Content-Security-Policy" content="
   default-src 'self';
-  script-src 'self' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-F4UGQSMr3ohozXn22odyI2BCskFli9HRLX07LVsTKBU=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
+  script-src 'self' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-HCTn933keHIRFT8eMGN2I3MMoIcfwSo0jUo/k4M/w0Q=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
   script-src-attr 'none';
   style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
   font-src 'self' data: https://cdn.jsdelivr.net;
@@ -1084,8 +1084,10 @@ body.col-resizing{cursor:col-resize;user-select:none}
    선지가 길어 5열에 안 들어가고 세로 5줄은 자리를 너무 먹을 때 쓴다. */
 .choices.cols3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));column-gap:12px;row-gap:8px}
 .choices.cols2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:12px;row-gap:8px}
-/* 칸에 안 들어가면 인쇄 보정(fitPrintDoc)이 이 클래스를 붙여 칸 수를 줄인다. */
-.choices.choices--wrap{grid-template-columns:repeat(auto-fit,minmax(34mm,1fr))}
+/* ⚠️ `choices--wrap`(auto-fit,minmax(34mm,1fr)) 는 REV-2026-104 로 지웠다 — 2단 시험지
+   단 폭(84.5mm)에서 늘 2열과 같은 높이를 내 3열로 충분한 문항까지 지면을 버렸다.
+   인쇄 보정(fitPrintDoc)은 이제 이미 있는 배치 클래스(cols3/cols2/vertical)를
+   그대로 갈아 끼운다 — 새 CSS 가 없다. */
 .choices .choice{min-width:0}
 .choices .choice .text{overflow-x:hidden}
 .choice{display:flex;gap:6px;align-items:center;font-family:var(--body-serif)}
@@ -8030,16 +8032,31 @@ function fitPrintDoc(){
      (강제 동기 레이아웃) 300문항 문서에서 1.6초가 걸렸다. 단계를 나누면
      레이아웃 계산이 몇 번으로 줄어든다. 새 보정을 추가할 때도 이 순서를 지킬 것. */
 
-  // ── (1) 가로 선지: 먼저 전부 읽고, 넘치는 것만 모아 한 번에 줄바꿈 전환 ──
-  /* 여러 칸으로 나눈 선지는 전부 넘침 보정 대상이다 — 5열만 보면 2·3열이 넘쳐도 그냥 나간다. */
-  /* ⚠️ **새 배치를 여기 빼먹지 말 것** — 넘쳐도 보정이 안 걸려 조용히 잘린다.
-     `paired` 는 한 행이 여러 칸이라 가로로 넘치기 더 쉽다. */
-  const chs=[...wrap.querySelectorAll(".pq .choices.horizontal, .pq .choices.cols3, .pq .choices.cols2, .pq .choices.paired")];
-  const chOver=chs.map(ch=>{
-    const s0=slotOf(ch); if(!s0) return false;
-    return ch.getBoundingClientRect().right > s0.getBoundingClientRect().right+1;
-  });
-  chs.forEach((ch,i)=>{ if(chOver[i]) ch.classList.add("choices--wrap"); });
+  // ── (1) 가로 선지: 사다리로 내린다 — 넘치면 열 수만 줄인다. 절대 늘리지 않는다 ──
+  /* ⚠️ **REV-2026-104**: 컨테이너의 rect 는 `minmax(0,1fr)` + `.choice{min-width:0}` 때문에
+     slot 을 절대 넘지 않는다 — 그래서 컨테이너를 재는 판정은 **언제나 false** 였다(실측
+     50개 잘림 → 보정 후 50개). 실제로 넘치는 것은 칸 안의 `.choice .text` 다
+     (`overflow-x:hidden` 이 조용히 자른다). 판정을 텍스트로 옮기고, 완화는 '줄바꿈' 한
+     단계 대신 **사다리**로 한다(5열 → 3열 → 2열 → 세로) — 예전 `choices--wrap` 은 2단
+     시험지 단 폭에서 늘 2열과 같은 높이를 냈다(실측 130px=130px). 3열로 충분한 문항까지
+     지면을 버렸다.
+     ⚠️ **사용자가 저장한 배치가 출발점**이고 열 수는 줄이기만 한다 — 늘리지 않는다
+     (`normBlock` 이 배치를 건드리지 않는다는 규칙과 같다).
+     ⚠️ **`paired` 는 사다리에 넣지 않는다** — `.pair-cell` 구조라 `.choice` 가 없고,
+     넘침 자체도 재현되지 않았다(긴 적분식 12칸에도 여유 68px 남음). 그림 선지도 넣지
+     않는다 — `.choice--img .text{overflow-x:visible}` 라 구조적으로 안 넘친다.
+     ⚠️ **단계마다 전부 읽고 전부 쓴다** — 블록 하나를 사다리 끝까지 끌고 내려가면
+     300문항에서 강제 동기 레이아웃이 다시 쌓인다(이 함수 전체의 규칙과 같다). */
+  const LADDER={horizontal:"cols3", cols3:"cols2", cols2:"vertical"};
+  const overflowsText=ch=>[...ch.querySelectorAll(".choice:not(.choice--img) .text")]
+    .some(t=>t.scrollWidth-t.clientWidth>2);
+  for(let rung="horizontal"; LADDER[rung]; rung=LADDER[rung]){
+    const next=LADDER[rung];
+    const chs=[...wrap.querySelectorAll(`.pq .choices.${rung}`)];
+    if(!chs.length) continue;
+    const over=chs.map(overflowsText);                                                 // 이 단의 모든 읽기
+    chs.forEach((ch,i)=>{ if(over[i]){ ch.classList.remove(rung); ch.classList.add(next); } }); // 이 단의 모든 쓰기
+  }
 
   // ── (2) display 수식/표: 읽기·쓰기를 분리한 일괄 축소 ──
   const mathPairs=[...wrap.querySelectorAll(".pq .content .katex-display")].map(disp=>{
@@ -8062,18 +8079,20 @@ function fitPrintDoc(){
   }).filter(Boolean);
   shrinkWideTablesAll(tblPairs);
 
-  // ── (1-b) 줄바꿈 후에도 넘치는 개별 선지 — 전부 읽고 나서 전부 적용 ──
-  const choices=[...wrap.querySelectorAll(".pq .choices .choice")];
-  const chK=choices.map(c=>{
-    const w=c.scrollWidth, avail=c.clientWidth;
+  // ── (1-b) 사다리 끝(세로)까지 가도 넘치는 개별 선지 — 전부 읽고 나서 전부 적용 ──
+  /* ⚠️ 측정 대상도 `.choice` 가 아니라 `.text` 다 — `.choice` 의 scrollWidth 는
+     `.text{overflow-x:hidden}` 때문에 언제나 clientWidth 와 같아서 축소율이 늘 1(=축소
+     없음)이었다. `.choice--img` 는 구조적으로 안 넘치므로 뺀다. */
+  const texts=[...wrap.querySelectorAll(".pq .choices .choice:not(.choice--img) .text")];
+  const chK=texts.map(t=>{
+    const w=t.scrollWidth, avail=t.clientWidth;
     return (w>avail && avail>0) ? avail/w : 1;
   });
-  choices.forEach((c,i)=>{
+  texts.forEach((t,i)=>{
     if(chK[i]>=1) return;
-    const txt=c.querySelector(".text")||c;
-    txt.style.display="inline-block";
-    txt.style.transformOrigin="left center";
-    txt.style.transform=`scale(${(chK[i]*0.98).toFixed(4)})`;
+    t.style.display="inline-block";
+    t.style.transformOrigin="left center";
+    t.style.transform=`scale(${(chK[i]*0.98).toFixed(4)})`;
   });
 
   // ── (3) 세로 넘침 ──

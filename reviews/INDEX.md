@@ -12,7 +12,6 @@
 | --- | --- | --- | --- |
 | `REV-2026-074` | `P2` | macOS 폴더 아이콘 파일이 새 Git 폴더에서 재발해 refs를 오염시킨다 | `issues/2026-09/2026-09-09-rules-macos-icon-files-corrupt-git-refs.md` |
 | `REV-2026-075` | `P2` | AI 문서에 들어갔다 나오면 로그인이 안 된다(재현 절차 없음) | `issues/2026-09/2026-09-09-document-editor-login-after-return.md` |
-| `REV-2026-104` | **`P1`** | 인쇄의 선지 넘침 보정이 재는 대상이 틀려 한 번도 걸리지 않는다 | `issues/2026-09/2026-09-22-print-choice-overflow-guard-measures-wrong-element.md` |
 | `REV-2026-093` | `P2` | staging Gemini가 결제 전제 미충족(`FAILED_PRECONDITION`)으로 실패한다 | `issues/2026-09/2026-09-14-gemini-staging-provider-request-error.md` |
 
 ⚠️ 이 표는 `npm run check:review-hygiene` 가 **실제 이슈 파일의 상태와 양방향으로**
@@ -21,13 +20,12 @@
 
 ## 지금 하는 일
 
-R4/B3 구현·Claude Opus 5 독립 검토 완료. 검토에서 `REV-2026-106`을 재현·수정·재검토해 닫았다.
-`setRevisionSchema=0`이며 실제 Rules 배포·클라이언트 활성화·엄격 Rules 배포는 모두 미실행이다.
-**다음은 R4.5를 Claude Sonnet 5가 구현하고 Codex Sol medium이 검토**한다. 이후 B4~B7→R5 종합.
+R4/B3 구현·Claude Opus 5 독립 검토 완료(Rules 배포 미실행). **R4.5 첫 묶음
+(`REV-2026-104` 선지 넘침 사다리)을 Claude Sonnet 5가 구현·자기검증 완료**
+(`HANDOFF-2026-163`) — **Codex Sol medium 독립 검토 대기**. 승인되면 둘째 묶음(`⋮`)→B4~B7→R5.
 배포 대기와 B4~B7 선행 조건·담당 모델은 [통합 레일](../docs/DEV-TOKEN-ROADMAP.md)을 따른다.
-⚠️ **제품 재설계가 열렸다** — `HANDOFF-2026-162` 가 코덱스에게 Q1~Q3(저장 구조 · R4 순서 ·
-제품 의의)를 남겼다. **Q2 가 닫히기 전 B4 를 시작하지 않는다.** 코덱스는 한도 복구 대기다.
-사용자 미추적 `transcript.txt`는 건드리지 말 것.
+⚠️ **제품 재설계가 열렸다** — `HANDOFF-2026-162` 가 코덱스에게 Q1~Q3(저장 구조·R4 순서·
+제품 의의)를 남겼다. **Q2 가 닫히기 전 B4 를 시작하지 않는다.** 코덱스 한도 복구 대기.
 
 ### A. 한글 조판 엔진 (Claude · 2026-09-17)
 
@@ -82,6 +80,10 @@ R1~R10은 보안→제품 범위→저장→독립 검토→검증/운영→출�
 | 지난 종합 감사 | [2026-09-08](audits/2026-09-08/REPORT.md) · [2026-09-11](audits/2026-09-11/FOLLOWUP-REVIEW.md) |
 
 ## 최근 검토
+
+[HANDOFF-2026-163](handoffs/2026-09/2026-09-22-r45-choice-overflow-ladder.md): R4.5 첫 묶음 —
+선지 넘침 판정을 `.choice .text` 로 옮기고 사다리(5→3→2→세로)로 구현했다. 실측 잘림
+50→0 · 300문항 32.2ms · `test:audit-browser` 158→162. **Codex Sol medium 독립 검토 대기.**
 
 [HANDOFF-2026-161](handoffs/2026-09/2026-09-22-set-revision-cas-checkpoint.md): R4/B3 구현과
 Claude Opus 5 독립 검토 완료. `REV-106` 재현·수정·재검토, CAS 17건+깨보기 17건 통과.

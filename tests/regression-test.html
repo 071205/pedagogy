@@ -822,6 +822,140 @@ async function runIndexTests(){
     }
   });
 
+  /* ⚠️ `REV-2026-104`: 컨테이너(`.choices`)의 rect 는 `minmax(0,1fr)`+`min-width:0` 때문에
+     slot 을 절대 넘지 않는다 — 옛 판정(컨테이너 vs slot)은 **언제나 false** 였다(실측
+     50개 잘림 → 보정 후 50개, `choices--wrap` 적용 0건). 실제로 넘치는 것은 칸 안의
+     `.choice .text`(`overflow-x:hidden` 이 조용히 자른다). 지금은 그 텍스트를 재고,
+     완화는 사다리(5열→3열→2열→세로)로 사용자가 고른 배치보다 열만 줄인다.
+     ⚠️ **아래 네 검사는 개발 중 일부러 옛 판정(컨테이너 rect)으로 되돌려 빨간불을 직접
+     확인했다** — REV-2026-104 이슈 파일의 실측표가 그 기록이다. 옛 로직을 여기 다시
+     베끼면 그 사본이 갈라질 수 있어(이 저장소가 반복해서 당한 실패 방식 3번) 중복
+     구현 대신 **전제 가드**(overflow 를 실제로 만들었는지 먼저 확인)로 헛도는 통과를 막는다. */
+  await check(G, "인쇄 보정이 넘치는 가로 선지를 사다리로 내려 잘리지 않게 한다", async () => {
+    const doc = win.document, pd = doc.getElementById("printDoc");
+    if (!pd || typeof win.fitPrintDoc !== "function") return { pass:false, note:"인쇄 DOM/함수 없음" };
+    const keep = pd.innerHTML;
+    try {
+      const longs = ["$\\dfrac{3\\sqrt{2}}{4}(a^2+b^2)$","$\\dfrac{5\\sqrt{3}}{6}(a^2-b^2)$",
+        "$\\dfrac{7\\sqrt{5}}{12}(a^2+2b^2)$","$\\dfrac{9\\sqrt{7}}{20}(2a^2-b^2)$",
+        "$\\dfrac{11\\sqrt{11}}{30}(3a^2+b^2)$"];
+      const blk = win.normBlock({type:"choices", data:{layout:"horizontal", items:longs}});
+      const html = win.blockHTML(blk, {});
+      pd.innerHTML =
+        '<div class="page"><div class="columns"><div class="slot" style="width:200px">' +
+        `<div class="pq"><div class="content">${html}</div></div>` +
+        '</div></div></div>';
+      pd.classList.add("measuring");
+      const settle = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+      await settle();
+      const clipped = () => [...pd.querySelectorAll(".choice:not(.choice--img) .text")]
+        .filter(t => t.scrollWidth - t.clientWidth > 2).length;
+      const before = clipped();
+      if (before === 0) return { pass:false, note:"선지가 넘치게 만들지 못했다 — 검사가 헛돈다" };
+      win.fitPrintDoc();
+      await settle();
+      const after = clipped();
+      const wrapGone = !pd.querySelector(".choices--wrap");
+      return { pass: after === 0 && wrapGone,
+               note: `잘림 ${before} → ${after} · choices--wrap 잔존 ${!wrapGone}` };
+    } finally {
+      pd.classList.remove("measuring");
+      pd.innerHTML = keep;
+    }
+  });
+
+  await check(G, "3열로 충분한 선지는 2열로 내려가지 않는다 — 지면 낭비 방지", async () => {
+    /* `choices--wrap`(폐지됨)은 2단 시험지 단 폭에서 늘 2열과 같은 높이를 냈다 —
+       3열이면 끝날 문항까지 지면을 버렸다. 사다리는 '넘칠 때만' 한 단씩 내려가야 한다. */
+    const doc = win.document, pd = doc.getElementById("printDoc");
+    if (!pd || typeof win.fitPrintDoc !== "function") return { pass:false, note:"인쇄 DOM/함수 없음" };
+    const keep = pd.innerHTML;
+    try {
+      const blk = win.normBlock({type:"choices", data:{layout:"cols3", items:["$1$","$2$","$3$","$4$","$5$"]}});
+      const html = win.blockHTML(blk, {});
+      pd.innerHTML =
+        '<div class="page"><div class="columns"><div class="slot" style="width:400px">' +
+        `<div class="pq"><div class="content">${html}</div></div>` +
+        '</div></div></div>';
+      pd.classList.add("measuring");
+      const settle = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+      await settle();
+      const clippedBefore = [...pd.querySelectorAll(".choice:not(.choice--img) .text")]
+        .filter(t => t.scrollWidth - t.clientWidth > 2).length;
+      if (clippedBefore > 0) return { pass:false, note:`전제부터 넘친다(${clippedBefore}) — 표본을 넓혀야 한다` };
+      win.fitPrintDoc();
+      await settle();
+      const ch = pd.querySelector(".choices");
+      return { pass: ch.classList.contains("cols3") && !ch.classList.contains("cols2"),
+               note: `최종 클래스 = ${[...ch.classList].filter(c=>["horizontal","cols3","cols2","vertical"].includes(c)).join(",")}` };
+    } finally {
+      pd.classList.remove("measuring");
+      pd.innerHTML = keep;
+    }
+  });
+
+  await check(G, "사용자가 고른 선지 배치보다 열을 올리지 않는다", async () => {
+    /* 사용자가 `cols2` 를 직접 골랐으면(단지 좁아서 사다리가 내려온 게 아니면) 저장 값을
+       그대로 존중한다 — `normBlock` 이 배치를 건드리지 않는다는 규칙과 같다.
+       사다리는 열을 **줄이기만** 하지 늘리지 않으므로, 안 넘치는 cols2 는 그대로 남아야 한다. */
+    const doc = win.document, pd = doc.getElementById("printDoc");
+    if (!pd || typeof win.fitPrintDoc !== "function") return { pass:false, note:"인쇄 DOM/함수 없음" };
+    const keep = pd.innerHTML;
+    try {
+      const blk = win.normBlock({type:"choices", data:{layout:"cols2", items:["$1$","$2$","$3$","$4$","$5$"]}});
+      const html = win.blockHTML(blk, {});
+      pd.innerHTML =
+        '<div class="page"><div class="columns"><div class="slot" style="width:400px">' +
+        `<div class="pq"><div class="content">${html}</div></div>` +
+        '</div></div></div>';
+      pd.classList.add("measuring");
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+      win.fitPrintDoc();
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+      const ch = pd.querySelector(".choices");
+      const classes = [...ch.classList].filter(c=>["horizontal","cols3","cols2","vertical"].includes(c));
+      return { pass: classes.length===1 && classes[0]==="cols2",
+               note: `최종 클래스 = ${classes.join(",")}` };
+    } finally {
+      pd.classList.remove("measuring");
+      pd.innerHTML = keep;
+    }
+  });
+
+  await check(G, "선지 배치 클래스는 사다리를 거쳐도 블록마다 하나만 남는다", async () => {
+    /* `vertical` 과 `horizontal` 이 함께 붙으면 CSS 선언 순서상 나중 규칙이 이겨
+       조용히 틀린 배치가 된다(REV-2026-104 명세) — 섞인 표본으로 한꺼번에 확인한다. */
+    const doc = win.document, pd = doc.getElementById("printDoc");
+    if (!pd || typeof win.fitPrintDoc !== "function") return { pass:false, note:"인쇄 DOM/함수 없음" };
+    const keep = pd.innerHTML;
+    try {
+      const longs = ["$\\dfrac{3\\sqrt{2}}{4}(a^2+b^2)$","$\\dfrac{5\\sqrt{3}}{6}(a^2-b^2)$",
+        "$\\dfrac{7\\sqrt{5}}{12}(a^2+2b^2)$","$\\dfrac{9\\sqrt{7}}{20}(2a^2-b^2)$",
+        "$\\dfrac{11\\sqrt{11}}{30}(3a^2+b^2)$"];
+      const short = ["$1$","$2$","$3$","$4$","$5$"];
+      const layouts = ["horizontal","horizontal","cols3","cols2","vertical"];
+      const items = [longs, longs, short, short, short];
+      const slots = layouts.map((layout,i)=>{
+        const blk = win.normBlock({type:"choices", data:{layout, items:items[i]}});
+        const html = win.blockHTML(blk, {});
+        return `<div class="slot" style="width:${180+i*40}px"><div class="pq"><div class="content">${html}</div></div></div>`;
+      }).join("");
+      pd.innerHTML = `<div class="page"><div class="columns">${slots}</div></div>`;
+      pd.classList.add("measuring");
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+      win.fitPrintDoc();
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+      const CLASSES = ["horizontal","cols3","cols2","vertical"];
+      const counts = [...pd.querySelectorAll(".choices")].map(ch =>
+        CLASSES.filter(c => ch.classList.contains(c)).length);
+      return { pass: counts.every(n => n===1),
+               note: `블록별 배치 클래스 수 = ${JSON.stringify(counts)}` };
+    } finally {
+      pd.classList.remove("measuring");
+      pd.innerHTML = keep;
+    }
+  });
+
   await check(G, "표 칸 합치기가 덮인 칸을 건너뛴다", () => {
     const t = win.normBlock({type:"table", data:{
       rows:[["혼합","(가)","(나)","(다)"],["부피","10","20","30"],["이온","a","b","c"]],

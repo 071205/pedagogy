@@ -3,7 +3,7 @@
 - ID: `REV-2026-104`
 - 날짜: `2026-09-22`
 - 보고자: `Claude / Opus 5`(다른 세션의 에이전트 신고에서 출발 — 실측으로 재확인)
-- 상태: `open`
+- 상태: `resolved`
 - 심각도: **`P1`** — 사용자에게 **잘린 시험지**가 그대로 인쇄된다
 - 영향 영역: `index.html`(`fitPrintDoc` · 선지 CSS)
 - 관련: `REV-2026-078`(넘치는 표 — **같은 종류의 결함**, 그때는 표만 고쳤다)
@@ -153,3 +153,42 @@ R4.5 각 묶음은 다음 묶음 전에 비구현자가 검토한다. R5 전체 
 ⚠️ **지금 고치지 말 것 — 작업 트리가 남의 것이다.** `index.html` 에 코덱스의 R4/B3
 미커밋 변경이 있다. 이 저장소 규칙은 **한 번에 한 에이전트만 코드를 쓴다** 이므로,
 이 명세는 B3 묶음 검증·독립 검토·커밋·인계 뒤에 집는다. 사용자 파일은 정리 대상이 아니다.
+
+## 수정 (2026-09-22 · Claude Sonnet 5)
+
+B3 커밋·인계(`de546a8`) 뒤 작업 트리가 정리된 것을 확인하고 집었다. `index.html:8035`
+`fitPrintDoc()` 을 명세 ①②③ 그대로 고쳤다 — 판정을 `.choice:not(.choice--img) .text`
+의 `scrollWidth-clientWidth>2` 로 옮기고, 저장된 배치를 출발점으로 사다리
+(`horizontal→cols3→cols2→vertical`, `paired` 제외)를 **단계별 전부 읽기 → 전부 쓰기**로
+구현했다. (1-b) 개별 축소도 측정 대상을 `.choice`→`.text` 로 바꿨다. `choices--wrap`
+클래스(JS·CSS 둘 다)를 지웠다.
+
+⚠️ **인라인 스크립트를 고쳐 CSP 해시가 깨졌다** — `npm run test:public` 이 즉시 잡아
+새 `sha256-HCTn933keHIRFT8eMGN2I3MMoIcfwSo0jUo/k4M/w0Q=` 로 갱신했다(둘째 해시는 그대로).
+
+### 검증 — 실측 (`check:fast` 밖에서 직접 재현)
+
+| 항목 | 결과 |
+|---|---|
+| 긴 수식 선지 5열 표본, 보정 전 잘림 → 후 | 50 → **0** |
+| `choices--wrap` 잔존 | **0건** |
+| 3열로 충분한 표본(짧은 선지) 10개 — 2열로 내려간 수 | **0**(전부 `cols3` 유지) |
+| 사용자가 고른 `cols2` — `horizontal` 로 승격된 수 | **0**(전부 `cols2` 유지) |
+| 한 블록에 배치 클래스 둘 이상 | **0건** |
+| 300문항 `fitPrintDoc()` | **32.2ms**(과거 참고치 265ms 대비 열화 없음) |
+
+이슈 검사 목록 1~4 는 위 실측과 함께 [`tests/regression-test.html`](../../../tests/regression-test.html)
+에 **자동화된 4개 검사**로 추가했다(`test:audit-browser` 로 헤드리스 실행, 158→**162**
+통과). 5·6 번 깨보기는 REV-2026-104 원 이슈의 실측표 자체가 **옛 판정(컨테이너 rect)이
+50→50·0건**임을 이미 재현해 둔 기록이라 그것으로 갈음했다 — 옛 로직을 검사 파일 안에
+다시 베끼면 그 사본이 갈라질 위험이 있어(이 저장소가 반복 당한 실패 방식 3번) 새 검사는
+**전제 가드**(overflow 를 실제로 만들었는지 먼저 확인)로 헛도는 통과를 막는 쪽을 택했다.
+
+`check:fast` 전체를 돌려 **내 diff 로 인한 새 실패가 0건**임을 확인했다(`test:audit-browser`
+162/162, `check:static`, `test:cross:fast`, `test:review-contracts`, `test:library-ui` 전부
+통과). `test:worker`(`check-audit-safety.mjs` 등)의 `setWriteBaseEntryFromDoc is not defined`
+실패는 **B3 커밋(`de546a8`) 그 자체에 이미 있던 것**임을 `git stash` 로 확인했다 —
+B3 CAS 코드 영역이라 이 R4.5 수정과 무관하고, B3 의 독립 검토 몫이라 손대지 않았다.
+
+**다음: Codex Sol medium 독립 검토.** 이 diff(`index.html` 의 `fitPrintDoc`·선지 CSS,
+`tests/regression-test.html` 의 검사 4개)만 본다.
