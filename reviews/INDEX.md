@@ -13,6 +13,7 @@
 | `REV-2026-074` | `P2` | macOS 폴더 아이콘 파일이 새 Git 폴더에서 재발해 refs를 오염시킨다 | `issues/2026-09/2026-09-09-rules-macos-icon-files-corrupt-git-refs.md` |
 | `REV-2026-075` | `P2` | AI 문서에 들어갔다 나오면 로그인이 안 된다(재현 절차 없음) | `issues/2026-09/2026-09-09-document-editor-login-after-return.md` |
 | `REV-2026-093` | `P2` | staging Gemini가 결제 전제 미충족(`FAILED_PRECONDITION`)으로 실패한다 | `issues/2026-09/2026-09-14-gemini-staging-provider-request-error.md` |
+| `REV-2026-107` | `P2` | 선지 사다리의 요소별 읽기·쓰기 교차를 회귀 검사가 놓친다 | `issues/2026-09/2026-09-22-tests-choice-ladder-interleaving-red-probe.md` |
 
 ⚠️ 이 표는 `npm run check:review-hygiene` 가 **실제 이슈 파일의 상태와 양방향으로**
 대조한다. 지난 요약을 지워도 안전한 이유가 이 대조다 — 남은 한 곳이 정확해야
@@ -21,8 +22,9 @@
 ## 지금 하는 일
 
 R4/B3 구현·Claude Opus 5 독립 검토 완료(Rules 배포 미실행). **R4.5 첫 묶음
-(`REV-2026-104` 선지 넘침 사다리)을 Claude Sonnet 5가 구현·자기검증 완료**
-(`HANDOFF-2026-163`) — **Codex Sol medium 독립 검토 대기**. 승인되면 둘째 묶음(`⋮`)→B4~B7→R5.
+(`REV-2026-104` 선지 넘침 사다리)의 제품 구현은 표적 검사에서 정상**이지만 Codex Sol medium
+독립 검토가 필수 구조 깨보기 누락(`REV-2026-107`)을 재현했다. **검사 수정·재검토 뒤 승인되면**
+둘째 묶음(`⋮`)→B4~B7→R5.
 배포 대기와 B4~B7 선행 조건·담당 모델은 [통합 레일](../docs/DEV-TOKEN-ROADMAP.md)을 따른다.
 ⚠️ **제품 재설계가 열렸다** — `HANDOFF-2026-162` 가 코덱스에게 Q1~Q3(저장 구조·R4 순서·
 제품 의의)를 남겼다. **Q2 가 닫히기 전 B4 를 시작하지 않는다.** 코덱스 한도 복구 대기.
@@ -83,7 +85,8 @@ R1~R10은 보안→제품 범위→저장→독립 검토→검증/운영→출�
 
 [HANDOFF-2026-163](handoffs/2026-09/2026-09-22-r45-choice-overflow-ladder.md): R4.5 첫 묶음 —
 선지 넘침 판정을 `.choice .text` 로 옮기고 사다리(5→3→2→세로)로 구현했다. 실측 잘림
-50→0 · 300문항 32.2ms · `test:audit-browser` 158→162. **Codex Sol medium 독립 검토 대기.**
+50→0 · 300문항 32.2ms · `test:audit-browser` 158→162. Codex Sol medium 검토에서 구현 결함은
+재현하지 못했으나 요소별 루프 깨보기가 실패하지 않는 `REV-2026-107`을 등록했다. **승인 보류.**
 
 [HANDOFF-2026-161](handoffs/2026-09/2026-09-22-set-revision-cas-checkpoint.md): R4/B3 구현과
 Claude Opus 5 독립 검토 완료. `REV-106` 재현·수정·재검토, CAS 17건+깨보기 17건 통과.
@@ -97,10 +100,6 @@ Claude Opus 5 독립 검토 완료. `REV-106` 재현·수정·재검토, CAS 17�
 설계/구현/검토/최종 게이트를 단계별로 나누고, **검토자는 반드시 비구현자**로 못박았다.
 ⚠️ `/codex:review`·`/codex:adversarial-review` 는 Claude 가 못 부른다(사용자 직행) ·
 공식 Stop gate 는 **켜지 않는다**. Astra 변경분 검토·재검토 완료: [REV-105](issues/2026-09/2026-09-22-rail-r45-gate-cycle.md) 해결 및 모델/상태/호출 안내 정합화. 관련 규약은 미커밋.
-
-[HANDOFF-2026-159](handoffs/2026-09/2026-09-22-n-je-editor-print-and-block-gaps.md): N제 편집기 신고 5건을
-검증했다. **인쇄 선지 넘침 보정이 컨테이너를 재어 한 번도 안 걸린다**(`REV-2026-104` · P1 · 실측
-50→50 · 0건). 레일에 **R4.5 출력 정합 안전 게이트**로 편입했다(코덱스 2왕복). **코드 변경 0줄.**
 
 ## 지난 기록을 찾는 법
 
