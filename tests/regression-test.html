@@ -1148,6 +1148,31 @@ async function runIndexTests(){
     return prose.includes("psg-mid") && verse.includes("psg-mid");
   });
 
+  await check(G, "⋮·… 단독행도 가운데 정렬되고, 발문·상자는 나머지 줄 간격을 지킨다", () => {
+    /* statement·boxed 는 processText() 에 텍스트를 통째로 넘기던 자리라
+       가운데 정렬할 상자 자체가 없었다(HANDOFF-2026-159) — 특수행만 갈라내고
+       나머지 줄 묶음은 여전히 한 번에 processText 를 태워야 6pt 간격이 유지된다. */
+    const stHtml = win.blockHTML(win.normBlock({type:"statement",
+      data:{text:"a\nb\n⋮\nc"}}), {});
+    const boxHtml = win.blockHTML(win.normBlock({type:"boxed",
+      data:{text:"x\n…\ny"}}), {});
+    const midCount = (stHtml.match(/psg-mid/g)||[]).length;
+    // 특수행 앞뒤로 묶인 일반행 사이에는 여전히 6pt 간격(vspace)이 남아야 한다
+    const hasVspace = stHtml.includes("vspace");
+    return { pass: midCount===1 && stHtml.includes(">⋮<") && boxHtml.includes(">…<") && hasVspace,
+             note: `statement=${stHtml} / boxed=${boxHtml}` };
+  });
+
+  await check(G, "$$…$$ 안의 ⋮ 는 표시 수식 밖으로 안 쪼개진다", () => {
+    /* $$ 안의 \n 에서 자르면 표시 수식이 깨진다 — splitParagraphs() 의
+       '$$ 밖에서만 자른다' 규칙을 그대로 재사용해야 한다. $$ 블록 안에 ⋮ 단독행이
+       있어도 그 블록은 통째로 pdm 하나여야지, psg-mid 로 잘려 나가면 안 된다. */
+    const html = win.blockHTML(win.normBlock({type:"statement",
+      data:{text:"a\n$$\n⋮\n$$\nb"}}), {});
+    return { pass: html.includes('class="pdm"') && !html.includes("psg-mid"),
+             note: html };
+  });
+
   await check(G, "예전 형식(text/kind/label)이 자동으로 이관된다", () => {
     const b = win.normBlock({type:"passage",
       data:{text:"옛 본문", kind:"verse", label:"(가)", boxed:false}});

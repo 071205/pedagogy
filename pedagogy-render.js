@@ -173,6 +173,23 @@ function processText(raw){
   return html;
 }
 
+/* statement·boxed 는 문단 상자 없이 processText(text) 에 텍스트를 통째로 넘긴다
+   (\n 이 6pt 간격으로만 바뀐다) — 그래서 (중략)·⋮·… 처럼 가운데 정렬할 줄이 있어도
+   그 줄만 뽑아낼 상자가 없다. 특수행만 갈라 psg-mid 로 내고, 나머지 줄 묶음은
+   지금처럼 processText 에 통째로 넘긴다 — 묶음을 쪼개면 그 안의 6pt 간격이 사라진다.
+   ⚠️ splitParagraphs() 를 그대로 쓴다 — $$…$$ 안의 \n 에서 자르면 표시 수식이 깨진다. */
+function midAwareHTML(raw){
+  const lines=splitParagraphs(raw);
+  const out=[]; let buf=[];
+  const flush=()=>{ if(buf.length){ out.push(processText(buf.join("\n"))); buf=[]; } };
+  lines.forEach(l=>{
+    if(isEllipsisLine(l)){ flush(); out.push(`<div class="psg-mid">${sanitize(l.trim())}</div>`); }
+    else buf.push(l);
+  });
+  flush();
+  return out.join("");
+}
+
 /* Preview */
 /* ctx 로 범위 라벨(range)을 넘겨받는다 — 지문 블록만 쓴다.
    지문은 블록이지만 '이 문항 하나' 가 아니라 '문항 묶음' 을 대표하므로
@@ -194,9 +211,15 @@ function verseHTML(raw){
   }).join("");
 }
 
-/* 한 줄이 통째로 (중략)·(하략)·(전략) 이면 가운데 정렬한다 — 실제 시험지가
-   장편을 줄일 때 늘 이렇게 조판한다(2025 수능 국어 10쪽에서 확인). */
-function isEllipsisLine(l){ return /^\(\s*(중략|하략|전략)\s*\)$/.test(String(l).trim()); }
+/* 한 줄이 통째로 (중략)·(하략)·(전략) 이거나 생략 기호(⋮·…) 하나뿐이면
+   가운데 정렬한다 — 실제 시험지가 장편을 줄이거나 자료를 생략할 때
+   늘 이렇게 조판한다(2025 수능 국어 10쪽에서 확인). ⚠️ 판정은 줄 전체가
+   그 모양일 때만이다 — 문장 중간의 …은 이 규칙과 무관하다(넓게 잡으면
+   기존 데이터의 뜻이 바뀐다). */
+function isEllipsisLine(l){
+  const t=String(l).trim();
+  return /^\(\s*(중략|하략|전략)\s*\)$/.test(t) || t==="⋮" || t==="…";
+}
 
 /* ── 구간 표시 ([A] [B] [C]) ──
    실물 N제에서 여러 줄을 오른쪽 세로 괄호로 묶고 옆에 [A] 를 단다.
@@ -421,8 +444,8 @@ function blockHTML(blk, ctx){
     return `<div class="bogi"><div class="bogi-label">&lt;${sanitize(label)}&gt;</div>`+
            `<div class="bogi-body">${processText(d.text)}${tableHTML(d)}</div></div>`;
   }
-  if(blk.type==="statement") return `<div>${processText(blk.data.text)}</div>`;
-  if(blk.type==="boxed") return `<div class="boxed${blk.data.small?" blk-small":""}">${processText(blk.data.text)}</div>`;
+  if(blk.type==="statement") return `<div>${midAwareHTML(blk.data.text)}</div>`;
+  if(blk.type==="boxed") return `<div class="boxed${blk.data.small?" blk-small":""}">${midAwareHTML(blk.data.text)}</div>`;
   if(blk.type==="conditions"){
     const items=(blk.data.items||[]).map((t,i)=>`<div class="cond-item"><span class="cond-label">${condLabel(i)}</span><span class="cond-text">${processText(t)}</span></div>`).join("");
     return `<div class="boxed">${items}</div>`;
@@ -498,7 +521,7 @@ global.PedagogyRender=Object.freeze({
   setHasContent, blockExcerpt,
   autoDisplayStyle, addCasesRowGap, inlineMarks, processText,
   verseHTML, isEllipsisLine, rangeOpen, isRangeClose, splitRanges, rangeWrap,
-  splitParagraphs, proseHTML, tableHTML, groupHeadHTML, blockHTML,
+  splitParagraphs, proseHTML, midAwareHTML, tableHTML, groupHeadHTML, blockHTML,
 });
 
 })(typeof window!=="undefined" ? window : globalThis);
