@@ -1,11 +1,11 @@
 # PEDAGOGY 통합 실행 레일 — 보안·저장·출시·비용
 
-개정: 2026-09-22 · 확인 기준: B3 `2a24205` + 인계 `ea45296` · 독립 검토 대기.
+개정: 2026-09-22 · B3 구현·Claude 독립 검토 완료 · R4.5 다음.
 사용자 요청: 기존 비용 레일과 Sonar·안티그래비티 검증 제안을 합쳐, 모델을 직접 바꿔 실행한다.
 **실행 순서·현재 단계는 이 문서 한 곳에서만 관리한다.**
 [이전 레일](DEV-TOKEN-ROADMAP-ARCHIVE-2026-09-20.md)은 완료 증거·계약 보관본이다.
 
-## 현재 위치 — R4/B3 코드 체크포인트 완료 → Claude 독립 검토 대기 → R4.5 예약
+## 현재 위치 — R4/B3 구현·독립 검토 완료 → R4.5 출력 정합 안전 게이트
 
 - **R4/B1 구현**: `34b6331` · [HANDOFF-2026-156](../reviews/handoffs/2026-09/2026-09-21-sets-cloud-size-defense.md).
   `writeCloudSnapshot()` 직렬화 직후 `ready`/`tooBig`을 분리하고 문제집·모의고사가
@@ -27,8 +27,8 @@
 - **검증**: `npm run test:set-sync-meta` 현재 9건 통과 + B2 직전 `fdcf622`에서 7건 실패.
   `test:sets-cloud`, `test:review-contracts`, `test:library-ui`, `test:mock-library-ui`,
   `test:audit-browser` 158/158, `test:ai-image`, `test:worker`, `test:public`, `check:static` 통과.
-- **현재(Claude Opus 5 독립 검토)**: B3·`REV-2026-103` 구현은 `2a24205`, 인계는
-  `HANDOFF-2026-161`/`ea45296`이다. Claude Code CLI 로그아웃으로 독립 검토만 남았다.
+- **B3 독립 검토 완료**: Claude Opus 5가 래퍼로 검토해 `REV-2026-106`을 재현했고,
+  Codex가 전송·dirty 비교 고정점과 회귀를 수정한 뒤 같은 검토자가 해결을 확인했다.
   `setRevisionSchema=0`이며 실제 3단계 배포 완료로 표시하지 않는다.
   **R4/B3 revision 전환 규칙 → 클라이언트 → 엄격 규칙**의 계약은
   [저장 계약](STORAGE-CONTRACT.md) §2-1·§2-3·§2-4, 시작 파일은 `firestore.rules`,

@@ -25,7 +25,7 @@
      어렵다 — 새 로그인만 깨진다). 실제로 한 번 그랬으니 손대지 말 것. -->
 <meta http-equiv="Content-Security-Policy" content="
   default-src 'self';
-  script-src 'self' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-6Fk+8+kqENZpO1lAeBX/abPUUjrON5a/TqckCQ5Rr2s=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
+  script-src 'self' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-F4UGQSMr3ohozXn22odyI2BCskFli9HRLX07LVsTKBU=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
   script-src-attr 'none';
   style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
   font-src 'self' data: https://cdn.jsdelivr.net;
@@ -3085,11 +3085,37 @@ function setWriteBaseMatchesDoc(base,d){
       늘리지 말 것 — 그 map 은 낡으면 **자료가 사라지지만** 이것은 아니다. */
 let setsOversizeKey="", setsBadShapeKey="";
 
+/* paired 전송과 dirty 비교가 반드시 같은 고정점을 써야 한다. UI에서 3칸→2칸으로 바꾸면
+   라이브 cells 행에 숨은 셋째 값이 잠시 남을 수 있다. 전송은 활성 칸만 보내므로 비교도 그
+   모양을 써야 ACK 뒤 저장 재예약이 끝난다. 이 함수는 원본을 바꾸지 않는다. */
+function pairedCellsTransportShape(d){
+  const pairs=d?.pairs===3?3:2;
+  const count=Math.max(Array.isArray(d?.items)?d.items.length:0,Array.isArray(d?.cells)?d.cells.length:0);
+  const cells=Array.from({length:count},(_,i)=>{
+    const row=Array.isArray(d?.cells?.[i])?d.cells[i]:[];
+    return Array.from({length:pairs},(_,j)=>String(row[j]??""));
+  });
+  return {pairs,cells};
+}
+function setProblemsForSync(problems){
+  return (Array.isArray(problems)?problems:[]).map(q=>{
+    if(!q||!Array.isArray(q.blocks)) return q;
+    let changed=false;
+    const blocks=q.blocks.map(blk=>{
+      const d=blk&&blk.data;
+      if(blk?.type!=="choices"||d?.layout!=="paired"||!Array.isArray(d.cells)) return blk;
+      changed=true;
+      return {...blk,data:{...d,cells:pairedCellsTransportShape(d).cells}};
+    });
+    return changed?{...q,blocks}:q;
+  });
+}
+
 /* 동기화 비교에는 모든 사용자 보이는 문제집 설정을 넣는다. lineColor·subject 를
    빼면 그 둘만 바꾼 저장은 '변화 없음'으로 오인해 다른 기기에 가지 않는다.
    순서는 본문과 별개이므로 cloudSyncEntry()에서 따로 비교한다. */
 const setJSON = s => JSON.stringify({
-  name:s.name, header:s.header, problems:s.problems,
+  name:s.name, header:s.header, problems:setProblemsForSync(s.problems),
   lineColor:normSheetColor(s.lineColor), subject:normSubject(s.subject),
   /* ⚠️ **폴더도 여기 들어가야 한다.** 빠지면 폴더만 바꿨을 때 `isCloudSynced()` 가
      '안 바뀌었다' 고 답해 **다른 기기로 영영 안 올라간다**(코덱스 `HANDOFF-2026-070` §2). */
@@ -3108,14 +3134,8 @@ function encodeSetProblemsForCloud(problems){
   out.forEach(q=>(Array.isArray(q?.blocks)?q.blocks:[]).forEach(blk=>{
     const d=blk&&blk.data;
     if(blk?.type!=="choices"||d?.layout!=="paired"||!Array.isArray(d.cells)) return;
-    const pairs=d.pairs===3?3:2;
-    const count=Math.max(Array.isArray(d.items)?d.items.length:0,d.cells.length);
-    const flat=[];
-    for(let i=0;i<count;i++){
-      const row=Array.isArray(d.cells[i])?d.cells[i]:[];
-      for(let j=0;j<pairs;j++) flat.push(String(row[j]??""));
-    }
-    d.cellsFlat=flat;
+    const {cells}=pairedCellsTransportShape(d);
+    d.cellsFlat=cells.flat();
     delete d.cells;
   }));
   return out;

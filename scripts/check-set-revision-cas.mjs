@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 const BASE_COMMIT='4ea6fa7';
 const base='http://127.0.0.1:18886';
 const server=spawn('python3',['serve.py','--port','18886'],{stdio:'ignore'});
-const EXPECTED_CHECKS=16;
+const EXPECTED_CHECKS=17;
 let browser, harnessFailure=null, checksRun=0;
 const failures=[];
 
@@ -128,6 +128,26 @@ try{
     assert.equal(r.available,true);assert.equal(r.ok,false);assert.equal(r.exists,false);
     assert.equal(r.local,'내 초안');assert.equal(r.requeues,0);assert.match(r.status,/충돌/);
     assert.ok(r.toasts.some(x=>x.includes('초안은 보존')));
+  });
+
+  await check('짝 3칸에서 2칸 전환 뒤 ACK가 저장 재예약을 반복하지 않는다',async p=>{
+    await stub(p);
+    const r=await p.evaluate(async()=>{
+      const available=typeof encodeSetProblemsForCloud==='function';if(!available)return {available};
+      sets[0].problems=[{id:'q',title:'',desc:'',answer:'',answerImg:'',numLabel:'',paired:false,
+        blocks:[{type:'choices',data:{layout:'paired',pairs:2,items:['a b'],images:['','','','',''],
+          cells:[['a','b','숨은 셋째']]}}]}];
+      const before=JSON.stringify(sets[0]);
+      const ok=await writeCloudSnapshot(currentUser.uid,sessionContext());
+      const remote=window.__remote.get('set-a');
+      return {available,ok,before,after:JSON.stringify(sets[0]),synced:isCloudSynced(sets[0],0),
+        requeues:window.__requeues,revision:remote?.revision,
+        flat:remote?.problems?.[0]?.blocks?.[0]?.data?.cellsFlat};
+    });
+    assert.equal(r.available,true);assert.equal(r.ok,true);assert.equal(r.synced,true);
+    assert.equal(r.requeues,0);assert.equal(r.revision,1);
+    assert.deepEqual(r.flat,['a','b'],'활성 두 칸의 순서로 전송해야 한다');
+    assert.equal(r.before,r.after,'동기화 비교 정규화가 로컬 원본을 바꾸면 안 된다');
   });
 
   await check('정규화 동등 서버의 no-write ACK는 다음 수정의 유효한 CAS 기준이 된다',async p=>{

@@ -21,10 +21,9 @@
 
 ## 지금 하는 일
 
-R4/B3 코드 체크포인트 `2a24205` 완료: 전환 Rules·dormant revision/CAS 클라이언트·REV-103 해결.
-**Claude Opus 5 독립 검토 대기**이며 `setRevisionSchema=0`, 실제 Rules 배포·클라이언트 활성화·
-엄격 Rules 배포는 모두 미실행이다. 검토 전에는 R4.5나 배포를 시작하지 않는다.
-검토 후 순서는 **R4.5 구현·Codex 검토 → 남은 B4~B7 → R5 종합**이다.
+R4/B3 구현·Claude Opus 5 독립 검토 완료. 검토에서 `REV-2026-106`을 재현·수정·재검토해 닫았다.
+`setRevisionSchema=0`이며 실제 Rules 배포·클라이언트 활성화·엄격 Rules 배포는 모두 미실행이다.
+**다음은 R4.5를 Claude Sonnet 5가 구현하고 Codex Sol medium이 검토**한다. 이후 B4~B7→R5 종합.
 배포 대기와 B4~B7 선행 조건·담당 모델은 [통합 레일](../docs/DEV-TOKEN-ROADMAP.md)을 따른다.
 ⚠️ **제품 재설계가 열렸다** — `HANDOFF-2026-162` 가 코덱스에게 Q1~Q3(저장 구조 · R4 순서 ·
 제품 의의)를 남겼다. **Q2 가 닫히기 전 B4 를 시작하지 않는다.** 코덱스는 한도 복구 대기다.
@@ -84,9 +83,9 @@ R1~R10은 보안→제품 범위→저장→독립 검토→검증/운영→출�
 
 ## 최근 검토
 
-[HANDOFF-2026-161](handoffs/2026-09/2026-09-22-set-revision-cas-checkpoint.md): R4/B3 코드
-체크포인트 `2a24205`. CAS 16건+깨보기 16건, Rules emulator, REV-103 10건+깨보기 7건 통과.
-**Claude Opus 5 독립 검토와 실제 3단계 배포는 대기.**
+[HANDOFF-2026-161](handoffs/2026-09/2026-09-22-set-revision-cas-checkpoint.md): R4/B3 구현과
+Claude Opus 5 독립 검토 완료. `REV-106` 재현·수정·재검토, CAS 17건+깨보기 17건 통과.
+**실제 3단계 배포는 별도 승인 대기.**
 
 [HANDOFF-2026-162](handoffs/2026-09/2026-09-22-product-restructure-open-question.md): **제품 재설계 미결** —
 사용자가 R2 를 다시 열었다(의의·부가 기능·UX). ⚠️ 꼬리표가 1MiB 를 넘긴다는 **내 의심은 틀렸다**
