@@ -3,8 +3,9 @@
 - ID: `HANDOFF-2026-163`
 - 날짜: `2026-09-22`
 - 작성: `Claude / Sonnet 5`
-- 검토: **결함 재현 — `REV-2026-107`**(Codex Sol medium)
-- 커밋 전 단계. 코드: `index.html`. 검사: `tests/regression-test.html`.
+- 검토: `REV-2026-107`(Codex Sol medium)이 필수 구조 깨보기 누락을 재현·등록 → **재검토
+  대기**. 아래 §재수정 참고.
+- `851c7bd` 커밋 완료. 코드: `index.html`. 검사: `tests/regression-test.html`.
 
 ## 한 일
 
@@ -40,10 +41,31 @@
 `setWriteBaseEntryFromDoc is not defined` 는 `git stash` 로 **B3 커밋(`de546a8`)에 이미
 있던 것**임을 확인했다 — CAS 코드 영역이라 B3 독립 검토 몫이고 손대지 않았다.
 
+## 재수정 (2026-09-22 · Claude Sonnet 5) — `REV-2026-107` 대응
+
+Codex 지적이 정확했다 — 최종 배치만 보는 검사 넷은 "과정이 계약대로인가" 를 구분하지
+못한다. **제안대로 읽기·쓰기의 실제 순서를 계측**하는 검사를 더했다(`index.html` 은
+안 건드렸다 — 이미 계약대로였다).
+
+새 검사 "선지 사다리는 쓰기 직후 같은 블록을 다시 읽지 않는다 — 단계별 배치 계측"
+(`tests/regression-test.html`)이 `win.Element.prototype.scrollWidth`/`clientWidth` 와
+`win.DOMTokenList.prototype.add`/`remove` 를 iframe 자기 realm 안에서 잠깐 감시해,
+**같은 `.choices` 블록의 쓰기 바로 다음에 그 블록 자신의 읽기가 오는지**를 본다.
+단계별 배치라면 한 단의 쓰기는 다음 블록의 쓰기로 이어지지, 자기 자신의 다음 읽기로
+바로 이어지지 않는다.
+
+⚠️ **재현 절차 그대로 다시 깨서 확인했다** — 요소별 루프로 바꾼 `index.html` 사본에
+`scripts/lib/csp-rehash.mjs` 로 CSP 해시를 맞춘 뒤 그 사본으로
+`npm run test:audit-browser` 를 돌렸더니 **정확히 이 검사 1건만** 실패했다(위반 4건).
+원본으로 되돌리면 163/163 전부 통과한다. `test:audit-browser` 158→162(B3 앞선 검사
+넷)→**163**(이번 검사). `test:public`·`check:static` 도 재확인해 통과했다.
+
+이슈 파일(`REV-2026-107`)과 원 이슈(`REV-2026-104`)의 §수정에 근거를 남겼다.
+
 ## 다음
 
-1. **Codex Sol medium** 이 이 diff(`index.html` 의 `fitPrintDoc`·선지 CSS,
-   `tests/regression-test.html` 검사 4개)만 독립 검토한다.
+1. **Codex Sol medium** 이 이번 추가분(`tests/regression-test.html` 의 순서 계측 검사
+   1개)을 재검토한다. `index.html` 은 이전 검토에서 이미 통과했으므로 다시 보지 않아도 된다.
 2. 승인되면 **R4.5 둘째 묶음**(`⋮`·`…` 단독행 가운데 정렬 · [`RAIL-ORDERS.md`](../../../docs/RAIL-ORDERS.md) ④)로 간다 — **다른 커밋**이다.
 3. `test:worker` 의 기존 실패(`setWriteBaseEntryFromDoc`)는 B3 독립 검토가 다룰 것 —
    이 인계는 그 상태를 그대로 남긴다.
@@ -54,3 +76,6 @@
   비상향 사다리, 단계별 읽기·쓰기, 단일 배치 클래스와 원본 불변을 지켰고 표적 브라우저 회귀
   162/162도 재확인했다. 다만 요소별 사다리 루프를 임시 주입해도 162/162가 그대로 통과하여
   필수 구조 깨보기 누락을 `REV-2026-107`로 등록했다. 이 검토는 수정·재검토 전까지 승인하지 않는다.
+- `2026-09-22` — `Claude / Sonnet 5`: 위 §재수정대로 읽기·쓰기 순서 계측 검사를 추가하고
+  재현 절차로 직접 깨서 잡히는 것을 확인했다(`test:audit-browser` 163/163, 깨진 사본에서는
+  이 검사 1건만 실패). Codex 재검토 대기.

@@ -956,6 +956,98 @@ async function runIndexTests(){
     }
   });
 
+  /* ⚠️ `REV-2026-107`(Codex 독립 검토): 위 네 검사는 **최종 상태**만 본다 — 사다리를
+     '단계마다 전부 읽고 쓰기' 대신 **요소 하나를 끝까지 끌고 내려가는 루프**로 바꿔
+     주입해도 위 네 검사는 전부 그대로 통과했다(실측 162/162, 잘림·위반 모두 0건).
+     최종 배치가 같으면 과정이 달라도 구분이 안 됐다는 뜻이다.
+     그래서 **읽기(`scrollWidth`/`clientWidth`)와 쓰기(`classList.add/remove`)의 실제
+     순서를 계측**한다 — Codex 의 제안("사다리 실행부를 …이벤트 순서를 단언한다")을 그대로
+     따른다. 판정: **같은 `.choices` 블록의 쓰기 바로 다음에 그 블록 자신의 읽기가 오면
+     안 된다.** 단계별 배치라면 한 단의 쓰기는 다음 단의 쓰기(다른 블록)나 그 단 전체가
+     끝난 뒤에야 오는 읽기로 이어지고, **자기 자신의 다음 읽기가 바로 뒤에 붙지 않는다**
+     — 반면 요소별 루프는 쓰고 나서 곧장 같은 요소를 다시 읽는다(직접 재현해 확인:
+     깨진 버전은 위반 1건 이상, 원본은 0건). */
+  await check(G, "선지 사다리는 쓰기 직후 같은 블록을 다시 읽지 않는다 — 단계별 배치 계측", async () => {
+    const doc = win.document, pd = doc.getElementById("printDoc");
+    if (!pd || typeof win.fitPrintDoc !== "function") return { pass:false, note:"인쇄 DOM/함수 없음" };
+    const El = win.Element, TokenList = win.DOMTokenList;
+    const descSW = El && Object.getOwnPropertyDescriptor(El.prototype, "scrollWidth");
+    const descCW = El && Object.getOwnPropertyDescriptor(El.prototype, "clientWidth");
+    if (!descSW || !descCW || !TokenList) return { pass:false, note:"계측 대상 프로토타입을 못 찾음" };
+    const keep = pd.innerHTML;
+    const origAdd = TokenList.prototype.add, origRemove = TokenList.prototype.remove;
+    let restored = false;
+    const restore = () => {
+      if (restored) return; restored = true;
+      Object.defineProperty(El.prototype, "scrollWidth", descSW);
+      Object.defineProperty(El.prototype, "clientWidth", descCW);
+      TokenList.prototype.add = origAdd;
+      TokenList.prototype.remove = origRemove;
+    };
+    try {
+      // 두 블록 모두 horizontal→cols3→cols2 를 다 거치게 — 요소 하나로는 '자기 직후 자기'
+      // 위반이 다음 블록의 쓰기와 우연히 섞여 가려질 수 있어 최소 둘이 필요하다.
+      const longs = ["$\\dfrac{3\\sqrt{2}}{4}(a^2+b^2)$","$\\dfrac{5\\sqrt{3}}{6}(a^2-b^2)$",
+        "$\\dfrac{7\\sqrt{5}}{12}(a^2+2b^2)$","$\\dfrac{9\\sqrt{7}}{20}(2a^2-b^2)$",
+        "$\\dfrac{11\\sqrt{11}}{30}(3a^2+b^2)$"];
+      const blk = () => win.blockHTML(win.normBlock({type:"choices", data:{layout:"horizontal", items:longs}}), {});
+      pd.innerHTML =
+        '<div class="page"><div class="columns">' +
+        `<div class="slot" style="width:200px"><div class="pq"><div class="content">${blk()}</div></div></div>` +
+        `<div class="slot" style="width:200px"><div class="pq"><div class="content">${blk()}</div></div></div>` +
+        '</div></div>';
+      pd.classList.add("measuring");
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+      const choicesEls = [...pd.querySelectorAll(".pq .choices")];
+      const textEls = [...pd.querySelectorAll(".pq .choices .choice:not(.choice--img) .text")];
+      if (choicesEls.length < 2 || !textEls.length) return { pass:false, note:"표본을 못 만들었다" };
+      choicesEls.forEach((el,i) => { el.dataset.probeId = "ch"+i; });
+      textEls.forEach((el,i) => { el.dataset.probeId = el.closest(".choices").dataset.probeId + "-t"+i; });
+      const ownerOfList = new Map();
+      choicesEls.forEach(el => ownerOfList.set(el.classList, el.dataset.probeId));
+      const LAYOUT = new Set(["horizontal","cols3","cols2","vertical"]);
+
+      const log = [];
+      const textSet = new Set(textEls);
+      Object.defineProperty(El.prototype, "scrollWidth", { configurable:true, get(){
+        if (textSet.has(this)) log.push({ t:"read", id:this.dataset.probeId });
+        return descSW.get.call(this);
+      }});
+      Object.defineProperty(El.prototype, "clientWidth", { configurable:true, get(){
+        if (textSet.has(this)) log.push({ t:"read", id:this.dataset.probeId });
+        return descCW.get.call(this);
+      }});
+      TokenList.prototype.add = function(...args){
+        const owner = ownerOfList.get(this);
+        if (owner && LAYOUT.has(args[0])) log.push({ t:"write", id:owner });
+        return origAdd.apply(this, args);
+      };
+      TokenList.prototype.remove = function(...args){
+        const owner = ownerOfList.get(this);
+        if (owner && LAYOUT.has(args[0])) log.push({ t:"write", id:owner });
+        return origRemove.apply(this, args);
+      };
+
+      win.fitPrintDoc();
+      restore();
+
+      const violations = [];
+      for (let i = 0; i < log.length - 1; i++) {
+        const a = log[i], b = log[i+1];
+        if (a.t === "write" && b.t === "read" && b.id.startsWith(a.id + "-")) violations.push(i);
+      }
+      const writes = log.filter(e => e.t === "write").length;
+      if (writes < 2) return { pass:false, note:`쓰기가 ${writes}건뿐이다 — 표본이 넘치게 만들지 못했다` };
+      return { pass: violations.length === 0,
+               note: `읽기·쓰기 이벤트 ${log.length}개 · 쓰기 ${writes}건 · 위반(쓰기 직후 자기읽기) ${violations.length}건` };
+    } finally {
+      restore();
+      pd.classList.remove("measuring");
+      pd.innerHTML = keep;
+    }
+  });
+
   await check(G, "표 칸 합치기가 덮인 칸을 건너뛴다", () => {
     const t = win.normBlock({type:"table", data:{
       rows:[["혼합","(가)","(나)","(다)"],["부피","10","20","30"],["이온","a","b","c"]],

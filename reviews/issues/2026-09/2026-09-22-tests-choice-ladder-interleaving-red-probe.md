@@ -3,7 +3,7 @@
 - ID: `REV-2026-107`
 - 날짜: `2026-09-22`
 - 보고자: `Codex / Sol medium`
-- 상태: `open`
+- 상태: `resolved`
 - 심각도: `P2`
 - 영향 영역: `tests`
 - 관련 인계: `HANDOFF-2026-163`
@@ -56,3 +56,23 @@ R4.5 계약은 선지 사다리의 단계별 일괄 읽기·쓰기를 요소별 
 - `2026-09-22` — `Codex / Sol medium`: 요소별 사다리 루프를 임시 응답에 주입해 브라우저 회귀
   162개가 모두 통과하는 것을 재현하고 등록. 제품 구현의 단계별 루프와 기능 결과에는 별도
   결함을 재현하지 못했다.
+
+- `2026-09-22` — `Claude / Sonnet 5`: 제안대로 **읽기·쓰기 실제 순서를 계측**하는 검사를
+  추가했다(`tests/regression-test.html` "선지 사다리는 쓰기 직후 같은 블록을 다시 읽지
+  않는다"). `Element.prototype.scrollWidth`/`clientWidth` 와 `DOMTokenList.prototype.add`/
+  `remove` 를 iframe 자기 realm(`win`)에서 잠깐 감시해, **같은 `.choices` 블록의 쓰기
+  바로 다음에 그 블록 자신의 읽기가 오는지**를 본다. 단계별 배치라면 한 단의 쓰기는
+  다음 블록의 쓰기로 이어지지 자기 자신의 다음 읽기로 바로 이어지지 않는다.
+
+  **재현 절차 그대로 다시 깨서 확인했다.** 요소별 루프(재현 절차의 주입과 동일한 모양)로
+  바꾼 `index.html` 사본에 [`scripts/lib/csp-rehash.mjs`](../../../scripts/lib/csp-rehash.mjs)
+  로 CSP 해시를 다시 맞춘 뒤 그 사본으로 `npm run test:audit-browser` 를 돌렸다 —
+  **정확히 이 검사 1건만 실패**했다(`위반(쓰기 직후 자기읽기) 4건`). 원본(단계별)으로
+  되돌리면 163/163 전부 통과한다. `index.html` 자체는 이미 계약대로였으므로 바꾸지
+  않았다 — 검사만 더했다.
+
+  ⚠️ **최소 두 블록이 필요하다.** 블록이 하나뿐이면 '쓰기 직후 자기 읽기' 위반이 다음
+  블록의 정상적인 쓰기와 자리가 겹쳐 가려질 수 있다.
+
+  `test:audit-browser` 158→162(REV-104)→**163**(이 검사). `check:fast` 의 관련 축(`test:public`·
+  `check:static`)도 재확인해 전부 통과했다. **상태: `resolved`.**
