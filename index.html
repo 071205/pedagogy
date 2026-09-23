@@ -25,7 +25,7 @@
      어렵다 — 새 로그인만 깨진다). 실제로 한 번 그랬으니 손대지 말 것. -->
 <meta http-equiv="Content-Security-Policy" content="
   default-src 'self';
-  script-src 'self' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-F4UGQSMr3ohozXn22odyI2BCskFli9HRLX07LVsTKBU=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
+  script-src 'self' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-+6qfI3mfMKtlZZyaYofs+VCXsk/2JZHHzOivTsUDQkc=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
   script-src-attr 'none';
   style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
   font-src 'self' data: https://cdn.jsdelivr.net;
@@ -3069,9 +3069,22 @@ function setWriteBaseEntryFromDoc(d){
   const revision=syncRevision(d.revision), order=normOrder(d.order), deleted=d.deleted===true;
   if(deleted) return {revision,contentHash:null,order,deleted:true};
   /* CAS 기준은 Firestore에 실제로 쓴 문서 모양과 비교한다. docToSet() 정규화는 빈 문항에
-     기본 필드를 보탤 수 있어, 방금 ACK한 정상 문서조차 다른 지문으로 만들 수 있다. */
-  const transported={...d,problems:decodeSetProblemsFromCloud(d.problems)};
+     기본 필드를 보탤 수 있어, 방금 ACK한 정상 문서조차 다른 지문으로 만들 수 있다.
+     ⚠️ **map 키 순서는 정렬해서 잰다**(REV-2026-109). Firestore는 같은 문서를 listener/.get()
+     과 transaction tx.get()에서 다른 키 순서로 돌려준다(운영 실측). 순서째 지문을 떠 두면
+     listener에서 잡은 기준과 transaction의 서버본이 늘 달라 모든 수정이 거짓 충돌이 된다.
+     배열 순서는 내용이므로 그대로 둔다. */
+  const transported={...d,problems:sortedKeysDeep(decodeSetProblemsFromCloud(d.problems))};
   return {revision,contentHash:syncContentHash(setJSON(transported)),order,deleted:false};
+}
+function sortedKeysDeep(v){
+  if(Array.isArray(v)) return v.map(sortedKeysDeep);
+  if(!v||typeof v!=="object") return v;
+  /* 프로토타입 없는 객체 — `{}` 에 "__proto__" 를 대입하면 자체 키가 아니라 프로토타입이
+     바뀌어 지문에서 빠지고, 그 키만 다른 두 문서가 같아 보인다(거짓 ACK). */
+  const out=Object.create(null);
+  for(const k of Object.keys(v).sort()) out[k]=sortedKeysDeep(v[k]);
+  return out;
 }
 function setWriteBaseMatchesDoc(base,d){
   if(!base||!d||!d.id) return false;
