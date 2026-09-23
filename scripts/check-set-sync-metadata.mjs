@@ -30,6 +30,8 @@ async function open(){
 async function stub(p,{owner='owner-a',chars=10,commitFails=false}={}){
   return p.evaluate(({owner,chars,commitFails})=>{
     localStorage.clear();
+    // B2의 구 batch/무 revision 호환 계약은 운영 플래그가 1로 전환돼도 계속 검증한다.
+    window.PEDAGOGY_PUBLIC_CONFIG={...window.PEDAGOGY_PUBLIC_CONFIG,setRevisionSchema:0};
     wiping=false; fbReady=true; currentUser={uid:owner}; authEpoch++;
     cloudSynced.clear(); deletedIds.clear(); setsOversizeKey='';
     if(typeof loadSetSyncMeta==='function') loadSetSyncMeta(owner);
