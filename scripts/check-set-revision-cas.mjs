@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 const BASE_COMMIT='4ea6fa7';
 const base='http://127.0.0.1:18886';
 const server=spawn('python3',['serve.py','--port','18886'],{stdio:'ignore'});
-const EXPECTED_CHECKS=17;
+const EXPECTED_CHECKS=19;
 let browser, harnessFailure=null, checksRun=0;
 const failures=[];
 
@@ -383,6 +383,58 @@ try{
     });
     assert.equal(r.available,true);assert.deepEqual(r.ids,['b']);assert.equal(r.name,'new b');
     assert.equal(r.synced,true);assert.equal(r.writeBase,2);
+  });
+
+  /* REV-2026-109: Firestore는 map 키 순서를 읽기 경로마다 다르게 돌려준다(운영 실측 —
+     listener/.get()은 뒤섞인 순서, transaction tx.get()은 삽입 순서). 위 스텁은 JSON 복제라
+     순서가 늘 같아 이 결함을 원리적으로 못 봤다. 여기서는 두 경로의 키 순서를 일부러 갈라
+     문항이 있는 문제집이 단일 기기에서 거짓 충돌 없이 +1 되는지 본다. */
+  await check('트랜잭션 읽기의 map 키 순서가 달라도 CAS 기준이 맞는다',async p=>{
+    await stub(p);
+    const r=await p.evaluate(async()=>{
+      if(typeof writeSetDocRevision!=='function'||typeof setWriteBase==='undefined') return {available:false};
+      const reorder=(v,dir)=>Array.isArray(v)?v.map(x=>reorder(x,dir))
+        :v&&typeof v==='object'?Object.fromEntries(Object.keys(v).sort()[dir==='rev'?'reverse':'slice']()
+          .map(k=>[k,reorder(v[k],dir)])):v;
+      sets[0].problems=[{id:'q1',title:'t',desc:'',answer:'3',answerImg:'',numLabel:'',paired:true,
+        groupSpan:1,groupLead:'',span:'pair',
+        blocks:[{type:'statement',data:{text:'원 $x^2+y^2=5$'}},
+                {type:'choices',data:{layout:'horizontal',items:['6','7','8','9','10'],images:['','','','','']}}]}];
+      await writeCloudSnapshot(currentUser.uid,sessionContext());
+      const created=window.__remote.get('set-a');
+      /* listener가 본 모양(정렬 순서)으로 기준을 잡는다 — reconcileSetSyncMeta와 같은 경로 */
+      setWriteBase.set('set-a',setWriteBaseEntryFromDoc(reorder(created,'sort')));
+      /* transaction은 다른 순서(역순)로 돌려준다 */
+      const origTx=fbDb.runTransaction;
+      fbDb.runTransaction=async run=>origTx(async tx=>run({...tx,
+        get:async ref=>{const s=await tx.get(ref);const d=s.exists?reorder(s.data(),'rev'):undefined;
+          return {exists:s.exists,data:()=>d};}}));
+      window.__status.length=0;window.__toasts.length=0;
+      sets[0].name='수정본';
+      const ok=await writeCloudSnapshot(currentUser.uid,sessionContext());
+      return {available:typeof writeSetDocRevision==='function',createdRev:created?.revision,ok,
+        revision:window.__remote.get('set-a')?.revision,name:window.__remote.get('set-a')?.name,
+        status:window.__status.at(-1)||'',toasts:window.__toasts};
+    });
+    assert.equal(r.available,true);assert.equal(r.createdRev,1);
+    assert.equal(r.ok,true,`거짓 충돌: ${r.status} ${r.toasts.join(' / ')}`);
+    assert.equal(r.revision,2);assert.equal(r.name,'수정본');
+    assert.doesNotMatch(r.status,/충돌/);
+  });
+
+  /* 키 정렬이 **다른 문서를 같게** 만들면 거짓 ACK(덮어쓰기)다. `{}` 에 "__proto__" 를
+     대입하면 자체 키가 아니라 프로토타입이 바뀌어 지문에서 빠진다(Codex 검토 지적). */
+  await check('키 정렬 지문은 __proto__ 키만 다른 두 문서를 구별한다',async p=>{
+    await stub(p);
+    const r=await p.evaluate(()=>{
+      if(typeof setWriteBaseEntryFromDoc!=='function'||typeof setWriteBase==='undefined') return {available:false};
+      const base={id:'set-a',name:'x',header:'',lineColor:'indigo',subject:'math',order:0,deleted:false,revision:1};
+      const plain={...base,problems:JSON.parse('[{"id":"q","blocks":[{"type":"statement","data":{"text":"a"}}]}]')};
+      const poisoned={...base,problems:JSON.parse('[{"id":"q","blocks":[{"type":"statement","data":{"text":"a","__proto__":{"text":"b"}}}]}]')};
+      return {available:true,a:setWriteBaseEntryFromDoc(plain).contentHash,b:setWriteBaseEntryFromDoc(poisoned).contentHash};
+    });
+    assert.equal(r.available,true);
+    assert.notEqual(r.a,r.b,'__proto__ 키가 지문에서 빠져 다른 문서가 같은 CAS 기준이 됐다');
   });
 }catch(e){harnessFailure=e;console.error('FAIL 하네스 —',e.message);}
 finally{if(browser)await browser.close();server.kill();}
