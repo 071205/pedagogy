@@ -393,18 +393,28 @@ try{
     await stub(p);
     const r=await p.evaluate(async()=>{
       if(typeof writeSetDocRevision!=='function'||typeof setWriteBase==='undefined') return {available:false};
+      const order=(keys,dir)=>{const s=keys.slice().sort();
+        if(dir==='rev') return s.reverse();
+        if(dir==='rot'){const h=Math.ceil(s.length/2);return s.slice(h).concat(s.slice(0,h));}
+        return s;};
       const reorder=(v,dir)=>Array.isArray(v)?v.map(x=>reorder(x,dir))
-        :v&&typeof v==='object'?Object.fromEntries(Object.keys(v).sort()[dir==='rev'?'reverse':'slice']()
-          .map(k=>[k,reorder(v[k],dir)])):v;
+        :v&&typeof v==='object'?Object.fromEntries(order(Object.keys(v),dir).map(k=>[k,reorder(v[k],dir)])):v;
       sets[0].problems=[{id:'q1',title:'t',desc:'',answer:'3',answerImg:'',numLabel:'',paired:true,
         groupSpan:1,groupLead:'',span:'pair',
         blocks:[{type:'statement',data:{text:'원 $x^2+y^2=5$'}},
                 {type:'choices',data:{layout:'horizontal',items:['6','7','8','9','10'],images:['','','','','']}}]}];
       await writeCloudSnapshot(currentUser.uid,sessionContext());
       const created=window.__remote.get('set-a');
-      /* listener가 본 모양(정렬 순서)으로 기준을 잡는다 — reconcileSetSyncMeta와 같은 경로 */
-      setWriteBase.set('set-a',setWriteBaseEntryFromDoc(reorder(created,'sort')));
-      /* transaction은 다른 순서(역순)로 돌려준다 */
+      /* ⚠️ 세 경로의 키 순서를 **모두 다르게** 둔다 — ACK(삽입 순) · listener(회전 순) ·
+         transaction(역순). 기준을 정렬 순서로 주면 '한쪽만 정렬하는' 잘못된 수정도 통과한다
+         (독립 검사 에이전트 지적). 기준은 주입하지 않고 실제 listener 반향 →
+         reconcileSetSyncMeta 경로로 세운다. */
+      watchCloud();
+      const echoed=reorder(created,'rot');
+      const q={data:()=>echoed};
+      window.__watchSnapshot({metadata:{hasPendingWrites:false,fromCache:false},docs:[q],docChanges:()=>[{doc:q}]});
+      const baseViaListener=setWriteBase.get('set-a')?.revision??null;
+      /* transaction은 또 다른 순서(역순)로 돌려준다 */
       const origTx=fbDb.runTransaction;
       fbDb.runTransaction=async run=>origTx(async tx=>run({...tx,
         get:async ref=>{const s=await tx.get(ref);const d=s.exists?reorder(s.data(),'rev'):undefined;
@@ -412,11 +422,12 @@ try{
       window.__status.length=0;window.__toasts.length=0;
       sets[0].name='수정본';
       const ok=await writeCloudSnapshot(currentUser.uid,sessionContext());
-      return {available:typeof writeSetDocRevision==='function',createdRev:created?.revision,ok,
+      return {available:typeof writeSetDocRevision==='function',createdRev:created?.revision,baseViaListener,ok,
         revision:window.__remote.get('set-a')?.revision,name:window.__remote.get('set-a')?.name,
         status:window.__status.at(-1)||'',toasts:window.__toasts};
     });
     assert.equal(r.available,true);assert.equal(r.createdRev,1);
+    assert.equal(r.baseViaListener,1,'listener 반향이 기준을 세우지 않았다 — 검사가 실제 경로를 타지 않는다');
     assert.equal(r.ok,true,`거짓 충돌: ${r.status} ${r.toasts.join(' / ')}`);
     assert.equal(r.revision,2);assert.equal(r.name,'수정본');
     assert.doesNotMatch(r.status,/충돌/);
