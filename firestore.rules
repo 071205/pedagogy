@@ -6,7 +6,7 @@ rules_version = '2';
 //
 //   users/{uid}                → { migratedAt }  · 예전 { sets:[...] } 문서도 남아 있음
 //   users/{uid}/sets/{setId}   → { id, name, header, problems:[...], order,
-//                                  deleted, updatedAt }
+//                                  deleted, updatedAt, revision? }
 //   users/{uid}/mocks/{mockId} → { id, name, round, elective, problems:[...],
 //                                  deleted, createdAt, updatedAt }
 //   users/{uid}/prefs/consent  → { version, agreedAt, items, locale }  (동의 증적)
@@ -54,7 +54,7 @@ service cloud.firestore {
         function hasSetShape() {
           return request.resource.data.keys().hasOnly(
                    ['id','name','header','problems','order',
-                    'deleted','updatedAt','lineColor','subject','folderId'])
+                    'deleted','updatedAt','lineColor','subject','folderId','revision'])
               && request.resource.data.id == setId
               && request.resource.data.name is string
               && request.resource.data.name.size() <= 160
@@ -73,6 +73,11 @@ service cloud.firestore {
               && request.resource.data.lineColor.size() <= 16
               && request.resource.data.subject is string
               && request.resource.data.subject.size() <= 80
+              // R4/B3 전환 Rules: 구 클라이언트의 무 revision 문서와 새 클라이언트의
+              // 양의 정수 revision을 함께 받는다. strict 단계에서는 필수로 좁힌다.
+              && (!('revision' in request.resource.data)
+                  || (request.resource.data.revision is int
+                      && request.resource.data.revision > 0))
               // 폴더 소속. 이름은 여기 넣지 않는다 — 이름 하나 바꿀 때 문제집을
               // 전부 다시 써야 하기 때문이다(300문항짜리가 여럿이면 수 MB).
               // 이름 목록은 prefs/library 문서 하나에 둔다.
@@ -88,10 +93,31 @@ service cloud.firestore {
               && request.resource.data.problems.size() == 0;
         }
 
-        // 문서 id와 내부 id가 어긋나면 병합이 꼬인다. tombstone은 빈 내용만 허용한다.
-        allow create, update: if isOwner()
-                              && hasSetShape()
-                              && (!request.resource.data.deleted || isTombstone());
+        function validSetBody() {
+          return hasSetShape()
+              && (!request.resource.data.deleted || isTombstone());
+        }
+
+        // R4/B3 전환 단계:
+        //   · 구 클라이언트 create/update(무 revision)는 기존 문서가 무 revision일 때만 허용
+        //   · 새 클라이언트 create는 revision 1
+        //   · 무 revision 문서의 최초 승격도 revision 1
+        //   · 한번 승격한 문서는 정확히 +1만 허용하며 무 revision으로 되돌릴 수 없음
+        allow create: if isOwner()
+                      && validSetBody()
+                      && (!('revision' in request.resource.data)
+                          || request.resource.data.revision == 1);
+        allow update: if isOwner()
+                      && validSetBody()
+                      && (
+                        (!('revision' in resource.data)
+                          && (!('revision' in request.resource.data)
+                              || request.resource.data.revision == 1))
+                        ||
+                        (('revision' in resource.data)
+                          && ('revision' in request.resource.data)
+                          && request.resource.data.revision == resource.data.revision + 1)
+                      );
 
         // 실제 삭제는 쓰지 않는다(tombstone 으로 대체). 그래도 본인 것은 지울 수 있게 둔다.
         allow delete: if isOwner();
