@@ -19,7 +19,10 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          fetch-depth: 2
+          # 깨보기 검사 여섯(check-sets-cloud-size·set-revision-cas·set-sync-metadata·
+          # library-ui·review-contracts·sonar-scope)이 `git show <옛 커밋>:index.html` 로
+          # 방어 없는 판을 서빙한다. 얕은 체크아웃이면 그 커밋이 없어 CI 에서만 실패한다.
+          fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
