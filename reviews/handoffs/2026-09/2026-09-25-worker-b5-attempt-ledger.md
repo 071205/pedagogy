@@ -14,6 +14,7 @@
 비밀 HMAC으로 묶는다. `pending` 10분, `completed` 7일을 개별 만료하고 가장 이른 항목에
 alarm을 다시 건다. 중복·성공 잠금은 quota 예약과 공급자 호출 전에 거부하며, 실패 후에는
 새 attempt ID와 명시 retry만 허용한다. 기존 단일 이미지/문서 요청은 그대로 둔다.
+사용자별 활성 항목은 최대 1,000개로 제한해 완료/대기 항목의 무제한 누적을 막는다.
 
 재인증된 계정 삭제의 마지막 단계에서 `DELETE /account/ledger`로 원장을 파기하고 7일
 삭제 울타리를 남긴다. `DailyQuota`는 초기화하지 않는다. Worker 운영·staging config에
@@ -33,7 +34,7 @@ Worker를 Pages보다 먼저 적용해야 계정 삭제가 중단되지 않는�
 
 ## 검증
 
-- `npm run test:worker` 통과: 자정·동시 중복·응답 유실·실패 후 명시 재시도·항목별
+- `npm run test:worker` 통과: 자정·동시 중복·1,000건 상한·응답 유실·실패 후 명시 재시도·항목별
   alarm·비밀 HMAC·계정 삭제/최근 재인증·quota 분리와 기존 Worker 경로.
 - `ATTEMPT_LEDGER_RED=1 node worker/attempt-ledger.test.mjs`는 중복을 통과시키는
   고장 주입에서 예상대로 200≠409로 실패했다.

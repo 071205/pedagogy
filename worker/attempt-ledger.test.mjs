@@ -70,6 +70,15 @@ assert.equal(storage.alarmAt, null, 'no unbounded alarm remains');
 assert.equal((await call(ledger, 'begin', a, c, { retry: true })).ok, true,
   'an explicit user retry is allowed after the retention window');
 
+const cappedStorage = new MemoryStorage();
+await cappedStorage.put('ledger', { entries: Object.fromEntries(
+  Array.from({ length: 1_000 }, (_, i) => [i.toString(16).padStart(64, '0'),
+    { state: 'completed', attemptId: b, outcome: 'failure', expiresAt: now + 60_000 }])
+), closedUntil: 0 });
+const cappedLedger = new AttemptLedger({ storage: cappedStorage }, {}, () => now);
+assert.equal((await call(cappedLedger, 'begin', hex('f'), c, { retry: false })).state,
+  'capacity', 'unpaid attempts cannot grow a user object without bound');
+
 const env = { ATTEMPT_HMAC_KEY: 'fixture-secret-at-least-thirty-two-characters',
   ATTEMPT_HMAC_VERSION: 'v1' };
 const attempt = { jobId: 'job_12345678', sourceHash: hex('1'), pageNumber: 4,

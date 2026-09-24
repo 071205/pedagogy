@@ -2,6 +2,7 @@
 // prompt, provider response, UID, or client identifier is stored in this object.
 const PENDING_MS = 10 * 60 * 1000;
 const COMPLETED_MS = 7 * 24 * 60 * 60 * 1000;
+const MAX_ENTRIES = 1_000;
 const HEX_256 = /^[a-f0-9]{64}$/;
 
 const reply = (value, status = 200) => Response.json(value, { status });
@@ -82,6 +83,8 @@ export class AttemptLedger {
           if (previous && (previous.state === 'pending' || previous.outcome === 'success'
             || !retry || previous.attemptId === attemptId)) {
             result = { ok: false, state: previous.state, outcome: previous.outcome || null };
+          } else if (!previous && Object.keys(ledger.entries).length >= MAX_ENTRIES) {
+            result = { ok: false, state: 'capacity' };
           } else {
             ledger.entries[key] = { state: 'pending', attemptId,
               expiresAt: now + PENDING_MS };
