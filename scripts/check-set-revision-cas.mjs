@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 const BASE_COMMIT='4ea6fa7';
 const base='http://127.0.0.1:18886';
 const server=spawn('python3',['serve.py','--port','18886'],{stdio:'ignore'});
-const EXPECTED_CHECKS=19;
+const EXPECTED_CHECKS=21;
 let browser, harnessFailure=null, checksRun=0;
 const failures=[];
 
@@ -227,6 +227,7 @@ try{
     assert.equal(r.available,true);assert.equal(r.ok,false);assert.equal(r.remote,'다른 기기');
     assert.equal(r.local,'내 초안');assert.equal(r.requeues,0);assert.match(r.status,/충돌/);
     assert.ok(r.toasts.some(x=>x.includes('초안은 보존')));
+    assert.ok(r.toasts.some(x=>x.includes('다른 기기')),'실제 원격 변경은 그 원인을 말해야 한다');
   });
 
   await check('새로고침된 dirty 초안은 영속 base만으로 덮어쓰지 않는다',async p=>{
@@ -238,10 +239,55 @@ try{
       rememberSetSyncMeta(currentUser.uid,[{id:'set-a',entry:setSyncMetaEntry(server,0,2)}]);
       sets[0].name='재로드된 초안';loadSetSyncMeta(currentUser.uid);
       const runtimeBase=setWriteBase.size,ok=await writeCloudSnapshot(currentUser.uid,sessionContext());
-      return {available,runtimeBase,ok,remote:window.__remote.get('set-a').name,local:sets[0].name};
+      return {available,runtimeBase,ok,remote:window.__remote.get('set-a').name,local:sets[0].name,
+        status:window.__status.at(-1)||'',toasts:window.__toasts};
     });
     assert.equal(r.available,true);assert.equal(r.runtimeBase,0);assert.equal(r.ok,false);
     assert.equal(r.remote,'서버 기준');assert.equal(r.local,'재로드된 초안');
+    /* REV-2026-111: 기준이 없어 막힌 것을 '다른 기기' 탓으로 말하지 않는다 */
+    assert.match(r.status,/계정 저장 보류/);
+    assert.ok(r.toasts.some(x=>x.includes('저장 기준을 확인하지 못해')),r.toasts.join(' / '));
+    assert.ok(!r.toasts.some(x=>x.includes('다른 기기')),'원격 변경이 없는데 다른 기기를 원인으로 말했다');
+    assert.ok(r.toasts.some(x=>x.includes('초안은 보존')));
+  });
+
+  /* Codex 검토 지적: 서버 revision 이 비정상이면 내용이 같아도 '내용이 달라'·'다른 기기' 라고
+     말하면 거짓이다. 원인은 저장 번호다. */
+  await check('서버 저장 번호가 비정상이면 내용 차이나 다른 기기를 원인으로 말하지 않는다',async p=>{
+    await stub(p);
+    const r=await p.evaluate(async()=>{
+      if(typeof setWriteBaseEntryFromDoc!=='function'||typeof setWriteBase==='undefined') return {available:false};
+      sets[0].name='같은 이름';
+      const server=setToDoc(sets[0],0);server.revision=0;   // 0 은 유효한 revision 이 아니다
+      window.__remote.set('set-a',server);
+      sets[0].header='로컬만 바뀐 머리말';
+      const ok=await writeCloudSnapshot(currentUser.uid,sessionContext());
+      return {available:true,ok,status:window.__status.at(-1)||'',toasts:window.__toasts};
+    });
+    assert.equal(r.available,true);assert.equal(r.ok,false);
+    assert.match(r.status,/계정 저장 보류/);
+    assert.ok(r.toasts.some(x=>x.includes('저장 번호가 올바르지 않아')),r.toasts.join(' / '));
+    assert.ok(!r.toasts.some(x=>x.includes('다른 기기')||x.includes('내용과 계정 저장본이 달라')),r.toasts.join(' / '));
+  });
+
+  await check('로컬 저장까지 실패하면 초안을 보존했다고 말하지 않는다',async p=>{
+    await stub(p);
+    const r=await p.evaluate(async()=>{
+      if(typeof setWriteBaseEntryFromDoc!=='function'||typeof setWriteBase==='undefined') return {available:false};
+      const server=setToDoc({...sets[0],name:'서버 기준'},0);server.revision=2;
+      window.__remote.set('set-a',server);
+      sets[0].name='재로드된 초안';loadSetSyncMeta(currentUser.uid);
+      const orig=Storage.prototype.setItem;
+      Storage.prototype.setItem=function(k,v){ if(String(k).startsWith('PM_SETS_V7')) throw new Error('QuotaExceededError'); return orig.call(this,k,v); };
+      localDirty=true;
+      let ok;
+      try{ ok=await writeCloudSnapshot(currentUser.uid,sessionContext()); }
+      finally{ Storage.prototype.setItem=orig; }
+      return {available:true,ok,status:window.__status.at(-1)||'',toasts:window.__toasts};
+    });
+    assert.equal(r.available,true);assert.equal(r.ok,false);
+    assert.ok(r.toasts.some(x=>x.includes('이 기기에도 저장하지 못했어요')),r.toasts.join(' / '));
+    assert.ok(!r.toasts.some(x=>x.includes('초안은 보존')),'로컬 저장이 실패했는데 보존했다고 말했다');
   });
 
   await check('혼합 저장은 성공 문서만 ACK하고 충돌 문서는 남긴다',async p=>{
