@@ -25,7 +25,7 @@
      어렵다 — 새 로그인만 깨진다). 실제로 한 번 그랬으니 손대지 말 것. -->
 <meta http-equiv="Content-Security-Policy" content="
   default-src 'self';
-  script-src 'self' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-+6qfI3mfMKtlZZyaYofs+VCXsk/2JZHHzOivTsUDQkc=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
+  script-src 'self' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-4E2/WBzDQkHWcvmGmqz5KsyRodSNBOaVHkb3eTon5xo=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
   script-src-attr 'none';
   style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
   font-src 'self' data: https://cdn.jsdelivr.net;
@@ -3721,11 +3721,13 @@ function updateHistButtons(){
   if(r) r.disabled=!redoStack.length;
 }
 
-function setSaveStatus(txt, color){
+function setSaveStatus(txt, color, detail){
   const el=document.getElementById("saveStatus");
   if(!el) return;
   el.textContent=txt;
   el.style.color=color||"var(--text-tertiary)";
+  /* 토스트는 3.6초 뒤 사라진다 — 사용자가 결정해야 하는 상태의 설명은 상태 표시에 남긴다. */
+  el.title=detail||"";
 }
 
 /* 로컬 저장은 항상 동기로 즉시 — 브라우저가 갑자기 닫혀도 여기까진 남는다.
@@ -3828,7 +3830,7 @@ async function writeSetDocRevision(owner,target,session,{allowWiping=false,useCu
       /* 신규 ID만 문서 부재를 정상 기대값으로 삼는다. 이미 ACK한 문서가 다른 기기나
          운영 복구에서 사라졌다면 revision 1로 되살리지 않고 충돌로 보존한다. */
       if(expected&&!useCurrentServerAsBase)
-        throw setRevisionFailure("set-revision-conflict","서버에서 문제집이 삭제되었습니다",{serverRevision:null});
+        throw setRevisionFailure("set-revision-conflict","서버에서 문제집이 삭제되었습니다",{serverRevision:null,reason:"remote-deleted"});
       const doc={...desired,revision:1};
       if(docBytes(doc)>CLOUD_DOC_MAX) throw setRevisionFailure("set-too-big","문제집 문서가 너무 큽니다");
       tx.set(ref,doc); return {doc,writeDoc:doc,wrote:true};
@@ -3836,7 +3838,7 @@ async function writeSetDocRevision(owner,target,session,{allowWiping=false,useCu
     const server=snap.data();
     const hasRevision=Object.hasOwn(server,"revision"), serverRevision=syncRevision(server.revision);
     if(hasRevision&&serverRevision===null)
-      throw setRevisionFailure("set-revision-conflict","서버 revision이 올바르지 않습니다",{serverRevision:null});
+      throw setRevisionFailure("set-revision-conflict","서버 revision이 올바르지 않습니다",{serverRevision:null,reason:"invalid-server"});
     if(sameCloudSetDoc(server,desired)){
       if(serverRevision!==null)
         return {doc:{...desired,revision:serverRevision},writeDoc:server,wrote:false};
@@ -3844,11 +3846,15 @@ async function writeSetDocRevision(owner,target,session,{allowWiping=false,useCu
       if(docBytes(doc)>CLOUD_DOC_MAX) throw setRevisionFailure("set-too-big","문제집 문서가 너무 큽니다");
       tx.set(ref,doc); return {doc,writeDoc:doc,wrote:true};
     }
+    /* 기준이 **없으면**(새로고침 뒤 초안 · REV-2026-111) 원격 변경이라고 단정할 수 없다.
+       원인을 갈라 두어야 사용자에게 사실만 말할 수 있다. */
     if(!useCurrentServerAsBase&&!setWriteBaseMatchesDoc(expected,server))
-      throw setRevisionFailure("set-revision-conflict","다른 기기의 문제집 변경과 겹쳤습니다",{serverRevision});
+      throw setRevisionFailure("set-revision-conflict",
+        expected?"다른 기기의 문제집 변경과 겹쳤습니다":"저장 기준을 확인하지 못했습니다",
+        {serverRevision,reason:expected?"remote-changed":"no-base"});
     const revision=serverRevision===null?1:serverRevision+1;
     if(!Number.isSafeInteger(revision))
-      throw setRevisionFailure("set-revision-conflict","서버 revision 범위를 벗어났습니다",{serverRevision});
+      throw setRevisionFailure("set-revision-conflict","서버 revision 범위를 벗어났습니다",{serverRevision,reason:"invalid-server"});
     const doc={...desired,revision};
     if(docBytes(doc)>CLOUD_DOC_MAX) throw setRevisionFailure("set-too-big","문제집 문서가 너무 큽니다");
     tx.set(ref,doc); return {doc,writeDoc:doc,wrote:true};
@@ -3929,7 +3935,7 @@ async function writeCloudSnapshot(uidAtSave,session){
           if(!sessionMatches(session)||wiping) return;
           acknowledged.push({id:item.id,doc:result.doc,writeDoc:result.writeDoc||result.doc});
         }catch(e){
-          if(e?.code==="set-revision-conflict"){ conflicts.push(item); continue; }
+          if(e?.code==="set-revision-conflict"){ conflicts.push({...item,reason:e.reason||"unknown"}); continue; }
           if(e?.code==="set-too-big"){ tooBig.push(item); continue; }
           throw e;
         }
@@ -3958,8 +3964,24 @@ async function writeCloudSnapshot(uidAtSave,session){
       return;
     }
     if(conflicts.length){
-      setSaveStatus("⚠ 동기화 충돌", "#e57373");
-      toast(`${conflicts.map(d=>`'${d.name||"제목 없음"}'`).join(", ")}의 다른 기기 변경과 겹쳐 계정에 올리지 않았어요 · 이 기기 초안은 보존했습니다`,"error");
+      /* ⚠️ 원인을 단정하지 않는다(REV-2026-111). 기준이 없어서 막힌 것을 '다른 기기' 탓으로
+         말하면 사용자는 있지도 않은 기기를 찾는다. 로컬 보존도 실제로 성공했을 때만 말한다. */
+      const names=list=>list.map(d=>`'${d.name||"제목 없음"}'`).join(", ");
+      const by=r=>conflicts.filter(d=>(d.reason||"unknown")===r);
+      const SAY={
+        "remote-changed":"다른 기기에서 먼저 바뀌어 계정에 올리지 않았어요",
+        "remote-deleted":"계정에서 이 문제집이 없어져 다시 만들지 않았어요",
+        "no-base":"이 기기의 내용과 계정 저장본이 달라 안전한 저장 기준을 확인하지 못해 계정에 올리지 않았어요",
+        "invalid-server":"계정 저장본의 저장 번호가 올바르지 않아 계정에 올리지 않았어요",
+        "unknown":"저장 기준을 확인하지 못해 계정에 올리지 않았어요"};
+      const parts=Object.keys(SAY).filter(r=>by(r).length).map(r=>`${names(by(r))} — ${SAY[r]}`);
+      const unverified=[...by("no-base"),...by("invalid-server"),...by("unknown")];
+      const keep=localSaved
+        ? "이 기기 초안은 보존했어요. 상단 '내보내기'로 JSON을 받아 두세요"
+        : "이 기기에도 저장하지 못했어요. 창을 닫거나 새로고침하지 말고 지금 상단 '내보내기'로 JSON을 받아 두세요";
+      const detail=`${parts.join(" / ")} · ${keep}`;
+      setSaveStatus(unverified.length?"⚠ 계정 저장 보류":"⚠ 동기화 충돌", "#e57373", detail);
+      toast(detail,"error");
       return false;
     }
     if(badShape.length){
