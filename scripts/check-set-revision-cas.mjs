@@ -5,11 +5,13 @@
 import {chromium} from 'playwright';
 import {spawn,execFileSync} from 'node:child_process';
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
 
-const BASE_COMMIT='4ea6fa7';
+/* SET_REVISION_BASE 로 다른 기준 커밋(예: B4 직전)을 깨보기 대상으로 삼을 수 있다. */
+const BASE_COMMIT=process.env.SET_REVISION_BASE||'4ea6fa7';
 const base='http://127.0.0.1:18886';
 const server=spawn('python3',['serve.py','--port','18886'],{stdio:'ignore'});
-const EXPECTED_CHECKS=21;
+const EXPECTED_CHECKS=35;
 let browser, harnessFailure=null, checksRun=0;
 const failures=[];
 
@@ -19,7 +21,9 @@ async function open(){
   await p.route('**/*',r=>{
     const u=new URL(r.request().url());
     if(process.env.SET_REVISION_RED==='1'&&u.pathname==='/index.html')
-      return r.fulfill({contentType:'text/html',body:execFileSync('git',['show',BASE_COMMIT+':index.html'])});
+      return r.fulfill({contentType:'text/html',body:process.env.SET_REVISION_INDEX
+        ?readFileSync(process.env.SET_REVISION_INDEX)       // 깨보기용 변이본(CSP 해시를 다시 맞춘 사본)
+        :execFileSync('git',['show',BASE_COMMIT+':index.html'])});
     return u.origin===base?r.continue():r.abort();
   });
   await p.goto(base+'/index.html');
@@ -48,7 +52,9 @@ async function stub(p,{schema=1,owner='owner-a'}={}){
         window.__watchSnapshot=typeof args[0]==='function'?args[0]:args[1];return ()=>{};},
       doc:id=>({
       __id:String(id),collection:col,
-      async set(data){ window.__remote.set(String(id),clone(data)); }
+      async set(data){ window.__remote.set(String(id),clone(data)); },
+      async get(){ window.__gets=(window.__gets||0)+1;const data=window.__remote.get(String(id));
+        return {exists:data!==undefined,data:()=>clone(data)}; }
     })});
     fbDb={
       collection:col,
@@ -69,6 +75,41 @@ async function stub(p,{schema=1,owner='owner-a'}={}){
     };
     sets=[{id:'set-a',name:'로컬',header:'',lineColor:'indigo',subject:'math',problems:[]}];
   },{schema,owner});
+}
+
+/* B4: 충돌 뒤 한 번 더 저장하면 **새 사본만** 올라가고 동결된 원본은 시도조차 하지 않는다.
+   '재귀 재시도하지 않는다' 를 requeue 0 으로 보던 것을 이 두 번째 판으로 대신한다. */
+async function secondRound(p,id){
+  return p.evaluate(async id=>{
+    const isCopy=s=>/ \(내 사본\)$/.test(s.name||'');
+    const before=window.__txCalls, remoteBefore=JSON.stringify(window.__remote.get(id)??null);
+    const copies=sets.filter(isCopy);
+    await writeCloudSnapshot(currentUser.uid,sessionContext());
+    const heldOk=typeof heldSetIds==='function'&&heldSetIds(currentUser.uid).has(id);
+    return {copies:copies.length,copyRemote:copies[0]?window.__remote.get(copies[0].id)?.revision??null:null,
+      secondTx:window.__txCalls-before,remoteSame:JSON.stringify(window.__remote.get(id)??null)===remoteBefore,
+      heldOk,copyAfter:sets.filter(isCopy).length,existsAfter:window.__remote.has(id)};
+  },id);
+}
+function assertSecondRound(r){
+  assert.equal(r.copies,1,'충돌 사본이 정확히 하나여야 한다');assert.equal(r.heldOk,true,'원본이 동결되지 않았다');
+  assert.equal(r.secondTx,1,'두 번째 판은 사본 하나만 올려야 한다');assert.equal(r.copyRemote,1);
+  assert.equal(r.remoteSame,true,'동결된 원본의 서버 문서가 바뀌었다');assert.equal(r.copyAfter,1,'사본이 다시 생겼다');
+}
+
+/* 다른 기기가 rev 3 으로 올린 뒤 이 기기의 rev 2 기준 초안이 저장되는 표준 충돌. */
+async function heldStale(p){
+  return p.evaluate(async()=>{
+    if(typeof heldSetIds!=='function'||typeof setWriteBase==='undefined') return false;
+    const old=setToDoc({...sets[0],name:'옛 기준'},0);old.revision=2;
+    window.__remote.set('set-a',{...old,name:'다른 기기',revision:3});
+    cloudSynced.set('set-a',cloudSyncEntry(docToSet(old),0));
+    setWriteBase.set('set-a',setWriteBaseEntryFromDoc(old));
+    flushHistory();sets[0].name='내 초안';flushHistory();       // 충돌 전 되돌리기 기록 1단계
+    window.__undoBefore=undoStack.length;
+    await writeCloudSnapshot(currentUser.uid,sessionContext());
+    return true;
+  });
 }
 
 async function check(name,run){
@@ -122,11 +163,14 @@ try{
       setWriteBase.set('set-a',setWriteBaseEntryFromDoc(old));
       sets[0].name='내 초안';
       const ok=await writeCloudSnapshot(currentUser.uid,sessionContext());
-      return {available,ok,exists:window.__remote.has('set-a'),local:sets[0].name,
-        requeues:window.__requeues,status:window.__status.at(-1),toasts:window.__toasts};
+      const first={available,ok,exists:window.__remote.has('set-a'),local:sets[0].name,
+        requeues:window.__requeues,status:window.__status.at(-1),toasts:[...window.__toasts]};
+      return first;
     });
+    r.second=await secondRound(p,'set-a');r.existsAfter=r.second.existsAfter;
     assert.equal(r.available,true);assert.equal(r.ok,false);assert.equal(r.exists,false);
-    assert.equal(r.local,'내 초안');assert.equal(r.requeues,0);assert.match(r.status,/충돌/);
+    assert.equal(r.local,'내 초안');assert.ok(r.requeues<=1);assert.match(r.status,/충돌/);
+    assertSecondRound(r.second);assert.equal(r.existsAfter,false,'지워진 원본을 되살렸다');
     assert.ok(r.toasts.some(x=>x.includes('초안은 보존')));
   });
 
@@ -221,11 +265,14 @@ try{
       cloudSynced.set('set-a',cloudSyncEntry(docToSet(old),0));
       setWriteBase.set('set-a',setWriteBaseEntryFromDoc(old));sets[0].name='내 초안';
       const ok=await writeCloudSnapshot(currentUser.uid,sessionContext());
-      return {available,ok,remote:window.__remote.get('set-a').name,local:sets[0].name,
-        requeues:window.__requeues,status:window.__status.at(-1),toasts:window.__toasts};
+      const first={available,ok,remote:window.__remote.get('set-a').name,local:sets[0].name,
+        requeues:window.__requeues,status:window.__status.at(-1),toasts:[...window.__toasts]};
+      return first;
     });
+    r.second=await secondRound(p,'set-a');
     assert.equal(r.available,true);assert.equal(r.ok,false);assert.equal(r.remote,'다른 기기');
-    assert.equal(r.local,'내 초안');assert.equal(r.requeues,0);assert.match(r.status,/충돌/);
+    assert.equal(r.local,'내 초안');assert.ok(r.requeues<=1);assert.match(r.status,/충돌/);
+    assertSecondRound(r.second);
     assert.ok(r.toasts.some(x=>x.includes('초안은 보존')));
     assert.ok(r.toasts.some(x=>x.includes('다른 기기')),'실제 원격 변경은 그 원인을 말해야 한다');
   });
@@ -492,6 +539,294 @@ try{
     });
     assert.equal(r.available,true);
     assert.notEqual(r.a,r.b,'__proto__ 키가 지문에서 빠져 다른 문서가 같은 CAS 기준이 됐다');
+  });
+
+  /* ── B4 충돌 보류·복구 (저장 계약 §2-5 · REV-2026-111 ③) ── */
+  await check('B4 충돌은 기록을 먼저 쓰고 충돌 당시 초안째 보관하며 되돌리기 경계를 비운다',async p=>{
+    await stub(p);
+    const available=await heldStale(p);
+    const r=await p.evaluate(()=>{
+      if(typeof readSetConflicts!=='function') return {};
+      const rec=readSetConflicts(currentUser.uid).get('set-a');
+      const copy=sets.find(s=>s.id===rec?.copyId);
+      return {rec:!!rec,snapName:rec?.snapshot?.name,reason:rec?.reason,base:rec?.baseRevision,server:rec?.serverRevision,
+        hasBase:rec?.hasBase,copyName:copy?.name,local:sets.find(s=>s.id==='set-a')?.name,
+        undoBefore:window.__undoBefore,undo:undoStack.length,redo:redoStack.length,timer:histTimer};
+    });
+    assert.equal(available,true);assert.equal(r.rec,true);assert.equal(r.snapName,'내 초안');
+    assert.equal(r.reason,'remote-changed');assert.equal(r.base,2);assert.equal(r.server,3);assert.equal(r.hasBase,true);
+    assert.equal(r.copyName,'내 초안 (내 사본)');assert.equal(r.local,'내 초안');
+    assert.ok(r.undoBefore>=1,'깨보기 전제: 충돌 전 되돌리기 기록이 있어야 한다');
+    assert.equal(r.undo,0);assert.equal(r.redo,0);assert.equal(r.timer,null);
+  });
+
+  await check('B4 기록만 남은 사본은 같은 copyId로 한 번만 다시 만들고 지운 사본은 되살리지 않는다',async p=>{
+    await stub(p);
+    const available=await heldStale(p);
+    const r=await p.evaluate(async()=>{
+      if(typeof ensureConflictCopies!=='function') return {};
+      const rec=readSetConflicts(currentUser.uid).get('set-a');
+      sets=sets.filter(s=>s.id!==rec.copyId);                  // 다른 탭이 sets 를 덮었거나 종료
+      const first=ensureConflictCopies(currentUser.uid), again=ensureConflictCopies(currentUser.uid);
+      const back=sets.filter(s=>s.id===rec.copyId).length;
+      await deleteSetEverywhere(sets.find(s=>s.id===rec.copyId));      // 사용자가 사본을 지움
+      await navigator.locks.request('pedagogy-set-conflicts:'+currentUser.uid,()=>{});
+      sets=sets.filter(s=>s.id!==rec.copyId);deletedIds.delete(rec.copyId);
+      const revived=ensureConflictCopies(currentUser.uid);
+      return {first,again,back,revived,dismissed:readSetConflicts(currentUser.uid).get('set-a')?.copyDismissed,
+        stillHeld:heldSetIds(currentUser.uid).has('set-a')};
+    });
+    assert.equal(available,true);assert.equal(r.first,true);assert.equal(r.again,false);assert.equal(r.back,1);
+    assert.equal(r.dismissed,true);assert.equal(r.revived,false,'지운 사본을 되살렸다');assert.equal(r.stillHeld,true);
+  });
+
+  await check('B4 충돌 기록을 쓰지 못하면 사본도 동결도 만들지 않는다',async p=>{
+    await stub(p);
+    const r=await p.evaluate(async()=>{
+      if(typeof heldSetIds!=='function'||typeof setWriteBase==='undefined') return {available:false};
+      const orig=Storage.prototype.setItem;
+      Storage.prototype.setItem=function(k,v){ if(String(k).startsWith('PM_SET_CONFLICTS_V1')) throw new Error('QuotaExceededError'); return orig.call(this,k,v); };
+      const old=setToDoc({...sets[0],name:'옛 기준'},0);old.revision=2;
+      window.__remote.set('set-a',{...old,name:'다른 기기',revision:3});
+      cloudSynced.set('set-a',cloudSyncEntry(docToSet(old),0));
+      setWriteBase.set('set-a',setWriteBaseEntryFromDoc(old));sets[0].name='내 초안';
+      let ok;try{ ok=await writeCloudSnapshot(currentUser.uid,sessionContext()); }finally{ Storage.prototype.setItem=orig; }
+      return {available:true,ok,held:heldSetIds(currentUser.uid).size,copies:sets.filter(s=>/내 사본/.test(s.name)).length,
+        toasts:window.__toasts,local:sets[0].name};
+    });
+    assert.equal(r.available,true);assert.equal(r.ok,false);assert.equal(r.held,0);assert.equal(r.copies,0);
+    assert.equal(r.local,'내 초안');assert.ok(r.toasts.some(x=>x.includes('내보내기')),r.toasts.join(' / '));
+  });
+
+  await check('B4 계정 저장본으로 돌아가기는 확인한 서버본을 채택하고 사본은 남긴다',async p=>{
+    await stub(p);
+    const available=await heldStale(p);
+    const r=await p.evaluate(async()=>{
+      if(typeof chooseServerVersion!=='function') return {};
+      const S={exists:true,data:window.__remote.get('set-a')};
+      pushHistory();
+      const res=await chooseServerVersion(currentUser.uid,'set-a',S);
+      const x=sets.find(s=>s.id==='set-a');
+      const out={ok:res.ok,local:x?.name,held:heldSetIds(currentUser.uid).has('set-a'),copies:sets.filter(s=>/내 사본/.test(s.name)).length,
+        base:setWriteBase.get('set-a')?.revision,undo:undoStack.length,timer:histTimer};
+      x.name='돌아간 뒤 편집';
+      await writeCloudSnapshot(currentUser.uid,sessionContext());
+      out.after=window.__remote.get('set-a');
+      return out;
+    });
+    assert.equal(available,true);assert.equal(r.ok,true);assert.equal(r.local,'다른 기기');assert.equal(r.held,false);
+    assert.equal(r.copies,1);assert.equal(r.base,3);assert.equal(r.undo,0);assert.equal(r.timer,null);
+    assert.equal(r.after.revision,4);assert.equal(r.after.name,'돌아간 뒤 편집');
+  });
+
+  await check('B4 내 초안으로 교체는 확인한 서버본 위에만 명시 CAS로 쓴다',async p=>{
+    await stub(p);
+    const available=await heldStale(p);
+    const r=await p.evaluate(async()=>{
+      if(typeof chooseLocalVersion!=='function') return {};
+      const rec=readSetConflicts(currentUser.uid).get('set-a');
+      const copy=sets.find(s=>s.id===rec.copyId);copy.name='사본에서 더 고침';   // 사본 편집은 교체에 들어가지 않는다
+      const S={exists:true,data:window.__remote.get('set-a')};
+      const res=await chooseLocalVersion(currentUser.uid,'set-a',S,rec.at);
+      return {ok:res.ok,remote:window.__remote.get('set-a'),held:heldSetIds(currentUser.uid).has('set-a'),
+        base:setWriteBase.get('set-a')?.revision,copyLeft:sets.some(s=>s.id===rec.copyId)};
+    });
+    assert.equal(available,true);assert.equal(r.ok,true);assert.equal(r.remote.revision,4);assert.equal(r.remote.name,'내 초안');
+    assert.equal(r.held,false);assert.equal(r.base,4);assert.equal(r.copyLeft,true);
+  });
+
+  await check('B4 확인한 뒤 서버가 또 바뀌면 교체하지 않고 다시 묻는다',async p=>{
+    await stub(p);
+    const available=await heldStale(p);
+    const r=await p.evaluate(async()=>{
+      if(typeof chooseLocalVersion!=='function') return {};
+      const rec=readSetConflicts(currentUser.uid).get('set-a');
+      const S={exists:true,data:window.__remote.get('set-a')};
+      window.__remote.set('set-a',{...S.data,name:'또 바뀜',revision:4});         // 확인 뒤 다른 기기 저장
+      const res=await chooseLocalVersion(currentUser.uid,'set-a',S,rec.at);
+      return {ok:res.ok,changed:res.changed,remote:window.__remote.get('set-a'),held:heldSetIds(currentUser.uid).has('set-a')};
+    });
+    assert.equal(available,true);assert.equal(r.ok,false);assert.equal(r.changed,true);
+    assert.equal(r.remote.name,'또 바뀜');assert.equal(r.remote.revision,4);assert.equal(r.held,true);
+  });
+
+  await check('B4 새로고침된 초안(REV-2026-111)은 보류된 뒤 명시 교체로 풀린다',async p=>{
+    await stub(p);
+    const r=await p.evaluate(async()=>{
+      if(typeof chooseLocalVersion!=='function') return {available:false};
+      const server=setToDoc({...sets[0],name:'서버 기준'},0);server.revision=2;
+      window.__remote.set('set-a',server);cloudSynced.set('set-a',cloudSyncEntry(docToSet(server),0));
+      rememberSetSyncMeta(currentUser.uid,[{id:'set-a',entry:setSyncMetaEntry(server,0,2)}]);
+      sets[0].name='재로드된 초안';loadSetSyncMeta(currentUser.uid);
+      await writeCloudSnapshot(currentUser.uid,sessionContext());
+      const rec=readSetConflicts(currentUser.uid).get('set-a');
+      const res=await chooseLocalVersion(currentUser.uid,'set-a',{exists:true,data:window.__remote.get('set-a')},rec?.at);
+      return {available:true,reason:rec?.reason,hasBase:rec?.hasBase,ok:res.ok,remote:window.__remote.get('set-a'),
+        status:window.__status.find(x=>/보류|충돌/.test(x))||''};
+    });
+    assert.equal(r.available,true);assert.equal(r.reason,'no-base');assert.equal(r.hasBase,false);
+    assert.match(r.status,/계정 저장 보류/);assert.equal(r.ok,true);
+    assert.equal(r.remote.revision,3);assert.equal(r.remote.name,'재로드된 초안');
+  });
+
+  await check('B4 지워진 서버본 위 교체는 +1로 되살리고 부재 서버본을 고르면 로컬에서 뺀다',async p=>{
+    await stub(p);
+    const r=await p.evaluate(async()=>{
+      if(typeof chooseLocalVersion!=='function') return {available:false};
+      sets.push({id:'set-b',name:'둘째 로컬',header:'',lineColor:'indigo',subject:'math',problems:[]});
+      const old=setToDoc({...sets[0],name:'옛 기준'},0);old.revision=4;
+      window.__remote.set('set-a',{...setToDoc({id:'set-a',name:'',header:'',problems:[]},0),deleted:true,revision:5});
+      setWriteBase.set('set-a',setWriteBaseEntryFromDoc(old));sets[0].name='내 초안';
+      const oldB=setToDoc({...sets[1],name:'둘째 기준'},1);oldB.revision=2;          // 서버에서 문서가 통째로 사라짐
+      setWriteBase.set('set-b',setWriteBaseEntryFromDoc(oldB));
+      await writeCloudSnapshot(currentUser.uid,sessionContext());
+      const recs=readSetConflicts(currentUser.uid);
+      const a=await chooseLocalVersion(currentUser.uid,'set-a',{exists:true,data:window.__remote.get('set-a')},recs.get('set-a')?.at);
+      const b=await chooseServerVersion(currentUser.uid,'set-b',{exists:false,data:null});
+      return {available:true,held:[...recs.keys()].sort(),a:a.ok,remoteA:window.__remote.get('set-a'),b:b.ok,
+        bLocal:sets.some(s=>s.id==='set-b'),bRemote:window.__remote.has('set-b'),bBase:setWriteBase.has('set-b'),
+        bCopy:sets.some(s=>s.name==='둘째 로컬 (내 사본)')};
+    });
+    assert.equal(r.available,true);assert.deepEqual(r.held,['set-a','set-b']);
+    assert.equal(r.a,true);assert.equal(r.remoteA.deleted,false);assert.equal(r.remoteA.revision,6);assert.equal(r.remoteA.name,'내 초안');
+    assert.equal(r.b,true);assert.equal(r.bLocal,false);assert.equal(r.bRemote,false,'부재를 고르고도 서버에 만들었다');
+    assert.equal(r.bBase,false);assert.equal(r.bCopy,true,'부재를 골라도 사본은 남아야 한다');
+  });
+
+  await check('B4 보류 중 문제집은 편집기로 열리지 않고 다른 계정에는 보이지 않는다',async p=>{
+    await stub(p);
+    const available=await heldStale(p);
+    const r=await p.evaluate(async()=>{
+      if(typeof openSetConflict!=='function') return {};
+      showEditor('set-a');
+      await new Promise(r=>setTimeout(r,50));
+      const out={dialog:document.getElementById('conflictDialog').open,
+        editor:document.getElementById('editorView').style.display!=='none',
+        unsaved:hasUnsavedCloudWork()};
+      document.getElementById('conflictDialog').close();
+      currentUser={uid:'owner-b'};
+      out.otherHeld=heldSetIds('owner-b').size;
+      out.writeAsOther=writeSetConflicts('owner-a',new Map());
+      out.ownerAStill=heldSetIds('owner-a').has('set-a');
+      return out;
+    });
+    assert.equal(available,true);assert.equal(r.dialog,true);assert.equal(r.editor,false);
+    assert.equal(r.otherHeld,0);assert.equal(r.writeAsOther,false);assert.equal(r.ownerAStill,true);
+  });
+
+  await check('B4 동결 원본은 창 닫기 경고에서 빠지지만 올리지 못한 사본은 경고한다',async p=>{
+    await stub(p);
+    const available=await heldStale(p);
+    const r=await p.evaluate(async()=>{
+      if(typeof heldSetIds!=='function') return {};
+      localDirty=false;pendingLocalByOwner.clear();
+      const withCopy=hasUnsavedCloudWork();
+      await writeCloudSnapshot(currentUser.uid,sessionContext());   // 사본 업로드
+      return {withCopy,afterCopy:hasUnsavedCloudWork()};
+    });
+    assert.equal(available,true);assert.equal(r.withCopy,true,'올리지 못한 사본을 경고하지 않았다');
+    assert.equal(r.afterCopy,false,'보류 원본 때문에 경고가 영원히 뜬다');
+  });
+
+  await check('B4 라이브러리 띠·칩과 충돌 화면이 두 저장 번호와 네 선택지를 보인다',async p=>{
+    await stub(p);
+    const available=await heldStale(p);
+    const r=await p.evaluate(async()=>{
+      if(typeof openSetConflict!=='function') return {};
+      showLibrary();
+      const banner=document.getElementById('conflictBanner');
+      const chips=[...document.querySelectorAll('#setGrid .set-chip')].map(x=>x.textContent);
+      await openSetConflict('set-a');
+      const d=document.getElementById('conflictDialog');
+      const buttons=[...d.querySelectorAll('.conflict-choice button')].map(b=>({t:b.textContent,disabled:b.disabled}));
+      const text=d.textContent;
+      const cmp=d.querySelector('.conflict-choice button');cmp.focus();cmp.click();   // 두 버전 보기
+      const diffRows=d.querySelectorAll('.conflict-compare tr.diff').length;
+      const focusKept=document.activeElement?.dataset?.k==='compare'&&d.contains(document.activeElement);
+      return {bannerShown:!banner.hidden,bannerText:banner.textContent,chips,buttons,text,diffRows,
+        labelled:d.getAttribute('aria-labelledby'),titleId:!!d.querySelector('#conflictTitle'),gets:window.__gets||0,focusKept};
+    });
+    assert.equal(available,true);assert.equal(r.bannerShown,true);assert.match(r.bannerText,/1권/);
+    assert.ok(r.chips.includes('⚠ 계정 저장 보류'),r.chips.join(','));assert.ok(r.chips.includes('이 기기에만 보존됨'),r.chips.join(','));
+    assert.match(r.text,/저장 번호 2/);assert.match(r.text,/저장 번호 3/);assert.match(r.text,/내 초안 \(내 사본\)/);
+    assert.deepEqual(r.buttons.map(b=>b.t),['비교 열기','계정 저장본 쓰기','내 초안으로 교체','내보내기']);
+    assert.ok(r.buttons.every(b=>!b.disabled),'서버본을 읽었는데 고를 수 없다');
+    assert.ok(r.diffRows>=1,'두 버전의 다른 줄을 표시하지 않았다');
+    assert.equal(r.focusKept,true,'다시 그린 뒤 키보드 초점을 잃었다');assert.equal(r.labelled,'conflictTitle');assert.equal(r.titleId,true);assert.ok(r.gets>=1,'서버에서 다시 읽지 않았다');
+  });
+
+  /* Codex ⑧ 검토 반례 넷 */
+  await check('B4 자동 해제는 충돌 당시 순서까지 같을 때만 한다',async p=>{
+    await stub(p);
+    const r=await p.evaluate(async()=>{
+      if(typeof releaseSettledConflicts!=='function'||typeof setWriteBase==='undefined') return {available:false};
+      sets=[{id:'front',name:'앞',header:'',lineColor:'indigo',subject:'math',problems:[]},
+        {id:'set-a',name:'로컬',header:'',lineColor:'indigo',subject:'math',problems:[]}];
+      const old=setToDoc({...sets[1],name:'옛 기준'},1);old.revision=2;
+      window.__remote.set('set-a',{...old,name:'다른 기기',revision:3});
+      window.__remote.set('front',{...setToDoc(sets[0],0),revision:1});
+      setWriteBase.set('front',setWriteBaseEntryFromDoc(window.__remote.get('front')));
+      cloudSynced.set('front',cloudSyncEntry(docToSet(window.__remote.get('front')),0));
+      cloudSynced.set('set-a',cloudSyncEntry(docToSet(old),1));
+      setWriteBase.set('set-a',setWriteBaseEntryFromDoc(old));sets[1].name='내 초안';
+      await writeCloudSnapshot(currentUser.uid,sessionContext());
+      const lock=()=>navigator.locks.request('pedagogy-set-conflicts:'+currentUser.uid,()=>{});
+      sets=sets.filter(s=>s.id!=='front'&&!/내 사본/.test(s.name));        // 앞 문제집이 사라져 지금 순서 0
+      const same={...window.__remote.get('set-a'),name:'내 초안',order:0,revision:4};
+      releaseSettledConflicts(currentUser.uid,[same]);await lock();await lock();
+      const keptWhenOrderMoved=heldSetIds(currentUser.uid).has('set-a');
+      sets.unshift({id:'front',name:'앞',header:'',lineColor:'indigo',subject:'math',problems:[]});
+      releaseSettledConflicts(currentUser.uid,[{...same,order:1}]);await lock();await lock();
+      return {available:true,keptWhenOrderMoved,releasedWhenSame:!heldSetIds(currentUser.uid).has('set-a')};
+    });
+    assert.equal(r.available,true);assert.equal(r.keptWhenOrderMoved,true,'충돌 당시 순서와 다른데 풀었다');
+    assert.equal(r.releasedWhenSame,true,'본문·순서가 모두 같은데 풀지 않았다');
+  });
+
+  await check('B4 일괄 삭제는 보류 원본을 목록에서도 빼지 않는다',async p=>{
+    await stub(p);
+    const available=await heldStale(p);
+    const r=await p.evaluate(async()=>{
+      if(typeof heldSetIds!=='function') return {};
+      sets.push({id:'other',name:'지울 것',header:'',lineColor:'indigo',subject:'math',problems:[]});
+      window.confirm=()=>true;showLibrary();
+      libPicked.clear();libPicked.add('set-a');libPicked.add('other');
+      await document.getElementById('selDeleteBtn').onclick();
+      return {heldLocal:sets.some(s=>s.id==='set-a'),otherLocal:sets.some(s=>s.id==='other'),
+        held:heldSetIds(currentUser.uid).has('set-a'),toasts:window.__toasts};
+    });
+    assert.equal(available,true);assert.equal(r.heldLocal,true,'보류 원본이 목록에서 사라졌다');
+    assert.equal(r.otherLocal,false);assert.equal(r.held,true);
+    assert.ok(r.toasts.some(x=>x.includes('보류 중인 문제집은 지우지 않았어요')),r.toasts.join(' / '));
+  });
+
+  await check('B4 기록 상한을 넘는 충돌은 잘라 쓰지 않고 보류했다고 말하지 않는다 · 정리된 화면도 이름이 있다',async p=>{
+    await stub(p);
+    const available=await heldStale(p);
+    const r=await p.evaluate(async()=>{
+      if(typeof writeSetConflicts!=='function') return {};
+      const map=readSetConflicts(currentUser.uid), base=map.get('set-a');
+      for(let i=0;map.size<SET_CONFLICT_MAX;i++) map.set('fill-'+i,{...base,setId:'fill-'+i,copyId:'fc-'+i,copyDismissed:true});
+      writeSetConflicts(currentUser.uid,map);
+      sets.push({id:'set-z',name:'쉰한째',header:'',lineColor:'indigo',subject:'math',problems:[]});
+      const oz=setToDoc({...sets.at(-1),name:'z 기준'},sets.length-1);oz.revision=1;
+      window.__remote.set('set-z',{...oz,name:'z 원격',revision:2});
+      setWriteBase.set('set-z',setWriteBaseEntryFromDoc(oz));
+      cloudSynced.set('set-z',cloudSyncEntry(docToSet(oz),sets.length-1));
+      window.__toasts.length=0;
+      await writeCloudSnapshot(currentUser.uid,sessionContext());
+      const out={count:readSetConflicts(currentUser.uid).size,zHeld:heldSetIds(currentUser.uid).has('set-z'),
+        zCopy:sets.some(s=>s.name==='쉰한째 (내 사본)'),toasts:[...window.__toasts]};
+      await openSetConflict('set-a');
+      await updateSetConflicts(currentUser.uid,m=>m.delete('set-a'));renderConflictDialog();
+      const d=document.getElementById('conflictDialog');
+      out.named=!!d.querySelector('#'+d.getAttribute('aria-labelledby'));
+      return out;
+    });
+    assert.equal(available,true);assert.equal(r.count,50);assert.equal(r.zHeld,false);assert.equal(r.zCopy,false);
+    assert.ok(!r.toasts.some(x=>x.includes('쉰한째')&&x.includes('고를 때까지')),'담지 못한 충돌을 보류했다고 말했다');
+    assert.ok(r.toasts.some(x=>x.includes('쉰한째')&&x.includes('내보내기')),r.toasts.join(' / '));
+    assert.equal(r.named,true,'정리된 뒤 대화상자 이름이 가리키는 제목이 없다');
   });
 }catch(e){harnessFailure=e;console.error('FAIL 하네스 —',e.message);}
 finally{if(browser)await browser.close();server.kill();}
