@@ -139,7 +139,9 @@ assert.doesNotMatch(config, /^\s*(anthropicKey|pgSecret|webhookSecret|serviceAcc
   "공개 설정 파일에 비밀값을 넣으면 안 됩니다");
 assert.equal(await exists("worker/worker-single-file.js"), false,
   "운영 Worker는 Wrangler 단일 진입점만 유지해야 합니다");
-assert.match(workflow, /fetch-depth:\s*2/, "CI는 git diff에 필요한 직전 커밋까지 받아야 합니다");
+/* 전체 이력(0)이어야 한다 — git diff 의 직전 커밋뿐 아니라 깨보기 검사 여섯이 `git show <옛 커밋>` 으로
+   방어 없는 판을 서빙한다. 얕으면(2) 그 커밋이 없어 CI 에서만 빨간불이 난다(2026-09-25). */
+assert.match(workflow, /fetch-depth:\s*0\b/, "CI는 깨보기용 옛 커밋까지 전체 이력을 받아야 합니다(fetch-depth: 0)");
 assert.match(workflow, /npm ci/, "CI는 고정된 테스트 의존성을 설치해야 합니다");
 assert.match(workflow, /npm run check:fast/, "CI는 기준 문제집 형식도 확인해야 합니다");
 assert.match(workflow, /npm run check:rules/, "CI는 Firebase Rules 실제 검사를 실행해야 합니다");
