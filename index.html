@@ -25,7 +25,7 @@
      어렵다 — 새 로그인만 깨진다). 실제로 한 번 그랬으니 손대지 말 것. -->
 <meta http-equiv="Content-Security-Policy" content="
   default-src 'self';
-  script-src 'self' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-ZXwCJr0Oh+LfqYvIbULUC0blbAJoODkJCG1NuSWIwuE=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
+  script-src 'self' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-PC2G7m60MH8nxhzMqCPe/b31xjOUrGnz9taB8jsZ1FU=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
   script-src-attr 'none';
   style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
   font-src 'self' data: https://cdn.jsdelivr.net;
@@ -5115,6 +5115,22 @@ async function deleteAllSets(){
    여기서 막히면 '데이터는 날아갔는데 계정은 남은' 최악의 상태가 된다.
    그리고 계정(auth)은 반드시 '마지막' 에 지운다 — 계정이 먼저 사라지면 보안 규칙의
    request.auth.uid 가 안 맞아 남은 데이터를 영영 못 지운다. */
+async function purgeAttemptLedgerBeforeAccountDelete(user){
+  // 재인증 뒤 새 토큰을 사용한다. DailyQuota는 남용 방지용으로 그대로 둔다.
+  const idToken=await user.getIdToken(true);
+  const appCheckToken=await getAiAppCheckToken();
+  const response=await fetch(AI_PROXY_URL+'/account/ledger',{
+    method:'DELETE',
+    headers:{
+      'Authorization':'Bearer '+idToken,
+      ...(appCheckToken?{'X-Firebase-AppCheck':appCheckToken}:{}),
+    },
+  });
+  if(!response.ok){
+    throw new Error('AI 시도 기록을 지우지 못해 계정 삭제를 멈췄어요 · 다시 본인 확인 후 시도해 주세요');
+  }
+}
+
 async function deleteAccountEverything(){
   if(!currentUser || !fbReady) throw new Error('로그인 상태에서만 계정을 삭제할 수 있어요');
   const user=currentUser;
@@ -5179,6 +5195,11 @@ async function deleteAccountEverything(){
       console.warn('사용자 문서 삭제 실패:', e&&e.code);
       throw new Error('계정 기본 정보를 지우지 못해 계정 삭제를 멈췄어요 · 계정은 그대로 두었습니다');
     }
+
+    // Auth를 지우기 전에 별도 AI 시도 원장만 파기한다. 실패하면 Auth를 남겨
+    // 재인증 후 재시도할 수 있게 한다. 일일 quota는 절대 초기화하지 않는다.
+    dmSetBusy('AI 시도 기록을 지우는 중…');
+    await purgeAttemptLedgerBeforeAccountDelete(user);
 
     // ⑥ 로컬 — 백업까지 전부
     clearLocalKeys(keys,{keepBackup:false});

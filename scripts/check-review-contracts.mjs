@@ -15,9 +15,11 @@ try{
     `libraryCloudSchema` 를 그대로 썼다 — 공개 전에 그 값을 0 으로 내리라는 지시를 따르는
     순간 B단계 검사 3건이 빨간불이 되고, 제품이 깨진 건지 검사가 깨진 건지 가를 수 없었다.
     그래서 `index.html` 검사는 **자기 단계를 스스로 선언해야 하고**, 안 하면 여기서 터진다. */
- async function app(file='index.html',{fileMode=false,schema}={}){
+ async function app(file='index.html',{fileMode=false,schema,revision}={}){
   if(file==='index.html'&&schema!==0&&schema!==1)
    throw Error('index.html 검사는 libraryCloudSchema 를 선언해야 합니다 (A=0 · B=1)');
+  if(file==='index.html'&&revision!==0&&revision!==1)
+   throw Error('index.html 검사는 setRevisionSchema 를 선언해야 합니다 (legacy=0 · CAS=1)');
   const p=await browser.newPage();
   await p.route('**/*',r=>{const u=new URL(r.request().url());if(process.env.REVIEW_RED==='1' && ['index.html','mock-exam-editor.html','hwpx-exam.js'].some(f=>u.pathname.endsWith('/'+f))){
    const name=u.pathname.split('/').pop(); return r.fulfill({contentType:name.endsWith('.js')?'application/javascript':'text/html',body:execFileSync('git',['show','31da3eb:'+name])});
@@ -26,8 +28,12 @@ try{
   await p.waitForFunction(()=>typeof toast==='function');
   /* service-config.js 가 로드 때 이 객체를 덮으므로 **로드 뒤에** 건다.
      `libraryCloudEnabled()` 는 호출 시점에 읽으므로 이걸로 충분하다. */
-  if(schema===0||schema===1) await p.evaluate(v=>{
-   window.PEDAGOGY_PUBLIC_CONFIG=Object.freeze({...window.PEDAGOGY_PUBLIC_CONFIG,libraryCloudSchema:v});},schema);
+  if(schema===0||schema===1) await p.evaluate(({schema,revision,inherit})=>{
+   window.PEDAGOGY_PUBLIC_CONFIG=Object.freeze({...window.PEDAGOGY_PUBLIC_CONFIG,
+    libraryCloudSchema:schema,
+    // Red probe inherits the release flag to prove the old false failures recur.
+    ...(inherit?{}:{setRevisionSchema:revision})});},{schema,revision,
+      inherit:process.env.REVIEW_FLAG_RED==='1'});
   return p;
  }
  /* 소속의 **정본이 단계마다 다르다** — A 는 로컬 지도(`setFolder` 가 쓰는 곳), B 는
@@ -35,7 +41,7 @@ try{
     ⚠️ 삭제된 폴더 가리기는 **두 단계 모두** 지켜야 하고, 정본이 어느 쪽이든 가려야 한다. */
  for(const schema of [0,1])
  await test(`folder tombstone masks membership from either source (schema ${schema})`,async()=>{
-  const p=await app('index.html',{schema});const got=await p.evaluate(()=>{
+  const p=await app('index.html',{schema,revision:1});const got=await p.evaluate(()=>{
    libMeta=normLibMeta({folderTombstones:{gone:10},folderBySetId:{viaMap:'gone'}});
    sets=[{id:'viaSet',folderId:'gone'},{id:'viaMap'}];
    const doc=setToDoc(sets[0],0);
@@ -45,20 +51,20 @@ try{
  /* ⚠️ B 전용 계약이다. A 는 클라우드에 folderId 를 **보내지도 읽지도 않으므로**
     옛 이관 지도가 정본으로 남는 것이 맞다 — 여기서 A 를 함께 돌리면 안 된다. */
  await test('explicit empty cloud folderId beats stale migration map (schema 1)',async()=>{
-  const p=await app('index.html',{schema:1});const got=await p.evaluate(()=>{
+  const p=await app('index.html',{schema:1,revision:1});const got=await p.evaluate(()=>{
    libMeta=normLibMeta({folderBySetId:{empty:'old'}});
    sets=[{id:'empty',folderId:''}];
    return [folderOf('empty'),setToDoc(sets[0],0).folderId];
   });assert.deepEqual(got,['','']);await p.close();
  });
  await test('capability off never sends folderId or changes set for local move',async()=>{
-  const p=await app('index.html',{schema:0});const got=await p.evaluate(()=>{
+  const p=await app('index.html',{schema:0,revision:1});const got=await p.evaluate(()=>{
    sets=[{id:'s',name:'s',problems:[]}];
    setFolder('s','local');return {inSet:'folderId' in sets[0],inDoc:'folderId' in setToDoc(sets[0],0),folder:folderOf('s')};
   });assert.deepEqual(got,{inSet:false,inDoc:false,folder:'local'});await p.close();
  });
  await test('A migration distinguishes absent field from explicit cloud no-folder',async()=>{
-  const p=await app('index.html',{schema:1});const got=await p.evaluate(async()=>{
+  const p=await app('index.html',{schema:1,revision:1});const got=await p.evaluate(async()=>{
    currentUser={uid:'test'};saveSets=()=>{};
    const base={name:'s',header:'',problems:[]};
    sets=[normSet({...base,id:'local'},{keepId:true}),docToSet({...base,id:'cloud',folderId:''})];
@@ -67,7 +73,9 @@ try{
   });assert.deepEqual(got,['old','']);await p.close();
  });
  await test('delete and immediate restore use same queue, delete errors propagate',async()=>{
-  const p=await app('index.html',{schema:1});const got=await p.evaluate(async()=>{
+  // This queue fixture intentionally exercises the pre-CAS batch transport.
+  // Current CAS writes have separate revision transaction coverage.
+  const p=await app('index.html',{schema:1,revision:0});const got=await p.evaluate(async()=>{
    currentUser={uid:'test'};fbReady=true;let release;const gate=new Promise(r=>release=r),events=[];
    fbDb={collection:()=>({doc:()=>({collection:()=>({doc:id=>({set:async d=>{events.push('delete');await gate;events.push('deleted');}})})})}),batch:()=>({set:()=>events.push('restore'),commit:async()=>{}})};
    const s={id:'s',name:'s',header:'',problems:[]};sets=[];
@@ -80,7 +88,7 @@ try{
   });assert.deepEqual(got.early,['delete']);assert.deepEqual(got.events,['delete','deleted','restore']);assert.equal(got.rejected,true);await p.close();
  });
  await test('account switch reloads local folder metadata',async()=>{
-  const p=await app('index.html',{schema:1});const got=await p.evaluate(async()=>{
+  const p=await app('index.html',{schema:1,revision:1});const got=await p.evaluate(async()=>{
    authInitialized=true;prevUid='A';currentUser={uid:'A'};libMeta=normLibMeta({folders:[{id:'A-only',name:'A'}]});
    loadSets=async()=>{};updatePlanBadge=async()=>{};
    localStorage.setItem('PM_LIBRARY_META:B',JSON.stringify({folders:[{id:'B-only',name:'B'}]}));
@@ -91,7 +99,7 @@ try{
   const p=await app('mock-exam-editor.html');const got=await p.evaluate(()=>normBlockM({type:'image',data:{data:'data:image/png;base64,'+btoa('x'.repeat(2*1024*1024+1))}},(x,d)=>x??d).data.data.length);assert.equal(got,0);await p.close();
  });
  await test('actual selection Undo and Redo survive delayed tombstone snapshot',async()=>{
-  const p=await app('index.html',{schema:1});const got=await p.evaluate(async()=>{
+  const p=await app('index.html',{schema:1,revision:0});const got=await p.evaluate(async()=>{
    currentUser={uid:'test'};fbReady=true;window.confirm=()=>true;
    let release,callback;const gate=new Promise(r=>release=r),remote=new Map();
    const emit=d=>callback?.({docChanges:()=>[{doc:{data:()=>d}}]});
@@ -110,7 +118,7 @@ try{
   });assert.deepEqual(got,{undo:true,redo:true});await p.close();
  });
  await test('401 selected deletes retain only failed ID and permit retry',async()=>{
-  const p=await app('index.html',{schema:1});const got=await p.evaluate(async()=>{
+  const p=await app('index.html',{schema:1,revision:0});const got=await p.evaluate(async()=>{
    currentUser={uid:'test'};fbReady=true;window.confirm=()=>true;
    let rejectOne=true,deleted=0;
    fbDb={collection:()=>({doc:()=>({collection:()=>({doc:id=>({set:async()=>{if(id==='s400'&&rejectOne)throw Error('injected');deleted++;}})})})}),batch:()=>({set(){},commit:async()=>{}})};
@@ -123,7 +131,7 @@ try{
   });assert.deepEqual(got,{failed:['s400'],kept:true,deleted:401,picked:0});await p.close();
  });
  await test('concurrent prefs save preserves remote tombstones and clears 401 memberships in chunks',async()=>{
-  const p=await app('index.html',{schema:1});const got=await p.evaluate(async()=>{
+  const p=await app('index.html',{schema:1,revision:0});const got=await p.evaluate(async()=>{
    currentUser={uid:'test'};fbReady=true;
    libMeta=normLibMeta({folders:[{id:'gone',name:'old'}],syncPending:true});
    sets=Array.from({length:401},(_,i)=>({id:'s'+i,name:'s',header:'',problems:[],folderId:'gone'}));
@@ -173,7 +181,7 @@ try{
     ⚠️ `app()` 은 `--allow-file-access-from-files` 를 **끄고** 띄운다(위 launch 인자) —
        그 플래그가 켜져 있으면 실제 제약을 재지 못한다. */
  await test('index.html boots from file:// with the split normalization module',async()=>{
-  const p=await app('index.html',{fileMode:true,schema:0});
+  const p=await app('index.html',{fileMode:true,schema:0,revision:1});
   const got=await p.evaluate(()=>({ns:typeof window.PedagogyNormalize?.normSet,
     norm:typeof window.normSet, safe:window.safeUrl('javascript:alert(1)'),
     cards:document.querySelectorAll('#libGrid .card, .set-card').length>0}));
@@ -188,7 +196,7 @@ try{
     결정을 지킨다. 모의고사 탭은 `file://` 에서도 그려져야 한다(카드 저장은 그 브라우저의
     localStorage 를 쓴다 — 편집기 iframe 은 출처가 달라 postMessage 로만 이어진다). */
  await test('mock library store loads and renders from file://',async()=>{
-  const p=await app('index.html',{fileMode:true,schema:0});
+  const p=await app('index.html',{fileMode:true,schema:0,revision:1});
   const got=await p.evaluate(()=>{
    const S=window.MockLibraryStore;
    if(!S) return {store:'missing'};
@@ -201,7 +209,7 @@ try{
   assert.deepEqual(got,{store:'function',panel:true,cards:['파일 모의고사']});await p.close();
  });
  await test('moving normalization keeps the exact window surface',async()=>{
-  const p=await app('index.html',{schema:0});const got=await p.evaluate(()=>({
+  const p=await app('index.html',{schema:0,revision:1});const got=await p.evaluate(()=>({
    up:['safeUrl','normSubject','normSheetColor','normBlock','normProblem','normSet',
        'normLibMeta','resetNormDropped','reportNormDropped']
       .filter(n=>typeof window[n]!=='function'),
@@ -218,7 +226,7 @@ try{
     읽기·쓰기 단계 순서는 300문항 인쇄에서 1616ms → 265ms 를 만든 것이다.
     ⚠️ 고정 기대 묶음과 견준다 — 목록과 인쇄를 서로 견주면 **함께 틀려도 통과**한다. */
  await test('print split keeps its surface, group boundaries, and staged shrink',async()=>{
-  const p=await app('index.html',{schema:0});const got=await p.evaluate(()=>{
+  const p=await app('index.html',{schema:0,revision:1});const got=await p.evaluate(()=>{
    const f=['hasPassage','groupSpanOf','computeNums','pairEveryN','shrinkWideMathAll',
     'shrinkWideMath','fitMathIn','setPair','problemGroups','groupAt','spanOf','awaitPrintImages'];
    /* pair · page · col — 예전에 인쇄와 목록이 갈라졌던 바로 그 배치다. */
@@ -257,7 +265,7 @@ try{
    applied:'400px scale(0.2475)'});await p.close();
  });
  await test('render split keeps its surface, sanitization order, and context',async()=>{
-  const p=await app('index.html',{schema:0});const got=await p.evaluate(()=>{
+  const p=await app('index.html',{schema:0,revision:1});const got=await p.evaluate(()=>{
    const f=['setHasContent','blockExcerpt','autoDisplayStyle','addCasesRowGap','inlineMarks',
     'processText','verseHTML','isEllipsisLine','rangeOpen','isRangeClose','splitRanges',
     'rangeWrap','splitParagraphs','proseHTML','tableHTML','groupHeadHTML','blockHTML'];
@@ -279,7 +287,7 @@ try{
    ⚠️ 상한이 8초라 이 검사도 그만큼 걸린다 — 시간을 줄이려고 제품에 검사용 구멍을
       내지 않는다. */
  await test('a hung cloud read falls back to local data instead of spinning forever',async()=>{
-  const p=await app('index.html',{schema:1});
+  const p=await app('index.html',{schema:1,revision:1});
   /* ⚠️ **검사 쪽에도 상한을 둔다.** 제품에 상한이 없으면 `loadSets()` 가 영영 안 끝나
      `evaluate` 가 매달린다 — 그러면 검사가 빨간불이 아니라 **멈춘다**(CI 를 막을 뿐
      아무것도 알려주지 않는다). 실제로 깨보기에서 그렇게 됐다. */
@@ -317,7 +325,7 @@ try{
   await p.close();
  });
  await test('a hung folder preferences read does not hold an already loaded library',async()=>{
-  const p=await app('index.html',{schema:1});
+  const p=await app('index.html',{schema:1,revision:1});
   const got=await Promise.race([
    p.evaluate(async()=>{
     currentUser={uid:'test',displayName:'검사'};fbReady=true;authInitialized=true;

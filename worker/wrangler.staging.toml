@@ -21,6 +21,7 @@ GLOBAL_DAILY_LIMIT = "2"
 AI_KILL_SWITCH = "0"
 AI_PROVIDER = "gemini"
 GEMINI_MODEL = "gemini-3.1-flash-lite"
+ATTEMPT_HMAC_VERSION = "v1"
 
 # `GEMINI_API_KEY`는 이 파일이나 공개 설정에 넣지 않는다. 배포 직전 staging Worker에만
 # secret으로 등록되어 있음을 이름만 확인하고, 값은 조회·출력하지 않는다.
@@ -29,9 +30,17 @@ GEMINI_MODEL = "gemini-3.1-flash-lite"
 name = "QUOTA"
 class_name = "DailyQuota"
 
+[[durable_objects.bindings]]
+name = "ATTEMPT_LEDGER"
+class_name = "AttemptLedger"
+
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["DailyQuota"]
+
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["AttemptLedger"]
 
 # OPS-7의 승인된 두 합성 호출에서만 100%로 올리고, 결과 확인 직후 10%로 복원한다.
 [observability]

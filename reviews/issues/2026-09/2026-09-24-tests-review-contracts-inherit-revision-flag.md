@@ -3,7 +3,7 @@
 - ID: `REV-2026-110`
 - 날짜: `2026-09-24`
 - 보고자: `Claude / Opus 5.5`
-- 상태: `open`
+- 상태: `resolved`
 - 심각도: `P2`
 - 영향 영역: `tests`
 - 관련 인계: `HANDOFF-2026-168`
@@ -47,3 +47,8 @@ revision 경로를 보려는 검사는 `runTransaction` 을 가진 스텁을 쓴
 
 - `2026-09-24` — `Claude / Opus 5.5`: 등록. `REV-2026-109` 수정 중 회귀를 돌리다 발견해 HEAD 이전 작업 트리로
   기존 결함임을 갈랐다. 수정하지 않았다(범위 밖).
+- `2026-09-25` — `Codex`: `scripts/check-review-contracts.mjs`의 모든 `index.html` fixture에
+  `setRevisionSchema` 단계를 명시하고 `app()`가 빠진 단계를 거부하도록 했다. 배치 전송을
+  검증하는 네 fixture는 의도대로 `revision:0`을 고정했고, 현재 CAS 쓰기는 별도
+  `test:set-revision`에서 검증한다. `npm run test:review-contracts` 23건 통과;
+  `REVIEW_FLAG_RED=1`로 운영 플래그 상속을 되살리면 원래 4건이 다시 실패함을 확인했다.

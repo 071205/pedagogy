@@ -29,7 +29,7 @@ function parseProperties(text) {
 const csv = value => (value || '').split(',').map(item => item.trim()).filter(Boolean);
 const coveredBy = (file, roots) => roots.some(root => file === root || file.startsWith(`${root}/`));
 const ANALYZABLE = /\.(?:html|js|mjs|py)$/;
-const INTENTIONALLY_OUTSIDE = /^(?:scripts|experiments|reviews|tests|\.claude)\//;
+const INTENTIONALLY_OUTSIDE = /^(?:scripts|experiments|reviews|tests|\.claude|docs\/mockups)\//;
 const GENERATED_DATA = new Set(['blank-template-data.js', 'exam-template-data.js']);
 const WORKER_TEST = /^worker\/.*\.test\.mjs$/;
 const RUNTIME_HWPX = new Set([

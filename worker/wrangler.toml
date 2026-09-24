@@ -27,6 +27,9 @@ AI_KILL_SWITCH = "0"
 # PLAN_DAILY_LIMITS_JSON = '{"free":50,"pro":300,"team":600}'
 # 모델을 바꾸고 싶으면 여기서 (기본 claude-haiku-4-5)
 # AI_MODEL = "claude-haiku-4-5"
+# B5 배포 전 Secret ATTEMPT_HMAC_KEY(32자 이상)를 등록하고 버전을 고정한다.
+# 버전/키를 바꾸면 기존 원장 객체를 찾지 못하므로 7일 보존 창 안에서는 회전하지 않는다.
+ATTEMPT_HMAC_VERSION = "v1"
 
 # 사용량 예약·확정용 Durable Object. 요청을 uid+UTC 날짜별로 직렬화하므로,
 # 동시 요청이 KV의 read-modify-write 틈을 이용해 일일 한도를 넘길 수 없다.
@@ -34,9 +37,17 @@ AI_KILL_SWITCH = "0"
 name = "QUOTA"
 class_name = "DailyQuota"
 
+[[durable_objects.bindings]]
+name = "ATTEMPT_LEDGER"
+class_name = "AttemptLedger"
+
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["DailyQuota"]
+
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["AttemptLedger"]
 
 # 원본 요청 본문·AI 출력은 절대 console에 남기지 않는다. `ai_usage`는 공급자·작업 갈래·모델,
 # 토큰 수·중단 사유·응답 시간·안전한 HTTP 상태만 남긴다. 10% 표본이므로 개별 호출 품질 추세용이며

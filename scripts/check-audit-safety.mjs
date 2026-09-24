@@ -68,10 +68,10 @@ for(const aba of [false,true]) test('032: stale load discarded '+(aba?'A-B-A':'A
 test('033: ack uses sent snapshot and schedules unsent revision',async()=>{
   const c=context(`let currentUser={uid:'A'},sets=[{id:'s',name:'v1',problems:[]}],cloudSynced=new Map(),setWriteBase=new Map(),wiping=false;
     let sent=[],release,retries=0;const gate=new Promise(r=>release=r);
-    const flushLocal=()=>true,setSaveStatus=()=>{},toast=()=>{};
+    const flushLocal=()=>true,setSaveStatus=()=>{},idleSaveStatus=()=>{},toast=()=>{};
     const cloudSyncEntry=s=>({json:JSON.stringify(s)}),isCloudSynced=s=>cloudSynced.get(s.id)?.json===JSON.stringify(s);
     const setToDoc=s=>JSON.parse(JSON.stringify(s)),SETS_COL=()=>({doc:id=>id});
-    const rememberSetSyncMeta=()=>true,setSyncMetaEntry=()=>({}),setRevisionEnabled=()=>false;
+    const rememberSetSyncMeta=()=>true,setSyncMetaEntry=()=>({}),setWriteBaseEntryFromDoc=()=>({}),setRevisionEnabled=()=>false,heldSetIds=()=>new Set();
     const fbDb={batch:()=>({set:(id,d)=>sent.push(d),commit:()=>gate})};
     const hasUnsavedCloudWork=()=>true;let localDirty=false;
     let setsOversizeKey="",setsBadShapeKey="";const CLOUD_DOC_MAX=900*1024;`);
@@ -144,7 +144,8 @@ test('032: repeated auth notification preserves edits; switching flushes old own
     const flushLocal=()=>{writes.push(currentUser?.uid);return true;},setsKey=()=>currentUser?.uid,flushOpenMock=()=>{};
     const migrateSharedLocalCache=()=>{},migrateSharedAuxKeys=()=>{},loadLastQ=()=>{},readStamps=()=>({}),loadSetSyncMeta=()=>{};
     const $=()=>({style:{}}),updatePlanBadge=()=>{},inAppBrowserName=()=>null,showInAppNotice=()=>{};
-    const bootLibrary=async()=>{},loadSets=async()=>{},showLibraryLoading=()=>{},snapshot=()=>'',updateHistButtons=()=>{},showLibrary=()=>{};`);
+    const bootLibrary=async()=>{},loadSets=async()=>{},showLibraryLoading=()=>{},snapshot=()=>'',updateHistButtons=()=>{},showLibrary=()=>{};
+    const ensureConflictCopies=()=>false;`);
   const start=src.indexOf('const onAuth=async (user)=>{');
   vm.runInContext(src.slice(start,src.indexOf('\n};',start)+3),c);
   await vm.runInContext("onAuth({uid:'A'})",c);
@@ -160,10 +161,10 @@ test('032: repeated auth notification preserves edits; switching flushes old own
 test('033: overlapping saves serialize and eventually acknowledge latest content',async()=>{
   const c=context(`let currentUser={uid:'A'},sets=[{id:'s',name:'v1',problems:[]}],cloudSynced=new Map(),setWriteBase=new Map(),wiping=false,localDirty=false;
     let sent=[],gates=[],cloudSaveQueue=Promise.resolve();
-    const flushLocal=()=>true,setSaveStatus=()=>{},toast=()=>{},hasUnsavedCloudWork=()=>false;
+    const flushLocal=()=>true,setSaveStatus=()=>{},idleSaveStatus=()=>{},toast=()=>{},hasUnsavedCloudWork=()=>false;
     const cloudSyncEntry=s=>({json:JSON.stringify(s)}),isCloudSynced=s=>cloudSynced.get(s.id)?.json===JSON.stringify(s);
     const setToDoc=s=>JSON.parse(JSON.stringify(s)),SETS_COL=()=>({doc:id=>id});
-    const rememberSetSyncMeta=()=>true,setSyncMetaEntry=()=>({}),setRevisionEnabled=()=>false;
+    const rememberSetSyncMeta=()=>true,setSyncMetaEntry=()=>({}),setWriteBaseEntryFromDoc=()=>({}),setRevisionEnabled=()=>false,heldSetIds=()=>new Set();
     const fbDb={batch:()=>({set:(id,d)=>sent.push(d),commit:()=>new Promise(r=>gates.push(r))})};
     let setsOversizeKey="",setsBadShapeKey="";const CLOUD_DOC_MAX=900*1024;`);
   vm.runInContext(fn('docBytes')+'\n'+fn('firstNestedArrayPath')+'\n'+fn('decodeSetProblemsFromCloud'),c);

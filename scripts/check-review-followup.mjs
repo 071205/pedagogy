@@ -66,6 +66,48 @@ for (const failedDoc of ['library', 'consent']) test(`account survives failed ${
   assert.equal(vm.runInContext('wiping', c), false);
 });
 
+test('account deletion stops before Auth deletion when AttemptLedger purge fails', async () => {
+  const c = context(`
+    const steps=[];
+    let wiping=false,saveTimer=0,localTimer=0,mockCloudTimer=0,setsUnsub=null,mocksUnsub=null;
+    const currentUser={uid:'A',reauthenticateWithPopup:async()=>steps.push('reauth'),
+      delete:async()=>steps.push('auth-delete')},fbReady=true;
+    const accountLocalKeys=()=>({}),dmSetBusy=()=>{},firebase={auth:{GoogleAuthProvider:function(){}}};
+    const wipeStorageImages=async()=>({listed:true,failed:0}),storageCleanupComplete=()=>true;
+    const cloudSetDocIds=async()=>[],wipeCloudSets=async()=>steps.push('sets'),
+      wipeCloudMocks=async()=>steps.push('mocks');
+    const PREFS_DOC=()=>({delete:async()=>steps.push('prefs')});
+    const fbDb={collection:()=>({doc:()=>({delete:async()=>steps.push('user-doc'),
+      collection:()=>({doc:()=>({delete:async()=>steps.push('consent')})})})})};
+    const localStorage={removeItem(){}},consentKey=()=>'';
+    const purgeAttemptLedgerBeforeAccountDelete=async()=>{steps.push('ledger');throw Error('unavailable')};
+  `);
+  vm.runInContext(fn('deleteAccountEverything'), c);
+  await assert.rejects(vm.runInContext('deleteAccountEverything()', c), /unavailable/);
+  assert.equal(vm.runInContext('steps.join(",")', c),
+    'reauth,sets,mocks,prefs,consent,user-doc,ledger');
+  assert.equal(vm.runInContext('wiping', c), false);
+});
+
+test('account ledger purge uses a refreshed token and rejects server failure', async () => {
+  const c = context(`
+    const AI_PROXY_URL='https://worker.test';
+    const user={getIdToken:async(force)=>{if(!force)throw Error('stale token');return 'fresh-fixture'}};
+    const getAiAppCheckToken=async()=>'';
+    const calls=[];
+    let ok=false;
+    const fetch=async(url,options)=>{calls.push({url,method:options.method,
+      authorization:options.headers.Authorization});return {ok};};
+  `);
+  vm.runInContext(fn('purgeAttemptLedgerBeforeAccountDelete'), c);
+  await assert.rejects(vm.runInContext('purgeAttemptLedgerBeforeAccountDelete(user)', c));
+  assert.equal(vm.runInContext('calls[0].url', c), 'https://worker.test/account/ledger');
+  assert.equal(vm.runInContext('calls[0].method', c), 'DELETE');
+  assert.equal(vm.runInContext('calls[0].authorization', c), 'Bearer fresh-fixture');
+  vm.runInContext('ok=true', c);
+  await vm.runInContext('purgeAttemptLedgerBeforeAccountDelete(user)', c);
+});
+
 test('failed mock local save retains an owner-scoped recovery and close warning', () => {
   const c = context(`
     let currentUser=null,localDirty=false,wiping=false,sets=[],mocks=[{id:'unsaved'}],mockWriteWarned=false;

@@ -14,7 +14,6 @@
 | `REV-2026-075` | `P2` | AI 문서에 들어갔다 나오면 로그인이 안 된다(재현 절차 없음) | `issues/2026-09/2026-09-09-document-editor-login-after-return.md` |
 | `REV-2026-093` | `P2` | staging Gemini가 결제 전제 미충족(`FAILED_PRECONDITION`)으로 실패한다 | `issues/2026-09/2026-09-14-gemini-staging-provider-request-error.md` |
 | `REV-2026-108` | `P2` | 지문 묶음이 위치로만 정해져, 가운데 문항을 지우면 무관한 문항이 흡수된다 | `issues/2026-09/2026-09-23-index-passage-group-positional.md` |
-| `REV-2026-110` | `P2` | 리뷰 계약 검사 4건이 배포 플래그 1을 물려받아 `check:fast` 빨간불 | `issues/2026-09/2026-09-24-tests-review-contracts-inherit-revision-flag.md` |
 
 ⚠️ 이 표는 `npm run check:review-hygiene` 가 **실제 이슈 파일의 상태와 양방향으로**
 대조한다. 지난 요약을 지워도 안전한 이유가 이 대조다 — 남은 한 곳이 정확해야
@@ -29,8 +28,11 @@
 D2/D4·연동 저장 계약·사용자 시안 관찰이 남아 U0 전체 완료/구현 승인은 아니다.
 순서·게이트는 [통합 레일](../docs/DEV-TOKEN-ROADMAP.md), 지시문은 [RAIL-ORDERS](../docs/RAIL-ORDERS.md).
 **B3 운영 장애 `REV-2026-109` 해결**(운영 `e50636c` → 문구 정정 `6679676`, 편집·삭제·진짜 충돌 운영 검증).
-`REV-2026-111`은 **B4 운영 배포(`451e8ba`)·운영 확인으로 해결**(`HANDOFF-169`). 다음은 엄격 Rules(3/3).
-Pages 원본은 `codex/b3-release-prep`. B5 독립 가능. R1 독립 검토 완료(결함 없음). C1 외부 대기.
+`REV-2026-111`은 **B4 운영 배포(`451e8ba`)·운영 확인으로 해결**(`HANDOFF-169`).
+**B3 엄격 Rules 운영 적용(3/3)·인증 저장 확인**(`HANDOFF-170`), 최종 독립 검토 대기.
+**B5 원장 구현·검사·dry-run 완료**(`HANDOFF-171`), 독립 검토·실제 배포 대기.
+`REV-2026-110` 테스트 하네스 수정·고장 주입으로 해결. Pages 원본은
+`codex/b3-release-prep`. R1 독립 검토 완료(결함 없음). C1 외부 대기.
 
 ### A. 한글 조판 엔진 (Claude · 2026-09-17)
 
@@ -84,6 +86,12 @@ U0→B6에서 정규화/복원·AI 계약을 함께 다룬다. Rules의 `hasOnly
 
 ## 최근 검토
 
+[HANDOFF-2026-171](handoffs/2026-09/2026-09-25-worker-b5-attempt-ledger.md): B5 별도 DO·서버 HMAC·항목별 만료·계정 삭제 전 파기 구현.
+Worker 검사·고장 주입·Wrangler dry-run 통과. **독립 검토·실제 배포 대기.**
+
+[HANDOFF-2026-170](handoffs/2026-09/2026-09-25-rules-b3-strict-deploy.md): B3 엄격 Rules 실제 배포(3/3),
+에뮬레이터·인증 저장 확인. **최종 독립 검토 대기.**
+
 [HANDOFF-2026-169](handoffs/2026-09/2026-09-25-index-b4-conflict-hold.md): B4 충돌 보류·복구 화면 — Codex Astra high 설계 2회,
 Sol medium 검토 2회(반례 넷 수정 → 동의). CAS 35/35 · 표적 변이 16종. **운영 `451e8ba` 배포·확인 완료.**
 
@@ -91,13 +99,6 @@ Sol medium 검토 2회(반례 넷 수정 → 동의). CAS 35/35 · 표적 변이
 **Opus 5 검토 완료.** 라이브 바이트·CSP 해시 일치. ⚠️ 롤백 계획 불성립(승격은 비가역).
 **인증 저장 왕복을 운영에서 수행 → 새 문제집이 거짓 '동기화 충돌'로 막힘(`REV-2026-109` · P1).**
 
-[HANDOFF-2026-167](handoffs/2026-09/2026-09-23-docs-u0-contract.md): U0 계약 초안·ID/부분 채택/재개·D1~D5 결정표 작성.
-문서만 변경. 다음 Opus 5 독립 검토·연결 시안, 사용자 선택 미결.
-
-[HANDOFF-2026-166](handoffs/2026-09/2026-09-23-docs-product-ux-rail-integration.md): 제품 UX를 남은 R4/U0~U2·B4~B7·R5/R8에 통합.
-문서만 변경. 저장 계약·B3 배포 대기 보존, 사용자 결정과 다음 시안 단계 분리. 독립 검토 전.
-
-[HANDOFF-2026-165](handoffs/2026-09/2026-09-23-product-ux-apple-research.md): 제품 방향·AI 구성·N제 전체 지면·Apple UX 참고 정리.
 저장 구조 관련 HANDOFF-162 Q1/Q2는 레일 D1/U0에서 이어받으며 미결을 승인으로 바꾸지 않는다.
 
 ## 지난 기록을 찾는 법

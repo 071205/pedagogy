@@ -48,6 +48,7 @@ const validSet = (id, overrides = {}) => ({
   lineColor: "indigo",
   subject: "math",
   folderId: "",
+  revision: 1,
   ...overrides,
 });
 const png = (size = 32) => new Blob([new Uint8Array(size)], { type: "image/png" });
@@ -80,11 +81,15 @@ try {
     validSet("tombstone", { deleted: true, name: "", header: "", problems: [] })));
   await assertSucceeds(deleteDoc(doc(aliceDb, "users", "alice", "sets", "set-1")));
 
-  // ── R4/B3 revision 전환 Rules ──
-  // 구 클라이언트끼리는 전환 기간에만 계속 쓰되, revision으로 승격한 문서는 절대 내려가지 않는다.
+  // ── R4/B3 엄격 Rules ──
+  // 구 문서만 revision 1로 승격하고, 이후에는 매번 정확히 +1을 요구한다.
   const transition=doc(aliceDb,"users","alice","sets","revision-transition");
-  await assertSucceeds(setDoc(transition,validSet("revision-transition")),"구 create 호환");
-  await assertSucceeds(setDoc(transition,validSet("revision-transition",{name:"구 update"})),"구 update 호환");
+  const unversioned=validSet("revision-transition"); delete unversioned.revision;
+  await assertFails(setDoc(transition,unversioned),"구 create 거부");
+  await testEnv.withSecurityRulesDisabled(async context => {
+    await setDoc(doc(context.firestore(),"users","alice","sets","revision-transition"),unversioned);
+  });
+  await assertFails(setDoc(transition,{...unversioned,name:"구 update"}),"구 update 거부");
   await assertSucceeds(setDoc(transition,validSet("revision-transition",{name:"승격",revision:1})),
     "무 revision 문서는 revision 1로 한 번만 승격");
   await assertFails(setDoc(transition,validSet("revision-transition",{name:"downgrade"})),
@@ -127,7 +132,7 @@ try {
   const oldSet=validSet("legacy-no-folder"); delete oldSet.folderId;
   await assertSucceeds(setDoc(doc(aliceDb,"users","alice","sets","legacy-no-folder"),oldSet));
   await assertSucceeds(setDoc(doc(aliceDb,"users","alice","sets","legacy-no-folder"),
-    {...oldSet,deleted:true,name:"",header:"",problems:[]}));
+    {...oldSet,revision:2,deleted:true,name:"",header:"",problems:[]}));
 
   // ── 모의고사 문서 ── 문제집과 같은 계약(id 일치 · 화이트리스트 · tombstone).
   const validMock = (id, over = {}) => ({

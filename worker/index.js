@@ -32,6 +32,9 @@
 import { verifyIdToken } from "./auth.js";
 import { AppCheckError, verifyAppCheckToken } from "./app-check.js";
 import { GEMINI_STAGING_MODEL, buildGeminiRequest, decodeGeminiEnvelope } from "./gemini.js";
+import { AttemptLedger, attemptIdentity, imageSourceHash, sha256Hex, validAttempt } from "./attempt-ledger.js";
+
+export { AttemptLedger };
 
 const DEFAULT_DAILY_LIMIT = 50;
 // 환경 변수 오타나 잘못된 Billing claim 매핑이 비용 상한을 무력화하지 않게 하는
@@ -233,6 +236,18 @@ async function globalQuotaRequest(env, op, reservationId = "", { limit, when } =
   return r.json();
 }
 
+async function ledgerRequest(env, identity, op, details = {}) {
+  if (!env.ATTEMPT_LEDGER) throw new Error("ATTEMPT_LEDGER 바인딩이 설정되지 않았습니다");
+  const stub = env.ATTEMPT_LEDGER.get(env.ATTEMPT_LEDGER.idFromName(identity.objectName));
+  const response = await stub.fetch("https://ledger.internal/" + op, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ op, key: identity.key, attemptId: identity.attemptId, ...details }),
+  });
+  if (!response.ok) throw new Error("AttemptLedger 처리 실패 (" + response.status + ")");
+  return response.json();
+}
+
 /* 외부 경계(Firebase 토큰, Durable Object, AI 공급자)는 기본값을 유지하되 테스트에서
    가짜 구현을 주입할 수 있게 한다. 실제 Cloudflare Worker는 아래 default instance만
    사용하므로 운영 요청 형식·보안 경계는 변하지 않는다. */
@@ -241,6 +256,7 @@ export function createWorker({
   verifyAppCheck = verifyAppCheckToken,
   requestQuota = quotaRequest,
   requestGlobalQuota = globalQuotaRequest,
+  requestLedger = ledgerRequest,
   generateProblems = callAI,
   generateDocument = callDocumentAI,
   recordMetric = console.log,
@@ -315,9 +331,25 @@ export function createWorker({
     }
 
     if (request.method === "DELETE") {
-      // 일반 사용자 토큰은 비용 카운터를 초기화할 권한이 없다.
-      // 계정 삭제 후에도 최초 예약부터 48시간인 DO alarm으로 자동 파기한다.
-      return json({ error: "사용량 기록은 최대 48시간 후 자동 삭제됩니다" }, 403, cors);
+      // DailyQuota cannot be reset by a user. A recently reauthenticated user
+      // may destroy only the separate ledger immediately before Auth deletion.
+      if (new URL(request.url).pathname !== "/account/ledger") {
+        return json({ error: "사용량 기록은 최대 48시간 후 자동 삭제됩니다" }, 403, cors);
+      }
+      const authTime = user.claims?.auth_time;
+      if (!Number.isSafeInteger(authTime) || authTime > Date.now() / 1000
+        || Date.now() / 1000 - authTime > 5 * 60) {
+        return json({ error: "계정 삭제 전 다시 로그인해 주세요" }, 403, cors);
+      }
+      try {
+        const identity = await attemptIdentity(env, user.uid, null);
+        const result = await requestLedger(env, identity, "purge");
+        if (!result.ok) throw new Error("ledger purge failed");
+        return json({ ok: true }, 200, cors);
+      } catch {
+        console.error("AttemptLedger 파기 실패");
+        return json({ error: "AI 기록을 지우지 못했습니다. 계정 삭제를 다시 시도해 주세요." }, 503, cors);
+      }
     }
 
     // ── 2. 본문 검사 (사용량을 깎기 전에 먼저) ──
@@ -385,6 +417,39 @@ export function createWorker({
       return json({ error: "이미지 형식이 아닙니다" }, 400, cors);
     }
 
+    // B6's page requests opt in with stable source identity and a fresh attempt.
+    // Legacy one-image and document requests retain their existing contract.
+    let ledgerIdentity = null;
+    if (body.attempt !== undefined) {
+      if (documentMode || !validAttempt(body.attempt)) {
+        return json({ error: "AI 시도 정보가 올바르지 않습니다" }, 400, cors);
+      }
+      let sourceHash;
+      try { sourceHash = await imageSourceHash(imageBase64); }
+      catch { return json({ error: "이미지 데이터가 올바르지 않습니다" }, 400, cors); }
+      try {
+        // The client labels source/contract hashes for its staging UI, but cannot
+        // choose the authoritative paid-call key by changing either label.
+        const extractionContractHash = await sha256Hex(new TextEncoder().encode(
+          JSON.stringify(["problem-v1", SYSTEM_PROMPT, provider.name, provider.model])));
+        ledgerIdentity = await attemptIdentity(env, user.uid,
+          { ...body.attempt, sourceHash, extractionContractHash });
+        const begun = await requestLedger(env, ledgerIdentity, "begin", { retry: body.attempt.retry });
+        if (!begun.ok) {
+          return json({ error: "이미 진행 중이거나 완료된 쪽입니다. 상태를 확인해 주세요.",
+            state: begun.state }, 409, cors);
+        }
+      } catch {
+        console.error("AttemptLedger 시작 실패");
+        return json({ error: "AI 시도 상태를 확인하지 못했습니다" }, 503, cors);
+      }
+    }
+    const cancelLedger = async () => {
+      if (!ledgerIdentity) return;
+      try { await requestLedger(env, ledgerIdentity, "cancel"); }
+      catch { console.error("AttemptLedger 예약 해제 실패"); }
+    };
+
     const limit = dailyLimit(env, user.claims);
     const globalLimit = globalDailyLimit(env);
 
@@ -397,10 +462,12 @@ export function createWorker({
       rate = await requestQuota(env, user.uid, "reserve", reservationId, { limit });
       reserved = !!rate.ok;
     } catch (e) {
+      await cancelLedger();
       console.error("AI quota 예약 실패");
       return json({ error: "AI 사용량을 확인하지 못했습니다. 잠시 후 다시 시도해 주세요." }, 503, cors);
     }
     if (!reserved) {
+      await cancelLedger();
       return json(
         { error: `오늘 사용량(${rate.limit}회)을 모두 썼습니다. 내일 다시 시도해 주세요.` },
         429, cors
@@ -414,6 +481,7 @@ export function createWorker({
         globalRate = await requestGlobalQuota(env, "reserve", reservationId, { limit: globalLimit });
         globalReserved = !!globalRate.ok;
       } catch {
+        await cancelLedger();
         try { await requestQuota(env, user.uid, "release", reservationId, { limit }); }
         catch { console.error("AI quota 예약 해제 실패"); }
         reserved = false;
@@ -421,6 +489,7 @@ export function createWorker({
         return json({ error: "AI 전체 사용량을 확인하지 못했습니다. 잠시 후 다시 시도해 주세요." }, 503, cors);
       }
       if (!globalReserved) {
+        await cancelLedger();
         try { await requestQuota(env, user.uid, "release", reservationId, { limit }); }
         catch { console.error("AI quota 예약 해제 실패"); }
         reserved = false;
@@ -441,6 +510,7 @@ export function createWorker({
       if (!after.ok) throw new Error("AI 사용량 확정에 실패했습니다");
       reserved = false;
     } catch (e) {
+      await cancelLedger();
       if (globalReserved) {
         try { await requestGlobalQuota(env, "release", reservationId, { limit: globalLimit }); }
         catch { console.error("전역 AI quota 예약 해제 실패"); }
@@ -455,21 +525,35 @@ export function createWorker({
 
     // ── 5. AI 호출 (사용량은 이미 확정됨) ──
     let aiTelemetry;
+    let providerResultReady = false;
     try {
       if (documentMode) {
         const result = unwrapAiGeneration(await generateDocument(env, prompt.trim()));
         aiTelemetry = result.telemetry;
         const document = result.value;
         validateDocumentResponse(document);
+        if (ledgerIdentity) throw new Error("document attempts are unsupported");
         recordAiMetric(recordMetric, aiTelemetry);
         return json({ document, usage: { used: after.used, limit: after.limit } }, 200, cors);
       }
       const result = unwrapAiGeneration(await generateProblems(env, imageBase64, mimeType));
       aiTelemetry = result.telemetry;
       const problems = result.value;
+      providerResultReady = true;
+      if (ledgerIdentity) {
+        const resultDigest = await ledgerIdentity.digest(JSON.stringify(problems));
+        const completed = await requestLedger(env, ledgerIdentity, "complete",
+          { outcome: "success", resultDigest });
+        if (!completed.ok) throw new Error("AttemptLedger success commit failed");
+      }
       recordAiMetric(recordMetric, aiTelemetry);
       return json({ problems, usage: { used: after.used, limit: after.limit } }, 200, cors);
     } catch (e) {
+      if (ledgerIdentity && !providerResultReady) {
+        try {
+          await requestLedger(env, ledgerIdentity, "complete", { outcome: "failure" });
+        } catch { console.error("AttemptLedger 실패 기록 실패"); }
+      }
       const failureTelemetry = e instanceof AiGenerationError
         ? e.telemetry
         : aiTelemetry ? { ...aiTelemetry, outcome: "validation_error" } : null;
