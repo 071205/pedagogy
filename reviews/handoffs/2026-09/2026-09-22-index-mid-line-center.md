@@ -62,3 +62,8 @@
 - 레일 위치: `docs/RAIL-ORDERS.md` ④(R4.5 둘째 묶음) 완료 → 다음은 ⑤(Codex 검토).
 
 ## 검토 기록
+
+- `2026-09-23` — `Codex / Sol medium`: `b6d3c40` diff를 `HANDOFF-2026-159` 계약과 대조했다.
+  `splitParagraphs()` 재사용으로 CR/LF 및 `$$…$$` 경계를 보존하고, 일반행 묶음은 기존
+  `processText()`를 유지하며 특수행은 sanitize를 거치는 것을 확인했다. 재현 가능한 결함 없음;
+  구현자 기록의 `test:audit-browser` 165/165와 리뷰 계약 검사 결과를 근거로 승인한다.

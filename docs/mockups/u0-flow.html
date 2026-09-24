@@ -1,0 +1,775 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>U0 연결 시안</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<!--
+  U0 연결 시안 — 모의 데이터로 그린 화면 전이 시안이다.
+  ⚠️ 제품 코드가 아니다. app 의 어떤 파일도 부르지 않고 어떤 저장소에도 쓰지 않는다.
+  ⚠️ 화면 크기 전환은 **모의 프레임의 data-size** 로 구동한다 — 실제 브라우저 창 크기에
+     반응하는 media query 를 쓰면 시안을 1194 로 보면서 375 를 검토할 수 없다.
+  근거 계약: docs/PRODUCT-UX-U0-CONTRACT.md · docs/PRODUCT-UX-DESIGN.md · docs/STORAGE-CONTRACT.md
+-->
+<style>
+:root{
+  --bg:#f5f6f8; --panel:#fff; --line:#e3e6ea; --line-strong:#cdd3da;
+  --text:#191f28; --text-2:#4e5968; --text-3:#8b95a1;
+  --blue:#3182F6; --blue-text:#2B6FD6; --blue-weak:#eaf2fe;
+  --ok:#0f8f57; --ok-weak:#e6f6ee; --warn:#b26a00; --warn-weak:#fdf3e2;
+  --bad:#c8352c; --bad-weak:#fdeceb; --wait:#5b6a7d; --wait-weak:#eef1f4;
+  --radius:10px;
+  --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#15181c; --panel:#1e2228; --line:#2c323a; --line-strong:#3c444e;
+    --text:#e9edf2; --text-2:#aeb8c4; --text-3:#7d8794;
+    --blue:#4d94ff; --blue-text:#7fb2ff; --blue-weak:#16273e;
+    --ok:#4cc38a; --ok-weak:#12301f; --warn:#e0a34a; --warn-weak:#33260f;
+    --bad:#f07068; --bad-weak:#36191a; --wait:#9aa6b4; --wait-weak:#232a32;
+  }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);
+  font-family:Pretendard,-apple-system,BlinkMacSystemFont,"Segoe UI","Apple SD Gothic Neo",sans-serif;
+  font-size:14px;line-height:1.55;-webkit-text-size-adjust:100%}
+
+/* ── 시안 껍데기 ───────────────────────────────────────────────── */
+.wrap{max-width:1500px;margin:0 auto;padding:16px}
+.mockbar{background:var(--warn-weak);border:1px solid var(--warn);color:var(--warn);
+  border-radius:var(--radius);padding:10px 14px;font-weight:700;margin-bottom:14px}
+.mockbar span{font-weight:400;color:var(--text-2);display:block;margin-top:3px;font-size:12.5px}
+.shell{display:grid;grid-template-columns:230px 1fr;gap:16px;align-items:start}
+@media (max-width:900px){.shell{grid-template-columns:1fr}}
+.nav{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+  padding:8px;position:sticky;top:16px}
+.nav h2{font-size:11px;letter-spacing:.06em;color:var(--text-3);margin:8px 8px 6px;text-transform:uppercase}
+.nav button{display:block;width:100%;text-align:left;background:none;border:0;color:var(--text-2);
+  padding:8px 10px;border-radius:8px;cursor:pointer;font:inherit;font-size:13px;min-height:36px}
+.nav button:hover{background:var(--bg)}
+.nav button[aria-current="true"]{background:var(--blue-weak);color:var(--blue-text);font-weight:700}
+.nav button b{display:inline-block;width:18px;color:var(--text-3);font-weight:700}
+.nav button[aria-current="true"] b{color:var(--blue-text)}
+.stage{min-width:0}
+.sizes{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;align-items:center}
+.sizes button{background:var(--panel);border:1px solid var(--line-strong);color:var(--text-2);
+  padding:7px 12px;border-radius:8px;cursor:pointer;font:inherit;font-size:12.5px;min-height:36px}
+.sizes button[aria-pressed="true"]{background:var(--blue);border-color:var(--blue);color:#fff;font-weight:700}
+.sizes .note{color:var(--text-3);font-size:12px;margin-left:4px}
+.frameWrap{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+  padding:14px;overflow:auto}
+.frame{border:1px solid var(--line-strong);border-radius:8px;background:var(--bg);
+  margin:0 auto;overflow:hidden;display:flex;flex-direction:column}
+.frame[data-size="lg"]{width:1194px;height:834px}
+.frame[data-size="md"]{width:768px;height:1024px}
+.frame[data-size="sm"]{width:375px;height:812px}
+.contract{margin-top:12px;background:var(--panel);border:1px solid var(--line);
+  border-radius:var(--radius);padding:12px 14px}
+.contract h3{margin:0 0 6px;font-size:12.5px;color:var(--text-3);letter-spacing:.04em}
+.contract ul{margin:0;padding-left:18px;color:var(--text-2);font-size:13px}
+.contract li{margin:3px 0}
+.contract em{color:var(--bad);font-style:normal;font-weight:700}
+
+/* ── 모의 앱 공통 ──────────────────────────────────────────────── */
+.app{display:flex;flex-direction:column;height:100%;background:var(--bg);font-size:13px}
+.topbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 12px;
+  background:var(--panel);border-bottom:1px solid var(--line);flex:none}
+.brand{font-weight:800;letter-spacing:.02em;margin-right:4px}
+.grow{flex:1}
+.btn{background:var(--panel);border:1px solid var(--line-strong);color:var(--text);
+  border-radius:8px;padding:7px 11px;font:inherit;font-size:12.5px;cursor:pointer;
+  min-height:34px;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn.primary{background:var(--blue);border-color:var(--blue);color:#fff;font-weight:700}
+.btn.ghost{border-color:transparent;background:transparent;color:var(--text-2)}
+.btn.danger{border-color:var(--bad);color:var(--bad)}
+.btn:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.body{flex:1;display:flex;min-height:0}
+.col{display:flex;flex-direction:column;min-width:0;min-height:0;overflow:auto}
+.col + .col{border-left:1px solid var(--line)}
+.colhead{padding:9px 12px;border-bottom:1px solid var(--line);background:var(--panel);
+  font-weight:700;font-size:12.5px;position:sticky;top:0;display:flex;align-items:center;gap:6px}
+.colhead .sub{font-weight:400;color:var(--text-3);font-size:11.5px}
+.pad{padding:12px}
+
+/* 상태 칩 — 색만으로 표현하지 않고 글자를 함께 둔다 */
+.chip{display:inline-flex;align-items:center;gap:4px;border-radius:999px;padding:2px 8px;
+  font-size:11px;font-weight:700;border:1px solid transparent;white-space:nowrap}
+.chip.ok{background:var(--ok-weak);color:var(--ok);border-color:var(--ok)}
+.chip.local{background:var(--blue-weak);color:var(--blue-text);border-color:var(--blue-text)}
+.chip.warn{background:var(--warn-weak);color:var(--warn);border-color:var(--warn)}
+.chip.bad{background:var(--bad-weak);color:var(--bad);border-color:var(--bad)}
+.chip.wait{background:var(--wait-weak);color:var(--wait);border-color:var(--wait)}
+.chip::before{content:"●";font-size:8px}
+.chip.ok::before{content:"✓"}
+.chip.bad::before{content:"!"}
+.chip.warn::before{content:"!"}
+.chip.wait::before{content:"…"}
+
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+  padding:11px 12px;margin-bottom:9px}
+.card h4{margin:0 0 4px;font-size:13.5px}
+.card p{margin:0;color:var(--text-2);font-size:12px}
+.card.sel{border-color:var(--blue);box-shadow:0 0 0 2px var(--blue-weak)}
+.row{display:flex;align-items:center;gap:8px}
+.muted{color:var(--text-3);font-size:11.5px}
+.h{font-weight:700;margin:0 0 8px;font-size:14px}
+.note{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--blue);
+  border-radius:8px;padding:9px 11px;margin:9px 0;font-size:12px;color:var(--text-2)}
+.note.warn{border-left-color:var(--warn);background:var(--warn-weak)}
+.note.bad{border-left-color:var(--bad);background:var(--bad-weak)}
+.note b{color:var(--text)}
+.qitem{display:flex;gap:9px;align-items:flex-start;background:var(--panel);
+  border:1px solid var(--line);border-radius:8px;padding:9px 10px;margin-bottom:7px}
+.qitem.sel{border-color:var(--blue);box-shadow:0 0 0 2px var(--blue-weak)}
+.qnum{font-family:var(--mono);color:var(--text-3);font-size:11.5px;flex:none;padding-top:1px;min-width:22px}
+.qtxt{flex:1;min-width:0;font-size:12.5px}
+.qtxt .t{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.qmeta{margin-top:4px;display:flex;gap:5px;flex-wrap:wrap}
+.tag{font-size:10.5px;color:var(--text-2);background:var(--bg);border:1px solid var(--line);
+  border-radius:5px;padding:1px 6px}
+.tag.ai{border-style:dashed}
+.grouped{border-left:3px solid var(--blue);padding-left:7px;margin-left:-1px}
+.undo{position:sticky;bottom:0;background:var(--panel);border-top:1px solid var(--line);
+  padding:8px 12px;display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-2)}
+.prog{height:7px;border-radius:99px;background:var(--bg);border:1px solid var(--line);
+  overflow:hidden;display:flex;margin:7px 0}
+.prog i{display:block;height:100%}
+.prog i.ok{background:var(--ok)} .prog i.bad{background:var(--bad)} .prog i.wait{background:var(--line-strong)}
+table.k{width:100%;border-collapse:collapse;font-size:12px}
+table.k th,table.k td{border:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
+table.k th{background:var(--bg);color:var(--text-2);font-size:11.5px}
+.page{background:#fff;color:#111;border:1px solid var(--line-strong);border-radius:4px;
+  padding:10px;font-size:9px;line-height:1.45;overflow:hidden}
+.page .cols{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.page .cols > div{border-right:1px dotted #bbb;padding-right:7px}
+.page .cols > div:last-child{border-right:0}
+.page .q{margin-bottom:7px}
+.page .q b{font-family:var(--mono)}
+.page .cut{background:#fdeceb;outline:1px dashed var(--bad)}
+.thumbs{display:flex;gap:7px;flex-wrap:wrap}
+.thumb{width:52px;height:72px;background:#fff;border:1px solid var(--line-strong);border-radius:3px;
+  font-size:9px;color:#888;display:flex;align-items:flex-end;justify-content:center;padding-bottom:3px;cursor:pointer}
+.thumb.sel{border-color:var(--blue);box-shadow:0 0 0 2px var(--blue-weak)}
+.thumb.warn{border-color:var(--warn);background:var(--warn-weak);color:var(--warn)}
+.backbar{display:none;align-items:center;gap:8px;padding:7px 12px;background:var(--panel);
+  border-bottom:1px solid var(--line);flex:none;font-size:12.5px}
+
+/* ── 좁은 화면(375): 3단 → 1단, 복귀 동선을 남긴다 ─────────────── */
+.frame[data-size="sm"] .body{flex-direction:column}
+.frame[data-size="sm"] .col + .col{border-left:0;border-top:1px solid var(--line)}
+.frame[data-size="sm"] .col[data-narrow="hide"]{display:none}
+.frame[data-size="sm"] .backbar{display:flex}
+.frame[data-size="sm"] .topbar .btn span.lbl{display:none}
+.frame[data-size="md"] .col[data-narrow="hide"][data-tablet="hide"]{display:none}
+.frame[data-size="sm"] .page .cols{grid-template-columns:1fr}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="mockbar">모의 데이터 시안 — 제품 코드가 아닙니다
+    <span>문제·문제집·쪽수·저장 상태는 전부 지어낸 예시입니다. 이 페이지는 앱의 어떤 파일도 부르지 않고 어떤 저장소에도 쓰지 않습니다.
+      화면 크기 단추는 <b>모의 프레임</b>만 바꿉니다(브라우저 창이 아닙니다).</span></div>
+
+  <div class="shell">
+    <nav class="nav" aria-label="시안 화면">
+      <h2>정상 흐름</h2>
+      <button data-s="1" aria-current="true"><b>1</b>라이브러리 · 시작</button>
+      <button data-s="2"><b>2</b>자료 + 요청</button>
+      <button data-s="3"><b>3</b>처리 · 부분 실패</button>
+      <button data-s="4"><b>4</b>구성안 + 원문</button>
+      <button data-s="5"><b>5</b>권별 저장 결과</button>
+      <button data-s="6"><b>6</b>문항 편집</button>
+      <button data-s="7"><b>7</b>전체 지면 + 경고</button>
+      <h2>실패·복구</h2>
+      <button data-s="8"><b>8</b>충돌 복구 (B4)</button>
+      <button data-s="9"><b>9</b>재개 · 원문 만료</button>
+    </nav>
+
+    <div class="stage">
+      <div class="sizes" role="group" aria-label="화면 크기">
+        <button data-z="lg" aria-pressed="true">1194 × 834</button>
+        <button data-z="md" aria-pressed="false">768 × 1024</button>
+        <button data-z="sm" aria-pressed="false">375 × 812</button>
+        <span class="note">제품 UX §7 ⑥ 과제의 세 크기</span>
+      </div>
+      <div class="frameWrap">
+        <div class="frame" id="frame" data-size="lg"></div>
+      </div>
+      <div class="contract" id="contract"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* 모의 데이터 — 전부 지어낸 값이다 */
+const SCREENS = {};
+
+const topBar = (extra="") => `
+  <div class="topbar">
+    <span class="brand">PEDAGOGY</span>
+    ${extra}
+  </div>`;
+
+/* 1 ─ 라이브러리 · 시작 ─────────────────────────────────────── */
+SCREENS[1] = {
+  title:"라이브러리 · 시작",
+  contract:[
+    "'+ 새 문제집'은 <b>직접 만들기 / 자료로 만들기·AI</b> 두 경로를 같은 자리에서 보여준다(제품 §4).",
+    "'문제집 파일 불러오기(JSON)'는 PDF 자료 투입과 <b>다른 단추</b>다 — 섞으면 무엇이 AI를 부르는지 안 보인다.",
+    "사진 한 장을 현재 문제집에 넣는 기존 빠른 경로는 <b>없애지 않는다</b>.",
+    "새 '영구 PDF 자료함' 탭은 만들지 않는다(계약 §3 — 작업 전용 IndexedDB이지 영구 컬렉션이 아니다)."
+  ],
+  html:`
+  ${topBar(`<button class="btn">문제집 파일 불러오기</button>
+        <span class="grow"></span>
+        <button class="btn ghost">데이터 관리</button>
+        <button class="btn">설정</button>`)}
+  <div class="body"><div class="col"><div class="pad">
+    <div class="row" style="margin-bottom:10px">
+      <div class="h" style="margin:0">문제집 라이브러리</div><span class="grow"></span>
+      <button class="btn primary">+ 새 문제집</button>
+    </div>
+
+    <div class="card" style="border-color:var(--blue)">
+      <div class="row" style="align-items:flex-start;gap:12px;flex-wrap:wrap">
+        <div style="flex:1;min-width:190px">
+          <h4>직접 만들기</h4>
+          <p>빈 문제집을 열고 문항을 하나씩 넣습니다. AI를 부르지 않습니다.</p>
+          <button class="btn" style="margin-top:8px">빈 문제집 만들기</button>
+        </div>
+        <div style="flex:1;min-width:190px">
+          <h4>자료로 만들기 · AI</h4>
+          <p>PDF·사진을 넣고 원하는 구성을 말하면 여러 권으로 나눠 만듭니다.</p>
+          <button class="btn primary" style="margin-top:8px">자료 고르기</button>
+        </div>
+      </div>
+      <div class="muted" style="margin-top:9px">자료를 고르는 것만으로는 AI 처리가 시작되지 않습니다.</div>
+    </div>
+
+    <div class="h" style="margin-top:14px">내 문제집 3권</div>
+    <div class="card"><div class="row"><div style="flex:1">
+      <h4>2026 수능대비 미적분 N제</h4><p>문항 184개 · 어제 편집</p></div>
+      <span class="chip ok">클라우드 동기화됨</span></div></div>
+    <div class="card"><div class="row"><div style="flex:1">
+      <h4>3월 모의 오답 재구성</h4><p>문항 22개 · 오늘 편집</p></div>
+      <span class="chip local">이 브라우저에 저장됨</span></div></div>
+    <div class="card"><div class="row"><div style="flex:1">
+      <h4>확률과 통계 — 기하분포 특강</h4><p>문항 41개 · 3일 전</p></div>
+      <span class="chip warn">확인 필요</span></div></div>
+    <div class="note">'이 브라우저에 저장됨'과 '클라우드 동기화됨'을 <b>다른 말</b>로 쓴다.
+      서버 ACK 전에는 동기화됨이라고 쓰지 않는다(저장 계약 §2-2).</div>
+  </div></div></div>`
+};
+
+/* 2 ─ 자료 + 요청 ───────────────────────────────────────────── */
+SCREENS[2] = {
+  title:"자료 + 요청",
+  contract:[
+    "자료와 요청을 <b>같은 화면</b>에서 받는다. 고정 마법사를 만들지 않는다(제품 §4).",
+    "프리셋 칩과 자유 입력을 함께 둔다 — 단원은 자유 입력 + 자동완성(D4 권장안).",
+    "시작 전에 <b>처리 범위·산정 가능한 사용량·전송 안내</b>를 보여준다. 파일 선택만으로 과금하지 않는다(계약 §6).",
+    "<em>추출 전에는 문항 총수·단원 수를 확정하지 않는다</em> — 쪽수만 정확히 말한다(제품 §4)."
+  ],
+  html:`
+  ${topBar(`<button class="btn ghost">← 라이브러리</button><span class="grow"></span>`)}
+  <div class="backbar"><button class="btn ghost">← 라이브러리</button><b>자료로 만들기</b></div>
+  <div class="body">
+    <div class="col" style="flex:1.15"><div class="colhead">자료 <span class="sub">2개 · 46쪽</span></div><div class="pad">
+      <div class="card"><div class="row"><div style="flex:1">
+        <h4>2025_수능_수학_기출.pdf</h4><p>28쪽 · 12.4 MB</p></div>
+        <span class="chip ok">읽음</span></div>
+        <div class="muted" style="margin-top:6px">처리할 쪽: 1–28 <button class="btn ghost" style="min-height:26px;padding:2px 6px">범위 바꾸기</button></div>
+      </div>
+      <div class="card"><div class="row"><div style="flex:1">
+        <h4>미적분_심화_프린트.pdf</h4><p>18쪽 · 5.1 MB</p></div>
+        <span class="chip ok">읽음</span></div>
+        <div class="muted" style="margin-top:6px">처리할 쪽: 3–18 <span class="tag">1–2쪽 제외(표지)</span></div>
+      </div>
+      <button class="btn" style="width:100%">+ 자료 더 넣기</button>
+      <div class="note">원문은 <b>이 브라우저 안에서만</b> 작업 중 보관합니다. 작업을 끝낼 때 지울지 묻습니다.
+        <span class="muted">(D2 권장안 — 아직 확정 아님)</span></div>
+    </div></div>
+
+    <div class="col" style="flex:1.35" data-narrow="hide" data-tablet="show">
+      <div class="colhead">요청</div><div class="pad">
+      <div class="h">어떻게 나눌까요</div>
+      <div class="row" style="flex-wrap:wrap;gap:6px;margin-bottom:9px">
+        <button class="btn" style="border-color:var(--blue);color:var(--blue-text)">단원별</button>
+        <button class="btn">배점별</button>
+        <button class="btn">난이도별</button>
+        <button class="btn">N문항씩</button>
+      </div>
+      <div class="card" style="padding:9px">
+        <div class="muted" style="margin-bottom:5px">직접 쓰기</div>
+        <div style="font-size:12.5px">이 PDF를 단원별로 문제집 5권으로 만들어줘. 배점 없는 건 따로 모아줘.</div>
+      </div>
+      <div class="muted" style="margin:8px 0 4px">단원 이름 <span class="tag">자유 입력 · 자동완성</span></div>
+      <div class="row" style="flex-wrap:wrap;gap:5px">
+        <span class="tag">수열의 극한</span><span class="tag">급수</span><span class="tag">미분법</span>
+        <span class="tag">적분법</span><span class="tag">+ 추가</span>
+      </div>
+
+      <div class="note warn"><b>시작하면 일어나는 일</b><br>
+        · 쪽 이미지 <b>44쪽</b>을 한 쪽씩 순서대로 AI에 보냅니다(쪽마다 1회 호출).<br>
+        · 실패한 쪽은 <b>자동으로 다시 시도하지 않습니다.</b><br>
+        · 예상 사용량은 쪽 수 기준으로만 셉니다 —
+        <b>문항 수는 뽑아 보기 전에는 알 수 없습니다.</b><br>
+        · 비용 표시는 <span class="tag">C2 측정 대기</span> 확정 숫자가 아닙니다.</div>
+      <button class="btn primary" style="width:100%">44쪽 처리하고 구성안 만들기</button>
+      <div class="muted" style="text-align:center;margin-top:6px">돌아가기는 초안을 버리는 것과 다릅니다.</div>
+    </div></div>
+  </div>`
+};
+
+/* 3 ─ 처리 · 부분 실패 ──────────────────────────────────────── */
+SCREENS[3] = {
+  title:"처리 · 부분 실패",
+  contract:[
+    "알 수 있는 진행만 숫자로 말한다 — <b>쪽</b>은 셀 수 있고 문항 총수는 아직 모른다(Apple 진행 표시).",
+    "버튼 이름이 결과를 드러낸다 — '예/아니오'가 아니라 <b>'성공한 41쪽만 사용'</b>(Apple 경고창).",
+    "<em>자동 유료 재시도 없음</em> — 재시도는 사용자가 고르고 추가 차감을 먼저 말한다(저장 계약 §3-2).",
+    "실패 쪽의 <b>차감 영수증·attempt ID</b>는 보존한다. 실패했다고 과금 기록이 사라지지 않는다."
+  ],
+  html:`
+  ${topBar(`<button class="btn ghost">← 자료</button><span class="grow"></span>
+        <button class="btn">중단</button>`)}
+  <div class="backbar"><button class="btn ghost">← 자료</button><b>처리 중</b></div>
+  <div class="body"><div class="col"><div class="pad">
+    <div class="h">44쪽 중 43쪽 처리됨</div>
+    <div class="prog">
+      <i class="ok" style="width:93%"></i><i class="bad" style="width:4.5%"></i><i class="wait" style="width:2.5%"></i>
+    </div>
+    <div class="row" style="gap:12px;flex-wrap:wrap;margin-bottom:10px">
+      <span class="chip ok">성공 41</span><span class="chip bad">실패 2</span><span class="chip wait">대기 1</span>
+    </div>
+
+    <div class="note bad"><b>2쪽이 실패했습니다.</b> 성공한 41쪽 결과는 그대로 있습니다.
+      <div style="margin-top:7px">
+        <div class="row" style="gap:6px;margin-bottom:4px">
+          <span class="tag">기출.pdf 17쪽</span><span class="muted">응답이 형식 검증을 통과하지 못함</span></div>
+        <div class="row" style="gap:6px">
+          <span class="tag">심화.pdf 9쪽</span><span class="muted">공급자 시간 초과</span></div>
+      </div>
+    </div>
+
+    <div class="row" style="gap:7px;flex-wrap:wrap">
+      <button class="btn primary">성공한 41쪽만 사용해 구성안 보기</button>
+      <button class="btn">실패한 2쪽 다시 시도 — 2회 추가 차감</button>
+      <button class="btn ghost">실패 쪽 원문 보기</button>
+    </div>
+    <div class="note">검증을 통과하지 못한 쪽의 결과는 <b>문항으로 등록하지 않습니다</b>.
+      실패했어도 이미 발생한 차감 기록은 남습니다(저장 계약 §3-1).</div>
+    <div class="note warn">이 창을 닫거나 탭을 종료하면 <b>남은 1쪽은 계속 처리되지 않습니다.</b>
+      다른 기기에서 이어서 하는 것도 약속하지 않습니다.</div>
+  </div></div></div>`
+};
+
+/* 4 ─ 구성안 + 원문 상세 ────────────────────────────────────── */
+SCREENS[4] = {
+  title:"구성안 + 원문 상세",
+  contract:[
+    "구성안 = <b>목적지 권 목록 + 선택한 권의 문항 + 필요할 때 여는 상세</b>(제품 §4).",
+    "손수 고친 구성이 <b>현재 기준</b>이다. 재요청은 '새 구성안 보기 → 변경 확인 → 적용'.",
+    "단원 7개 / 요청 5권이면 <b>합칠 기준을 묻는다</b> — 임의 누락·합치기 금지.",
+    "미분류는 조용히 버리지 않는다. <b>목적지를 명시</b>하게 한다.",
+    "<em>공통지문 경고는 이 시안이 계약에 더한 것이다</em> — 묶음의 뒤 문항만 옮기면 지문이 따라가지 않고, 지문 보유 문항만 옮기면 목적지의 무관한 문항이 범위에 흡수된다(REV-2026-108)."
+  ],
+  html:`
+  ${topBar(`<button class="btn ghost">← 처리</button><span class="grow"></span>
+        <button class="btn">새 구성안 보기</button>
+        <button class="btn primary">문제집 5개 만들기</button>`)}
+  <div class="backbar"><button class="btn ghost">← 권 목록</button><b>미적분 — 급수</b>
+    <span class="grow"></span><button class="btn ghost">상세</button></div>
+  <div class="body">
+    <div class="col" style="flex:.85" data-narrow="hide"><div class="colhead">만들 문제집 <span class="sub">5권</span></div><div class="pad">
+      <div class="card"><div class="row"><div style="flex:1"><h4>① 수열의 극한</h4><p>문항 18</p></div></div></div>
+      <div class="card sel"><div class="row"><div style="flex:1"><h4>② 급수</h4><p>문항 14</p></div></div></div>
+      <div class="card"><div class="row"><div style="flex:1"><h4>③ 여러 가지 미분법</h4><p>문항 21</p></div></div></div>
+      <div class="card"><div class="row"><div style="flex:1"><h4>④ 도함수의 활용</h4><p>문항 19</p></div></div></div>
+      <div class="card"><div class="row"><div style="flex:1"><h4>⑤ 적분법</h4><p>문항 25</p></div></div></div>
+      <div class="card" style="border-style:dashed"><div class="row"><div style="flex:1">
+        <h4>미분류 6문항</h4><p>목적지를 정해야 만들 수 있습니다</p></div>
+        <span class="chip warn">처리 필요</span></div>
+        <div class="row" style="gap:5px;margin-top:7px;flex-wrap:wrap">
+          <button class="btn" style="min-height:28px">권에 나눠 넣기</button>
+          <button class="btn" style="min-height:28px">별도 권으로</button>
+          <button class="btn ghost" style="min-height:28px">초안에 남기기</button></div>
+      </div>
+      <div class="note warn">단원은 <b>7개</b>인데 <b>5권</b>을 요청하셨습니다.
+        둘을 합칠지 권수를 늘릴지 정해 주세요 — 임의로 합치지 않았습니다.</div>
+    </div></div>
+
+    <div class="col"><div class="colhead">② 급수 <span class="sub">14문항</span></div><div class="pad">
+      <div class="qitem"><span class="qnum">01</span><span class="qtxt">
+        <span class="t">등비급수의 합이 3일 때 …</span>
+        <span class="qmeta"><span class="tag ai">AI 분류 · 급수</span><span class="tag">3점</span>
+          <span class="chip warn" style="font-size:10px">미검토</span></span></span></div>
+
+      <div class="grouped">
+        <div class="qitem sel"><span class="qnum">02</span><span class="qtxt">
+          <span class="t">[지문] 다음 그림과 같이 좌표평면에 …</span>
+          <span class="qmeta"><span class="tag">공통지문 · 3문항 묶음</span><span class="tag ai">AI 분류</span></span></span></div>
+        <div class="qitem"><span class="qnum">03</span><span class="qtxt">
+          <span class="t">윗글의 도형에서 넓이 S를 구하면 …</span>
+          <span class="qmeta"><span class="tag">지문 딸림</span><span class="tag">4점</span></span></span></div>
+        <div class="qitem"><span class="qnum">04</span><span class="qtxt">
+          <span class="t">윗글에서 극한값을 구하시오 …</span>
+          <span class="qmeta"><span class="tag">지문 딸림</span></span></span></div>
+      </div>
+
+      <div class="note bad"><b>02–04는 지문 하나를 함께 씁니다.</b>
+        따로 옮기면 03·04에는 <b>지문이 따라가지 않고</b>, 02만 옮기면 목적지의
+        <b>다음 두 문항이 이 지문 묶음으로 잘못 묶입니다.</b>
+        <div class="row" style="gap:6px;margin-top:7px;flex-wrap:wrap">
+          <button class="btn" style="min-height:28px">세 문항을 묶음째 옮기기</button>
+          <button class="btn ghost" style="min-height:28px">묶음 풀고 지문 복제하기</button></div>
+      </div>
+
+      <div class="qitem"><span class="qnum">05</span><span class="qtxt">
+        <span class="t">함수 f(x)의 급수 수렴 여부를 판정하시오</span>
+        <span class="qmeta"><span class="tag">배점 원문 없음</span>
+          <span class="chip warn" style="font-size:10px">미검토</span></span></span></div>
+      <div class="muted">배점이 원문에 없으면 <b>비워 둡니다</b> — AI 난이도를 배점 자리에 넣지 않습니다.</div>
+      <div class="undo"><span>문항 3개를 ②로 옮겼습니다</span><span class="grow"></span>
+        <button class="btn" style="min-height:28px">문항 3개 이동 취소</button></div>
+    </div></div>
+
+    <div class="col" style="flex:.95" data-narrow="hide" data-tablet="hide">
+      <div class="colhead">선택한 문항 <span class="sub">02</span></div><div class="pad">
+      <div class="muted" style="margin-bottom:5px">원문 위치</div>
+      <div class="card" style="padding:9px"><div class="row"><div style="flex:1">
+        <h4 style="font-size:12.5px">기출.pdf · 11쪽</h4>
+        <p>쪽 안 순서 2번째</p></div><button class="btn" style="min-height:28px">원문 보기</button></div></div>
+
+      <div class="muted" style="margin:10px 0 5px">분류 — 고치면 AI 제안을 대신합니다</div>
+      <div class="row" style="gap:5px;flex-wrap:wrap;margin-bottom:8px">
+        <span class="tag">단원: 급수</span><span class="tag">난이도: 상 <span class="muted">(AI)</span></span>
+        <span class="tag">배점: 4</span></div>
+
+      <div class="note"><b>검토 상태</b><br>
+        본문·정답 <span class="chip warn" style="font-size:10px">미검토</span>
+        분류 <span class="chip warn" style="font-size:10px">미검토</span>
+        <div class="muted" style="margin-top:5px">저장하거나 타이핑하는 것만으로는 검토 완료가 되지 않습니다.</div>
+        <button class="btn" style="margin-top:7px;min-height:28px">이 문항 확인함으로 표시</button></div>
+      <div class="muted">필터·순서 바꾸기는 AI를 부르지 않습니다(0회).</div>
+    </div></div>
+  </div>`
+};
+
+/* 5 ─ 권별 저장 결과 ────────────────────────────────────────── */
+SCREENS[5] = {
+  title:"권별 저장 결과",
+  contract:[
+    "<em>'5권 저장 완료'라고 쓰지 않는다</em> — 권마다 관측된 상태가 다르다(계약 §4 표).",
+    "'이 브라우저에 저장됨'은 <b>flushLocal 성공과 내용 확인</b>까지다. 'saveSets 호출함'이 아니다.",
+    "서버 ACK만 '클라우드 동기화됨'이다. 캐시·pending snapshot은 ACK가 아니다(저장 계약 §2-2).",
+    "크기 초과는 <b>그 권만</b> 클라우드에서 빠진다. 로컬·원본은 그대로 두고 이름으로 특정해 말한다(§1-3).",
+    "저장 실패 권은 <b>만들기 완료로 세지 않고</b> 초안을 지우지 않는다. 즉시 JSON 내보내기를 안내한다."
+  ],
+  html:`
+  ${topBar(`<button class="btn ghost">← 구성안</button><span class="grow"></span>
+        <button class="btn">라이브러리에서 보기</button>`)}
+  <div class="body"><div class="col"><div class="pad">
+    <div class="h">5권 중 3권이 클라우드까지 저장됐습니다</div>
+    <div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:12px">
+      <span class="chip ok">클라우드 3</span><span class="chip local">이 브라우저만 1</span>
+      <span class="chip bad">저장 실패 1</span></div>
+
+    <div class="card"><div class="row"><div style="flex:1"><h4>① 수열의 극한</h4>
+      <p>문항 18 · 미검토 18</p></div><span class="chip ok">클라우드 동기화됨</span>
+      <button class="btn" style="margin-left:7px">편집하기</button></div></div>
+    <div class="card"><div class="row"><div style="flex:1"><h4>② 급수</h4>
+      <p>문항 14 · 미검토 14</p></div><span class="chip ok">클라우드 동기화됨</span>
+      <button class="btn" style="margin-left:7px">편집하기</button></div></div>
+    <div class="card"><div class="row"><div style="flex:1"><h4>③ 여러 가지 미분법</h4>
+      <p>문항 21 · 미검토 21</p></div><span class="chip ok">클라우드 동기화됨</span>
+      <button class="btn" style="margin-left:7px">편집하기</button></div></div>
+
+    <div class="card" style="border-color:var(--blue-text)"><div class="row"><div style="flex:1">
+      <h4>④ 도함수의 활용</h4><p>문항 19 · 그림 12개</p></div>
+      <span class="chip local">이 브라우저에 저장됨</span>
+      <button class="btn" style="margin-left:7px">편집하기</button></div>
+      <div class="note" style="margin:8px 0 0">문서가 <b>900KiB를 넘어</b> 클라우드에는 올리지 않았습니다.
+        이 기기에는 그대로 있고 편집할 수 있습니다. 두 권으로 나누면 올라갑니다.
+        <div class="row" style="gap:6px;margin-top:6px">
+          <button class="btn" style="min-height:28px">두 권으로 나누기</button>
+          <button class="btn ghost" style="min-height:28px">JSON으로 내보내기</button></div></div></div>
+
+    <div class="card" style="border-color:var(--bad)"><div class="row"><div style="flex:1">
+      <h4>⑤ 적분법</h4><p>문항 25 — <b>아직 만들어지지 않았습니다</b></p></div>
+      <span class="chip bad">저장 실패</span></div>
+      <div class="note bad" style="margin:8px 0 0">이 브라우저의 저장 공간이 부족해 기록하지 못했습니다.
+        초안은 <b>지우지 않았습니다.</b>
+        <div class="row" style="gap:6px;margin-top:6px">
+          <button class="btn" style="min-height:28px">JSON으로 내보내기</button>
+          <button class="btn" style="min-height:28px">공간 비우고 다시 시도</button></div></div></div>
+
+    <div class="note">이 화면을 떠났다 돌아와도 <b>같은 ID로 이어서</b> 만듭니다.
+      이미 만든 권은 다시 만들지 않고, 그 뒤 편집한 내용을 처음 사본으로 되돌리지 않습니다(계약 §4-5).</div>
+  </div></div></div>`
+};
+
+/* 6 ─ 문항 편집 ─────────────────────────────────────────────── */
+SCREENS[6] = {
+  title:"문항 편집",
+  contract:[
+    "기존 편집기 구조를 그대로 쓴다 — <code>#paneTabs</code>(미리보기/편집/문항), <code>#spanSeg</code>(묶기/한 단/한 쪽).",
+    "'문항 편집'과 '지면 배치'는 <b>같은 문제집의 두 보기</b>다. 다른 앱으로 간 느낌을 만들지 않는다(제품 §4).",
+    "AI가 넣은 값과 사람이 확인한 값을 구분해 보여준다. 확인 뒤 내용이 바뀌면 <b>다시 미검토</b>.",
+    "배치 단추는 이름과 힌트를 함께 둔다 — 기존 <code>SPAN_HINT</code> 문구를 바꾸지 않는다."
+  ],
+  html:`
+  ${topBar(`<button class="btn ghost">← 라이브러리</button>
+        <b style="font-size:12.5px">② 급수</b><span class="grow"></span>
+        <button class="btn" style="border-color:var(--blue);color:var(--blue-text)">문항 편집</button>
+        <button class="btn">지면 배치</button>
+        <button class="btn primary">인쇄 / PDF</button>`)}
+  <div class="backbar"><button class="btn ghost">← 문항</button><b>02 · 급수</b>
+    <span class="grow"></span><button class="btn ghost">지면</button></div>
+  <div class="body">
+    <div class="col" style="flex:.7" data-narrow="hide"><div class="colhead">문항 14</div><div class="pad">
+      <div class="qitem"><span class="qnum">01</span><span class="qtxt"><span class="t">등비급수의 합이 …</span></span></div>
+      <div class="qitem sel"><span class="qnum">02</span><span class="qtxt"><span class="t">[지문] 좌표평면에 …</span>
+        <span class="qmeta"><span class="tag">묶음 3문항</span></span></span></div>
+      <div class="qitem"><span class="qnum">03</span><span class="qtxt"><span class="t">윗글의 도형에서 …</span></span></div>
+      <div class="qitem"><span class="qnum">04</span><span class="qtxt"><span class="t">윗글에서 극한값을 …</span></span></div>
+      <div class="qitem"><span class="qnum">05</span><span class="qtxt"><span class="t">함수 f(x)의 급수 …</span></span></div>
+    </div></div>
+
+    <div class="col"><div class="colhead">편집 <span class="sub">02</span></div><div class="pad">
+      <div class="muted">발문</div>
+      <div class="card" style="padding:9px;font-size:12.5px">다음 그림과 같이 좌표평면 위에 한 변의 길이가 1인 정사각형 $A_1$이 있다.</div>
+      <div class="muted" style="margin-top:9px">블록</div>
+      <div class="card" style="padding:9px"><div class="row"><span class="tag">지문</span>
+        <span class="grow"></span><span class="muted">3문항이 함께 씁니다</span></div></div>
+      <div class="card" style="padding:9px"><div class="row"><span class="tag">선지 ①~⑤</span>
+        <span class="grow"></span><span class="muted">5열</span></div></div>
+
+      <div class="muted" style="margin-top:11px">이 문항의 배치</div>
+      <div class="row" style="gap:0;margin:5px 0">
+        <button class="btn" style="border-radius:8px 0 0 8px">묶기</button>
+        <button class="btn" style="border-radius:0;border-color:var(--blue);color:var(--blue-text)">한 단</button>
+        <button class="btn" style="border-radius:0 8px 8px 0">한 쪽</button></div>
+      <div class="muted">한 단을 혼자 씁니다. 한 쪽에 두 문제.</div>
+
+      <div class="note"><b>검토 상태</b> — 본문
+        <span class="chip ok" style="font-size:10px">확인함</span> 분류
+        <span class="chip warn" style="font-size:10px">미검토</span>
+        <div class="muted" style="margin-top:4px">본문을 고치면 확인 표시가 <b>다시 미검토</b>로 돌아갑니다.</div></div>
+    </div></div>
+
+    <div class="col" style="flex:.95" data-narrow="hide" data-tablet="hide">
+      <div class="colhead">미리보기 <span class="sub">이 문항</span></div><div class="pad">
+      <div class="page"><div class="q"><b>02.</b> 다음 그림과 같이 좌표평면 위에 한 변의 길이가 1인 정사각형 A₁이 있다.</div>
+        <div style="border:1px solid #bbb;height:52px;margin:5px 0;display:flex;align-items:center;justify-content:center;color:#999">그림</div>
+        <div class="q">① 1&nbsp;&nbsp;② 3/2&nbsp;&nbsp;③ 2&nbsp;&nbsp;④ 5/2&nbsp;&nbsp;⑤ 3</div></div>
+      <div class="muted" style="margin-top:7px">전체 지면은 '지면 배치'에서 봅니다.</div>
+    </div></div>
+  </div>`
+};
+
+/* 7 ─ 전체 지면 + 경고 ──────────────────────────────────────── */
+SCREENS[7] = {
+  title:"전체 지면 + 경고",
+  contract:[
+    "<b>PDF를 만들지 않고</b> 잘림·축소를 본다(제품 §7 과제 ③).",
+    "왼쪽 쪽 축소판 · 가운데 지면 · 오른쪽 <b>선택한 문항에만 필요한 설정</b>(Apple Pages 대상 선택).",
+    "'확인할 문항 3개'에서 <b>그 위치로 이동</b>한다 — 경고를 목록으로만 두지 않는다.",
+    "자동 축소를 숨기지 않고 <b>어느 문항이 몇 %로 줄었는지</b> 말한다(제품 §4).",
+    "<em>기존 출력 경로를 공유한다</em> — <code>buildPrintDoc</code>/<code>fitPrintDoc</code>를 복제한 별도 조판기를 만들지 않는다.",
+    "여백 mm 자유 조절은 넣지 않는다. 기존 단/쪽 배치를 먼저 쓴다."
+  ],
+  html:`
+  ${topBar(`<button class="btn ghost">← 라이브러리</button>
+        <b style="font-size:12.5px">② 급수</b><span class="grow"></span>
+        <button class="btn">문항 편집</button>
+        <button class="btn" style="border-color:var(--blue);color:var(--blue-text)">지면 배치</button>
+        <button class="btn primary">인쇄 / PDF</button>`)}
+  <div class="backbar"><button class="btn ghost">← 쪽 목록</button><b>3쪽</b>
+    <span class="grow"></span><button class="btn ghost">설정</button></div>
+  <div class="body">
+    <div class="col" style="flex:.55" data-narrow="hide"><div class="colhead">쪽 6</div><div class="pad">
+      <div class="thumbs">
+        <div class="thumb">1</div><div class="thumb">2</div>
+        <div class="thumb sel warn">3 !</div><div class="thumb">4</div>
+        <div class="thumb warn">5 !</div><div class="thumb">6</div></div>
+      <div class="note warn" style="margin-top:10px"><b>확인할 문항 3개</b>
+        <div style="margin-top:6px">
+          <div class="row" style="gap:5px;margin-bottom:4px"><span class="tag">12번</span>
+            <span class="muted" style="flex:1">칸을 넘겨 잘림</span>
+            <button class="btn ghost" style="min-height:24px;padding:1px 6px">이동</button></div>
+          <div class="row" style="gap:5px;margin-bottom:4px"><span class="tag">14번</span>
+            <span class="muted" style="flex:1">88%로 줄임</span>
+            <button class="btn ghost" style="min-height:24px;padding:1px 6px">이동</button></div>
+          <div class="row" style="gap:5px"><span class="tag">21번</span>
+            <span class="muted" style="flex:1">그림 준비 실패</span>
+            <button class="btn ghost" style="min-height:24px;padding:1px 6px">이동</button></div>
+        </div></div>
+    </div></div>
+
+    <div class="col"><div class="colhead">3쪽 <span class="sub">최신 반영됨</span></div><div class="pad">
+      <div class="page"><div class="cols">
+        <div>
+          <div class="q"><b>11.</b> 수열 {aₙ}이 모든 자연수 n에 대하여 …</div>
+          <div class="q">① 2 ② 4 ③ 6 ④ 8 ⑤ 10</div>
+          <div class="q cut"><b>12.</b> 그림과 같이 함수 f(x)의 그래프와 x축으로 둘러싸인 영역을 …
+            <div style="border:1px solid #bbb;height:40px;margin:4px 0"></div>
+            좌표평면에서 점 P가 원점을 출발하여 …<br><b style="color:#c8352c">↓ 여기서 잘립니다</b></div>
+        </div>
+        <div>
+          <div class="q"><b>13.</b> 급수 Σ의 합을 구하시오.</div>
+          <div class="q"><b>14.</b> 다음 조건을 만족시키는 …
+            <span style="color:#b26a00">(88%로 줄임)</span></div>
+          <div class="q">① 1 ② 3/2 ③ 2 ④ 5/2 ⑤ 3</div>
+        </div>
+      </div></div>
+      <div class="muted" style="margin-top:7px">브라우저 인쇄 설정(용지·배율·머리글)에 따라 실제 출력은 달라질 수 있습니다.</div>
+    </div></div>
+
+    <div class="col" style="flex:.75" data-narrow="hide" data-tablet="hide">
+      <div class="colhead">선택한 문항 <span class="sub">12번</span></div><div class="pad">
+      <div class="note bad"><b>칸을 넘겨 잘립니다.</b> 지금 배치로는 내용이 다 들어가지 않습니다.</div>
+      <div class="muted">배치</div>
+      <div class="row" style="gap:0;margin:5px 0">
+        <button class="btn" style="border-radius:8px 0 0 8px">묶기</button>
+        <button class="btn" style="border-radius:0;border-color:var(--blue);color:var(--blue-text)">한 단</button>
+        <button class="btn" style="border-radius:0 8px 8px 0">한 쪽</button></div>
+      <div class="card" style="padding:8px;font-size:11.5px">
+        <div class="muted" style="margin-bottom:4px">'한 쪽'으로 바꾸면</div>
+        <div class="row" style="gap:6px;align-items:flex-start">
+          <div style="flex:1"><div class="page" style="height:60px;font-size:7px">한 단 — <span style="color:#c8352c">잘림</span></div></div>
+          <div style="flex:1"><div class="page" style="height:60px;font-size:7px">한 쪽 — 다 들어감</div></div>
+        </div></div>
+      <button class="btn primary" style="width:100%;margin-top:8px">12번을 한 쪽에 두기</button>
+      <div class="muted" style="margin-top:6px">풀이 공간은 선생님이 정합니다 — AI가 임의로 배치하거나 전체를 줄이지 않습니다.</div>
+      <div class="undo" style="margin-top:9px;border-top:0;padding:0">
+        <span>배치를 바꿨습니다</span><span class="grow"></span>
+        <button class="btn" style="min-height:28px">배치 변경 취소</button></div>
+    </div></div>
+  </div>`
+};
+
+/* 8 ─ 충돌 복구 (B4) ────────────────────────────────────────── */
+SCREENS[8] = {
+  title:"충돌 복구 (B4)",
+  contract:[
+    "<b>자동 병합하지 않고 어느 쪽도 버리지 않는다</b>(저장 계약 §2-5).",
+    "보여줄 것: 원본 이름 · 다른 기기 변경 · <b>기준 revision과 현재 revision</b> · 로컬 사본 위치.",
+    "선택지 넷을 <b>같은 자리에 지속 상태로</b> 둔다 — 토스트로 알리고 사라지게 하지 않는다.",
+    "시각은 <b>설명용</b>이다. 승자 판정에 쓰지 않는다.",
+    "로컬 사본은 <b>한 번만</b> 만든다 — 같은 {setId, base, server, hash}에서 반복 생성하지 않는다.",
+    "'로컬본으로 서버 교체'는 <b>최신 revision을 새 기준으로 한 명시 CAS</b>다."
+  ],
+  html:`
+  ${topBar(`<button class="btn ghost">← 라이브러리</button><span class="grow"></span>`)}
+  <div class="body"><div class="col"><div class="pad">
+    <div class="note bad" style="margin-top:0"><b>이 문제집이 다른 기기에서도 바뀌었습니다.</b>
+      어느 쪽도 지우지 않았습니다.</div>
+
+    <div class="card">
+      <h4>② 급수</h4>
+      <table class="k" style="margin-top:7px">
+        <tr><th style="width:38%">내가 편집을 시작한 기준</th><td>revision <b>7</b></td></tr>
+        <tr><th>지금 서버</th><td>revision <b>9</b> — 다른 기기에서 두 번 저장됨</td></tr>
+        <tr><th>내 사본 위치</th><td>라이브러리의 <b>“② 급수 (내 사본)”</b>
+          <span class="chip local" style="margin-left:5px">이 기기에만 보존됨</span></td></tr>
+        <tr><th>시각</th><td class="muted">서버 14:02 · 내 편집 13:47 — 설명용이며 승자를 정하지 않습니다</td></tr>
+      </table>
+    </div>
+
+    <div class="h" style="margin-top:12px">무엇을 하시겠습니까</div>
+    <div class="card"><div class="row"><div style="flex:1">
+      <h4>두 버전 보기</h4><p>무엇이 다른지 나란히 봅니다. 아무것도 바뀌지 않습니다.</p></div>
+      <button class="btn">비교 열기</button></div></div>
+    <div class="card"><div class="row"><div style="flex:1">
+      <h4>서버본으로 돌아가기</h4><p>서버 revision 9를 씁니다. 내 사본은 그대로 남습니다.</p></div>
+      <button class="btn">서버본 쓰기</button></div></div>
+    <div class="card"><div class="row"><div style="flex:1">
+      <h4>로컬본으로 서버 교체</h4><p>revision 9를 기준으로 내 내용을 올립니다.
+        그사이 또 바뀌면 다시 멈춥니다.</p></div>
+      <button class="btn danger">내 것으로 덮기</button></div></div>
+    <div class="card"><div class="row"><div style="flex:1">
+      <h4>로컬본 내보내기</h4><p>JSON 파일로 저장합니다.</p></div>
+      <button class="btn">내보내기</button></div></div>
+
+    <div class="note">이 안내는 <b>고를 때까지 사라지지 않습니다.</b>
+      저장 실패·충돌·검토 필요는 잠깐 뜨는 토스트로 전하지 않습니다(제품 §5).</div>
+  </div></div></div>`
+};
+
+/* 9 ─ 재개 · 원문 만료 ──────────────────────────────────────── */
+SCREENS[9] = {
+  title:"재개 · 원문 만료",
+  contract:[
+    "재진입은 <b>같은 채택 ID</b>로 이어 간다. 이미 있는 권은 다시 만들지 않는다(계약 §4-5).",
+    "삭제 기록이 있는 권은 <b>자동으로 되살리지 않는다</b>(§4-6).",
+    "상태를 알 수 없으면 '확인 필요'로 <b>멈춘다</b> — 새 ID로 우회 복제하지 않는다.",
+    "성공 잠금이 살아 있는 동안 <b>자동 재호출하지 않는다</b>. 먼저 outbox 복구를 시도한다(§5).",
+    "원문을 지운 뒤에도 <b>결과와 그림은 남는다</b>. 원문 보기만 이용 불가 이유를 표시한다.",
+    "<em>원장 수명 표기는 7일 성공 잠금에 맞춘다</em> — 저장 계약 §3-4 제목의 '48시간'은 DailyQuota 수명이다."
+  ],
+  html:`
+  ${topBar(`<button class="btn ghost">← 라이브러리</button><span class="grow"></span>`)}
+  <div class="body"><div class="col"><div class="pad">
+    <div class="h">지난번 작업을 이어서 합니다</div>
+    <div class="card"><div class="row"><div style="flex:1">
+      <h4>기출 + 심화 PDF · 44쪽</h4><p>어제 14:02에 멈춤</p></div>
+      <span class="chip wait">이어서 하기</span></div>
+      <table class="k" style="margin-top:8px">
+        <tr><th style="width:34%">①②③ 권</th><td><span class="chip ok">이미 만들어짐</span>
+          다시 만들지 않습니다</td></tr>
+        <tr><th>④ 권</th><td><span class="chip local">이 브라우저에만</span> 클라우드 대기</td></tr>
+        <tr><th>⑤ 권</th><td><span class="chip bad">만들지 못함</span> 이어서 만듭니다</td></tr>
+        <tr><th>⑥ 권</th><td><span class="chip warn">확인 필요</span>
+          지웠는지 알 수 없어 <b>멈췄습니다</b> — 라이브러리를 확인해 주세요</td></tr>
+      </table>
+      <div class="row" style="gap:6px;margin-top:9px;flex-wrap:wrap">
+        <button class="btn primary">⑤만 이어서 만들기</button>
+        <button class="btn">라이브러리 확인하기</button></div>
+    </div>
+
+    <div class="note bad"><b>처리 성공 기록은 있는데 이 브라우저에서 결과를 찾을 수 없습니다.</b><br>
+      17쪽은 성공으로 기록돼 있지만 결과가 이 기기에 없습니다. 먼저 복구를 시도했고 실패했습니다.
+      <div class="muted" style="margin-top:5px">성공 잠금이 남아 있는 동안 <b>자동으로 다시 호출하지 않습니다</b> —
+        다시 부르면 또 차감됩니다.</div>
+      <div class="row" style="gap:6px;margin-top:7px">
+        <button class="btn">17쪽 다시 처리 — 1회 추가 차감</button>
+        <button class="btn ghost">이 쪽 건너뛰기</button></div></div>
+
+    <div class="note warn"><b>원문 PDF는 지워졌습니다.</b>
+      작업을 끝내면서 삭제를 선택하셨습니다(어제 14:20).
+      <div style="margin-top:5px">· 만들어진 문항과 <b>그림은 그대로 있습니다.</b><br>
+        · 출처 표기(기출.pdf 11쪽)는 남지만 <b>'원문 보기'는 열 수 없습니다.</b><br>
+        · 다시 보려면 같은 PDF를 새 작업으로 넣어야 합니다.</div></div>
+
+    <div class="muted">브라우저 저장소를 비우면 이 작업 기록도 사라질 수 있습니다.</div>
+  </div></div></div>`
+};
+
+const frame=document.getElementById('frame');
+const contract=document.getElementById('contract');
+let cur=1;
+function draw(){
+  const s=SCREENS[cur];
+  frame.innerHTML=`<div class="app">${s.html}</div>`;
+  contract.innerHTML=`<h3>${cur}. ${s.title} — 이 화면이 지키는 계약</h3><ul>`+
+    s.contract.map(c=>`<li>${c}</li>`).join("")+`</ul>`;
+}
+document.querySelectorAll('.nav button').forEach(b=>{
+  b.onclick=()=>{
+    document.querySelectorAll('.nav button').forEach(x=>x.setAttribute('aria-current','false'));
+    b.setAttribute('aria-current','true'); cur=+b.dataset.s; draw();
+  };
+});
+document.querySelectorAll('.sizes button').forEach(b=>{
+  b.onclick=()=>{
+    document.querySelectorAll('.sizes button').forEach(x=>x.setAttribute('aria-pressed','false'));
+    b.setAttribute('aria-pressed','true'); frame.dataset.size=b.dataset.z;
+  };
+});
+draw();
+</script>
+</body>
+</html>

@@ -58,4 +58,25 @@ Sol medium의 보안·저장 통합 독립 검토를 수행한다. 사용자 미
 
 ## 검토 기록
 
-구현자 자기검증 완료. 독립 검토 대기.
+- `2026-09-23` — `Claude / Opus 5`: **독립 검토 완료 · 판정 유효 · 재현된 결함 없음.**
+  검사 재실행이 아니라 주장을 직접 대조했다. ① **해시 5개를 직접 재계산**해(하네스를 쓰지 않고)
+  index 3 · mock 1 · document 1 이 양방향으로 일치함을 확인했다 — 선언만 있고 본문이 없는 해시도,
+  해시가 없어 **조용히 차단될** 인라인 스크립트도 없다. ② `gh api repos/071205/pedagogy/pages` 가
+  source = `main` 브랜치 **루트**임을 확인해, 바이트 대조보다 강한 근거로 '`dist/public`이 아니다'를
+  뒷받침한다. ③ 공개 빌드 산출물에서 인라인 0개·`sha256-` 제거를 확인했고 **`script-src-attr 'none'`은
+  살아남는다**(제거 정규식이 `script-src\s+`라 `-attr`에 걸리지 않는다). ④ `mock_to_hwpx`·
+  `document_to_hwpx`의 import 폐포를 AST로 계산하니 `hwp_export_cli`가 나왔으나 **둘 다
+  `if __name__ == "__main__":` 안**이라 `serve.py`의 `importlib` 경로에서는 로드되지 않는다 —
+  런타임 9개 = Sonar main scope 9개로 정확히 일치하며 §5.1의 런타임/CLI 분리 주장이 맞다.
+  ⑤ `_send()`가 **무조건** nosniff를 붙이고, HWPX는 고정 MIME + 리터럴 파일명(`"exam.hwpx"`·
+  `"document.hwpx"`)이며 정적 ctype은 `STATIC` 화이트리스트에서만 온다 — S5131 오탐 판정이 옳다.
+  ⑥ CSP의 로컬 포트 8080·8787·8788이 세 HTML의 실제 탐색 포트와 정확히 일치하고, `--lan`은
+  진짜 사설 IPv4만 허용하며 `/font`를 막는다 — S5332 수용 근거가 코드와 맞다.
+  ⚠️ R1 이후 `index.html`이 6번 바뀌었으나(B1·B2·B3·R4.5) **모든 커밋이 해시를 함께 갱신**했고,
+  `test:public`이 `check:fast`에, `test:csp`·`test:public-browser`·`check:public`이 CI
+  `cross-platform` 잡에 걸려 있어 드리프트에 자동 경로가 있다.
+  ▶ **남은 것은 결함이 아니라 R7 범위다** — GitHub Pages는 응답 헤더를 못 붙이므로 운영에서
+  `frame-ancestors`·nosniff·Referrer-Policy가 **여전히 없다**(meta는 `frame-ancestors`를 못 싣는다).
+  §5·§5.1이 이미 그렇게 적고 있으며 이 검토가 새로 바꾼 것은 없다. `REV-2026-097`은 `resolved`다.
+  관찰 하나: `connect-src`의 `www.googleapis.com`은 와일드카드는 아니지만 넓은 호스트다 —
+  script-src가 잠겨 있어 지금 실익은 낮고, R5/R7에서 반출 경계를 좁힐 후보로만 남긴다.
