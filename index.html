@@ -25,7 +25,7 @@
      어렵다 — 새 로그인만 깨진다). 실제로 한 번 그랬으니 손대지 말 것. -->
 <meta http-equiv="Content-Security-Policy" content="
   default-src 'self';
-  script-src 'self' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-4E2/WBzDQkHWcvmGmqz5KsyRodSNBOaVHkb3eTon5xo=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
+  script-src 'self' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-kFW+f5IVDd+Qjn8OCaSzy1beG3i6kY94VIuG9ZsutZM=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
   script-src-attr 'none';
   style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
   font-src 'self' data: https://cdn.jsdelivr.net;
@@ -1619,6 +1619,36 @@ input:focus-visible,textarea:focus-visible{outline:none}
 .library-dialog p{font-size:13px;color:var(--text-secondary)}
 .library-dialog-actions{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;margin-top:16px}
 .library-dialog-actions button{min-height:44px}
+/* B4 충돌 보류 — 띠·칩·고르는 화면 */
+.set-chip{font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;white-space:nowrap;
+  background:var(--surface-3);color:var(--text-secondary)}
+.set-chip.warn{background:transparent;border:1px solid var(--danger);color:var(--danger)}
+.conflict-banner{margin:0 0 14px;padding:12px 14px;border:1px solid var(--danger);border-radius:12px;
+  background:var(--surface-1);color:var(--text-primary);font-size:13px}
+.conflict-banner[hidden]{display:none}
+.conflict-banner p{margin:0 0 8px}
+.conflict-banner-actions{display:flex;flex-wrap:wrap;gap:8px}
+.conflict-banner-actions button{min-height:36px}
+/* 높이 상한은 모달 dialog 의 기본값(뷰포트 기준)을 쓴다 — vh/dvh 짝을 새로 늘리지 않는다. */
+.conflict-dialog{width:min(640px,calc(100% - 32px));overflow:auto}
+.conflict-dialog h3{margin-bottom:8px;overflow-wrap:anywhere}
+.conflict-lead,.conflict-warn{margin:0 0 12px}
+.conflict-warn{color:var(--danger)!important}
+.conflict-facts{display:grid;grid-template-columns:minmax(96px,32%) 1fr;gap:6px 12px;margin:0 0 12px;font-size:13px}
+.conflict-facts dt{color:var(--text-secondary)}
+.conflict-facts dd{margin:0;overflow-wrap:anywhere}
+.conflict-h{margin:14px 0 8px}
+.conflict-choice{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:10px 12px;
+  border:1px solid var(--border);border-radius:10px;margin-bottom:8px}
+.conflict-choice h4{margin:0 0 4px;font-size:14px}
+.conflict-choice p{margin:0}
+.conflict-choice button{min-height:44px;flex:none}
+.conflict-compare{overflow-x:auto;margin:4px 0 8px}
+.conflict-compare table{width:100%;border-collapse:collapse;font-size:12px}
+.conflict-compare th,.conflict-compare td{border-bottom:1px solid var(--border);padding:4px 6px;text-align:left;vertical-align:top;overflow-wrap:anywhere}
+.conflict-compare tr.diff td{background:var(--surface-2);font-weight:600}
+.conflict-msg{min-height:1em}
+@media (max-width:520px){.conflict-choice{flex-direction:column;align-items:stretch}.conflict-facts{grid-template-columns:1fr}}
 .library-dialog [hidden],.dotbtn[hidden]{display:none}
 .select-bar{
   display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:16px;padding:10px 12px;
@@ -1810,6 +1840,7 @@ input:focus-visible,textarea:focus-visible{outline:none}
       <button id="selDeleteBtn" class="btn-ghost danger-text">삭제</button>
     </div>
   </div>
+  <div id="conflictBanner" class="conflict-banner" role="status" hidden></div>
   <div id="setGrid" class="lib-grid"></div>
   </div><!-- /#setsPanel -->
 
@@ -2357,6 +2388,7 @@ function setEditorActions(on){
     </div>
   </form>
 </dialog>
+<dialog id="conflictDialog" class="library-dialog conflict-dialog" aria-labelledby="conflictTitle"></dialog>
 <dialog id="folderMoveDialog" class="library-dialog" aria-labelledby="folderMoveTitle">
   <form id="folderMoveForm">
     <h3 id="folderMoveTitle">폴더로 이동</h3>
@@ -3388,6 +3420,7 @@ async function loadSets(){
         cloudSynced=new Map(cloudEntries.filter(e=>!e.deleted)
           .map(e=>{ const s=docToSet(e); return s?[s.id,cloudSyncEntry(s,e.order)]:null; }).filter(Boolean));
         reconcileSetSyncMeta(owner,cloudEntries,sets);
+        releaseSettledConflicts(owner,cloudEntries);
         writeLocalNow();       // 클라우드에서 막 읽어 온 결과 — 즉시 확정
         // 병합으로 로컬에만 있던 게 올라가야 하면 저장
         if(merged.some((s,i)=>!isCloudSynced(s,i))) saveSets();
@@ -3491,6 +3524,7 @@ function watchCloud(){
           changed=true;
         }else{
           deletedIds.set(d.id, Number(d.updatedAt)||Date.now());
+          markConflictCopyDismissed(owner,d.id);   // 다른 기기에서 지운 충돌 사본 — 되살리지 않는다
           const i=sets.findIndex(s=>s.id===d.id);
           if(i>=0 && setRevisionEnabled() && localWasDirty(sets[i],d.id,i,d.order)){
             cloudSynced.delete(d.id); // 로컬 초안 보존 · transaction에서 tombstone 충돌
@@ -3527,6 +3561,7 @@ function watchCloud(){
       const complete=Array.isArray(snap.docs);
       const entries=(complete?snap.docs:changes.map(ch=>ch.doc)).map(doc=>doc.data()).filter(Boolean);
       reconcileSetSyncMeta(owner,entries,sets,{complete});
+      if(setRevisionEnabled()) releaseSettledConflicts(owner,entries);
     },err=>{
       console.warn('클라우드 구독 실패:', err);
       warnOnce("watch","다른 기기의 변경을 실시간으로 받지 못해요 · 새로고침하면 최신 내용이 보입니다");
@@ -3787,7 +3822,10 @@ function writeLocalNow(){
 function hasUnsavedCloudWork(){
   if(localDirty || pendingLocalByOwner.size) return true;
   if(!currentUser) return false;
-  return sets.some((s,i)=>!isCloudSynced(s,i));
+  /* 보류(B4) 문제집은 충돌 기록에 초안째 보관돼 있다 — 창을 닫을 때마다 경고하지 않는다.
+     사용자가 고를 때까지 계속 '안 올라감' 이라 빼지 않으면 경고가 영원히 뜬다. */
+  const held=setRevisionEnabled()?heldSetIds(currentUser.uid):new Set();
+  return sets.some((s,i)=>!held.has(String(s.id))&&!isCloudSynced(s,i));
 }
 
 /* 바뀐 문제집만 골라 올린다.
@@ -3814,23 +3852,48 @@ function setRevisionFailure(code,message,extra={}){
   const e=new Error(message); e.code=code; Object.assign(e,extra); return e;
 }
 /* 한 문서 transaction. target은 호출 시점의 불변 snapshot이며 revision은 여기서만 붙인다. */
-async function writeSetDocRevision(owner,target,session,{allowWiping=false,useCurrentServerAsBase=false}={}){
+/* `explicitBase` 는 B4 '충돌 당시 내 초안으로 서버 교체' 전용이다 — 사용자가 **화면에서 확인한**
+   서버 snapshot 의 기준 엔트리(또는 문서 부재 "absent")다. 서버가 그 snapshot 과 revision·지문·order·
+   삭제 상태까지 같을 때만 쓴다. ⚠️ 부재·동일 본문 분기보다 **먼저** 본다 — 그 분기가 확인하지 않은
+   서버본 위에 쓰는 길이 되면 안 된다. ⚠️ `useCurrentServerAsBase` 는 비교를 건너뛰므로 대신 쓰지 않는다. */
+async function writeSetDocRevision(owner,target,session,{allowWiping=false,useCurrentServerAsBase=false,explicitBase}={}){
   const id=String(target?.id||"");
   if(!id) throw setRevisionFailure("set-invalid","문제집 ID가 없습니다");
   const ref=SETS_COL(owner).doc(id);
   const expected=setWriteBase.get(id)?{...setWriteBase.get(id)}:null;
   const desired=JSON.parse(JSON.stringify(target)); delete desired.revision;
+  /* 충돌 화면이 '편집을 시작한 기준' 을 보여 주려면 기준 유무와 번호가 오류에 실려야 한다. */
+  const conflict=(message,extra)=>setRevisionFailure("set-revision-conflict",message,
+    {hasBase:!!expected,baseRevision:expected?expected.revision:null,...extra});
+  const confirmed=explicitBase===undefined?undefined
+    :explicitBase==="absent"?"absent":explicitBase?{...explicitBase}:null;
   return fbDb.runTransaction(async tx=>{
     if(!sessionMatches(session)||(wiping&&!allowWiping))
       throw setRevisionFailure("set-cancelled","세션이 바뀌었습니다");
     const snap=await tx.get(ref);
     if(!sessionMatches(session)||(wiping&&!allowWiping))
       throw setRevisionFailure("set-cancelled","세션이 바뀌었습니다");
+    if(confirmed!==undefined){
+      const current=snap.exists?snap.data():null;
+      const currentRevision=current?syncRevision(current.revision):null;
+      const same=confirmed==="absent"?!snap.exists
+        :!!confirmed&&!!current&&setWriteBaseMatchesDoc(confirmed,current);
+      if(!same) throw conflict("확인한 뒤 계정 저장본이 바뀌었습니다",
+        {serverRevision:currentRevision,reason:"confirmed-changed"});
+      if(current&&Object.hasOwn(current,"revision")&&currentRevision===null)
+        throw conflict("서버 revision이 올바르지 않습니다",{serverRevision:null,reason:"invalid-server"});
+      const revision=current?(currentRevision===null?1:currentRevision+1):1;
+      if(!Number.isSafeInteger(revision))
+        throw conflict("서버 revision 범위를 벗어났습니다",{serverRevision:currentRevision,reason:"invalid-server"});
+      const doc={...desired,revision};
+      if(docBytes(doc)>CLOUD_DOC_MAX) throw setRevisionFailure("set-too-big","문제집 문서가 너무 큽니다");
+      tx.set(ref,doc); return {doc,writeDoc:doc,wrote:true};
+    }
     if(!snap.exists){
       /* 신규 ID만 문서 부재를 정상 기대값으로 삼는다. 이미 ACK한 문서가 다른 기기나
          운영 복구에서 사라졌다면 revision 1로 되살리지 않고 충돌로 보존한다. */
       if(expected&&!useCurrentServerAsBase)
-        throw setRevisionFailure("set-revision-conflict","서버에서 문제집이 삭제되었습니다",{serverRevision:null,reason:"remote-deleted"});
+        throw conflict("서버에서 문제집이 삭제되었습니다",{serverRevision:null,reason:"remote-deleted"});
       const doc={...desired,revision:1};
       if(docBytes(doc)>CLOUD_DOC_MAX) throw setRevisionFailure("set-too-big","문제집 문서가 너무 큽니다");
       tx.set(ref,doc); return {doc,writeDoc:doc,wrote:true};
@@ -3838,7 +3901,7 @@ async function writeSetDocRevision(owner,target,session,{allowWiping=false,useCu
     const server=snap.data();
     const hasRevision=Object.hasOwn(server,"revision"), serverRevision=syncRevision(server.revision);
     if(hasRevision&&serverRevision===null)
-      throw setRevisionFailure("set-revision-conflict","서버 revision이 올바르지 않습니다",{serverRevision:null,reason:"invalid-server"});
+      throw conflict("서버 revision이 올바르지 않습니다",{serverRevision:null,reason:"invalid-server"});
     if(sameCloudSetDoc(server,desired)){
       if(serverRevision!==null)
         return {doc:{...desired,revision:serverRevision},writeDoc:server,wrote:false};
@@ -3849,12 +3912,11 @@ async function writeSetDocRevision(owner,target,session,{allowWiping=false,useCu
     /* 기준이 **없으면**(새로고침 뒤 초안 · REV-2026-111) 원격 변경이라고 단정할 수 없다.
        원인을 갈라 두어야 사용자에게 사실만 말할 수 있다. */
     if(!useCurrentServerAsBase&&!setWriteBaseMatchesDoc(expected,server))
-      throw setRevisionFailure("set-revision-conflict",
-        expected?"다른 기기의 문제집 변경과 겹쳤습니다":"저장 기준을 확인하지 못했습니다",
+      throw conflict(expected?"다른 기기의 문제집 변경과 겹쳤습니다":"저장 기준을 확인하지 못했습니다",
         {serverRevision,reason:expected?"remote-changed":"no-base"});
     const revision=serverRevision===null?1:serverRevision+1;
     if(!Number.isSafeInteger(revision))
-      throw setRevisionFailure("set-revision-conflict","서버 revision 범위를 벗어났습니다",{serverRevision,reason:"invalid-server"});
+      throw conflict("서버 revision 범위를 벗어났습니다",{serverRevision,reason:"invalid-server"});
     const doc={...desired,revision};
     if(docBytes(doc)>CLOUD_DOC_MAX) throw setRevisionFailure("set-too-big","문제집 문서가 너무 큽니다");
     tx.set(ref,doc); return {doc,writeDoc:doc,wrote:true};
@@ -3882,11 +3944,14 @@ async function writeCloudSnapshot(uidAtSave,session){
     console.warn("저장 예약 뒤 계정이 바뀌어 건너뜁니다.");
     setSaveStatus(""); return;
   }
-  const dirty=sets.map((s,i)=>({s,i})).filter(({s,i})=>!isCloudSynced(s,i))
+  /* ⚠️ 충돌 보류(B4) 중인 문제집은 시도하지 않는다 — 사용자가 고를 때까지 동결이다.
+     매 저장마다 같은 transaction 을 실패시키지 않고, 확인하지 않은 쪽으로 풀리지도 않는다. */
+  const held=setRevisionEnabled()?heldSetIds(uidAtSave):new Set();
+  const dirty=sets.map((s,i)=>({s,i})).filter(({s,i})=>!held.has(String(s.id))&&!isCloudSynced(s,i))
     .map(({s,i})=>{ const doc=setToDoc(s,i);
       return {id:s.id, name:s.name||"", doc:JSON.parse(JSON.stringify(doc))}; });
   // 순서만 바뀐 경우도 cloudSyncEntry 의 order 비교로 포함한다.
-  if(!dirty.length){ setSaveStatus(""); return true; }
+  if(!dirty.length){ idleSaveStatus(uidAtSave); return true; }
   /* ⚠️ **한도를 넘는 문서는 batch 에 넣지 않는다.** Firestore 배치는 원자적이라, 큰 문제집
      하나가 섞이면 **같이 올라가던 멀쩡한 문제집까지 통째로 실패한다.** 모의고사 경로는
      예전부터 이렇게 갈랐는데 문제집 경로에만 없었다(`docs/STORAGE-CONTRACT.md` §1).
@@ -3935,7 +4000,11 @@ async function writeCloudSnapshot(uidAtSave,session){
           if(!sessionMatches(session)||wiping) return;
           acknowledged.push({id:item.id,doc:result.doc,writeDoc:result.writeDoc||result.doc});
         }catch(e){
-          if(e?.code==="set-revision-conflict"){ conflicts.push({...item,reason:e.reason||"unknown"}); continue; }
+          if(e?.code==="set-revision-conflict"){
+            conflicts.push({...item,reason:e.reason||"unknown",hasBase:e.hasBase===true,
+              baseRevision:e.baseRevision??null,serverRevision:e.serverRevision??null});
+            continue;
+          }
           if(e?.code==="set-too-big"){ tooBig.push(item); continue; }
           throw e;
         }
@@ -3954,16 +4023,32 @@ async function writeCloudSnapshot(uidAtSave,session){
       acknowledged.push(...ready.map(({id,doc})=>({id,doc})));
     }
     acknowledgeSetWrites(uidAtSave,acknowledged);
+    /* B4: 충돌은 기록(충돌 당시 초안 포함)을 먼저 쓰고 사본을 만든 뒤 그 문제집을 동결한다.
+       ⚠️ 이 기기 저장이 실패한 판에서는 하지 않는다 — 저장소가 믿을 수 없을 때 '보관했다' 고
+       말할 근거가 없다. 아래 기존 안내(지금 내보내기)로 떨어진다. */
+    let hold={ok:false,held:[]};
+    if(conflicts.length&&localSaved){
+      hold=await holdSetConflicts(uidAtSave,conflicts,session);
+      if(!sessionMatches(session)) return;
+    }
     /* ⚠️ **초과본은 다시 부르는 조건에서 뺀다.** 그것들은 영영 `isCloudSynced` 가 아니므로
        빼지 않으면 `flushToCloud` 가 **끝없이 자기를 다시 부른다.** 줄여서 구성이 바뀌면
-       다음 저장에서 다시 재어 올라간다. 모의고사도 `ready` 만 보고 재예약한다. */
-    const blocked=new Set([...tooBig,...badShape,...conflicts].map(d=>d.id));
-    if(sets.some((s,i)=>!isCloudSynced(s,i) && !blocked.has(s.id))){
+       다음 저장에서 다시 재어 올라간다. 모의고사도 `ready` 만 보고 재예약한다.
+       보류(동결) 문제집도 같다. 새로 생긴 충돌 사본은 여기서 다시 불러 올린다. */
+    const blocked=new Set([...tooBig,...badShape,...conflicts].map(d=>String(d.id)));
+    heldSetIds(uidAtSave).forEach(id=>blocked.add(id));
+    const more=sets.some((s,i)=>!isCloudSynced(s,i) && !blocked.has(String(s.id)));
+    if(more && !conflicts.length){
       setSaveStatus("저장 중…");
       void flushToCloud(uidAtSave);
       return;
     }
     if(conflicts.length){
+      if(more) void flushToCloud(uidAtSave);
+      if(hold.ok&&hold.held.length===conflicts.length){
+        announceHeldConflicts(uidAtSave,conflicts);
+        return false;
+      }
       /* ⚠️ 원인을 단정하지 않는다(REV-2026-111). 기준이 없어서 막힌 것을 '다른 기기' 탓으로
          말하면 사용자는 있지도 않은 기기를 찾는다. 로컬 보존도 실제로 성공했을 때만 말한다. */
       const names=list=>list.map(d=>`'${d.name||"제목 없음"}'`).join(", ");
@@ -3993,7 +4078,7 @@ async function writeCloudSnapshot(uidAtSave,session){
       return false;
     }
     setSaveStatus("✓ 저장됨", "#81c784");
-    setTimeout(()=>{if(sessionMatches(session) && !hasUnsavedCloudWork()) setSaveStatus("");}, 2000);
+    setTimeout(()=>{if(sessionMatches(session) && !hasUnsavedCloudWork()) idleSaveStatus(uidAtSave);}, 2000);
     return true;
   }catch(e){
     if(!sessionMatches(session)) return;
@@ -4099,6 +4184,8 @@ function releaseProblemImages(q){
 function deleteSetEverywhere(removed){
   if(!removed || !currentUser || !fbReady) return Promise.resolve();
   const owner=currentUser.uid, session=sessionContext();
+  /* 사용자가 지운 충돌 사본은 다시 만들지 않는다(B4 · 사본 1회). */
+  markConflictCopyDismissed(owner,removed.id);
   const deletedAt=Date.now();
   deletedIds.set(removed.id, deletedAt);
   // Deletion and ordinary/Undo saves share one queue, including an already in-flight save.
@@ -4126,6 +4213,479 @@ function deleteSetEverywhere(removed){
   });
   cloudSaveQueue=task;
   return task;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   B4 — 충돌 보류와 복구 (저장 계약 §2-5 · REV-2026-111 ③)
+
+   CAS 가 멈춘 문제집 X 를 **자동으로 풀지 않는다.** 어느 쪽도 버리지 않고, 사용자가 고를 때까지
+   X 를 동결한다. Codex Astra high 두 차례 판정으로 정한 불변조건:
+     · 기록을 **먼저** 쓴다. 기록에 **충돌 당시 X 본문(snapshot)** 을 통째로 담는다 — 사본 본문
+       쓰기가 실패하거나 다른 탭이 `sets` 를 덮어도 초안이 남고, 같은 copyId 로 사본을 다시 만든다.
+     · 기록 키는 탭 간 잠금(`navigator.locks`) 안에서 **다시 읽고 합쳐** 쓴다.
+     · 비교·내보내기·'내 초안으로 교체' 는 모두 **기록의 snapshot** 을 쓴다(사본의 현재 내용 아님 —
+       사본은 따로 편집되는 일반 문제집이다).
+     · '서버본' 과 '교체' 는 화면에서 **확인한 서버 snapshot** 에 결부된다. 교체는 그 snapshot 과
+       revision·지문·order·삭제 상태까지 같을 때만 쓰는 명시 CAS 이고, 다르면 다시 확인받는다.
+     · 기록 생성·해결 때 되돌리기 기록을 비운다 — 전체 스냅샷 복원이 해결 경계를 넘어 버린 초안을
+       다시 올리지 않게.
+     · 해제는 셋뿐: 사용자의 선택 성공 · 서버 확정본이 초안·로컬과 본문·order 까지 같음.
+       hash 가 어긋났다고 풀지 않는다.
+   ⚠️ 일반 `sets` 의 탭 간 localStorage 덮어쓰기는 B4 이전부터의 별도 결함이다(여기서 풀지 않는다).
+   ══════════════════════════════════════════════════════════════ */
+const SET_CONFLICT_KEY_BASE="PM_SET_CONFLICTS_V1", SET_CONFLICT_MAX=50;
+const SET_CONFLICT_REASONS=["remote-changed","remote-deleted","no-base","invalid-server","unknown"];
+function setConflictKeyFor(owner){ return SET_CONFLICT_KEY_BASE+":"+(owner||"guest"); }
+function normSetConflict(row){
+  const setId=typeof row?.setId==="string"?row.setId.slice(0,128):"";
+  const copyId=typeof row?.copyId==="string"?row.copyId.slice(0,128):"";
+  if(!setId||!copyId||setId===copyId||!row.snapshot||typeof row.snapshot!=="object") return null;
+  // 이 기기 저장소도 신뢰 경계다 — 다른 문제집과 같은 정규화를 거친다.
+  const snapshot=normSet({...row.snapshot,id:setId},{keepId:true,lossless:true});
+  if(!snapshot) return null;
+  snapshot.id=setId;
+  if(!Object.hasOwn(row.snapshot,"folderId")) delete snapshot.folderId;
+  return {
+    setId, copyId, snapshot,
+    name:str(row.name,SET_NAME_MAX),
+    reason:SET_CONFLICT_REASONS.includes(row.reason)?row.reason:"unknown",
+    hasBase:row.hasBase===true,
+    baseRevision:syncRevision(row.baseRevision),
+    serverRevision:syncRevision(row.serverRevision),
+    copyDismissed:row.copyDismissed===true,
+    order:normOrder(row.order),
+    at:Number.isFinite(row.at)?row.at:0
+  };
+}
+function readSetConflicts(owner){
+  const out=new Map();
+  if(!owner) return out;
+  let raw=null;
+  try{ raw=JSON.parse(localStorage.getItem(setConflictKeyFor(owner))||"null"); }
+  catch(e){ console.warn("충돌 기록을 읽지 못했습니다",e); return out; }
+  const rows=raw&&raw.v===1&&Array.isArray(raw.entries)?raw.entries:[];
+  for(const row of rows.slice(0,SET_CONFLICT_MAX)){
+    const rec=normSetConflict(row);
+    if(rec&&!out.has(rec.setId)) out.set(rec.setId,rec);
+  }
+  return out;
+}
+function writeSetConflicts(owner,map){
+  if(!owner||currentUser?.uid!==owner) return false;
+  const key=setConflictKeyFor(owner);
+  try{
+    if(!map.size) localStorage.removeItem(key);
+    else localStorage.setItem(key,JSON.stringify({v:1,entries:[...map.values()]}));
+    return true;
+  }catch(e){ console.warn("충돌 기록을 저장하지 못했습니다",e); return false; }
+}
+function heldSetIds(owner){ return new Set(owner?readSetConflicts(owner).keys():[]); }
+/* 같은 브라우저의 다른 탭도 이 키를 쓴다. 읽기→합치기→쓰기를 잠금 안에서 한다.
+   `navigator.locks` 가 없는 옛 브라우저에서는 잠금 없이 같은 순서로 돈다. */
+function withSetConflictLock(owner,run){
+  const locks=typeof navigator!=="undefined"?navigator.locks:null;
+  if(locks&&typeof locks.request==="function")
+    return locks.request("pedagogy-set-conflicts:"+owner,()=>run());
+  return Promise.resolve().then(run);
+}
+function updateSetConflicts(owner,mutate){
+  return withSetConflictLock(owner,()=>{
+    if(!owner||currentUser?.uid!==owner) return {ok:false,changed:false};
+    const map=readSetConflicts(owner);
+    const changed=mutate(map)!==false;
+    return {ok:!changed||writeSetConflicts(owner,map),changed};
+  });
+}
+function resetHistoryBoundary(){
+  clearTimeout(histTimer); histTimer=null;
+  undoStack=[]; redoStack=[]; lastSnapshot=snapshot(); updateHistButtons();
+}
+async function holdSetConflicts(owner,conflicts,session){
+  const held=[];
+  const res=await updateSetConflicts(owner,map=>{
+    let changed=false;
+    for(const c of conflicts){
+      const id=String(c.id);
+      if(map.has(id)){ held.push(id); continue; }       // 같은 충돌 — 사본을 다시 만들지 않는다
+      /* ⚠️ 상한을 넘으면 기록하지 않는다 — 잘라 쓰면 '보류했다' 고 말하고 실제로는 동결도 사본도
+         없는 기록이 생긴다(Codex 검토). 못 담은 충돌은 기존 안내(지금 내보내기)로 떨어진다. */
+      if(map.size>=SET_CONFLICT_MAX) continue;
+      const i=sets.findIndex(s=>String(s.id)===id);
+      if(i<0) continue;
+      const rec=normSetConflict({
+        setId:id, copyId:uid(), name:sets[i].name||"", reason:c.reason, hasBase:c.hasBase,
+        baseRevision:c.baseRevision, serverRevision:c.serverRevision, order:i, at:Date.now(),
+        snapshot:JSON.parse(JSON.stringify(sets[i]))});
+      if(!rec) continue;
+      map.set(id,rec); held.push(id); changed=true;
+    }
+    return changed;
+  });
+  if(!sessionMatches(session)||!res.ok) return {ok:false,held:[]};
+  ensureConflictCopies(owner);
+  resetHistoryBoundary();
+  return {ok:true,held};
+}
+/* 기록마다 사본 하나. 없으면(본문 쓰기 전 종료 · 다른 탭이 덮음) 같은 copyId 로 다시 만든다.
+   사용자가 지운 사본(`copyDismissed`·tombstone)은 되살리지 않는다. */
+function ensureConflictCopies(owner){
+  if(!owner||currentUser?.uid!==owner||!setRevisionEnabled()) return false;
+  let added=false;
+  for(const rec of readSetConflicts(owner).values()){
+    if(rec.copyDismissed||deletedIds.has(rec.copyId)||sets.some(s=>String(s.id)===rec.copyId)) continue;
+    const cp=JSON.parse(JSON.stringify(rec.snapshot));
+    cp.id=rec.copyId;
+    (cp.problems||[]).forEach(p=>{ p.id=uid(); });
+    cp.name=(rec.snapshot.name||"문제집").slice(0,SET_NAME_MAX-7)+" (내 사본)";
+    const at=sets.findIndex(s=>String(s.id)===rec.setId);
+    sets.splice(at>=0?at+1:sets.length,0,cp);
+    if(!libraryCloudEnabled()) setFolder(cp.id,folderOf(rec.setId));
+    touchSet(cp.id);
+    added=true;
+  }
+  if(added){ writeLocalNow(); writeLibMeta(); writeStamps(localStamps); }
+  return added;
+}
+function markConflictCopyDismissed(owner,copyId){
+  if(!owner||!copyId) return;
+  // 대부분의 삭제·tombstone 은 사본과 무관하다 — 잠금을 잡기 전에 먼저 거른다.
+  if(![...readSetConflicts(owner).values()].some(r=>r.copyId===String(copyId)&&!r.copyDismissed)) return;
+  void updateSetConflicts(owner,map=>{
+    let changed=false;
+    for(const rec of map.values()) if(rec.copyId===String(copyId)&&!rec.copyDismissed){ rec.copyDismissed=true; changed=true; }
+    return changed;
+  });
+}
+/* 서버 확정본이 충돌 당시 초안·지금 로컬과 본문·order 까지 같아졌으면 더 고를 것이 없다. */
+function releaseSettledConflicts(owner,entries){
+  if(!owner||currentUser?.uid!==owner||!setRevisionEnabled()) return;
+  const recs=readSetConflicts(owner);
+  if(!recs.size) return;
+  const settled=[];
+  for(const d of entries||[]){
+    if(!d||!d.id||d.deleted) continue;
+    const id=String(d.id), rec=recs.get(id), i=sets.findIndex(s=>String(s.id)===id);
+    const incoming=rec&&i>=0?docToSet(d):null;
+    if(!incoming) continue;
+    const json=setJSON(incoming);
+    /* 충돌 당시 순서(rec.order)도 같아야 한다 — 앞 문제집이 지워져 지금 순서만 맞아진 것은
+       초안과 같다는 증거가 아니다. */
+    if(json===setJSON(rec.snapshot)&&json===setJSON(sets[i])&&normOrder(i)===normOrder(d.order)
+      &&normOrder(rec.order)===normOrder(d.order)) settled.push(id);
+  }
+  if(!settled.length) return;
+  void updateSetConflicts(owner,map=>{
+    let changed=false;
+    settled.forEach(id=>{ if(map.delete(id)) changed=true; });
+    return changed;
+  }).then(r=>{ if(r.changed&&r.ok){ resetHistoryBoundary(); refreshConflictSurfaces(); } });
+}
+function idleSaveStatus(owner){
+  const n=setRevisionEnabled()&&owner?heldSetIds(owner).size:0;
+  if(n) setSaveStatus(`⚠ 충돌 보류 ${n}`,"#e57373","라이브러리에서 어느 쪽을 쓸지 고를 때까지 그 문제집은 계정에 올리지 않아요");
+  else setSaveStatus("");
+}
+const SET_CONFLICT_SAY={
+  "remote-changed":"다른 기기에서 먼저 바뀌어 계정에 올리지 않았어요",
+  "remote-deleted":"계정에서 이 문제집이 없어져 다시 만들지 않았어요",
+  "no-base":"이 기기의 내용과 계정 저장본이 달라 안전한 저장 기준을 확인하지 못해 계정에 올리지 않았어요",
+  "invalid-server":"계정 저장본의 저장 번호가 올바르지 않아 계정에 올리지 않았어요",
+  "unknown":"저장 기준을 확인하지 못해 계정에 올리지 않았어요"};
+function announceHeldConflicts(owner,conflicts){
+  const recs=readSetConflicts(owner);
+  const parts=SET_CONFLICT_REASONS.map(r=>{
+    const list=conflicts.filter(d=>(d.reason||"unknown")===r);
+    return list.length?`${list.map(d=>`'${d.name||"제목 없음"}'`).join(", ")} — ${SET_CONFLICT_SAY[r]}`:"";
+  }).filter(Boolean);
+  const copies=conflicts.map(d=>recs.get(String(d.id))).filter(r=>r&&!r.copyDismissed
+    &&sets.some(s=>String(s.id)===r.copyId));
+  const detail=`${parts.join(" / ")} · 충돌 당시 초안은 보존했어요`
+    +(copies.length?` (사본 ${copies.map(r=>`'${sets.find(s=>String(s.id)===r.copyId).name}'`).join(", ")})`:"")
+    +` · 라이브러리에서 어느 쪽을 쓸지 고를 때까지 그 문제집은 계정에 올리지 않아요`;
+  const unverified=conflicts.some(d=>d.reason!=="remote-changed"&&d.reason!=="remote-deleted");
+  setSaveStatus(unverified?"⚠ 계정 저장 보류":"⚠ 동기화 충돌","#e57373",detail);
+  toast(detail,"error");
+  refreshConflictSurfaces();
+  /* 지금 편집 중인 문제집이 동결됐으면 편집기를 닫고 고르는 화면으로 보낸다 — 계속 타이핑하면
+     그 글자는 어디에도 올라가지 않는다. 이미 친 글자는 기록과 사본에 있다. */
+  if(currentSetId&&recs.has(String(currentSetId))&&$("#editorView").style.display!=="none"){
+    const id=String(currentSetId);
+    showLibrary(); openSetConflict(id);
+  }
+}
+function refreshConflictSurfaces(){
+  if($("#libraryView")?.style.display!=="none") renderLibrary();
+  if(conflictView&&$("#conflictDialog")?.open) renderConflictDialog();
+}
+
+/* ── 네 선택지 ── `server` 는 화면이 읽어 사용자에게 보여 준 `{exists,data}` 다. */
+function serverChoiceBase(server){
+  if(!server) return null;
+  if(!server.exists) return "absent";
+  return setWriteBaseEntryFromDoc(server.data);      // 저장 번호가 비정상이면 null — 고를 수 없다
+}
+function chooseServerVersion(owner,setId,server){
+  const session=sessionContext();
+  const task=cloudSaveQueue.catch(()=>{}).then(()=>{
+    if(!sessionMatches(session)||currentUser?.uid!==owner) return {ok:false,msg:"계정이 바뀌어 멈췄어요"};
+    const id=String(setId), rec=readSetConflicts(owner).get(id);
+    if(!rec) return {ok:false,msg:"이미 정리된 충돌이에요"};
+    if(!serverChoiceBase(server)) return {ok:false,msg:"계정 저장본의 저장 번호가 올바르지 않아 고를 수 없어요 · 내보내기로 보존해 주세요"};
+    const d=server.exists?server.data:null, alive=!!d&&!d.deleted;
+    const incoming=alive?docToSet(d):null;
+    if(alive&&!incoming) return {ok:false,msg:"계정 저장본을 읽을 수 없어요"};
+    const before=sets.slice(), i=sets.findIndex(s=>String(s.id)===id);
+    if(alive){ if(i>=0) sets[i]=incoming; else sets.splice(Math.min(normOrder(d.order),sets.length),0,incoming); }
+    else if(i>=0) sets.splice(i,1);
+    if(!sets.length) sets=[{id:uid(),name:"새 문제집",header:"",problems:[newProblem()]}];
+    if(!writeLocalNow()){ sets=before; return {ok:false,msg:"이 기기에 저장하지 못해 되돌리지 않았어요 · 충돌 당시 초안은 그대로예요"}; }
+    /* 기준은 확인한 snapshot 의 모양대로 세운다(Codex 판정): 살아 있으면 본문·order 까지 같을 때만
+       영속 기준, tombstone 이면 영속 기준은 지우고 쓰기 기준만 tombstone, 부재면 둘 다 없음. */
+    if(alive){
+      const wb=setWriteBaseEntryFromDoc(d), idx=sets.indexOf(incoming);
+      cloudSynced.set(id,cloudSyncEntry(incoming,d.order));
+      setWriteBase.set(id,wb);
+      if(normOrder(idx)===normOrder(d.order)) setSyncBase.set(id,setSyncMetaEntry(incoming,d.order,d.revision));
+      else setSyncBase.delete(id);
+      deletedIds.delete(id);
+    }else{
+      cloudSynced.delete(id); setSyncBase.delete(id);
+      if(d){ setWriteBase.set(id,setWriteBaseEntryFromDoc(d)); deletedIds.set(id,Number(d.updatedAt)||Date.now()); }
+      else setWriteBase.delete(id);
+    }
+    writeSetSyncMeta(owner);
+    return updateSetConflicts(owner,map=>map.delete(id)).then(r=>{
+      resetHistoryBoundary();
+      return r.ok?{ok:true}:{ok:false,msg:"계정 저장본으로 맞췄지만 충돌 기록을 지우지 못했어요 · 다시 눌러 주세요"};
+    });
+  });
+  cloudSaveQueue=task;
+  return task;
+}
+function chooseLocalVersion(owner,setId,server,shownAt){
+  const session=sessionContext();
+  const task=cloudSaveQueue.catch(()=>{}).then(async()=>{
+    if(!sessionMatches(session)||currentUser?.uid!==owner) return {ok:false,msg:"계정이 바뀌어 멈췄어요"};
+    const id=String(setId), rec=readSetConflicts(owner).get(id);
+    if(!rec) return {ok:false,msg:"이미 정리된 충돌이에요"};
+    if(shownAt!==undefined&&rec.at!==shownAt) return {ok:false,changed:true,msg:"충돌 기록이 바뀌었어요 · 다시 확인해 주세요"};
+    const base=serverChoiceBase(server);
+    if(!base) return {ok:false,msg:"계정 저장본의 저장 번호가 올바르지 않아 교체할 수 없어요 · 내보내기로 보존해 주세요"};
+    const i=sets.findIndex(s=>String(s.id)===id), order=i>=0?i:sets.length;
+    const draft=JSON.parse(JSON.stringify(rec.snapshot)); draft.id=id;
+    let result;
+    try{ result=await writeSetDocRevision(owner,setToDoc(draft,order),session,{explicitBase:base}); }
+    catch(e){
+      if(e?.code==="set-revision-conflict")
+        return {ok:false,changed:true,msg:"그사이 계정 저장본이 또 바뀌어 올리지 않았어요 · 새 내용을 확인하고 다시 골라 주세요"};
+      if(e?.code==="set-too-big") return {ok:false,msg:"초안이 너무 커서 계정에 올리지 못했어요 · 내보내기로 보존해 주세요"};
+      if(e?.code==="set-cancelled") return {ok:false,msg:"계정이 바뀌어 멈췄어요"};
+      console.error("충돌 교체 저장 실패:",e);
+      return {ok:false,msg:"계정에 올리지 못했어요 · 충돌 당시 초안은 그대로예요"};
+    }
+    if(!sessionMatches(session)) return {ok:false};
+    const j=sets.findIndex(s=>String(s.id)===id);
+    if(j>=0) sets[j]=draft; else sets.splice(Math.min(order,sets.length),0,draft);
+    deletedIds.delete(id);
+    const localOk=writeLocalNow();
+    acknowledgeSetWrites(owner,[{id,doc:result.doc,writeDoc:result.writeDoc||result.doc}]);
+    /* 이 기기 저장이 실패했으면 기록(초안)을 지우지 않는다 — 서버 확정본과 같아지면 저절로 풀린다. */
+    if(!localOk) { resetHistoryBoundary(); return {ok:true,localOk:false}; }
+    const r=await updateSetConflicts(owner,map=>map.delete(id));
+    resetHistoryBoundary();
+    return {ok:true,localOk:true,recordCleared:r.ok};
+  });
+  cloudSaveQueue=task;
+  return task;
+}
+function exportConflictDraft(rec){
+  const {folderId,...draft}=rec.snapshot;
+  const blob=new Blob([JSON.stringify(draft,null,2)],{type:"application/json"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
+  a.download=`${rec.name||"문제집"} (충돌 당시 초안).json`; a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+
+/* ── 충돌 화면 ── 토스트처럼 사라지지 않는다. 라이브러리의 띠·카드 칩에서 언제든 다시 연다. */
+let conflictView=null;   // {owner,setId,at,server:{state,exists,data},compare,msg,busy}
+async function openSetConflict(setId){
+  const owner=currentUser?.uid;
+  const rec=owner?readSetConflicts(owner).get(String(setId)):null;
+  if(!rec) return false;
+  conflictView={owner,setId:rec.setId,at:rec.at,server:{state:"loading"},compare:false,msg:"",busy:false};
+  const d=$("#conflictDialog");
+  renderConflictDialog();
+  if(!d.open) d.showModal();
+  await loadConflictServer(conflictView);
+  return true;
+}
+async function loadConflictServer(v){
+  if(!v) return;
+  const session=sessionContext();
+  v.server={state:"loading"}; renderConflictDialog();
+  try{
+    /* 캐시는 서버 확정본이 아니다 — 사용자가 확인할 snapshot 은 서버에서 읽는다. */
+    const snap=await withTimeout(SETS_COL(v.owner).doc(v.setId).get({source:"server"}),CLOUD_READ_MS,"계정 저장본 읽기");
+    if(conflictView!==v||!sessionMatches(session)) return;
+    v.server={state:"ok",exists:!!snap.exists,data:snap.exists?snap.data():null};
+  }catch(e){
+    if(conflictView!==v) return;
+    console.warn("계정 저장본을 읽지 못했습니다",e);
+    v.server={state:"error"};
+  }
+  renderConflictDialog();
+}
+function conflictServerLine(server){
+  if(server.state==="loading") return "불러오는 중…";
+  if(server.state==="error") return "불러오지 못했어요 — 연결을 확인하고 '다시 읽기' 를 눌러 주세요";
+  if(!server.exists) return "없음 — 계정에서 이 문제집 문서가 사라졌어요";
+  const d=server.data, rev=Object.hasOwn(d,"revision")?syncRevision(d.revision):null;
+  const no=Object.hasOwn(d,"revision")?(rev===null?"올바르지 않은 저장 번호":`저장 번호 ${rev}`):"저장 번호 없음(예전 형식)";
+  if(d.deleted) return `지워짐 (${no})`;
+  const n=Array.isArray(d.problems)?d.problems.length:0;
+  return `${no} · 문항 ${n}개`;
+}
+function renderConflictDialog(){
+  const box=$("#conflictDialog"), v=conflictView;
+  if(!box||!v) return;
+  const rec=readSetConflicts(v.owner).get(v.setId);
+  /* 다시 그려도 키보드 초점이 body 로 떨어지지 않게 같은 단추로 돌려놓는다. */
+  const focusKey=box.contains(document.activeElement)?document.activeElement.dataset?.k:"";
+  box.replaceChildren();
+  const close=el("button","conflict-close","닫기"); close.type="button"; close.dataset.k="close";
+  close.onclick=()=>box.close();
+  if(!rec){
+    const done=el("h3",null,"이 충돌은 정리됐어요"); done.id="conflictTitle";   // aria-labelledby 가 계속 가리킨다
+    box.append(done,close);
+    if(focusKey) close.focus();
+    return;
+  }
+  const name=rec.name||"제목 없음";
+  const title=el("h3",null,`'${name}' — 계정 저장본과 이 기기 초안이 갈라졌어요`); title.id="conflictTitle";
+  const lead={
+    "remote-changed":"다른 기기에서 먼저 저장해 이 기기의 편집을 계정에 올리지 않았어요.",
+    "remote-deleted":"계정에서 이 문제집이 지워져 이 기기의 편집으로 다시 만들지 않았어요.",
+    "no-base":"이 기기에서 저장 확인 전에 새로고침·종료돼, 어느 쪽이 최신인지 확인할 수 없었어요.",
+    "invalid-server":"계정 저장본의 저장 번호가 올바르지 않아 올리지 않았어요.",
+    "unknown":"저장 기준을 확인하지 못해 올리지 않았어요."}[rec.reason];
+  box.append(title,el("p","conflict-lead",`${lead} 어느 쪽도 지우지 않았어요. 고를 때까지 이 문제집은 계정에 올리지 않아요.`));
+
+  const copy=sets.find(s=>String(s.id)===rec.copyId);
+  const rows=[
+    ["편집을 시작한 기준", rec.hasBase
+      ?(rec.baseRevision?`저장 번호 ${rec.baseRevision}`:"저장 번호 없음(예전 형식)")
+      :"확인할 수 없음 — 이 기기에서 저장이 확인되기 전에 새로고침·종료됐어요"],
+    ["지금 계정 저장본", conflictServerLine(v.server)],
+    ["내 사본", copy?`라이브러리의 '${copy.name||"제목 없음"}'`
+      :rec.copyDismissed?"사본은 지웠어요 — 충돌 당시 초안은 아래 '내보내기' 로 받을 수 있어요"
+      :"아직 없어요 — 충돌 당시 초안은 이 기기의 충돌 기록에 있어요"],
+    ["시각", `충돌 ${new Date(rec.at).toLocaleString()}`
+      +(v.server.state==="ok"&&v.server.data?.updatedAt?` · 계정 저장본 ${new Date(Number(v.server.data.updatedAt)).toLocaleString()}`:"")
+      +" — 설명용이며 어느 쪽을 쓸지 정하지 않아요"]
+  ];
+  const dl=el("dl","conflict-facts");
+  rows.forEach(([k,val],n)=>{
+    const dd=el("dd",null,val);
+    if(n===2&&copy){
+      const idx=sets.indexOf(copy);
+      dd.append(document.createTextNode(" "),
+        el("span","set-chip"+(isCloudSynced(copy,idx)?"":" warn"),isCloudSynced(copy,idx)?"계정에도 저장됨":"이 기기에만 보존됨"));
+    }
+    dl.append(el("dt",null,k),dd);
+  });
+  box.append(dl);
+  if(v.server.state==="error"){
+    const retry=el("button","conflict-retry","다시 읽기"); retry.type="button"; retry.dataset.k="retry";
+    retry.onclick=()=>loadConflictServer(v);
+    box.append(retry);
+  }
+
+  const ready=v.server.state==="ok"&&!!serverChoiceBase(v.server)&&!v.busy;
+  if(v.server.state==="ok"&&!serverChoiceBase(v.server))
+    box.append(el("p","conflict-warn","계정 저장본의 저장 번호가 올바르지 않아 지금은 두 버전 중 하나를 고를 수 없어요. 내보내기로 초안을 보존해 주세요."));
+  const choice=(key,head,desc,label,run,{enabled=true,danger=false}={})=>{
+    const card=el("div","conflict-choice");
+    const txt=el("div"); txt.append(el("h4",null,head),el("p",null,desc));
+    const b=el("button",danger?"danger-text":null,label); b.type="button"; b.dataset.k=key;
+    b.disabled=!enabled; b.onclick=run;
+    card.append(txt,b); return card;
+  };
+  const srvNo=v.server.state==="ok"?conflictServerLine(v.server):"계정 저장본";
+  box.append(el("h4","conflict-h","무엇을 할까요"),
+    choice("compare","두 버전 보기","무엇이 다른지 나란히 봅니다. 아무것도 바뀌지 않아요.",
+      v.compare?"비교 닫기":"비교 열기",()=>{ v.compare=!v.compare; renderConflictDialog(); },
+      {enabled:v.server.state==="ok"}),
+    choice("server","계정 저장본으로 돌아가기",
+      `이 기기의 '${name}' 을 계정 저장본(${srvNo})으로 맞춥니다.`+(copy?` 사본 '${copy.name}' 은 그대로 남아요.`:" 충돌 당시 초안은 사본이 없어 사라지니 먼저 내보내기를 권해요."),
+      "계정 저장본 쓰기",()=>runConflictChoice("server"),{enabled:ready}),
+    choice("local","충돌 당시 내 초안으로 계정 저장본 교체",
+      `확인한 계정 저장본(${srvNo})을 충돌 당시 이 기기 초안으로 바꿉니다. 그사이 또 바뀌면 올리지 않고 다시 물어요. 사본의 이후 편집은 들어가지 않아요.`,
+      "내 초안으로 교체",()=>runConflictChoice("local"),{enabled:ready,danger:true}),
+    choice("export","충돌 당시 초안 내보내기","JSON 파일로 저장합니다. 아무것도 바뀌지 않아요.",
+      "내보내기",()=>exportConflictDraft(rec)));
+  if(v.compare&&v.server.state==="ok") box.append(conflictCompare(v.server,rec));
+  const live=el("p","conflict-msg",v.msg||""); live.setAttribute("role","status"); live.setAttribute("aria-live","polite");
+  const foot=el("div","library-dialog-actions");
+  if(copy){
+    const open=el("button",null,"사본 열기"); open.type="button"; open.dataset.k="copy";
+    open.onclick=()=>{ box.close(); showEditor(copy.id); };
+    foot.append(open);
+  }
+  foot.append(close);
+  box.append(live,foot);
+  const again=focusKey&&box.querySelector(`[data-k="${focusKey}"]`);
+  if(again&&!again.disabled) again.focus();
+}
+function conflictCompare(server,rec){
+  const d=server.data, left=server.exists&&!d.deleted?docToSet(d):null, right=rec.snapshot;
+  const wrap=el("div","conflict-compare");
+  const table=el("table");
+  const head=el("tr");
+  head.append(el("th",null,"#"),el("th",null,"계정 저장본"),el("th",null,"충돌 당시 내 초안"));
+  table.append(head);
+  const row=(k,a,b,diff)=>{
+    const tr=el("tr",diff?"diff":null);
+    tr.append(el("td",null,k),el("td",null,a),el("td",null,b));
+    if(diff) tr.setAttribute("aria-label",`${k} 다름`);
+    table.append(tr);
+  };
+  row("이름",left?left.name||"":"(없음)",right.name||"",!left||(left.name||"")!==(right.name||""));
+  row("머리말",left?left.header||"":"(없음)",right.header||"",!left||(left.header||"")!==(right.header||""));
+  const lp=left?.problems||[], rp=right.problems||[];
+  for(let i=0;i<Math.max(lp.length,rp.length);i++){
+    const a=lp[i], b=rp[i];
+    row(String(i+1),a?(qExcerpt(a)||"(빈 문항)"):"—",b?(qExcerpt(b)||"(빈 문항)"):"—",
+      !a||!b||JSON.stringify(a)!==JSON.stringify(b));
+  }
+  wrap.append(el("p","conflict-note","다른 줄은 표시돼 있어요. 문항은 앞부분만 보여요."),table);
+  return wrap;
+}
+async function runConflictChoice(kind){
+  const v=conflictView;
+  if(!v||v.busy||v.server.state!=="ok") return;
+  const rec=readSetConflicts(v.owner).get(v.setId);
+  if(!rec) return renderConflictDialog();
+  const srv=conflictServerLine(v.server);
+  const ask=kind==="server"
+    ?`'${rec.name||"제목 없음"}' 을 계정 저장본(${srv})으로 맞출까요?`
+    :`계정 저장본(${srv})을 충돌 당시 이 기기 초안으로 바꿀까요?\n그사이 계정 저장본이 또 바뀌면 올리지 않고 다시 물어요.`;
+  if(!confirm(ask)) return;
+  v.busy=true; v.msg="처리하는 중…"; renderConflictDialog();
+  const r=kind==="server"?await chooseServerVersion(v.owner,v.setId,v.server)
+    :await chooseLocalVersion(v.owner,v.setId,v.server,v.at);
+  if(conflictView!==v) return;
+  v.busy=false;
+  if(r.ok){
+    $("#conflictDialog").close();
+    renderLibrary();
+    toast(kind==="server"?"계정 저장본으로 맞췄어요"
+      :r.localOk===false?"계정 저장본을 초안으로 바꿨지만 이 기기 저장에 실패했어요 · 창을 닫지 말고 내보내기를 해 두세요"
+      :"계정 저장본을 충돌 당시 초안으로 바꿨어요","success");
+    return;
+  }
+  v.msg=r.msg||"처리하지 못했어요";
+  if(r.changed) await loadConflictServer(v);
+  else renderConflictDialog();
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -4387,7 +4947,8 @@ async function migrateFoldersToCloud(session){
 function accountLocalKeys(){
   return { sets:setsKey(), backup:backupKey(), lastQ:lastQKey(),
            stamps:stampsKey(), lastSet:lastSetKey(), libMeta:libMetaKey(),
-           syncMeta:setSyncMetaKeyFor(currentUser&&currentUser.uid) };
+           syncMeta:setSyncMetaKeyFor(currentUser&&currentUser.uid),
+           conflicts:setConflictKeyFor(currentUser&&currentUser.uid) };
 }
 /* ⚠️ 모의고사 키는 **일부러 위 목록에 넣지 않았다.** '모든 문제집 삭제' 는 이름 그대로
    문제집만 지운다 — 모의고사는 다른 라이브러리이므로 함께 지우면 놀란다.
@@ -4794,14 +5355,18 @@ $("#selExportBtn").onclick=()=>{
 };
 
 $("#selDeleteBtn").onclick=async ()=>{
-  const picked=sets.filter(s=>libPicked.has(s.id));
+  const held=currentUser&&setRevisionEnabled()?heldSetIds(currentUser.uid):new Set();
+  const picked=sets.filter(s=>libPicked.has(s.id)&&!held.has(String(s.id)));
+  if(sets.some(s=>libPicked.has(s.id)&&held.has(String(s.id))))
+    toast("충돌 보류 중인 문제집은 지우지 않았어요 · 먼저 어느 쪽을 쓸지 골라 주세요","error");
   if(!picked.length) return;
   // Remove synchronously, enqueue remote deletes before the ordinary/Undo save queue.
   if(!confirm(`문제집 ${picked.length}개를 지울까요?\n\n· ⌘Z로 되돌릴 수 있어요\n· 계속하려면 확인을 눌러 주세요`)) return;
   const btn=$("#selDeleteBtn"); btn.disabled=true;
   const session=sessionContext();
   flushHistory();
-  sets=sets.filter(s=>!libPicked.has(s.id));
+  const pickedIds=new Set(picked.map(s=>s.id));     // 보류 원본은 목록에서도 빼지 않는다
+  sets=sets.filter(s=>!pickedIds.has(s.id));
   if(!sets.length) sets=[{id:uid(),name:"새 문제집",header:"",problems:[newProblem()]}];
   let completed=0;
   const tasks=picked.map(s=>deleteSetEverywhere(s).finally(()=>{
@@ -5132,6 +5697,20 @@ function libraryCardVisual(kind,total){
   return box;
 }
 
+function renderConflictBanner(conflicts){
+  const bar=$("#conflictBanner"); if(!bar) return;
+  bar.replaceChildren();
+  bar.hidden=!conflicts.size;
+  if(!conflicts.size) return;
+  bar.append(el("p",null,`계정 저장이 보류된 문제집 ${conflicts.size}권 — 어느 쪽을 쓸지 고를 때까지 계정에 올리지 않아요. 두 버전은 모두 남아 있어요.`));
+  const list=el("div","conflict-banner-actions");
+  for(const rec of conflicts.values()){
+    const b=el("button",null,`'${rec.name||"제목 없음"}' 고르기`); b.type="button";
+    b.onclick=()=>openSetConflict(rec.setId);
+    list.append(b);
+  }
+  bar.append(list);
+}
 function renderLibrary(){
   const grid=$("#setGrid"); grid.innerHTML="";
   grid.classList.toggle("picking", libPicking);
@@ -5141,6 +5720,10 @@ function renderLibrary(){
   $("#sortBtn").title=t('lib.sort','정렬')+': '+$("#sortBtn").textContent;
   const term=setSearchTerm.trim().toLowerCase();
   const visible = libVisibleSets();
+  /* B4: 보류된 문제집은 고를 때까지 계속 보인다 — 토스트처럼 사라지지 않는다. */
+  const conflicts=currentUser&&setRevisionEnabled()?readSetConflicts(currentUser.uid):new Map();
+  const copyOf=new Map([...conflicts.values()].filter(r=>!r.copyDismissed).map(r=>[r.copyId,r]));
+  renderConflictBanner(conflicts);
 
   if(!visible.length){
     const es=el("div","empty-state");
@@ -5161,6 +5744,12 @@ function renderLibrary(){
     if(subj && subj.v!=="all"){
       const tag=el("span","set-subj", subj.name);
       count.append(document.createTextNode(" "), tag);
+    }
+    const held=conflicts.get(String(s.id)), heldCopy=copyOf.get(String(s.id));
+    if(held) count.append(document.createTextNode(" "),el("span","set-chip warn","⚠ 계정 저장 보류"));
+    else if(heldCopy){
+      const synced=isCloudSynced(s,idx);
+      count.append(document.createTextNode(" "),el("span","set-chip"+(synced?"":" warn"),synced?"충돌 사본":"이 기기에만 보존됨"));
     }
     const copy=el("div","set-card-copy"); copy.append(title,count);
     const head=el("div","set-card-head"); head.append(libraryCardVisual("set",s.problems?.length||0),copy);
@@ -5237,6 +5826,8 @@ function renderLibrary(){
     };
 
     card.onclick=()=>{ if(title.isContentEditable) return; showEditor(s.id); };  // 이름 편집 중엔 진입 안 함
+    /* 보류 중에는 이름·폴더·삭제를 막는다 — 고르기 전에 원본을 바꾸거나 지우는 길을 두지 않는다. */
+    if(held){ bRename.hidden=true; bMove.hidden=true; bDel.hidden=true; }
     bMove.onclick=e=>{e.stopPropagation();closeMenu();openFolderMove([s.id]);};
     bDup.onclick=(e)=>{e.stopPropagation();
       const cp=JSON.parse(JSON.stringify(s));
@@ -6080,6 +6671,13 @@ function setLibraryTab(tab){
 
 /* ===== Editor ===== */
 function showEditor(setId){
+  /* 충돌 보류(B4) 중인 문제집은 편집기로 열지 않는다 — 그 편집은 어디에도 올라가지 않는다. */
+  if(setId&&currentUser&&setRevisionEnabled()&&heldSetIds(currentUser.uid).has(String(setId))){
+    rememberSet(null);
+    if($("#libraryView").style.display==="none") showLibrary();
+    openSetConflict(setId);
+    return;
+  }
   /* ⚠️ '최근 **사용**' 은 '최근 **수정**' 과 다르다 — 열어만 보고 안 고친 것이 위로 와야
      사용자가 기대하는 '최근' 이다. 클라우드 필드가 없으므로 **이 기기에서만** 센다. */
   if(setId){ libMeta.lastOpenedBySet[setId]=Date.now(); writeLibMeta(); }
@@ -8411,6 +9009,7 @@ async function bootLibrary(){
   if(currentUser) showLibraryLoading();  // 불러오는 동안 '없어요' 대신 '불러오는 중'
   await loadSets();
   if(!sessionMatches(session)) return;
+  if(ensureConflictCopies(currentUser?.uid)) saveSets(null);   // 기록만 남고 사본이 없던 종료 복구(B4)
   lastSnapshot=snapshot(); undoStack=[]; redoStack=[]; updateHistButtons();
   currentSetId=null; currentQId=null;
   /* 마지막에 편집기에 있었으면 그 문제집으로 돌아간다.
@@ -8448,6 +9047,7 @@ const onAuth=async (user)=>{
     clearTimeout(prefsSaveTimer);
     cloudSynced.clear(); setSyncBase.clear(); setWriteBase.clear(); deletedIds.clear();
     sets=[]; currentSetId=null; currentQId=null;
+    conflictView=null; if($("#conflictDialog")?.open) $("#conflictDialog").close();
     /* ⚠️ 모의고사도 계정별 저장소다 — 갈아 끼우지 않으면 앞 계정 자료가 새 계정 화면에 남는다.
        구독·지문·tombstone 까지 함께 버려야 앞 계정의 문서가 새 계정으로 올라가지 않는다. */
     if(mocksUnsub){ mocksUnsub(); mocksUnsub=null; }
@@ -8498,6 +9098,7 @@ const onAuth=async (user)=>{
     if(user) showLibraryLoading(user.displayName ? user.displayName+" 님의 문제집을 가져오고 있어요" : null);
     await loadSets();
     if(!sessionMatches(session)) return;
+    if(ensureConflictCopies(currentUser?.uid)) saveSets(null);
     lastSnapshot=snapshot(); undoStack=[]; redoStack=[]; updateHistButtons();
     currentSetId=null; currentQId=null;
     showLibrary();
