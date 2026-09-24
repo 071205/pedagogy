@@ -29,8 +29,8 @@ D2/D4·연동 저장 계약·사용자 시안 관찰이 남아 U0 전체 완료/
 순서·게이트는 [통합 레일](../docs/DEV-TOKEN-ROADMAP.md), 지시문은 [RAIL-ORDERS](../docs/RAIL-ORDERS.md).
 **B3 운영 장애 `REV-2026-109` 해결**(운영 `e50636c` → 문구 정정 `6679676`, 편집·삭제·진짜 충돌 운영 검증).
 `REV-2026-111`은 **B4 운영 배포(`451e8ba`)·운영 확인으로 해결**(`HANDOFF-169`).
-**B3 엄격 Rules 운영 적용(3/3)·인증 저장 확인**(`HANDOFF-170`), 최종 독립 검토 대기.
-**B5 원장 구현·검사·dry-run 완료**(`HANDOFF-171`), 독립 검토·실제 배포 대기.
+**B3 3/3 완료**(엄격 Rules · Opus 5.5 검토 결함 없음 · 운영 거절 확인, `HANDOFF-170`).
+**B5 검토(결함 없음)·운영 배포 완료**(secret → Worker `a63c4880` → Pages `2264ed7`, `HANDOFF-171`). 다음은 B6(D2/D4 결정 선행).
 `REV-2026-110` 테스트 하네스 수정·고장 주입으로 해결. Pages 원본은
 `codex/b3-release-prep`. R1 독립 검토 완료(결함 없음). C1 외부 대기.
 
@@ -87,10 +87,10 @@ U0→B6에서 정규화/복원·AI 계약을 함께 다룬다. Rules의 `hasOnly
 ## 최근 검토
 
 [HANDOFF-2026-171](handoffs/2026-09/2026-09-25-worker-b5-attempt-ledger.md): B5 별도 DO·서버 HMAC·항목별 만료·계정 삭제 전 파기 구현.
-Worker 검사·고장 주입·Wrangler dry-run 통과. **독립 검토·실제 배포 대기.**
+Opus 5.5 검토 결함 없음 · **운영 배포(secret → Worker → Pages) 완료.**
 
 [HANDOFF-2026-170](handoffs/2026-09/2026-09-25-rules-b3-strict-deploy.md): B3 엄격 Rules 실제 배포(3/3),
-에뮬레이터·인증 저장 확인. **최종 독립 검토 대기.**
+Opus 5.5 검토 결함 없음 · 운영 무 revision 쓰기 거절 확인 — **B3 완료.**
 
 [HANDOFF-2026-169](handoffs/2026-09/2026-09-25-index-b4-conflict-hold.md): B4 충돌 보류·복구 화면 — Codex Astra high 설계 2회,
 Sol medium 검토 2회(반례 넷 수정 → 동의). CAS 35/35 · 표적 변이 16종. **운영 `451e8ba` 배포·확인 완료.**

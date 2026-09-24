@@ -56,3 +56,15 @@ B6는 이 검토와 U0의 D2/D4·한도 적용 경계가 끝나야 시작한다.
 ## 검토 기록
 
 독립 검토 대기.
+
+- `2026-09-25` — `Claude / Opus 5.5`: **독립 검토 — 재현한 결함 없음 · 운영 배포 완료.**
+  확인: 원장 상태 전이(pending 10분·completed 7일·명시 retry 만 재시작·성공 잠금·1,000 상한·purge 울타리)와 §3-3 일치,
+  quota 예약 실패 경로마다 `cancelLedger`, 원장 기록 실패 시 결과 미전달·재전송 없음, 계정 삭제 `auth_time` 5분·DailyQuota 불변,
+  CORS `DELETE` 허용·kill switch 는 POST 만. `test:worker` 통과, `ATTEMPT_LEDGER_RED=1` 200≠409 실패 확인.
+  배포(해리 지시): ① `ATTEMPT_HMAC_KEY` 무작위 64자 등록(값은 출력·저장하지 않음) ② Worker `a63c4880`(migration v2 · 이전 코드 판
+  `6e472e0b` 는 2026-09-01 — **그 뒤 Worker 코드 변경 전부가 이번에 함께 나갔다**: 전역 quota·App Check(`off`)·telemetry·Gemini 어댑터(운영 공급자는 anthropic)·문서 계약)
+  ③ Pages `2264ed7`(main 과 index.html 변경 동일, CSP 만 release 기준) — 라이브 바이트 일치.
+  운영 확인: OPTIONS 204·DELETE 허용, 무토큰 401, 해리 세션(로그인 10분 초과)으로 `DELETE /account/ledger` → **403 '다시 로그인'
+  (파기 전 거절 — 7일 울타리를 걸지 않으려고 실제 파기는 하지 않았다)**. 실제 계정 삭제 끝까지는 확인하지 않았다.
+  남은 위험(결함 아님): 계정 삭제가 5분을 넘기면 원장 파기가 거절돼 데이터만 지워지고 계정이 남는다 — 재인증 후 재시도로 끝난다.
+  staging Worker 에는 secret 을 넣지 않았다(배포 시 필요).

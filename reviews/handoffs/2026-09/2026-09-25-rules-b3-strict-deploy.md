@@ -46,3 +46,10 @@ revision 값을 관리자 API로 직접 읽지는 않았다. `transcript.txt`는
 ## 검토 기록
 
 독립 검토 대기. 로컬 `claude auth status`는 `loggedIn:false`여서 Opus 5 호출을 하지 않았다.
+
+- `2026-09-25` — `Claude / Opus 5.5`: **독립 검토 — 결함 없음. B3 3/3 완료.** `firestore.rules` 가 후보 `d5f6d78` 과
+  바이트 같고 SHA-256 `ef1c8e02…` 가 배포 기록과 같다. owner·스키마 화이트리스트는 그대로이고 바뀐 것은 revision 조건뿐이다.
+  현재 앱의 무 revision 쓰기(`batch.set` 셋·삭제 tombstone)는 전부 플래그 0 갈래라 운영(플래그 1)에서 타지 않는다.
+  `check:rules`(JDK 21) 두 묶음 통과, **전환 Rules 로 바꾼 깨보기에서 엄격 행렬이 실패**함을 직접 확인했다.
+  운영(해리 세션): 무 revision 직접 쓰기 → `permission-denied`·문서 미생성, 앱 저장 생성 rev 1 → 수정 rev 2 → 삭제 tombstone rev 3,
+  `✓ 저장됨`. Codex 가 남긴 `B3 엄격 규칙 운영 검증 — 삭제 가능` 은 앱 삭제 경로로 정리했다(tombstone rev 3). 실제 17권 그대로.
