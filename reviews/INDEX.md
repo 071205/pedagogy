@@ -1,6 +1,6 @@
 # 리뷰 현황
 
-마지막 정리: 2026-09-24
+마지막 정리: 2026-09-25
 
 **이 파일은 새 세션이 매번 읽는다.** 그래서 여기에는 *지금 필요한 것*만 둔다 —
 열린 이슈, 지금 하는 일, 최근 검토 다섯. 과거는 `handoffs/`와 git에 보존한다. 기록 규칙은
@@ -15,7 +15,7 @@
 | `REV-2026-093` | `P2` | staging Gemini가 결제 전제 미충족(`FAILED_PRECONDITION`)으로 실패한다 | `issues/2026-09/2026-09-14-gemini-staging-provider-request-error.md` |
 | `REV-2026-108` | `P2` | 지문 묶음이 위치로만 정해져, 가운데 문항을 지우면 무관한 문항이 흡수된다 | `issues/2026-09/2026-09-23-index-passage-group-positional.md` |
 | `REV-2026-110` | `P2` | 리뷰 계약 검사 4건이 배포 플래그 1을 물려받아 `check:fast` 빨간불 | `issues/2026-09/2026-09-24-tests-review-contracts-inherit-revision-flag.md` |
-| `REV-2026-111` | `P1` | 확정 전 새로고침한 초안이 B4 없이 영구 충돌(문구 정정은 배포 완료 · **B4 남음**) | `issues/2026-09/2026-09-24-index-b3-reloaded-draft-stuck-without-b4.md` |
+| `REV-2026-111` | `P1` | 확정 전 새로고침한 초안이 B4 없이 영구 충돌(문구 정정 배포 · **B4 구현·검토 완료, 운영 배포 전**) | `issues/2026-09/2026-09-24-index-b3-reloaded-draft-stuck-without-b4.md` |
 
 ⚠️ 이 표는 `npm run check:review-hygiene` 가 **실제 이슈 파일의 상태와 양방향으로**
 대조한다. 지난 요약을 지워도 안전한 이유가 이 대조다 — 남은 한 곳이 정확해야
@@ -30,7 +30,7 @@
 D2/D4·연동 저장 계약·사용자 시안 관찰이 남아 U0 전체 완료/구현 승인은 아니다.
 순서·게이트는 [통합 레일](../docs/DEV-TOKEN-ROADMAP.md), 지시문은 [RAIL-ORDERS](../docs/RAIL-ORDERS.md).
 **B3 운영 장애 `REV-2026-109` 해결**(운영 `e50636c` → 문구 정정 `6679676`, 편집·삭제·진짜 충돌 운영 검증).
-남은 운영 결함 `REV-2026-111`은 **B4 긴급**으로 푼다(자동 복구 불가 · Codex Astra 판정). 엄격 Rules 보류.
+남은 운영 결함 `REV-2026-111`은 **B4로 구현·검토 완료**(`HANDOFF-169`, `main`) — 운영 배포·확인 대기. 엄격 Rules 보류.
 Pages 원본은 `codex/b3-release-prep`. B5 독립 가능. R1 독립 검토 완료(결함 없음). C1 외부 대기.
 
 ### A. 한글 조판 엔진 (Claude · 2026-09-17)
@@ -85,6 +85,9 @@ U0→B6에서 정규화/복원·AI 계약을 함께 다룬다. Rules의 `hasOnly
 
 ## 최근 검토
 
+[HANDOFF-2026-169](handoffs/2026-09/2026-09-25-index-b4-conflict-hold.md): B4 충돌 보류·복구 화면 — Codex Astra high 설계 2회,
+Sol medium 검토 2회(반례 넷 수정 → 동의). CAS 35/35 · 표적 변이 16종. **운영 배포 전.**
+
 [HANDOFF-2026-168](handoffs/2026-09/2026-09-23-rules-b3-transition-deploy.md): B3 전환 Rules·플래그 1 운영 적용(2/3) —
 **Opus 5 검토 완료.** 라이브 바이트·CSP 해시 일치. ⚠️ 롤백 계획 불성립(승격은 비가역).
 **인증 저장 왕복을 운영에서 수행 → 새 문제집이 거짓 '동기화 충돌'로 막힘(`REV-2026-109` · P1).**
@@ -97,9 +100,6 @@ U0→B6에서 정규화/복원·AI 계약을 함께 다룬다. Rules의 `hasOnly
 
 [HANDOFF-2026-165](handoffs/2026-09/2026-09-23-product-ux-apple-research.md): 제품 방향·AI 구성·N제 전체 지면·Apple UX 참고 정리.
 저장 구조 관련 HANDOFF-162 Q1/Q2는 레일 D1/U0에서 이어받으며 미결을 승인으로 바꾸지 않는다.
-
-[HANDOFF-2026-164](handoffs/2026-09/2026-09-22-index-mid-line-center.md): R4.5 둘째 묶음(`⋮`·`…`) Codex Sol medium 승인.
-구현자의 `test:audit-browser` 165/165 근거 재사용.
 
 ## 지난 기록을 찾는 법
 
