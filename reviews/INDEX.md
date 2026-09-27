@@ -24,7 +24,7 @@
 [계약](../docs/PRODUCT-UX-U0-CONTRACT.md) · [과제·결정표](../docs/PRODUCT-UX-U0-SCENARIOS.md) ·
 [시안](../docs/mockups/u0-flow.html). 계약 주장 5건을 코드로 확인했고 `REV-2026-108`을 재현했다.
 **D1 사용자 결정: 문항을 다른 권에 넣을 때 독립 사본/수정 연동을 선택 가능하게 한다.**
-**현재: D1 경계·D2② 공통 원문 보관·D4 기억 개정 작성 완료 → Claude Opus 5 검토 대기**(`HANDOFF-172`).
+**현재: U0 개정 Claude 검토 = 부분 동의 · §5 보완 2건(출처 참조를 문항 메타데이터로 · 삭제 되돌리기와 마지막 연결 질문) 뒤 B6**(`HANDOFF-172`).
 D3 운영 숫자·U1 시안 선택·사용자 관찰은 남아 U0 전체 완료는 아니다. 합의 뒤 B6(Sol high).
 순서·게이트는 [통합 레일](../docs/DEV-TOKEN-ROADMAP.md), 지시문은 [RAIL-ORDERS](../docs/RAIL-ORDERS.md).
 **B3 운영 장애 `REV-2026-109` 해결**(운영 `e50636c` → 문구 정정 `6679676`, 편집·삭제·진짜 충돌 운영 검증).
@@ -86,7 +86,7 @@ U0→B6에서 정규화/복원·AI 계약을 함께 다룬다. Rules의 `hasOnly
 
 ## 최근 검토
 
-[HANDOFF-2026-172](handoffs/2026-09/2026-09-26-docs-u0-contract-amendment.md): U0 D1/D2/D4 계약 개정·문서만. **Claude 검토 대기.**
+[HANDOFF-2026-172](handoffs/2026-09/2026-09-26-docs-u0-contract-amendment.md): U0 D1/D2/D4 계약 개정·문서만. **Claude 검토: 보완 2건 요청.**
 
 [HANDOFF-2026-171](handoffs/2026-09/2026-09-25-worker-b5-attempt-ledger.md): B5 별도 DO·서버 HMAC·항목별 만료·계정 삭제 전 파기 구현.
 Opus 5.5 검토 결함 없음 · **운영 배포(secret → Worker → Pages) 완료.**

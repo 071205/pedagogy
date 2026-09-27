@@ -17,7 +17,7 @@
 |---|---|
 | 끝난 것 | R2·R3 계약 · R4/B1·B2 · **B3 코드·독립 검토** · **R4.5 두 묶음 승인** · **⑥ 제품 UX 레일 통합(문서만)** |
 | 후속 완료 | R1 독립 검토 완료. **B3 3/3 완료**(`HANDOFF-170` 검토). **B5 검토·운영 배포 완료**(`HANDOFF-171`) |
-| 다음 | ① **⑥-B U0 개정 계약 Claude Opus 5 독립 검토**(설계 문서 작성 완료·HANDOFF-172): D1 연동 경계 + D2 공통 원문 보관 + D4 기억. ② **B6**(Codex Sol high → Claude 검토). 그동안 **U1**(Claude Sonnet 5 → Codex Sol medium) 가능. U1.5 는 U1·B6 뒤 |
+| 다음 | ① **⑥-B U0 개정 — Claude 검토 완료(부분 동의)** → **Codex Astra high 가 §5·§7 보완 2건 반영**(HANDOFF-172 검토 기록 1·2: 문항별 출처를 문항 메타데이터로 · 권 삭제 되돌리기와 마지막 연결 질문 분리) → Claude 는 그 diff 만 재검토. ② **B6**(Codex Sol high → Claude 검토). 그동안 **U1**(Claude Sonnet 5 → Codex Sol medium) 가능. U1.5 는 U1·B6 뒤 |
 | 결정·외부 대기 | D1 독립/연동 선택 완료. D2②·D4 답 반영 완료·개정 계약 검토 대기, D3 운영 숫자·D1 기본값/패널 시안 선택, C1 결제·새 호출 승인, R7 외부 환경. 구 탭은 사용자가 다른 기기 새로고침으로 정리하고 별도 안내 없이 엄격 Rules 적용을 결정 |
 
 기본 순서: **U0 → B3 실제 배포 → B4 → B5 → (U0 계약 개정) → B6 → B7 → U1 → U1.5 → U2 → R5~R10**.
@@ -43,7 +43,7 @@ B3 전환 Rules → 플래그 1 클라이언트 → 엄격 Rules가 순서대로
 | **완료 B3 배포 3/3·최종 검토** | Codex **GPT-6 Sol / high** → Claude **Opus 5** 최종 증거 검토 | 엄격 Rules SHA `ef1c8e02…` 운영 적용, 에뮬레이터·인증 저장 확인(`HANDOFF-170`). **단순 롤백은 불가**(`HANDOFF-168`) | HANDOFF-170 후속 Opus 5.5 검토·운영 거절 확인 완료 |
 | **B4 충돌 UX** | Claude **Sonnet 5** → Codex **GPT-6 Sol / medium** 검토 | ⑦·⑧: 저장 계약 §2-5 구현·독립 검토. **구현·검토 완료 2026-09-25**(해리 지시로 Opus 5.5 구현 · Astra high 설계 2회 · Sol medium 검토 2회 · `HANDOFF-2026-169`) — 운영 `451e8ba` 배포·확인 완료 | B3 실제 배포와 D1/충돌 시안 확정 |
 | **완료 B5 원장·검토·운영 배포** | Codex **GPT-6 Sol / high** → Claude **Opus 5** 검토 | `HANDOFF-171`의 diff·검사 및 ⑩ 검토 지시문 | HANDOFF-171 후속 검토와 secret → Worker → Pages 운영 배포 증거 유지 |
-| **현재 U0 개정 계약 검토 대기** | Claude **Opus 5** | ⑥-B 검토 지시문·HANDOFF-172: D1 경계·D2 공통 보관·D4 기억 문서 diff 검토 | 합의 후 B6. D3 운영 숫자·사용자 시안 관찰은 별도 대기 |
+| **현재 U0 개정 보완** | Codex **GPT-6 Astra / high** → Claude 재검토 | HANDOFF-172 검토 기록 1·2 를 U0 §5·§7 에 반영(3~6 은 문구·게이트 메모) | 재검토 합의 후 B6. D3 운영 숫자·사용자 시안 관찰은 별도 대기 |
 | **B6 자료·채택 저장** | Codex **GPT-6 Sol / high** → Claude **Opus 5** 검토 | ⑨의 B6 지시문·⑩ 검토 지시문 | B5 완료 + 이번 U0 개정 계약 검토. D1 연동 활성화는 별도 확장 게이트 |
 | **B7 응답 복구** | Codex **GPT-6 Sol / high** → Claude **Opus 5** 검토 | ⑨의 B7 지시문·⑩ 검토 지시문 | B6 검토 완료 |
 | **U1 공통 UX·N제 전체 지면** | Claude **Sonnet 5** → Codex **GPT-6 Sol / medium** 검토 | ⑩-A 지시문 | U0 시안 확인 + B4 검토. B5~B7/C1 대기 중이면 앞당길 수 있음 |
