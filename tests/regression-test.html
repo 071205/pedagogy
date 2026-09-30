@@ -218,6 +218,20 @@ async function runIndexTests(){
     return loaded.header===raw.header && loaded.problems[0].blocks.length===51
       && loaded.problems[0].blocks[50].data.text===raw.problems[0].blocks[50].data.text;
   });
+  await check(G, "B6 intake 출처·검토 상태 정규화/JSON 왕복 보존", () => {
+    const sourceId="e174bb5e-d91c-4948-b931-262e6cf39a3d";
+    const p={intake:{version:1,sources:[{sourceId,pages:[2,1],name:"비공개",hash:"비공개",blobURL:"blob:private"}],
+      units:[{value:"함수",origin:"user"}],points:null,pointsState:"unreadable",contentReview:"unreviewed",classificationReview:"reviewed"}};
+    const n=win.normProblem(p,{keepId:true,lossless:true});
+    const round=win.normSet(JSON.parse(JSON.stringify({name:"B6",problems:[n]})));
+    return JSON.stringify(round.problems[0].intake)===JSON.stringify(n.intake)
+      &&JSON.stringify(n.intake.sources)===JSON.stringify([{sourceId,pages:[1,2]}])
+      &&!JSON.stringify(n.intake).includes("비공개");
+  });
+  await check(G, "B6 모르는 intake 버전은 조용히 지우지 않고 거절", () => {
+    try{win.normProblem({intake:{version:999}});return false;}catch{return true;}
+  });
+
   await check(G, "normProblem() answerImg 도 safeUrl 통과", () =>
     win.normProblem({answerImg:"javascript:alert(1)"}, false).answerImg === "");
 

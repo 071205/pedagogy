@@ -24,8 +24,8 @@
 [계약](../docs/PRODUCT-UX-U0-CONTRACT.md) · [과제·결정표](../docs/PRODUCT-UX-U0-SCENARIOS.md) ·
 [시안](../docs/mockups/u0-flow.html). 계약 주장 5건을 코드로 확인했고 `REV-2026-108`을 재현했다.
 **D1 사용자 결정: 문항을 다른 권에 넣을 때 독립 사본/수정 연동을 선택 가능하게 한다.**
-**현재: U0 개정 계약 Claude 재검토 합의(2026-10-01) → B6(Codex Sol high) 착수 가능**(`HANDOFF-172`).
-D3 운영 숫자·U1 시안 선택·사용자 관찰은 남아 U0 전체 완료는 아니다. 합의 뒤 B6(Sol high).
+**현재: B6 구현·수용/실패 주입 검증 완료 → Claude Opus 5 독립 검토 대기**(`HANDOFF-173`, 기준 main `2ff20f3`).
+U0 개정 합의는 유지. B6 합의 뒤 B7(Sol high). D3/C1~C3·D1 연동·U1 시안/사용자 관찰은 별도 대기.
 순서·게이트는 [통합 레일](../docs/DEV-TOKEN-ROADMAP.md), 지시문은 [RAIL-ORDERS](../docs/RAIL-ORDERS.md).
 **B3 운영 장애 `REV-2026-109` 해결**(운영 `e50636c` → 문구 정정 `6679676`, 편집·삭제·진짜 충돌 운영 검증).
 `REV-2026-111`은 **B4 운영 배포(`451e8ba`)·운영 확인으로 해결**(`HANDOFF-169`).
@@ -86,6 +86,8 @@ U0→B6에서 정규화/복원·AI 계약을 함께 다룬다. Rules의 `hasOnly
 
 ## 최근 검토
 
+[HANDOFF-2026-173](handoffs/2026-10/2026-10-01-index-b6-intake-storage.md): B6 공통 원문·쪽 staging·독립 채택 구현/검증, **Opus 5 검토 대기·미배포**.
+
 [HANDOFF-2026-172](handoffs/2026-09/2026-09-26-docs-u0-contract-amendment.md): U0 D1/D2/D4 계약 개정·문서만. **재검토 합의 · B6 착수 가능.**
 
 [HANDOFF-2026-171](handoffs/2026-09/2026-09-25-worker-b5-attempt-ledger.md): B5 별도 DO·서버 HMAC·항목별 만료·계정 삭제 전 파기 구현.
@@ -96,10 +98,6 @@ Opus 5.5 검토 결함 없음 · 운영 무 revision 쓰기 거절 확인 — **
 
 [HANDOFF-2026-169](handoffs/2026-09/2026-09-25-index-b4-conflict-hold.md): B4 충돌 보류·복구 화면 — Codex Astra high 설계 2회,
 Sol medium 검토 2회(반례 넷 수정 → 동의). CAS 35/35 · 표적 변이 16종. **운영 `451e8ba` 배포·확인 완료.**
-
-[HANDOFF-2026-168](handoffs/2026-09/2026-09-23-rules-b3-transition-deploy.md): B3 전환 Rules·플래그 1 운영 적용(2/3) —
-**Opus 5 검토 완료.** 라이브 바이트·CSP 해시 일치. ⚠️ 롤백 계획 불성립(승격은 비가역).
-**인증 저장 왕복을 운영에서 수행 → 새 문제집이 거짓 '동기화 충돌'로 막힘(`REV-2026-109` · P1).**
 
 저장 구조 관련 HANDOFF-162 Q1/Q2는 레일 D1/U0에서 이어받으며 미결을 승인으로 바꾸지 않는다.
 

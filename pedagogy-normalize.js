@@ -275,6 +275,30 @@ function resetNormDropped(){ normDropped.images=0; }
 
 /* keepId=true 는 '내 클라우드에서 읽어온 내 데이터'에 쓴다.
    가져오기(남의 파일)는 항상 id 를 새로 발급해 기존 문항과 충돌하지 않게 한다. */
+/* Only portable classification and random source references cross storage/export.
+   File names, hashes, owner credentials and local URLs are deliberately excluded. */
+function normIntake(v){
+  if(!v || v.version!==1) throw new Error("지원하지 않는 intake 버전 · 업데이트 필요");
+  const provenance=x=>x==='user'?'user':'ai';
+  const review=x=>['unreviewed','reviewed','unknown'].includes(x)?x:'unknown';
+  const sources=Array.isArray(v.sources)?v.sources:[];
+  if(sources.length>100) throw new Error('출처 개수 초과');
+  const normalized=sources.map(s=>{
+    if(!s || !/^[a-f0-9-]{36}$/i.test(s.sourceId||'') || !Array.isArray(s.pages)
+      || s.pages.length>1000 || s.pages.some(n=>!Number.isSafeInteger(n)||n<1))
+      throw new Error('문항 출처 형식 오류');
+    return {sourceId:s.sourceId,pages:[...new Set(s.pages)].sort((a,b)=>a-b)};
+  });
+  if(v.units && (!Array.isArray(v.units)||v.units.length>30)) throw new Error('단원 개수 초과');
+  return {
+    version:1, sources:normalized,
+    units:(v.units||[]).map(x=>({value:str(x.value,120),origin:provenance(x.origin)})),
+    difficulty:v.difficulty?{value:str(v.difficulty.value,80),origin:provenance(v.difficulty.origin)}:null,
+    points:typeof v.points==='number'&&Number.isFinite(v.points)&&v.points>=0?v.points:null,
+    pointsState:['read','absent','unreadable'].includes(v.pointsState)?v.pointsState:'unreadable',
+    contentReview:review(v.contentReview), classificationReview:review(v.classificationReview),
+  };
+}
 function normProblem(p, opts={}){
   if(!p||typeof p!=="object") return null;
   const keepId=opts.keepId===true, lossless=opts.lossless===true;
@@ -296,7 +320,8 @@ function normProblem(p, opts={}){
        지문이 있으면 그 글은 지문 블록의 lead 에 있다 — 여기는 쓰지 않는다. */
     groupLead:text(p.groupLead,200),
     span:['pair','col','page'].includes(p.span)?p.span:(p.paired===true?'pair':'col'),
-    blocks:blocks.length?blocks:[{type:"statement",data:{text:""}}]
+    blocks:blocks.length?blocks:[{type:"statement",data:{text:""}}],
+    ...(p.intake?{intake:normIntake(p.intake)}:{})
   };
 }
 
@@ -382,7 +407,7 @@ const normOrder = v => Math.max(0, Math.floor(Number(v)||0));
 /* 밖에서 쓰는 것만 내놓는다. `IMG_HOSTS` 와 `normDropped` 는 여기서만 쓰이므로 뺀다. */
 global.PedagogyNormalize = Object.freeze({
   uid, sanitize, safeUrl, str, normOrder,
-  normSubject, normSheetColor, normBlock, normProblem, normSet, normLibMeta,
+  normSubject, normSheetColor, normBlock, normProblem, normSet, normLibMeta, normIntake,
   resetNormDropped,
   /* 진단 집계는 값이 아니라 함수로 낸다 — 숫자를 내보내면 호출한 쪽이 그 시점의
      사본을 들고 있게 되어 `resetNormDropped()` 뒤에도 옛 값을 본다. */
