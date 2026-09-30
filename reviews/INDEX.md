@@ -1,6 +1,6 @@
 # 리뷰 현황
 
-마지막 정리: 2026-09-26
+마지막 정리: 2026-10-01
 
 **이 파일은 새 세션이 매번 읽는다.** 열린 이슈·현재 작업·최근 검토 다섯만 두고 과거는 `handoffs/`와 git에 보존한다. 기록 규칙은
 [`README.md`](README.md) 의 '기록의 수명' 절에 있다.
@@ -24,13 +24,13 @@
 [계약](../docs/PRODUCT-UX-U0-CONTRACT.md) · [과제·결정표](../docs/PRODUCT-UX-U0-SCENARIOS.md) ·
 [시안](../docs/mockups/u0-flow.html). 계약 주장 5건을 코드로 확인했고 `REV-2026-108`을 재현했다.
 **D1 사용자 결정: 문항을 다른 권에 넣을 때 독립 사본/수정 연동을 선택 가능하게 한다.**
-**현재: U0 개정 Claude 검토 = 부분 동의 · §5 보완 2건(출처 참조를 문항 메타데이터로 · 삭제 되돌리기와 마지막 연결 질문) 뒤 B6**(`HANDOFF-172`).
+**현재: U0 검토 요청 2건 보완 완료(출처·복구본 대조, 권 삭제/원문 삭제 분리) → Claude 좁은 재검토 → 합의 뒤 B6**(`HANDOFF-172`, 2026-10-01).
 D3 운영 숫자·U1 시안 선택·사용자 관찰은 남아 U0 전체 완료는 아니다. 합의 뒤 B6(Sol high).
 순서·게이트는 [통합 레일](../docs/DEV-TOKEN-ROADMAP.md), 지시문은 [RAIL-ORDERS](../docs/RAIL-ORDERS.md).
 **B3 운영 장애 `REV-2026-109` 해결**(운영 `e50636c` → 문구 정정 `6679676`, 편집·삭제·진짜 충돌 운영 검증).
 `REV-2026-111`은 **B4 운영 배포(`451e8ba`)·운영 확인으로 해결**(`HANDOFF-169`).
 **B3 3/3 완료**(엄격 Rules · Opus 5.5 검토 결함 없음 · 운영 거절 확인, `HANDOFF-170`).
-**B5 검토(결함 없음)·운영 배포 완료**(secret → Worker `a63c4880` → Pages `2264ed7`, `HANDOFF-171`). B6는 이번 U0 개정 계약 검토가 선행이다.
+**B5 검토(결함 없음)·운영 배포 완료**(secret → Worker `a63c4880` → Pages `2264ed7`, `HANDOFF-171`). B6는 이번 U0 보완 diff 재검토 합의가 선행이다.
 `REV-2026-110` 테스트 하네스 수정·고장 주입으로 해결. **Pages 원본은 다시 `main`**(2026-09-25 정리 ·
 `main` 푸시 = 운영 배포). R1 독립 검토 완료(결함 없음). C1 외부 대기.
 
@@ -86,7 +86,7 @@ U0→B6에서 정규화/복원·AI 계약을 함께 다룬다. Rules의 `hasOnly
 
 ## 최근 검토
 
-[HANDOFF-2026-172](handoffs/2026-09/2026-09-26-docs-u0-contract-amendment.md): U0 D1/D2/D4 계약 개정·문서만. **Claude 검토: 보완 2건 요청.**
+[HANDOFF-2026-172](handoffs/2026-09/2026-09-26-docs-u0-contract-amendment.md): U0 D1/D2/D4 계약 개정·문서만. **요청 2건 반영 완료 · Claude 좁은 재검토 대기.**
 
 [HANDOFF-2026-171](handoffs/2026-09/2026-09-25-worker-b5-attempt-ledger.md): B5 별도 DO·서버 HMAC·항목별 만료·계정 삭제 전 파기 구현.
 Opus 5.5 검토 결함 없음 · **운영 배포(secret → Worker → Pages) 완료.**
