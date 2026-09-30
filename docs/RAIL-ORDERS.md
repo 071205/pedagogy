@@ -17,7 +17,7 @@
 |---|---|
 | 끝난 것 | R2·R3 계약 · R4/B1·B2 · **B3 코드·독립 검토** · **R4.5 두 묶음 승인** · **⑥ 제품 UX 레일 통합(문서만)** |
 | 후속 완료 | R1 독립 검토 완료. **B3 3/3 완료**(`HANDOFF-170` 검토). **B5 검토·운영 배포 완료**(`HANDOFF-171`) |
-| 다음 | ① **⑥-B U0 보완 diff Claude Opus 5 재검토**: HANDOFF-172 요청 1·2 반영 완료(2026-10-01). 문항 출처·복구본 대조와 권 삭제/원문 삭제 분리만 좁게 확인. ② 합의 뒤 **B6**(Codex Sol high → Claude 검토). 대기 중 **U1**(Claude Sonnet 5 → Codex Sol medium) 가능. U1.5는 U1·B6 뒤 |
+| 다음 | ① **B6**(Codex GPT-6 Sol high → Claude 검토) — U0 개정 계약 **합의 2026-10-01**(HANDOFF-172 재검토 기록, B6 구현 메모 3개 포함). 대기 중 **U1**(Claude Sonnet 5 → Codex Sol medium) 가능. U1.5는 U1·B6 뒤 |
 | 결정·외부 대기 | D1 독립/연동 선택 완료. D2②·D4 답 반영·요청 2건 보완 완료·좁은 재검토 대기, D3 운영 숫자·D1 기본값/패널 시안 선택, C1 결제·새 호출 승인, R7 외부 환경. 구 탭은 사용자가 다른 기기 새로고침으로 정리하고 별도 안내 없이 엄격 Rules 적용을 결정 |
 
 기본 순서: **U0 → B3 실제 배포 → B4 → B5 → (U0 계약 개정) → B6 → B7 → U1 → U1.5 → U2 → R5~R10**.
@@ -43,8 +43,8 @@ B3 전환 Rules → 플래그 1 클라이언트 → 엄격 Rules가 순서대로
 | **완료 B3 배포 3/3·최종 검토** | Codex **GPT-6 Sol / high** → Claude **Opus 5** 최종 증거 검토 | 엄격 Rules SHA `ef1c8e02…` 운영 적용, 에뮬레이터·인증 저장 확인(`HANDOFF-170`). **단순 롤백은 불가**(`HANDOFF-168`) | HANDOFF-170 후속 Opus 5.5 검토·운영 거절 확인 완료 |
 | **B4 충돌 UX** | Claude **Sonnet 5** → Codex **GPT-6 Sol / medium** 검토 | ⑦·⑧: 저장 계약 §2-5 구현·독립 검토. **구현·검토 완료 2026-09-25**(해리 지시로 Opus 5.5 구현 · Astra high 설계 2회 · Sol medium 검토 2회 · `HANDOFF-2026-169`) — 운영 `451e8ba` 배포·확인 완료 | B3 실제 배포와 D1/충돌 시안 확정 |
 | **완료 B5 원장·검토·운영 배포** | Codex **GPT-6 Sol / high** → Claude **Opus 5** 검토 | `HANDOFF-171`의 diff·검사 및 ⑩ 검토 지시문 | HANDOFF-171 후속 검토와 secret → Worker → Pages 운영 배포 증거 유지 |
-| **현재 U0 보완 diff 재검토** | Claude **Opus 5** | HANDOFF-172 요청 1·2 반영 diff와 처리 기록. 3~6은 후속 조건·문구로 반영 | 재검토 합의 후 B6. D3 운영 숫자·사용자 시안 관찰은 별도 대기 |
-| **B6 자료·채택 저장** | Codex **GPT-6 Sol / high** → Claude **Opus 5** 검토 | ⑨의 B6 지시문·⑩ 검토 지시문 | B5 완료 + 이번 U0 보완 diff 재검토 합의. D1 연동 활성화는 별도 확장 게이트 |
+| **U0 개정 계약** | 완료 — Claude 재검토 합의(2026-10-01) | HANDOFF-172 | D3 운영 숫자·사용자 시안 관찰은 별도 대기 |
+| **B6 자료·채택 저장** | Codex **GPT-6 Sol / high** → Claude **Opus 5** 검토 | ⑨의 B6 지시문·⑩ 검토 지시문 | **선행 충족**(B5 완료 + U0 개정 합의 2026-10-01). D1 연동 활성화는 별도 확장 게이트 |
 | **B7 응답 복구** | Codex **GPT-6 Sol / high** → Claude **Opus 5** 검토 | ⑨의 B7 지시문·⑩ 검토 지시문 | B6 검토 완료 |
 | **U1 공통 UX·N제 전체 지면** | Claude **Sonnet 5** → Codex **GPT-6 Sol / medium** 검토 | ⑩-A 지시문 | U0 시안 확인 + B4 검토. B5~B7/C1 대기 중이면 앞당길 수 있음 |
 | **U1.5 원본 대조** *(2026-09-26 추가)* | 화면: Claude **Sonnet 5** → Codex **GPT-6 Sol / medium** 검토. 저장 변경이 필요하면 그 부분만 Codex **GPT-6 Sol / high** → Claude 검토 | ⑩-A2 지시문 | U1 검토 + B6 의 공통 원문 보관 기반 검토 |
@@ -222,7 +222,7 @@ PRODUCT-UX-DESIGN의 요구를 R2의 요구 차이·R4/U0~U2와 B4~B7·R5·R8에
 > (owner·원문 ID·문제집 연결·용량·삭제·유실). ③ D4: 결과 목록 먼저 + '다음부터 바로 편집기로' 기억(여러 권이면 목록 유지).
 > 근거는 docs/DEV-TOKEN-ROADMAP.md D1~D4 행과 docs/PRODUCT-UX-DESIGN.md '원본 대조'. 인계를 쓰고 Claude 검토를 기다려.
 
-**2026-10-01 보완 완료 · 다음은 Claude Opus 5 좁은 재검토**([HANDOFF-172](../reviews/handoffs/2026-09/2026-09-26-docs-u0-contract-amendment.md)).
+**2026-10-01 보완 완료 · Claude 재검토 합의 — B6 착수 가능**([HANDOFF-172](../reviews/handoffs/2026-09/2026-09-26-docs-u0-contract-amendment.md)).
 
 > HANDOFF-172의 검토 요청 1·2에 대한 2026-10-01 보완 diff를 재검토해줘. U0 §3·§5·§7의
 > 문항 출처 보존/실제 권·충돌 snapshot·복구본 대조와, 문제집 삭제 뒤 원문 보존/Undo·백업 복구가
