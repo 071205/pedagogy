@@ -13,6 +13,8 @@
 | `REV-2026-075` | `P2` | AI 문서에 들어갔다 나오면 로그인이 안 된다(재현 절차 없음) | `issues/2026-09/2026-09-09-document-editor-login-after-return.md` |
 | `REV-2026-093` | `P2` | staging Gemini가 결제 전제 미충족(`FAILED_PRECONDITION`)으로 실패한다 | `issues/2026-09/2026-09-14-gemini-staging-provider-request-error.md` |
 | `REV-2026-108` | `P2` | 지문 묶음이 위치로만 정해져, 가운데 문항을 지우면 무관한 문항이 흡수된다 | `issues/2026-09/2026-09-23-index-passage-group-positional.md` |
+| `REV-2026-112` | `P2` | B6: 문항 하나의 `intake` 정규화 실패가 클라우드 라이브러리 전체 읽기를 멈춘다 | `issues/2026-10/2026-10-01-index-b6-intake-throw-aborts-cloud-load.md` |
+| `REV-2026-113` | `P2` | B6: 새로고침 뒤 복제·충돌 사본은 원문 연결을 못 물려받아 원본 대조가 '없음' | `issues/2026-10/2026-10-01-index-b6-copy-link-needs-live-client.md` |
 
 ⚠️ 이 표는 `npm run check:review-hygiene` 가 **실제 이슈 파일의 상태와 양방향으로**
 대조한다. 지난 요약을 지워도 안전한 이유가 이 대조다 — 남은 한 곳이 정확해야
@@ -24,7 +26,7 @@
 [계약](../docs/PRODUCT-UX-U0-CONTRACT.md) · [과제·결정표](../docs/PRODUCT-UX-U0-SCENARIOS.md) ·
 [시안](../docs/mockups/u0-flow.html). 계약 주장 5건을 코드로 확인했고 `REV-2026-108`을 재현했다.
 **D1 사용자 결정: 문항을 다른 권에 넣을 때 독립 사본/수정 연동을 선택 가능하게 한다.**
-**현재: B6 구현·수용/실패 주입 검증 완료 → Claude Opus 5 독립 검토 대기**(`HANDOFF-173`, 기준 main `2ff20f3`).
+**현재: B6 Claude 검토 = 부분 동의 · `REV-2026-112`·`-113` 수정 → 재검토 → main**(`HANDOFF-173`, 브랜치 `codex/b6-intake-storage`).
 U0 개정 합의는 유지. B6 합의 뒤 B7(Sol high). D3/C1~C3·D1 연동·U1 시안/사용자 관찰은 별도 대기.
 순서·게이트는 [통합 레일](../docs/DEV-TOKEN-ROADMAP.md), 지시문은 [RAIL-ORDERS](../docs/RAIL-ORDERS.md).
 **B3 운영 장애 `REV-2026-109` 해결**(운영 `e50636c` → 문구 정정 `6679676`, 편집·삭제·진짜 충돌 운영 검증).
@@ -86,7 +88,7 @@ U0→B6에서 정규화/복원·AI 계약을 함께 다룬다. Rules의 `hasOnly
 
 ## 최근 검토
 
-[HANDOFF-2026-173](handoffs/2026-10/2026-10-01-index-b6-intake-storage.md): B6 공통 원문·쪽 staging·독립 채택 구현/검증, **Opus 5 검토 대기·미배포**.
+[HANDOFF-2026-173](handoffs/2026-10/2026-10-01-index-b6-intake-storage.md): B6 공통 원문·쪽 staging·독립 채택 구현/검증, **검토: 결함 2건(112·113) · 미배포**.
 
 [HANDOFF-2026-172](handoffs/2026-09/2026-09-26-docs-u0-contract-amendment.md): U0 D1/D2/D4 계약 개정·문서만. **재검토 합의 · B6 착수 가능.**
 

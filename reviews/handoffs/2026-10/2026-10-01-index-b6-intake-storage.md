@@ -3,7 +3,7 @@
 - ID: `HANDOFF-2026-173`
 - 날짜: `2026-10-01`
 - 작성자: `Codex`
-- 상태: `ready-for-review`
+- 상태: `changes-requested` — Claude 검토 2026-10-01: REV-2026-112·113 수정 뒤 해당 diff 재검토
 - 영향 영역: `index | worker | tests | docs | server`
 - 관련 이슈: `REV-2026-108`(기존 위치 기반 지문 편집 결함은 수정하지 않음)
 
@@ -76,4 +76,38 @@ C1~C3/D3, 지원 버전 운영 전환, D1 공유 저장 게이트는 그대로 �
 
 ## 검토 기록
 
-- 독립 검토 대기.
+### 2026-10-01 — Claude Opus 5.5 독립 검토: **부분 동의 · 결함 2건(P2) 등록**
+
+기준 `2ff20f3..ec0b2fc`, 벤더 PDF.js 를 뺀 21개 파일. `npm run test:intake` 를 다시 돌려 28/28·깨보기 빨간불을 확인했다.
+
+**확인한 것 (동의)**
+- 운영 기본 Worker 는 새 task 를 **quota 전에 503** 으로 막는다(`generateIntake`·`intakeLimits` 기본 `null`). 기존 사진/문서 AI 경로 불변.
+  `task` 가 있는데 다른 값이면 400 — 기존 클라이언트는 `task` 를 보내지 않는다.
+- `setToDoc()` 이 `setProblemsForSync()` 를 거치게 바뀌었지만 paired 칸 변환은 멱등이라, **intake 없는 문제집의 클라우드 문서는 그대로다.**
+- 다른 탭 저장 보류(`intakeWriteAllowed`)·쓰기 표식은 `PM_INTAKE_PROTOCOL_V1` 이 켜진 뒤에만 동작하고, 그 키는 개발용
+  `createIntakeFixture(...).exclusive` 만 세운다 → **지금 사용자 저장 경로에는 영향이 없다**(U2 에서 켜진다).
+- 원문 삭제: 첫 서버 확정 구독 전·오프라인·기록 손상 → '확인 필요', ticket·revision·generation 재대조, 권 삭제는 `unlinked`,
+  되돌리기는 살아 있는 Blob 만 재연결, 명시 삭제는 `deleted` 유지. HANDOFF-172 메모 1·2 반영됨.
+- 계정 삭제: Auth 삭제 전 `purge()`(owner fence) + D4 키 삭제. 클라우드 `intake.sources` 는 sourceId·쪽만.
+- CSP `'wasm-unsafe-eval'` 은 WebAssembly 컴파일만 열고 JS `eval` 은 여전히 막는다. PDF.js `isEvalSupported:false`.
+- 원문 Blob 을 owner 기록 하나에 넣는 구조를 실측했다(크로미움, Blob 60MB + 작은 쓰기 40회): 쓰기당 0.3ms, 사용량 변화 없음 —
+  Blob 을 다시 복사하지 않는다. **WebKit 은 재지 않았다.**
+
+**재현한 결함 (이슈 등록)**
+1. [`REV-2026-112`](../../issues/2026-10/2026-10-01-index-b6-intake-throw-aborts-cloud-load.md) P2 — `normIntake()` 가 던지고
+   `normProblem()` 이 전파해, 클라우드 문항 하나의 `intake:{version:2}` 로 `loadSets()` 전체가 로컬 폴백·"클라우드에 연결하지 못했어요"가 됐다
+   (브라우저 stub 재현: 정상 3권 → `["새 문제집"]`). 가져오기·백업 되돌리기·`setJSON` 도 같은 모양. **B6 를 main 에 올리기 전에** 고칠 것 —
+   정규화는 운영에 바로 나가는 신뢰 경계다.
+2. [`REV-2026-113`](../../issues/2026-10/2026-10-01-index-b6-copy-link-needs-live-client.md) P2 — 복제·충돌 사본의 연결 승계가
+   살아 있는 클라이언트(`intakeClients`)에 기대서, **새로고침 뒤 실제 '복제' 단추**로 만든 사본은 `forProblem` = `missing` 인데
+   `impact()` 는 사용 중으로 센다. HANDOFF-172 수용 항목 "A→B 복제 후 A 삭제에도 B 원문 대조 유지" 를 못 지킨다. 검사에 이 경우가 없었다.
+   U1.5 전 필수, 112 와 함께 고치기를 권한다.
+
+**메모 (결함 아님 · U2 활성화 전에 볼 것)**
+- `intakeHoldWrite()` 문구 "현재 초안을 보존했습니다" — 실제로는 메모리(`pendingLocalByOwner`)에만 있다. 창 닫기 경고는 뜨지만
+  REV-2026-111 의 원칙(로컬 저장 성공일 때만 '보존')과 어긋난다. 활성화 전에 문구를 고칠 것.
+- `normIntake` 의 `units` 는 `{value,origin}` 만 받는다. 문자열 배열이면 값이 `""` 로 바뀐다(손으로 쓴 JSON).
+- 계정 삭제가 `PM_INTAKE_PROTOCOL_V1:`·`PM_INTAKE_WRITER_V1:` 키를 남긴다(내용 없음, uid 만 키 이름에).
+- `browserRenderer` 는 `import('./vendor/pdfjs/pdf.mjs')` 라 `file://` 에서는 PDF 렌더가 안 된다(ESM). 기능 노출 전 안내가 필요하다.
+
+**판정**: 112·113 수정 diff 를 재검토해 합의하면 B6 을 main 에 올릴 수 있다(push = 운영 배포, 해리 승인). B7 은 그 뒤.
