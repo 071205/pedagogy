@@ -70,4 +70,8 @@ B7은 그 뒤 **Codex GPT-6 Sol high**다. 승인된 112·113/B3/B4/B5 동일 di
   읽기 전용 권이 하나라도 있으면 `writeCloudSnapshot()` 이 `false` 를 돌려준다. 그래서 다른 권의 폴더 이동이 서버에 올라가도
   `retryLibrarySync()` 가 '폴더 소속 저장 실패' 토스트를 띄우고 재시도 막대를 남긴다. 브라우저 stub 재현.
 
-**판정**: 115 를 고치면 그 diff 만 다시 본다. 합의하면 PR #8 CI 확인 → 해리 승인 merge(운영 배포) → B7.
+- **추가(PR #8 CodeRabbit 지적 · 독립 재현) [`REV-2026-116`](../../issues/2026-10/2026-10-03-index-b6-delete-source-aborts-other-jobs.md) P2.**
+  `deleteSource()` 가 전역 `stop()` 을 불러, 관계없는 작업의 진행 중 쪽 요청까지 끊긴다. 끊긴 쪽은 `locked` 가 되고
+  명시 재시도로도 풀리지 않는다. fixture 로 재현했다. 115 와 함께 고친다.
+
+**판정**: 115·116 을 고치면 그 diff 만 다시 본다. 합의하면 PR #8 CI 확인 → 해리 승인 merge(운영 배포) → B7.
