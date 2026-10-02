@@ -22,7 +22,7 @@ async function persistence(){
   }catch{ return 'error'; }
 }
 function create({session,library,renderer=browserRenderer(),transport=null,config,dbName='PM_INTAKE_V1',locks=navigator.locks}={}){
-  const cap=C.limits(config), db=openDB(dbName), controllers=new Set(), urls=new Set();
+  const cap=C.limits(config), db=openDB(dbName), controllers=new Map(), urls=new Map();
   const context=()=>{const s=session(); if(!s?.owner) fail('소유자 확인 필요'); return {...s};};
   const matches=s=>{const n=context(); if(n.owner!==s.owner||n.epoch!==s.epoch) fail('계정이 바뀌어 작업을 멈췄어요');};
   async function transact(s,fn,write=true){
@@ -131,7 +131,7 @@ function create({session,library,renderer=browserRenderer(),transport=null,confi
           if(q.state!==p.state) fail('다른 탭에서 이 쪽 상태가 바뀌었어요');
           q.state='processing';q.attemptId=attemptId;if(retry)q.retries++;live.calls++;live.state='processing';
         });
-        const controller=new AbortController(); controllers.add(controller);
+        const controller=new AbortController(); controllers.set(controller,p.sourceId);
         try{
           const reply=await transport(request,{signal:controller.signal}); matches(s);
           if(reply?.state==='completed'||reply?.state==='pending'){
@@ -266,7 +266,8 @@ function create({session,library,renderer=browserRenderer(),transport=null,confi
           j.generation++;j.state='partial';j.pages.forEach(p=>{if(p.sourceId===sourceId&&p.state!=='success')p.state='missing';});
         }
       });
-      stop();
+      for(const [controller,id] of controllers) if(id===sourceId){controller.abort();controllers.delete(controller);}
+      for(const [url,id] of urls) if(id===sourceId){URL.revokeObjectURL(url);urls.delete(url);}
       return transact(s,r=>{
         const src=r.sources[sourceId];src.blob=null;src.state='deleted';delete src.selected;return {state:'deleted'};
       });
@@ -308,14 +309,43 @@ function create({session,library,renderer=browserRenderer(),transport=null,confi
     });
   }
   async function finishJob(jobId){const s=context();return transact(s,r=>{const j=job(r,jobId);j.state='finished';j.generation++;});}
-  function stop(){controllers.forEach(c=>c.abort());controllers.clear();urls.forEach(u=>URL.revokeObjectURL(u));urls.clear();}
+  function stop(){controllers.forEach((_,c)=>c.abort());controllers.clear();urls.forEach((_,u)=>URL.revokeObjectURL(u));urls.clear();}
   async function purge(){
     const s=context(); stop();const d=await db;matches(s);
+    const fence=id();
     return new Promise((resolve,reject)=>{
       const tx=d.transaction('owners','readwrite'),store=tx.objectStore('owners');
       // Keep only the account fence, never an old job/source/receipt or D4 preference.
-      store.put({owner:s.owner,version:1,deleted:true,generation:Date.now(),sources:{},jobs:{},adoptions:{},links:{}});
-      tx.oncomplete=()=>resolve(true);tx.onerror=tx.onabort=()=>reject(tx.error||Error('로컬 원문 파기 실패'));
+      store.put({owner:s.owner,version:1,deleted:true,fence,generation:Date.now(),sources:{},jobs:{},adoptions:{},links:{}});
+      tx.oncomplete=()=>resolve(fence);tx.onerror=tx.onabort=()=>reject(tx.error||Error('로컬 원문 파기 실패'));
+    });
+  }
+  // Only the deletion attempt that installed the fence may clear it after a
+  // confirmed Auth failure. A later signed-in session may recover an orphaned
+  // fence after Auth reload confirms that this owner still exists.
+  async function purgeFence(){
+    const s=context(),d=await db;matches(s);
+    return new Promise((resolve,reject)=>{
+      const tx=d.transaction('owners','readonly'),r=tx.objectStore('owners').get(s.owner);
+      r.onsuccess=()=>resolve(r.result?.deleted===true);
+      r.onerror=()=>reject(r.error);
+    });
+  }
+  async function recoverPurge(fence){
+    const s=context(),d=await db;matches(s);
+    return new Promise((resolve,reject)=>{
+      const tx=d.transaction('owners','readwrite'),store=tx.objectStore('owners'),r=store.get(s.owner);
+      let recovered=false,caught;
+      r.onsuccess=()=>{
+        try{
+          matches(s);
+          if(!r.result?.deleted)return;
+          if(fence && r.result.fence!==fence) fail('계정 삭제 시도가 바뀌었어요');
+          store.delete(s.owner);recovered=true;
+        }catch(e){caught=e;tx.abort();}
+      };
+      tx.oncomplete=()=>{try{matches(s);resolve(recovered);}catch(e){reject(e);}};
+      tx.onerror=tx.onabort=()=>reject(caught||tx.error||Error('원문 삭제 울타리 복구 실패'));
     });
   }
   async function reconnect(sourceId,file){
@@ -359,7 +389,7 @@ function create({session,library,renderer=browserRenderer(),transport=null,confi
       });
     });
   }
-  return Object.freeze({adoptionStatus,inheritLinks,detachSource,createJob,readJob,run,adopt,impact,deleteSource,listSources,readSource,forProblem,linkSource,reconcile,finishJob,stop,purge,reconnect,persistence});
+  return Object.freeze({adoptionStatus,inheritLinks,detachSource,createJob,readJob,run,adopt,impact,deleteSource,listSources,readSource,forProblem,linkSource,reconcile,finishJob,stop,purge,purgeFence,recoverPurge,reconnect,persistence});
 }
 function browserRenderer(){
   let pdfModule;

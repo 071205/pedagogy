@@ -3,7 +3,7 @@
 - ID: `REV-2026-116`
 - 날짜: `2026-10-03`
 - 보고자: `Claude / Opus 5.5` (PR #8 CodeRabbit 지적을 독립 재현)
-- 상태: `open`
+- 상태: `resolved`
 - 심각도: `P2`
 - 영향 영역: `index`
 - 관련 인계: `HANDOFF-2026-173` · `HANDOFF-2026-175`
@@ -30,3 +30,17 @@ UI(U2/U1.5)가 아직 없어 **지금 사용자 영향은 없다.**
 전역 `stop()` 은 계정 전환·`purge()` 에만 남긴다. object URL 도 같은 기준으로 그 원문 것만 해제한다
 (object URL 쪽은 코드로만 확인했다. U1.5 뷰어가 없어 재현하지 않았다).
 회귀: 위 3번(B 는 `success`, 또는 끊기지 않음)과, A 를 쓰는 작업의 진행 중 요청은 여전히 끊기고 늦은 쓰기가 막히는지.
+
+## 처리 기록
+
+2026-10-03 · Codex: `controllers`를 sourceId로 추적하고 `deleteSource()`는 해당 원문의 요청만
+중단한다. 같은 원문의 generation 증가와 job generation fence는 유지한다. 현재 엔진은 object URL을
+생성하지 않지만, 보유 URL의 해제 범위도 같은 sourceId로 제한했다. 전역 `stop()`은 계정 전환과
+`purge()`에 남겼다.
+
+`scripts/check-intake-delete-fences.mjs`의 116 검사는 A/B 요청을 동시에 진행시키고 A 삭제 후
+A 중단·missing·원문 파기, B 미중단·success·재진입을 확인했다. 수정 코드 PASS,
+`B6_DELETE_RED=116`에서 `28089b3`의 B 요청 동반 중단을 실패로 탐지했다.
+`test:intake`와 `test:audit-browser`는 현재 실행 환경의 `127.0.0.1` 바인딩 `EPERM`으로,
+`test:set-revision`은 Chromium Mach 포트 권한 거부로 완료하지 못했다. 브라우저 검증 후 상태를 닫는다.
+- `2026-10-03` — `Claude / Opus 5.5`: **해결 확인.** 막혔던 브라우저 검사를 다시 돌려 통과했고, 원래 재현이 수정 전 `28089b3` 에서만 빨간불이다(HANDOFF-2026-178 검토 기록).

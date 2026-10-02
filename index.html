@@ -25,7 +25,7 @@
      어렵다 — 새 로그인만 깨진다). 실제로 한 번 그랬으니 손대지 말 것. -->
 <meta http-equiv="Content-Security-Policy" content="
   default-src 'self';
-  script-src 'self' 'wasm-unsafe-eval' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-HfyUL1ZwPVt1Kvoxw7p73U09nmbtvqCBsl3KUnx+FU4=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
+  script-src 'self' 'wasm-unsafe-eval' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-EmL5MgMxrNWRvNm9jnLvuAa8hcebaMBtgDclV4cIaAI=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
   script-src-attr 'none';
   style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
   font-src 'self' data: https://cdn.jsdelivr.net;
@@ -5460,28 +5460,48 @@ async function deleteAccountEverything(){
     });
     intakeClients.forEach(c=>c.stop());
     if(currentUser?.uid!==uid) throw Error("계정이 바뀌어 원문 파기를 멈췄어요");
-    await cleanup.purge();
-    localStorage.removeItem(intakePrefsKey(uid));
+    await withIntakeDeleteLock(uid,async()=>{
+      const fence=await cleanup.purge();
+      localStorage.removeItem(intakePrefsKey(uid));
 
-    // ⑥ 로컬 — 백업까지 전부
-    clearLocalKeys(keys,{keepBackup:false});
-    clearLocalKeys(mockLocalKeys(uid),{keepBackup:false});
-    pendingLocalByOwner.delete(MockStore.keysFor(uid).list);
-    mocks=[]; mocksLoaded=false; mockOpenId="";
-    mockCloudSynced.clear(); mockDeletedIds.clear();
-    localDirty=false; pendingLocalByOwner.delete(keys.sets);
-    sets=[]; cloudSynced.clear(); setSyncBase.clear(); setWriteBase.clear(); deletedIds.clear();
-    localStamps={}; lastQIdBySet={};
-    currentSetId=null; currentQId=null;
-    undoStack=[]; redoStack=[];
+      // ⑥ 로컬 — 백업까지 전부
+      clearLocalKeys(keys,{keepBackup:false});
+      clearLocalKeys(mockLocalKeys(uid),{keepBackup:false});
+      pendingLocalByOwner.delete(MockStore.keysFor(uid).list);
+      mocks=[]; mocksLoaded=false; mockOpenId="";
+      mockCloudSynced.clear(); mockDeletedIds.clear();
+      localDirty=false; pendingLocalByOwner.delete(keys.sets);
+      sets=[]; cloudSynced.clear(); setSyncBase.clear(); setWriteBase.clear(); deletedIds.clear();
+      localStamps={}; lastQIdBySet={};
+      currentSetId=null; currentQId=null;
+      undoStack=[]; redoStack=[];
 
-    // ⑦ 마지막으로 계정 자체
-    dmSetBusy('계정을 지우는 중…');
-    await user.delete();
+      // ⑦ 마지막으로 계정 자체. Keep the fence until Auth confirms survival.
+      dmSetBusy('계정을 지우는 중…');
+      await deleteAuthWithIntakeFence(user,cleanup,fence,uid);
+    });
 
     return { imagesFailed: 0 };
   }finally{
     wiping=false;
+  }
+}
+
+function withIntakeDeleteLock(uid,run){
+  return navigator.locks?.request
+    ? navigator.locks.request(`pm-intake:${uid}:account-delete`,run) : run();
+}
+async function deleteAuthWithIntakeFence(user,cleanup,fence,uid){
+  try{await user.delete();}
+  catch(error){
+    try{
+      await user.reload();
+      if(currentUser?.uid===uid) await cleanup.recoverPurge(fence);
+    }catch(recoveryError){
+      console.warn('계정 존속/원문 삭제 울타리 확인 보류',recoveryError);
+      throw new Error('계정 삭제 결과를 확인하지 못했어요 · 다시 로그인하면 남은 계정을 확인해 원문 저장을 복구합니다',{cause:error});
+    }
+    throw error;
   }
 }
 
@@ -9345,6 +9365,42 @@ async function bootLibrary(){
   }
 }
 
+let intakeFenceRecovery=null;
+/* 로그인마다 돈다 — **일괄 AI 를 한 번도 안 쓴 사용자**도 지나간다.
+   ⚠️ 원문 저장소(IndexedDB)가 없으면 울타리도 있을 수 없다 → 조용히 넘어간다(오류 안내 금지).
+   ⚠️ 저장소를 아직 만든 적 없으면 여기서 만들지 않는다(`databases()` 를 지원하는 브라우저).
+   ⚠️ 오류 안내는 **울타리를 실제로 찾았는데** 복구를 못 했을 때만 한다. */
+async function recoverIntakeOnSignIn(user,session){
+  if(!user||wiping)return;
+  if(intakeFenceRecovery)return intakeFenceRecovery;
+  let fenceFound=false;
+  const run=async()=>{
+    if(typeof indexedDB==="undefined"||!indexedDB)return;
+    try{
+      if(typeof indexedDB.databases==="function"
+        &&!(await indexedDB.databases()).some(d=>d&&d.name==="PM_INTAKE_V1"))return;
+    }catch{}
+    await withIntakeDeleteLock(user.uid,async()=>{
+      const cleanup=PedagogyIntake.create({
+        config:PedagogyIntakeContract.LIMIT_KEYS.reduce((o,k)=>(o[k]=1,o),{}),
+        session:()=>({owner:intakeOwner(),epoch:authEpoch})
+      });
+      if(!await cleanup.purgeFence())return;
+      fenceFound=true;
+      await user.reload(); // Auth server confirmation; a stale local login is insufficient.
+      if(!sessionMatches(session)||currentUser?.uid!==user.uid) return;
+      await cleanup.recoverPurge();
+      toast('계정 삭제가 끝나지 않아 원문 저장을 빈 상태로 복구했어요');
+    });
+  };
+  // 두 번째 호출자도 같은 결과를 받되 **던지지 않는다** — onAuth 를 끊으면 안 된다
+  intakeFenceRecovery=run().catch(e=>{
+    console.warn('원문 삭제 울타리 확인 보류',e);
+    if(fenceFound) toast('원문 저장 복구를 확인하지 못했어요 · 다음 로그인 때 다시 확인합니다','error');
+  }).finally(()=>{intakeFenceRecovery=null;});
+  return intakeFenceRecovery;
+}
+
 const onAuth=async (user)=>{
   // 계정이 바뀌는 순간 예약된 저장을 취소한다 — 이전 계정의 내용이 뒤늦게
   // 새 계정 문서로 넘어가지 않도록.
@@ -9381,6 +9437,8 @@ const onAuth=async (user)=>{
     applyUiLang();
   }
   const session=sessionContext();
+  if(user)await recoverIntakeOnSignIn(user,session);
+  if(!sessionMatches(session))return;
   migrateSharedLocalCache();   // 예전 공용 캐시가 있으면 지금 계정 칸으로
   migrateSharedAuxKeys();
   loadLastQ(); localStamps=readStamps();

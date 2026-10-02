@@ -91,6 +91,11 @@ writer marker가 다른 탭 소유이거나 디스크가 읽은 기준과 다르
 원문 반환과 모든 IDB write에 owner/epoch를 검사한다. guest는 별도 owner이며 자동 이관하지 않는다.
 계정 삭제는 IDB fence/자료 파기와 `PM_INTAKE_PREFS_V1:<owner>` 제거를 Auth 삭제 전에 확인한다.
 이 설정 키는 '모든 문제집 삭제'가 공유하는 `accountLocalKeys()`에 넣지 않았다.
+삭제 중에는 owner fence가 늦은 IDB 쓰기를 막는다. Auth 삭제가 실패하면 서버에 `user.reload()`로
+같은 계정의 존속을 확인한 뒤 해당 삭제 시도의 fence만 걷고, 파기한 원문은 복원하지 않는다.
+확인이 불확실하면 fence를 유지한다. 뒤이은 동일 계정 로그인에서 Auth 서버 확인을 다시 거쳐
+빈 원문 저장소로 복구한다. Web Lock 지원 브라우저에서는 삭제 시도와 복구를 owner별로 직렬화한다.
+원문 하나를 삭제할 때는 그 원문을 쓰는 진행 중 요청만 중단하며, 작업 세대 변경으로 늦은 저장을 막는다.
 D4의 `intakeResultRoute()`는 단일 정상 local 결과와 기억 설정일 때만 editor를 반환한다.
 여러 권/partial/error/conflict/check는 list다. UI 연결은 U2에서 한다.
 
