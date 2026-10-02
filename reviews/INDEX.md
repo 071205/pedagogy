@@ -86,6 +86,9 @@ U0→B6에서 정규화/복원·AI 계약을 함께 다룬다. Rules의 `hasOnly
 
 ## 최근 검토
 
+[HANDOFF-2026-175](handoffs/2026-10/2026-10-03-index-u1-sheet-layout.md): U1 1차 — 지면 배치 보기(인쇄와 같은 조립·보정 공유,
+확인할 문항·배치 변경·⌘Z·편집↔지면 선택 유지). `test:sheet` 10개·깨보기 5종. **Codex Sol medium 검토 대기 · 미배포.**
+
 [HANDOFF-2026-172](handoffs/2026-09/2026-09-26-docs-u0-contract-amendment.md): U0 D1/D2/D4 계약 개정·문서만. **재검토 합의 · B6 착수 가능.**
 
 [HANDOFF-2026-171](handoffs/2026-09/2026-09-25-worker-b5-attempt-ledger.md): B5 별도 DO·서버 HMAC·항목별 만료·계정 삭제 전 파기 구현.
@@ -97,9 +100,6 @@ Opus 5.5 검토 결함 없음 · 운영 무 revision 쓰기 거절 확인 — **
 [HANDOFF-2026-169](handoffs/2026-09/2026-09-25-index-b4-conflict-hold.md): B4 충돌 보류·복구 화면 — Codex Astra high 설계 2회,
 Sol medium 검토 2회(반례 넷 수정 → 동의). CAS 35/35 · 표적 변이 16종. **운영 `451e8ba` 배포·확인 완료.**
 
-[HANDOFF-2026-168](handoffs/2026-09/2026-09-23-rules-b3-transition-deploy.md): B3 전환 Rules·플래그 1 운영 적용(2/3) —
-**Opus 5 검토 완료.** 라이브 바이트·CSP 해시 일치. ⚠️ 롤백 계획 불성립(승격은 비가역).
-**인증 저장 왕복을 운영에서 수행 → 새 문제집이 거짓 '동기화 충돌'로 막힘(`REV-2026-109` · P1).**
 
 저장 구조 관련 HANDOFF-162 Q1/Q2는 레일 D1/U0에서 이어받으며 미결을 승인으로 바꾸지 않는다.
 
