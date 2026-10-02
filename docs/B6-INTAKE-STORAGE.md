@@ -1,6 +1,6 @@
-# B6 자료·채택 저장 구현 — 독립 검토 대기
+# B6 자료·채택 저장 구현 — 수정 diff 재검토 대기
 
-2026-10-01 · `codex/b6-intake-storage` · 기준 `main=2ff20f3`.
+2026-10-03 · `codex/b6-intake-storage` · 기준 `main=2ff20f3`.
 실행 위치는 [통합 레일](DEV-TOKEN-ROADMAP.md), 계약은 [U0](PRODUCT-UX-U0-CONTRACT.md)와
 [저장 계약](STORAGE-CONTRACT.md), 검토 기록은 [HANDOFF-173](../reviews/handoffs/2026-10/2026-10-01-index-b6-intake-storage.md).
 
@@ -21,7 +21,9 @@ C1~C3/D3가 정할 운영 숫자는 넣지 않았다. `PedagogyIntakeContract.li
 
 D1 연동 저장은 `mode:independent` 외 요청을 거절한다. 새 공유 컬렉션·Rules·참조 전환은 없다.
 이전 편집기가 모르는 메타데이터를 지울 수 있으므로 구형 클라이언트 무손실 호환을 선언하지 않는다.
-현재 버전은 알 수 없는 intake 버전을 거절한다. 구형 탭을 닫고 최신 편집기만 사용한다는 명시
+현재 버전은 읽지 못하는 intake를 원문 그대로 보존하고 해당 문제집을 업데이트 필요·읽기 전용으로 격리한다.
+정상 권 읽기/저장은 계속하며 해당 권의 cloud 쓰기(직접 CAS 포함)는 차단한다. 복구 JSON은 opaque 원문이고
+v1 projection을 성공했다고 보지 않는다. 명시 계정 파기는 tombstone을 허용한다. 구형 탭을 닫고 최신 편집기만 사용한다는 명시
 확인과 Web Locks가 없으면 채택을 보류한다. 운영 활성화 전 지원 버전/구형 기기 전환을 다시 확인한다.
 
 ## 데이터·API
@@ -29,8 +31,8 @@ D1 연동 저장은 `mode:independent` 외 요청을 거절한다. 새 공유 �
 `pedagogy-intake-contract.js`는 browser/Worker가 함께 사용하는 task별 응답 검증이다.
 기존 document/사진 task의 응답은 바꾸지 않는다. 원문에 없는 배점/정답을 만들지 않고
 그림·표/쪽 경계의 지문을 안전하게 텍스트로 보존할 수 없는 결과는 확인 필요로 실패시킨다.
-`pedagogy-normalize.js`의 `normIntake()`가 클라우드·JSON·복원·복제·충돌 사본의 출처를 보존한다.
-`intake.sources`에는 **무작위 sourceId와 pages만** 남는다. cloud 전송/ACK 비교/JSON 내보내기에서도 같은 projection을 적용한다. filename/hash/blobURL/owner/receipt는 없다.
+`pedagogy-normalize.js`의 strict `normIntake()`와 읽기 경계 `preserveIntake()`가 출처를 보존한다.
+`intake.sources`에는 **무작위 sourceId와 pages만** 남는다. 정상 v1의 cloud 전송/ACK 비교/JSON 내보내기에서도 같은 projection을 적용한다. filename/hash/blobURL/owner/receipt는 없다.
 저장된 문항의 본문/정답을 바꾸면 contentReview, 꼬리표/배점을 바꾸면 classificationReview가
 unreviewed로 돌아간다. 확인 완료는 저장 성공이나 AI 응답 성공으로 만들지 않는다.
 
@@ -91,6 +93,10 @@ writer marker가 다른 탭 소유이거나 디스크가 읽은 기준과 다르
 이 설정 키는 '모든 문제집 삭제'가 공유하는 `accountLocalKeys()`에 넣지 않았다.
 D4의 `intakeResultRoute()`는 단일 정상 local 결과와 기억 설정일 때만 editor를 반환한다.
 여러 권/partial/error/conflict/check는 list다. UI 연결은 U2에서 한다.
+
+복제와 부팅 충돌 사본은 UI fixture 없이 기본 owner IDB 연결 권한을 승계한다. IDB 완료 뒤 사본을
+게시하며 실패하면 생성 보류·재시도한다. 외부 JSON metadata는 권한을 만들지 않는다.
+[112·113 수정/재현 증거](../reviews/handoffs/2026-10/2026-10-03-index-b6-review-fixes.md).
 
 ## PDF·보관 환경
 

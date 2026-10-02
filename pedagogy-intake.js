@@ -338,7 +338,12 @@ function create({session,library,renderer=browserRenderer(),transport=null,confi
   async function inheritLinks(fromSetId,toSetId){
     const s=context();return transact(s,r=>{
       const from=r.links[fromSetId];if(!from)return false;
-      r.links[toSetId]={sources:copy(from.sources),state:'active'};return true;
+      r.links[toSetId]={sources:copy(from.sources),state:'active'};
+      for(const sourceId of from.sources){
+        const src=r.sources[sourceId];
+        if(src?.blob&&src.state==='unlinked')src.state='available';
+      }
+      return true;
     });
   }
   async function detachSource(sourceId,setId){

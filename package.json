@@ -9,7 +9,7 @@
     "check:codex-bridge": "node scripts/check-codex-readonly.mjs",
     "check:claude-bridge": "node scripts/check-claude-readonly.mjs",
     "test:worker": "node worker/quota.test.mjs && node worker/app-check.test.mjs && node worker/worker-contract.test.mjs && node worker/attempt-ledger.test.mjs && node worker/gemini.test.mjs && node reviews/audits/2026-09-13/worker-telemetry-review.mjs && node scripts/check-audit-safety.mjs && node scripts/check-review-followup.mjs",
-    "test:intake": "node worker/intake.test.mjs && node scripts/check-intake.mjs && B6_RED=1 node scripts/check-intake.mjs",
+    "test:intake": "node worker/intake.test.mjs && node scripts/check-intake.mjs && B6_RED=1 node scripts/check-intake.mjs && npm run test:intake-review",
     "test:ai-image": "node scripts/check-ai-image.mjs",
     "test:fixtures": "node scripts/check-fixtures.mjs",
     "fix:icons": "node scripts/clean-mac-icons.mjs",
@@ -45,7 +45,8 @@
     "test:public": "node scripts/check-source-csp.mjs && node scripts/build-public.test.mjs",
     "test:csp": "node scripts/check-csp-browser.mjs",
     "test:public-browser": "node scripts/check-public-browser.mjs",
-    "test:auth-navigation": "node scripts/check-auth-navigation.mjs"
+    "test:auth-navigation": "node scripts/check-auth-navigation.mjs",
+    "test:intake-review": "node scripts/check-intake-review-fixes.mjs && B6_REVIEW_RED=112 node scripts/check-intake-review-fixes.mjs && B6_REVIEW_RED=113 node scripts/check-intake-review-fixes.mjs"
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^5.0.2",

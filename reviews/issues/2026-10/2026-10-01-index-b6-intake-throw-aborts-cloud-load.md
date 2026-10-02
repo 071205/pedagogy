@@ -3,7 +3,7 @@
 - ID: `REV-2026-112`
 - 날짜: `2026-10-01`
 - 보고자: `Claude / Opus 5.5` (HANDOFF-173 독립 검토)
-- 상태: `open`
+- 상태: `resolved`
 - 심각도: `P2`
 - 영향 영역: `index`
 - 관련 인계: `HANDOFF-2026-173`
@@ -38,3 +38,16 @@
 좁힌다. 예: 모르는 버전의 `intake` 는 원문 그대로 보존하고 그 문제집을 '업데이트 필요 · 읽기 전용'으로 표시하며
 저장을 막는다(덮어써서 지우지 않게). 다른 문제집 읽기·가져오기·백업은 계속한다. 회귀: 위 2번을 검사로 넣고,
 `setJSON`·가져오기·백업 되돌리기도 한 문항 손상으로 전체가 멈추지 않는지 본다.
+
+## 처리 기록
+
+2026-10-03 · Codex · `resolved` (독립 재검토 대기, [HANDOFF-174](../../handoffs/2026-10/2026-10-03-index-b6-review-fixes.md)).
+`normProblem`에서 strict 오류가 전파되던 원인을 `preserveIntake`로 격리했다. 불명/손상 intake는 그대로
+보존하고 해당 권을 업데이트 필요·읽기 전용으로 표시한다. 일반 cloud 저장과 직접 CAS는 이를 제외/거절한다.
+정상 로컬 초안으로 불명 원격본을 덮는 경우도 차단한다. 계정 파기는 명시 tombstone 예외다.
+
+재현 검사는 `scripts/check-intake-review-fixes.mjs`의 112 항목이다. Node에서 version:2·잘못된 sourceId,
+server ACK 3권 첫 읽기/구독, setJSON/setToDoc/내보내기, 실제 JSON 파일 입력과 백업 복원까지 통과했다.
+정상 권 저장·대상 권 편집/쓰기 차단도 확인했다. `B6_REVIEW_RED=112`로 수정 전 `eb7e69f` 파일을
+주입하면 첫 읽기가 새 문제집으로 떨어져 해당 검사가 실제 실패한다. strict `normIntake`는 유지했다.
+필수 regression-test.html 167/167 및 기존 저장 회귀 통과. 로그와 경계는 HANDOFF-174를 참조한다.

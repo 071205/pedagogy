@@ -12,7 +12,7 @@ function fn(name){let start=src.indexOf('function '+name+'(');assert.ok(start>=0
   return src.slice(start,src.indexOf('\n}',start)+2);}
 const productSession=`let authEpoch=0;\n${fn('sessionContext')}\n${fn('sessionMatches')}`;
 function context(code){const c=vm.createContext({URL,console:{log(){},warn(){},error(){}},setTimeout:()=>0,clearTimeout(){}});
-  vm.runInContext(`const intakeWriteAllowed=()=>true,intakeHoldWrite=()=>{},intakeClients=new Set(),intakeLocalBase=new Map(),intakeCloudFailures=new Map();let intakeCloudReady=false,intakeAdopting=false;`+code+'\n'+productSession,c);return c;}
+  vm.runInContext(`const intakeWriteAllowed=()=>true,intakeHoldWrite=()=>{},intakeNeedsUpdate=()=>false,intakeClients=new Set(),intakeLocalBase=new Map(),intakeCloudFailures=new Map();let intakeCloudReady=false,intakeAdopting=false;`+code+'\n'+productSession,c);return c;}
 class Storage {
   data=new Map();alarm=null;
   async get(k){return structuredClone(this.data.get(k));}

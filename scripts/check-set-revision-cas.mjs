@@ -567,12 +567,12 @@ try{
       if(typeof ensureConflictCopies!=='function') return {};
       const rec=readSetConflicts(currentUser.uid).get('set-a');
       sets=sets.filter(s=>s.id!==rec.copyId);                  // 다른 탭이 sets 를 덮었거나 종료
-      const first=ensureConflictCopies(currentUser.uid), again=ensureConflictCopies(currentUser.uid);
+      const first=await ensureConflictCopies(currentUser.uid), again=await ensureConflictCopies(currentUser.uid);
       const back=sets.filter(s=>s.id===rec.copyId).length;
       await deleteSetEverywhere(sets.find(s=>s.id===rec.copyId));      // 사용자가 사본을 지움
       await navigator.locks.request('pedagogy-set-conflicts:'+currentUser.uid,()=>{});
       sets=sets.filter(s=>s.id!==rec.copyId);deletedIds.delete(rec.copyId);
-      const revived=ensureConflictCopies(currentUser.uid);
+      const revived=await ensureConflictCopies(currentUser.uid);
       return {first,again,back,revived,dismissed:readSetConflicts(currentUser.uid).get('set-a')?.copyDismissed,
         stillHeld:heldSetIds(currentUser.uid).has('set-a')};
     });

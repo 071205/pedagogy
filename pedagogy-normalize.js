@@ -299,6 +299,19 @@ function normIntake(v){
     contentReview:review(v.contentReview), classificationReview:review(v.classificationReview),
   };
 }
+/* An older reader keeps opaque intake locally/exportable instead of dropping a
+   future version. Writers/UI must quarantine its containing set. normIntake stays
+   strict for adoption and provider validation. */
+function preserveIntake(v){
+  try{return normIntake(v);}
+  catch{return JSON.parse(JSON.stringify(v));}
+}
+function intakeNeedsUpdate(set){
+  return (set?.problems||[]).some(p=>{
+    if(!p || !Object.hasOwn(p,"intake"))return false;
+    try{normIntake(p.intake);return false;}catch{return true;}
+  });
+}
 function normProblem(p, opts={}){
   if(!p||typeof p!=="object") return null;
   const keepId=opts.keepId===true, lossless=opts.lossless===true;
@@ -321,7 +334,7 @@ function normProblem(p, opts={}){
     groupLead:text(p.groupLead,200),
     span:['pair','col','page'].includes(p.span)?p.span:(p.paired===true?'pair':'col'),
     blocks:blocks.length?blocks:[{type:"statement",data:{text:""}}],
-    ...(p.intake?{intake:normIntake(p.intake)}:{})
+    ...(Object.hasOwn(p,"intake")?{intake:preserveIntake(p.intake)}:{})
   };
 }
 
@@ -407,7 +420,7 @@ const normOrder = v => Math.max(0, Math.floor(Number(v)||0));
 /* 밖에서 쓰는 것만 내놓는다. `IMG_HOSTS` 와 `normDropped` 는 여기서만 쓰이므로 뺀다. */
 global.PedagogyNormalize = Object.freeze({
   uid, sanitize, safeUrl, str, normOrder,
-  normSubject, normSheetColor, normBlock, normProblem, normSet, normLibMeta, normIntake,
+  normSubject, normSheetColor, normBlock, normProblem, normSet, normLibMeta, normIntake, preserveIntake, intakeNeedsUpdate,
   resetNormDropped,
   /* 진단 집계는 값이 아니라 함수로 낸다 — 숫자를 내보내면 호출한 쪽이 그 시점의
      사본을 들고 있게 되어 `resetNormDropped()` 뒤에도 옛 값을 본다. */

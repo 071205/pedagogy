@@ -228,8 +228,10 @@ async function runIndexTests(){
       &&JSON.stringify(n.intake.sources)===JSON.stringify([{sourceId,pages:[1,2]}])
       &&!JSON.stringify(n.intake).includes("비공개");
   });
-  await check(G, "B6 모르는 intake 버전은 조용히 지우지 않고 거절", () => {
-    try{win.normProblem({intake:{version:999}});return false;}catch{return true;}
+  await check(G, "B6 모르는 intake 버전은 보존하고 해당 문제집만 읽기 전용", () => {
+    const s=win.normSet({problems:[{title:"정상"},{intake:{version:999,future:"보존"}}]});
+    return s.problems.length===2&&s.problems[1].intake.future==="보존"
+      &&win.intakeNeedsUpdate(s)&&!win.intakeNeedsUpdate(win.normSet({problems:[{title:"정상"}]}));
   });
 
   await check(G, "normProblem() answerImg 도 safeUrl 통과", () =>

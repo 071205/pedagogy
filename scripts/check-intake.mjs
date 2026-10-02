@@ -15,8 +15,8 @@ try{
     if(u.origin!==base)return r.abort();
     if(process.env.B6_RED==='1'&&u.pathname==='/pedagogy-normalize.js'){
       const src=await readFile('pedagogy-normalize.js','utf8');
-      assert.ok(src.includes('...(p.intake?'));
-      return r.fulfill({contentType:'application/javascript',body:src.replace('...(p.intake?','...(false&&p.intake?')});
+      assert.ok(src.includes('...(Object.hasOwn(p,"intake")?'));
+      return r.fulfill({contentType:'application/javascript',body:src.replace('...(Object.hasOwn(p,"intake")?','...(false&&Object.hasOwn(p,"intake")?')});
     }
     return r.continue();
   });
