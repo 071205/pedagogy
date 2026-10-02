@@ -98,6 +98,13 @@ D4의 `intakeResultRoute()`는 단일 정상 local 결과와 기억 설정일 �
 게시하며 실패하면 생성 보류·재시도한다. 외부 JSON metadata는 권한을 만들지 않는다.
 [112·113 수정/재현 증거](../reviews/handoffs/2026-10/2026-10-03-index-b6-review-fixes.md).
 
+서버본만 새 버전이고 로컬은 v1 초안인 경우에도 해당 권만 계정 저장을 보류한다.
+첫 서버 읽기/확정 구독은 dirty 초안을 보존하고 카드에 업데이트 필요·계정 저장 보류를 표시한다.
+이 보류는 B4 충돌/자동 사본/ACK가 아니며 다른 권 저장은 계속한다. 자동 재예약에서는 제외한다.
+호환 가능한 서버 확정 관측으로 해제하며 cache/pending은 해제하지 않는다. 계정별 관측 상태는
+전환 시 비우고 새로고침 뒤 서버 관측에서 재구성한다. JSON 내보내기는 유지한다.
+[114 수정·재현/경계 증거](../reviews/handoffs/2026-10/2026-10-03-index-b6-remote-update-hold.md).
+
 ## PDF·보관 환경
 
 PDF.js **6.3.289** legacy display/worker와 고정 CMap/표준 폰트/codec 자산을 vendoring했다.

@@ -13,7 +13,6 @@
 | `REV-2026-075` | `P2` | AI 문서에 들어갔다 나오면 로그인이 안 된다(재현 절차 없음) | `issues/2026-09/2026-09-09-document-editor-login-after-return.md` |
 | `REV-2026-093` | `P2` | staging Gemini가 결제 전제 미충족(`FAILED_PRECONDITION`)으로 실패한다 | `issues/2026-09/2026-09-14-gemini-staging-provider-request-error.md` |
 | `REV-2026-108` | `P2` | 지문 묶음이 위치로만 정해져, 가운데 문항을 지우면 무관한 문항이 흡수된다 | `issues/2026-09/2026-09-23-index-passage-group-positional.md` |
-| `REV-2026-114` | `P2` | B6: 서버 문제집 하나가 새 버전 intake 면 그 뒤 다른 문제집의 클라우드 저장까지 멈춘다 | `issues/2026-10/2026-10-03-index-b6-future-remote-blocks-other-saves.md` |
 
 ⚠️ 이 표는 `npm run check:review-hygiene` 가 **실제 이슈 파일의 상태와 양방향으로**
 대조한다. 지난 요약을 지워도 안전한 이유가 이 대조다 — 남은 한 곳이 정확해야
@@ -25,7 +24,7 @@
 [계약](../docs/PRODUCT-UX-U0-CONTRACT.md) · [과제·결정표](../docs/PRODUCT-UX-U0-SCENARIOS.md) ·
 [시안](../docs/mockups/u0-flow.html). 계약 주장 5건을 코드로 확인했고 `REV-2026-108`을 재현했다.
 **D1 사용자 결정: 문항을 다른 권에 넣을 때 독립 사본/수정 연동을 선택 가능하게 한다.**
-**현재: B6 재검토 — 112·113 수정 확인, 그 수정이 만든 `REV-2026-114`(한 권이 다른 권 저장을 멈춤) → Codex 수정 → Claude 재검토 → main**(`HANDOFF-174`, PR #8).
+**현재: B6 112·113 재검토 통과 유지, `REV-2026-114` 수정·재현 검사 완료 → Claude 해당 diff 재검토 → PR #8 CI → 승인 후 main**(`HANDOFF-174`·`-175`).
 U0 개정 합의는 유지. B6 합의 뒤 B7(Sol high). D3/C1~C3·D1 연동·U1 시안/사용자 관찰은 별도 대기.
 순서·게이트는 [통합 레일](../docs/DEV-TOKEN-ROADMAP.md), 지시문은 [RAIL-ORDERS](../docs/RAIL-ORDERS.md).
 **B3 운영 장애 `REV-2026-109` 해결**(운영 `e50636c` → 문구 정정 `6679676`, 편집·삭제·진짜 충돌 운영 검증).
@@ -87,7 +86,9 @@ U0→B6에서 정규화/복원·AI 계약을 함께 다룬다. Rules의 `hasOnly
 
 ## 최근 검토
 
-[HANDOFF-2026-174](handoffs/2026-10/2026-10-03-index-b6-review-fixes.md): B6 112·113 해결·각 재현/빨간불 검사. **해당 diff 재검토 대기 · 미배포**.
+[HANDOFF-2026-175](handoffs/2026-10/2026-10-03-index-b6-remote-update-hold.md): B6 114 해결·원 재현/경계 11개·수정 전 빨간불. **해당 diff 재검토 대기 · 미배포**.
+
+[HANDOFF-2026-174](handoffs/2026-10/2026-10-03-index-b6-review-fixes.md): B6 112·113 해소 재검토 확인. 추가 114는 HANDOFF-175로 수정·검증, **재검토/배포 대기**.
 
 [HANDOFF-2026-173](handoffs/2026-10/2026-10-01-index-b6-intake-storage.md): B6 공통 원문·쪽 staging·독립 채택 구현/검증, **검토 결함 2건 수정 완료 · 재검토/배포 대기**.
 
@@ -95,9 +96,6 @@ U0→B6에서 정규화/복원·AI 계약을 함께 다룬다. Rules의 `hasOnly
 
 [HANDOFF-2026-171](handoffs/2026-09/2026-09-25-worker-b5-attempt-ledger.md): B5 별도 DO·서버 HMAC·항목별 만료·계정 삭제 전 파기 구현.
 Opus 5.5 검토 결함 없음 · **운영 배포(secret → Worker → Pages) 완료.**
-
-[HANDOFF-2026-170](handoffs/2026-09/2026-09-25-rules-b3-strict-deploy.md): B3 엄격 Rules 실제 배포(3/3),
-Opus 5.5 검토 결함 없음 · 운영 무 revision 쓰기 거절 확인 — **B3 완료.**
 
 저장 구조 관련 HANDOFF-162 Q1/Q2는 레일 D1/U0에서 이어받으며 미결을 승인으로 바꾸지 않는다.
 

@@ -25,7 +25,7 @@
      어렵다 — 새 로그인만 깨진다). 실제로 한 번 그랬으니 손대지 말 것. -->
 <meta http-equiv="Content-Security-Policy" content="
   default-src 'self';
-  script-src 'self' 'wasm-unsafe-eval' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-5owUDq/ger95YVipysJuJeQwhN/FVp5k4WsFybzFXrY=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
+  script-src 'self' 'wasm-unsafe-eval' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-SXxjtPI3AJt+q5tMTN2YPWhuWhRhGDqayXoeCY4hf2M=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
   script-src-attr 'none';
   style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
   font-src 'self' data: https://cdn.jsdelivr.net;
@@ -2829,6 +2829,8 @@ const pendingLocalByOwner=new Map();
    previously opened supported tab cannot overwrite a later adoption. */
 const intakeTabId=globalThis.crypto?.randomUUID?.()||uid();
 const intakeLocalBase=new Map(), intakeClients=new Set(), intakeCloudFailures=new Map();
+// Server-observed incompatibility is a per-owner hold, never a B4 conflict or ACK.
+const intakeRemoteBlocked=new Map();
 let intakeCloudReady=false, intakeAdopting=false;
 function intakeOwner(){ return currentUser?.uid||"guest"; }
 function intakeProtocolKey(){ return "PM_INTAKE_PROTOCOL_V1:"+intakeOwner(); }
@@ -2861,7 +2863,7 @@ function intakeSnapshot(){
     }
     if(!intakeWriteAllowed())unknown=true;
   }catch{unknown=true;}
-  if([...sets,...recovery,...conflicts].some(intakeNeedsUpdate))unknown=true;
+  if([...sets,...recovery,...conflicts].some(intakeSetReadOnly))unknown=true;
   return {sets:structuredClone(sets),deleted:[...deletedIds.keys()],conflicts,recovery,unknown,
     cloudReady:!currentUser||intakeCloudReady,online:navigator.onLine};
 }
@@ -2913,7 +2915,7 @@ function createIntakeFixture({config,transport=null,renderer,dbName,editorsConfi
     },
     cloud(setId){
       const set=sets.find(x=>x.id===setId),i=sets.findIndex(x=>x.id===setId);
-      if(!set)return "check";
+      if(!set||intakeSetReadOnly(set))return "check";
       if(docBytes(setToDoc(set,i))>CLOUD_DOC_MAX)return "tooBig";
       if(currentUser&&heldSetIds(currentUser.uid).has(setId))return "conflict";
       if(currentUser&&isCloudSynced(set,i))return "ack";
@@ -2941,6 +2943,37 @@ async function inheritIntakeLinks(fromSetId,toSetId,set){
     .map(c=>c.inheritLinks(fromSetId,toSetId)));
 }
 function intakeNeedsUpdate(set){return PedagogyNormalize.intakeNeedsUpdate(set);}
+function intakeRemoteNeedsUpdate(setId,owner=currentUser?.uid){
+  return !!owner&&intakeRemoteBlocked.get(String(setId))===owner;
+}
+function intakeSetReadOnly(set){
+  return !!set&&(intakeNeedsUpdate(set)||intakeRemoteNeedsUpdate(set.id));
+}
+function setIntakeRemoteBlock(owner,setId,blocked){
+  if(!owner||currentUser?.uid!==owner)return false;
+  const id=String(setId),was=intakeRemoteNeedsUpdate(id,owner);
+  if(blocked)intakeRemoteBlocked.set(id,owner);
+  else if(was)intakeRemoteBlocked.delete(id);
+  return was!==blocked;
+}
+function observeIntakeRemoteBlocks(owner,entries,{complete=true}={}){
+  if(!owner||currentUser?.uid!==owner)return false;
+  const seen=new Set();let changed=false;
+  for(const doc of entries){
+    if(!doc?.id)continue;
+    seen.add(String(doc.id));
+    changed=setIntakeRemoteBlock(owner,doc.id,!doc.deleted&&intakeNeedsUpdate(doc))||changed;
+  }
+  if(complete)for(const [id,heldOwner] of intakeRemoteBlocked){
+    if(heldOwner===owner&&!seen.has(id)){intakeRemoteBlocked.delete(id);changed=true;}
+  }
+  return changed;
+}
+function refreshIntakeReadOnly(){
+  if(intakeSetReadOnly(sets.find(s=>s.id===currentSetId))&&$("#editorView")?.style.display!=="none"){
+    showLibrary();intakeUpdateNotice();
+  }else if($("#libraryView")?.style.display!=="none")renderLibrary();
+}
 function intakeUpdateNotice(){toast("출처 정보 업데이트 필요 · 읽기 전용입니다. JSON으로 내보내 보관할 수 있어요","error");}
 function portableIntakeSet(set){
   return {...set,problems:(set.problems||[]).map(p=>p&&Object.hasOwn(p,"intake")
@@ -3556,6 +3589,7 @@ async function loadSets(){
         }
       }
 
+      observeIntakeRemoteBlocks(owner,cloudEntries);
       const localWorth=localSetsWorthMerging(readLocalSets());
       const merged=setRevisionEnabled()
         ?mergeSetsWithRevision(cloudEntries,localWorth)
@@ -3622,6 +3656,9 @@ function watchCloud(){
       if(needsFullCloudReconcile&&!recoverFull) return;
       needsFullCloudReconcile=false;
       intakeCloudReady=false;
+      const complete=Array.isArray(snap.docs);
+      const entries=(complete?snap.docs:snap.docChanges().map(ch=>ch.doc)).map(doc=>doc.data()).filter(Boolean);
+      const intakeBlocksChanged=observeIntakeRemoteBlocks(owner,entries,{complete});
       let changed=false, warnedEditing=false, intakeMalformed=false;
       const changes=recoverFull?snap.docs.map(doc=>({doc})):snap.docChanges();
       /* 같은 snapshot 앞부분의 삭제/삽입이 뒤 문서의 배열 index를 바꾸더라도, 그 변화를
@@ -3711,11 +3748,10 @@ function watchCloud(){
         writeLocalNow();       // 다른 기기에서 온 변경 — 즉시 확정
         refreshAfterHistory();
       }
-      const complete=Array.isArray(snap.docs);
-      const entries=(complete?snap.docs:changes.map(ch=>ch.doc)).map(doc=>doc.data()).filter(Boolean);
       reconcileSetSyncMeta(owner,entries,sets,{complete});
       if(setRevisionEnabled()) releaseSettledConflicts(owner,entries);
       intakeCloudReady=complete&&!intakeMalformed;
+      if(intakeBlocksChanged){refreshIntakeReadOnly();idleSaveStatus(owner);}
     },err=>{
       intakeCloudReady=false;
       console.warn('클라우드 구독 실패:', err);
@@ -3886,7 +3922,7 @@ function doRedo(){
 function refreshAfterHistory(){
   // 현재 보던 문제집/문항이 사라졌으면 안전하게 보정
   const s=sets.find(x=>x.id===currentSetId);
-  if(!s||intakeNeedsUpdate(s)){ // 문제집이 없어졌거나 새 버전이면 라이브러리로
+  if(!s||intakeSetReadOnly(s)){ // 문제집이 없어졌거나 새 버전이면 라이브러리로
     if(typeof renderLibrary==="function") renderLibrary();
     if($("#libraryView").style.display!=="none"){ renderLibrary(); }
     else showLibrary();
@@ -3997,7 +4033,7 @@ function hasUnsavedCloudWork(){
   /* 보류(B4) 문제집은 충돌 기록에 초안째 보관돼 있다 — 창을 닫을 때마다 경고하지 않는다.
      사용자가 고를 때까지 계속 '안 올라감' 이라 빼지 않으면 경고가 영원히 뜬다. */
   const held=setRevisionEnabled()?heldSetIds(currentUser.uid):new Set();
-  return sets.some((s,i)=>!intakeNeedsUpdate(s)&&!held.has(String(s.id))&&!isCloudSynced(s,i));
+  return sets.some((s,i)=>!intakeSetReadOnly(s)&&!held.has(String(s.id))&&!isCloudSynced(s,i));
 }
 
 /* 바뀐 문제집만 골라 올린다.
@@ -4047,9 +4083,13 @@ async function writeSetDocRevision(owner,target,session,{allowWiping=false,useCu
     if(!sessionMatches(session)||(wiping&&!allowWiping))
       throw setRevisionFailure("set-cancelled","세션이 바뀌었습니다");
     const snap=await tx.get(ref);
-    if(snap.exists&&!(allowWiping&&target.deleted)&&intakeNeedsUpdate(snap.data()))throw setRevisionFailure("set-intake-update","계정 출처 정보 업데이트 필요 · 읽기 전용");
     if(!sessionMatches(session)||(wiping&&!allowWiping))
       throw setRevisionFailure("set-cancelled","세션이 바뀌었습니다");
+    if(snap.exists&&!(allowWiping&&target.deleted)&&intakeNeedsUpdate(snap.data())){
+      setIntakeRemoteBlock(owner,id,true);
+      throw setRevisionFailure("set-intake-update","계정 출처 정보 업데이트 필요 · 계정 저장 보류");
+    }
+    setIntakeRemoteBlock(owner,id,false);
     if(confirmed!==undefined){
       const current=snap.exists?snap.data():null;
       const currentRevision=current?syncRevision(current.revision):null;
@@ -4124,7 +4164,7 @@ async function writeCloudSnapshot(uidAtSave,session){
   /* ⚠️ 충돌 보류(B4) 중인 문제집은 시도하지 않는다 — 사용자가 고를 때까지 동결이다.
      매 저장마다 같은 transaction 을 실패시키지 않고, 확인하지 않은 쪽으로 풀리지도 않는다. */
   const held=setRevisionEnabled()?heldSetIds(uidAtSave):new Set();
-  const dirty=sets.map((s,i)=>({s,i})).filter(({s,i})=>!intakeNeedsUpdate(s)&&!held.has(String(s.id))&&!isCloudSynced(s,i))
+  const dirty=sets.map((s,i)=>({s,i})).filter(({s,i})=>!intakeSetReadOnly(s)&&!held.has(String(s.id))&&!isCloudSynced(s,i))
     .map(({s,i})=>{ const doc=setToDoc(s,i);
       return {id:s.id, name:s.name||"", doc:JSON.parse(JSON.stringify(doc))}; });
   // 순서만 바뀐 경우도 cloudSyncEntry 의 order 비교로 포함한다.
@@ -4166,7 +4206,7 @@ async function writeCloudSnapshot(uidAtSave,session){
       (!localSaved||badShape.length||tooBig.length)?"#e57373":undefined);
     return false;
   }
-  const acknowledged=[], conflicts=[];
+  const acknowledged=[], conflicts=[], intakeUpdates=[];
   let intakeAttempting=[];
   try{
     if(revisionMode){
@@ -4180,6 +4220,13 @@ async function writeCloudSnapshot(uidAtSave,session){
           if(!sessionMatches(session)||wiping) return;
           acknowledged.push({id:item.id,doc:result.doc,writeDoc:result.writeDoc||result.doc});
         }catch(e){
+          if(!sessionMatches(session)||wiping)return;
+          if(e?.code==="set-intake-update"){
+            intakeAttempting=[];
+            setIntakeRemoteBlock(uidAtSave,item.id,true);
+            intakeUpdates.push(item);
+            continue;
+          }
           if(e?.code==="set-revision-conflict"){
             conflicts.push({...item,reason:e.reason||"unknown",hasBase:e.hasBase===true,
               baseRevision:e.baseRevision??null,serverRevision:e.serverRevision??null});
@@ -4217,9 +4264,10 @@ async function writeCloudSnapshot(uidAtSave,session){
        빼지 않으면 `flushToCloud` 가 **끝없이 자기를 다시 부른다.** 줄여서 구성이 바뀌면
        다음 저장에서 다시 재어 올라간다. 모의고사도 `ready` 만 보고 재예약한다.
        보류(동결) 문제집도 같다. 새로 생긴 충돌 사본은 여기서 다시 불러 올린다. */
-    const blocked=new Set([...tooBig,...badShape,...conflicts].map(d=>String(d.id)));
+    const blocked=new Set([...tooBig,...badShape,...conflicts,...intakeUpdates].map(d=>String(d.id)));
     heldSetIds(uidAtSave).forEach(id=>blocked.add(id));
-    const more=sets.some((s,i)=>!isCloudSynced(s,i) && !blocked.has(String(s.id)));
+    const more=sets.some((s,i)=>!intakeSetReadOnly(s)&&!isCloudSynced(s,i) && !blocked.has(String(s.id)));
+    if(intakeUpdates.length)refreshIntakeReadOnly();
     if(more && !conflicts.length){
       setSaveStatus("저장 중…");
       void flushToCloud(uidAtSave);
@@ -4257,6 +4305,11 @@ async function writeCloudSnapshot(uidAtSave,session){
     }
     if(tooBig.length){
       setSaveStatus(localSaved?"⚠ 용량 초과":"⚠ 로컬 저장 실패", "#e57373");
+      return false;
+    }
+    if(sets.some(intakeSetReadOnly)){
+      if(localSaved)idleSaveStatus(uidAtSave);
+      else setSaveStatus("⚠ 로컬 저장 실패", "#e57373");
       return false;
     }
     setSaveStatus("✓ 저장됨", "#81c784");
@@ -4518,7 +4571,7 @@ async function ensureConflictCopies(owner){
   let added=false;
   for(const rec of readSetConflicts(owner).values()){
     if(rec.copyDismissed||deletedIds.has(rec.copyId)||sets.some(s=>String(s.id)===rec.copyId)) continue;
-    if(intakeNeedsUpdate(rec.snapshot)){intakeUpdateNotice();continue;}
+    if(intakeSetReadOnly(rec.snapshot)){intakeUpdateNotice();continue;}
     const cp=JSON.parse(JSON.stringify(rec.snapshot));
     cp.id=rec.copyId;
     (cp.problems||[]).forEach(p=>{ p.id=uid(); });
@@ -4574,7 +4627,10 @@ function releaseSettledConflicts(owner,entries){
 function idleSaveStatus(owner){
   const n=setRevisionEnabled()&&owner?heldSetIds(owner).size:0;
   const update=sets.filter(intakeNeedsUpdate).length;
-  if(update) setSaveStatus(`업데이트 필요 · 읽기 전용 ${update}`,"#e57373");
+  const remoteUpdate=sets.filter(s=>intakeRemoteNeedsUpdate(s.id,owner)).length;
+  if(remoteUpdate)setSaveStatus(`업데이트 필요 · 계정 저장 보류 ${remoteUpdate}`,"#e57373",
+    "이 기기의 초안은 그대로입니다 · JSON으로 내보내 보관해 주세요");
+  else if(update) setSaveStatus(`업데이트 필요 · 읽기 전용 ${update}`,"#e57373");
   else if(n) setSaveStatus(`⚠ 충돌 보류 ${n}`,"#e57373","라이브러리에서 어느 쪽을 쓸지 고를 때까지 그 문제집은 계정에 올리지 않아요");
   else setSaveStatus("");
 }
@@ -5545,7 +5601,7 @@ $("#selAllBtn").onclick=()=>{
 
 let libraryDialogSession=null, movingSetIds=[], editingFolderId=null;
 function openFolderMove(ids){
-  movingSetIds=ids.filter(id=>sets.some(s=>s.id===id&&!intakeNeedsUpdate(s)));
+  movingSetIds=ids.filter(id=>sets.some(s=>s.id===id&&!intakeSetReadOnly(s)));
   if(!movingSetIds.length) return;
   libraryDialogSession=sessionContext();
   const select=$("#folderTarget"); select.replaceChildren();
@@ -5584,7 +5640,7 @@ $("#selExportBtn").onclick=()=>{
 
 $("#selDeleteBtn").onclick=async ()=>{
   const held=currentUser&&setRevisionEnabled()?heldSetIds(currentUser.uid):new Set();
-  const picked=sets.filter(s=>libPicked.has(s.id)&&!held.has(String(s.id))&&!intakeNeedsUpdate(s));
+  const picked=sets.filter(s=>libPicked.has(s.id)&&!held.has(String(s.id))&&!intakeSetReadOnly(s));
   if(sets.some(s=>libPicked.has(s.id)&&held.has(String(s.id))))
     toast("충돌 보류 중인 문제집은 지우지 않았어요 · 먼저 어느 쪽을 쓸지 골라 주세요","error");
   if(!picked.length) return;
@@ -5974,8 +6030,8 @@ function renderLibrary(){
       count.append(document.createTextNode(" "), tag);
     }
     const held=conflicts.get(String(s.id)), heldCopy=copyOf.get(String(s.id));
-    const intakeReadOnly=intakeNeedsUpdate(s);
-    if(intakeReadOnly)count.append(document.createTextNode(" "),el("span","set-chip warn","업데이트 필요 · 읽기 전용"));
+    const intakeReadOnly=intakeSetReadOnly(s);
+    if(intakeReadOnly)count.append(document.createTextNode(" "),el("span","set-chip warn",intakeNeedsUpdate(s)?"업데이트 필요 · 읽기 전용":"업데이트 필요 · 계정 저장 보류"));
     if(held) count.append(document.createTextNode(" "),el("span","set-chip warn","⚠ 계정 저장 보류"));
     else if(heldCopy){
       const synced=isCloudSynced(s,idx);
@@ -6061,7 +6117,7 @@ function renderLibrary(){
     if(intakeReadOnly)bDup.hidden=true;
     bMove.onclick=e=>{e.stopPropagation();closeMenu();openFolderMove([s.id]);};
     bDup.onclick=async(e)=>{e.stopPropagation();
-      if(intakeNeedsUpdate(s)){intakeUpdateNotice();return;}
+      if(intakeSetReadOnly(s)){intakeUpdateNotice();return;}
       if(!intakeWriteAllowed()){intakeHoldWrite();return;}
       const session=sessionContext();
       bDup.disabled=true;
@@ -6909,7 +6965,7 @@ function setLibraryTab(tab){
 
 /* ===== Editor ===== */
 function showEditor(setId){
-  if(intakeNeedsUpdate(sets.find(s=>s.id===setId))){rememberSet(null);showLibrary();intakeUpdateNotice();return;}
+  if(intakeSetReadOnly(sets.find(s=>s.id===setId))){rememberSet(null);showLibrary();intakeUpdateNotice();return;}
   /* 충돌 보류(B4) 중인 문제집은 편집기로 열지 않는다 — 그 편집은 어디에도 올라가지 않는다. */
   if(setId&&currentUser&&setRevisionEnabled()&&heldSetIds(currentUser.uid).has(String(setId))){
     rememberSet(null);
@@ -9298,7 +9354,7 @@ const onAuth=async (user)=>{
     if(localDirty && !flushLocal()) pendingLocalByOwner.set(setsKey(),JSON.stringify(sets));
     clearTimeout(localTimer); localTimer=null; localDirty=false;
     clearTimeout(histTimer); histTimer=null;
-    intakeClients.forEach(c=>c.stop());intakeCloudReady=false;intakeCloudFailures.clear();
+    intakeClients.forEach(c=>c.stop());intakeCloudReady=false;intakeCloudFailures.clear();intakeRemoteBlocked.clear();
     authEpoch++;
     clearTimeout(saveTimer);
     if(setsUnsub){ setsUnsub(); setsUnsub=null; }   // 이전 계정 구독 해제

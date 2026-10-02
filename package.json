@@ -46,7 +46,7 @@
     "test:csp": "node scripts/check-csp-browser.mjs",
     "test:public-browser": "node scripts/check-public-browser.mjs",
     "test:auth-navigation": "node scripts/check-auth-navigation.mjs",
-    "test:intake-review": "node scripts/check-intake-review-fixes.mjs && B6_REVIEW_RED=112 node scripts/check-intake-review-fixes.mjs && B6_REVIEW_RED=113 node scripts/check-intake-review-fixes.mjs"
+    "test:intake-review": "node scripts/check-intake-review-fixes.mjs && B6_REVIEW_RED=112 node scripts/check-intake-review-fixes.mjs && B6_REVIEW_RED=113 node scripts/check-intake-review-fixes.mjs && node scripts/check-intake-remote-update.mjs && B6_REMOTE_RED=1 node scripts/check-intake-remote-update.mjs"
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^5.0.2",
