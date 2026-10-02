@@ -160,7 +160,7 @@ Apple 전용 글꼴·아이콘 파일의 재배포를 전제로 설계하지 않
 - buildPrintDoc / fitPrintDoc / doPrint, pedagogy-print.js의 problemGroups / spanOf — 실제 지면 경로.
 - 기존 LIBRARY-UX-DESIGN.md, UX-FIXES-DESIGN.md는 과거 실측과 수정 근거이며 새 요구로 덮어쓰지 않는다.
 
-### U1 1차 구현 — 지면 배치 보기 (2026-10-03 · HANDOFF-2026-176)
+### U1 1차 구현 — 지면 배치 보기 (2026-10-03 · HANDOFF-2026-177)
 
 - **같은 경로**: `buildPrintDoc(hide, wrap)` → 글꼴 → `awaitPrintImages` → `fitPrintDoc(wrap)` 를 인쇄와 공유한다.
   두 함수는 그릇을 인자로 받고 기본값이 `#printDoc` 이라 인쇄는 그대로다. 지면 보기는 화면 밖 `#sheetBuild` 에서
