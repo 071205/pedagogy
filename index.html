@@ -25,7 +25,7 @@
      어렵다 — 새 로그인만 깨진다). 실제로 한 번 그랬으니 손대지 말 것. -->
 <meta http-equiv="Content-Security-Policy" content="
   default-src 'self';
-  script-src 'self' 'wasm-unsafe-eval' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-SXxjtPI3AJt+q5tMTN2YPWhuWhRhGDqayXoeCY4hf2M=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
+  script-src 'self' 'wasm-unsafe-eval' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-HfyUL1ZwPVt1Kvoxw7p73U09nmbtvqCBsl3KUnx+FU4=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
   script-src-attr 'none';
   style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
   font-src 'self' data: https://cdn.jsdelivr.net;
@@ -4310,7 +4310,8 @@ async function writeCloudSnapshot(uidAtSave,session){
     if(sets.some(intakeSetReadOnly)){
       if(localSaved)idleSaveStatus(uidAtSave);
       else setSaveStatus("⚠ 로컬 저장 실패", "#e57373");
-      return false;
+      // 보류 권은 저장 대상에서 제외했다. 정상 권의 ACK를 폴더 저장 실패로 바꾸지 않는다.
+      return localSaved;
     }
     setSaveStatus("✓ 저장됨", "#81c784");
     setTimeout(()=>{if(sessionMatches(session) && !hasUnsavedCloudWork()) idleSaveStatus(uidAtSave);}, 2000);
