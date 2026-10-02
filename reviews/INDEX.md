@@ -26,7 +26,7 @@
 [계약](../docs/PRODUCT-UX-U0-CONTRACT.md) · [과제·결정표](../docs/PRODUCT-UX-U0-SCENARIOS.md) ·
 [시안](../docs/mockups/u0-flow.html). 계약 주장 5건을 코드로 확인했고 `REV-2026-108`을 재현했다.
 **D1 사용자 결정: 문항을 다른 권에 넣을 때 독립 사본/수정 연동을 선택 가능하게 한다.**
-**현재: B6 112·113·114 재검토 통과 · `REV-2026-115` 수정·검증 완료/재검토 대기(`HANDOFF-176`) · `-116` 미수정 → Codex 수정 → Claude 재검토 → PR #8 CI → 승인 후 main**.
+**현재: B6 112~115 재검토 통과 · `REV-2026-116`·`-117`(PR #8 CodeRabbit 지적 재현) 미수정 → Codex 수정 → Claude 재검토 → PR #8 CI → 승인 후 main**.
 U0 개정 합의는 유지. B6 합의 뒤 B7(Sol high). D3/C1~C3·D1 연동·U1 시안/사용자 관찰은 별도 대기.
 순서·게이트는 [통합 레일](../docs/DEV-TOKEN-ROADMAP.md), 지시문은 [RAIL-ORDERS](../docs/RAIL-ORDERS.md).
 **B3 운영 장애 `REV-2026-109` 해결**(운영 `e50636c` → 문구 정정 `6679676`, 편집·삭제·진짜 충돌 운영 검증).

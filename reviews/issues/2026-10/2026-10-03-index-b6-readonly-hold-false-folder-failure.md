@@ -49,3 +49,4 @@ REV-2026-111 에서 정한 '사실만 말한다' 원칙과 어긋난다. 지금 
 `npm run test:intake`, `npm run test:set-revision`, `npm run test:audit-browser` 통과.
 추가 검사·검토 범위·다음 행동은 [HANDOFF-176](../../handoffs/2026-10/2026-10-03-index-b6-folder-sync-result.md)에 기록한다.
 독립 재검토 대기이며 `REV-2026-116`은 이번 수정에 포함하지 않았다.
+- `2026-10-03` — `Claude / Opus 5.5`: **보고자 재검증 통과.** 원래 재현을 `d0a4da4` 에서 다시 돌려 거짓 실패가 사라진 것을 확인했다(HANDOFF-2026-176 검토 기록).

@@ -3,7 +3,7 @@
 - ID: `HANDOFF-2026-176`
 - 날짜: `2026-10-03`
 - 작성자: `Codex`
-- 상태: `ready-for-review`
+- 상태: `reviewed` — Claude 재검토 2026-10-03: 115 해소. B6 병합은 116·117 수정·재검토 뒤
 - 영향 영역: `index | tests | docs`
 - 관련 이슈: `REV-2026-115` (수정·재현 검사 완료)
 
@@ -50,3 +50,11 @@ B7은 B6 합의/병합 뒤 **Codex GPT-6 Sol high**다.
 ## 검토 기록
 
 독립 재검토 대기.
+
+### 2026-10-03 — Claude Opus 5.5 재검토: **115 해소 · 결함 없음**
+
+범위: `5ef97af..d0a4da4` 의 `index.html` 한 줄(보류 갈래 `return false` → `return localSaved`)과 115 처리 기록.
+- 순서 확인: 충돌·형식 오류·용량 초과는 이 갈래 **앞**에서 `false` 로 끝나고, Firestore 오류는 `catch` 로 간다. 이 변경이 실패를 성공으로 바꾸는 경로는 없다.
+- 내 원래 재현을 다시 돌렸다: 서버 X v2 보류 중 Y 폴더 이동 → 서버 Y `folder-1`, 토스트 없음, `syncPending=false`. X 서버본은 v2 그대로.
+- `check-intake-folder-sync.mjs` 8/8, `B6_FOLDER_RED=1` 수정 전 코드에서 2건 빨간불.
+- 그 사이 PR #8 CodeRabbit 지적 두 건을 재현해 `REV-2026-116`(P2)·`REV-2026-117`(P3)로 등록했다. B6 병합은 그 둘의 수정·재검토 뒤다.
