@@ -87,7 +87,7 @@ U0→B6에서 정규화/복원·AI 계약을 함께 다룬다. Rules의 `hasOnly
 ## 최근 검토
 
 [HANDOFF-2026-176](handoffs/2026-10/2026-10-03-index-u1-sheet-layout.md): U1 1차 — 지면 배치 보기(인쇄와 같은 조립·보정 공유,
-확인할 문항·배치 변경·⌘Z·편집↔지면 선택 유지). `test:sheet` 10개·깨보기 5종. **Codex Sol medium 검토 대기 · 미배포.**
+확인할 문항·배치 변경·⌘Z·편집↔지면 선택 유지). `test:sheet` 12개·깨보기 8종. **Codex Sol medium 검토 2회 · 미합의 없음 · 미배포.**
 
 [HANDOFF-2026-172](handoffs/2026-09/2026-09-26-docs-u0-contract-amendment.md): U0 D1/D2/D4 계약 개정·문서만. **재검토 합의 · B6 착수 가능.**
 

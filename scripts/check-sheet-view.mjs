@@ -63,12 +63,13 @@ const PNG=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42
 const IMG='https://firebasestorage.googleapis.com/v0/b/x/o/sheet-gate.png?alt=media';
 async function open(html,{viewport={width:1440,height:900},count=12}={}){
   const ctx=await browser.newContext({viewport,locale:'ko-KR'});
-  let release; ctx.imageGate=new Promise(r=>{release=r;}); ctx.releaseImages=()=>release();
+  // 그림 문 — 검사마다 새로 닫을 수 있다(closeImages). 요청이 **들어온 때의** 문을 기다린다.
+  let release; ctx.closeImages=()=>{ctx.imageGate=new Promise(r=>{release=r;});}; ctx.closeImages(); ctx.releaseImages=()=>release();
   await ctx.route('**/*',async r=>{
     const u=new URL(r.request().url());
     if(u.origin===base&&u.pathname==='/index.html'&&html) return r.fulfill({contentType:'text/html; charset=utf-8',body:html});
     // 그림 응답은 시험이 문을 열 때까지 붙잡는다 — 조립 중 경합을 결정적으로 만든다
-    if(u.hostname==='firebasestorage.googleapis.com'){ await ctx.imageGate; return r.fulfill({contentType:'image/png',body:PNG}); }
+    if(u.hostname==='firebasestorage.googleapis.com'){ const gate=ctx.imageGate; await gate; return r.fulfill({contentType:'image/png',body:PNG}); }
     return (u.origin===base||u.hostname==='cdn.jsdelivr.net')?r.continue():r.abort();
   });
   await ctx.addInitScript(seed(count));
@@ -173,15 +174,16 @@ async function suite(html){
     ok(r.has&&r.latest,'반영 뒤 '+JSON.stringify(r));
   });
   await check('⑤-c 조립 중 문항 편집으로 나가면 늦은 결과를 게시하지 않음',async()=>{
-    const r=await p.evaluate(async()=>{
-      const before=$("#sheetStage").innerHTML.length;
-      sets[0].problems[5].blocks[0].data.text='나간 뒤 바뀐 6번'; saveSets(); scheduleSheet(true);
-      await new Promise(r=>setTimeout(r,10));
-      $("#viewSeg button[data-view=edit]").click();
-      await new Promise(r=>setTimeout(r,1500));
-      return {mode:editorMode,changed:$("#sheetStage").textContent.includes('나간 뒤 바뀐 6번'),busy:sheetBusy,building:$("#sheetBuild").classList.contains('building'),before};
-    });
-    ok(r.mode==='edit'&&!r.changed,'편집 모드로 나간 뒤 지면이 바뀌었다 '+JSON.stringify(r));
+    // ⚠️ 조립이 **실제로 그림을 기다리는 중**인 것을 확인한 뒤 나간다(Codex 2차: 10ms 만에 나가면 조립 전이라 헛돈다)
+    p.context().closeImages();
+    await p.evaluate(img=>{sets[0].problems[5].blocks[0].data.text='나간 뒤 바뀐 6번';
+      sets[0].problems[5].blocks.push({type:'image',data:{dataUrl:img,size:'m'}});saveSets();},IMG+'&v=leave');
+    await p.waitForFunction(()=>sheetBusy&&/그림/.test($("#sheetState").textContent)&&$("#sheetBuild").classList.contains('building'),null,{timeout:15000});
+    await p.click('#viewSeg button[data-view="edit"]');
+    p.context().releaseImages();
+    await p.waitForTimeout(1500);
+    const r=await p.evaluate(()=>({mode:editorMode,changed:$("#sheetStage").textContent.includes('나간 뒤 바뀐 6번'),busy:sheetBusy,building:$("#sheetBuild").classList.contains('building')}));
+    ok(r.mode==='edit'&&!r.changed,'편집 모드로 나간 뒤 늦은 조립이 지면에 올라갔다 '+JSON.stringify(r));
     ok(!r.busy&&!r.building,'조립 상태가 남았다 '+JSON.stringify(r));
     await toSheet(p);
     ok(await p.evaluate(()=>$("#sheetStage").textContent.includes('나간 뒤 바뀐 6번')&&sheetShownKey===sheetKey()),'돌아오면 최신으로 다시 그려야 한다');
@@ -233,6 +235,8 @@ const BREAKS=[
    pairs:[['  if(key!==sheetShownKey) setSheetState("stale","바뀐 내용 반영 대기");\n','']]},
   {name:'조립 중 다른 내용이 와도 진행 중 조립을 무효화하지 않는다',target:'⑤-b',
    pairs:[['  if(sheetBusy){ sheetGen++; sheetBusy=false; sheetBuildingKey=null; $("#sheetBuild").classList.remove("building"); }\n','']]},
+  {name:'조립 중 보기에서 나가도 늦은 결과를 올린다',target:'⑤-c',
+   pairs:[['const live=()=>gen===sheetGen && sessionMatches(session) && sheetVisible();','const live=()=>gen===sheetGen && sessionMatches(session);']]},
   {name:'지면에서만 본문을 숨긴다(배치 서명은 같다)',target:'①',
    pairs:[['.sheet-stage .pq{position:relative;cursor:pointer}','.sheet-stage .pq{position:relative;cursor:pointer}\n.sheet-stage .pq .content{display:none}']]},
   {name:'선택만 바뀌어도 다시 조립한다',target:'⑥',
