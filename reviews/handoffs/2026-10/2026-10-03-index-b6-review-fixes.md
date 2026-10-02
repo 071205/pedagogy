@@ -3,7 +3,7 @@
 - ID: `HANDOFF-2026-174`
 - 날짜: `2026-10-03`
 - 작성자: `Codex`
-- 상태: `ready-for-review`
+- 상태: `changes-requested` — Claude 재검토 2026-10-03: 112·113 확인, 새 결함 REV-2026-114
 - 영향 영역: `index | tests | docs`
 - 관련 이슈: `REV-2026-112`, `REV-2026-113` (수정·재현 검사 완료)
 
@@ -60,4 +60,22 @@ B6 운영 AI 차단·500문항/900KiB·B3/B4/B5·D1/D3 게이트를 유지했다
 
 ## 검토 기록
 
-독립 재검토 대기.
+### 2026-10-03 — Claude Opus 5.5 재검토: **112·113 해소 확인 · 새 결함 1건(P2)**
+
+범위: `eb7e69f..59a7503` 의 `pedagogy-normalize.js`·`pedagogy-intake.js`·`index.html` 과 두 이슈 처리 기록.
+`npm run test:intake` 전체를 다시 돌렸다(exit 0, 수정 전 파일 주입 시 112 7건·113 3건 빨간불).
+
+- **112 해소.** 내 원래 재현(서버 확정 snapshot 3권 중 한 권의 문항 하나에 `intake:{version:2}`)을 그대로 다시 돌렸다.
+  수정 전 `["새 문제집"]`+거짓 안내 → 지금 `첫째·둘째·셋째`, 토스트 없음. `normIntake` 는 엄격하게 두고 읽기 경계만
+  `preserveIntake` 로 원문 보존 — 채택·공급자 검증은 그대로 엄격하다. 그 권은 편집·복제·이름·폴더·삭제·cloud 쓰기가 막힌다.
+- **113 해소.** 원래 재현(새로고침 → 실제 '복제' 단추, 클라이언트 0개)을 운영 기본 저장소 `PM_INTAKE_V1` 로 다시 돌렸다.
+  사본 `forProblem` = `available`, 원본권을 지우고 `reconcile()` 해도 사본 `available`. 연결 저장이 끝난 뒤에만 사본을 게시하고,
+  실패하면 복제를 하지 않는다고 말한다(조용히 버리던 `.catch(()=>{})` 제거). 외부 JSON 차단 검사도 유지됐다.
+- **새 결함 [`REV-2026-114`](../../issues/2026-10/2026-10-03-index-b6-future-remote-blocks-other-saves.md) P2.**
+  트랜잭션의 새 거절 `set-intake-update` 를 `writeCloudSnapshot()` 의 문서별 `catch` 가 몰라 `throw` 한다.
+  서버 X 가 v2 이고 로컬 X·Y 가 dirty 면 X 는 안전하게 남지만 **Y 가 영영 안 올라가고** 매 판 "⚠ 저장 실패". 브라우저 stub 재현.
+  지금 운영에 v2 를 쓰는 판이 없어 당장은 안 터지지만, 112 가 막으려던 '한 권이 다른 권을 멈춘다' 가 쓰기 쪽에 남은 것이다.
+- 작은 메모: `preserveIntake(undefined)` 는 `JSON.parse(undefined)` 로 다시 던진다(JSON 에서는 안 생기는 값이라 결함으로 보지 않음).
+  `"intake":null` 인 가져온 문제집은 읽기 전용이 된다 — 의도라면 안내 문구로 충분하다.
+
+**판정**: 114 를 고치면 그 diff 만 다시 본다. 합의하면 PR #8 CI 확인 → 해리 승인 merge(= 운영 배포) → B7.

@@ -49,3 +49,4 @@ impact의 active와 forProblem available도 일치한다. 외부 JSON sourceId�
 IDB 실패 때 사본 없음/실패 안내와 새로고침 재시도 available도 확인했다.
 `B6_REVIEW_RED=113`의 수정 전 `eb7e69f`는 새로고침 복제·원본 삭제 후 접근·부팅 충돌의 3개 검사가
 missing으로 실제 실패한다. 기존 CAS 35/35·B6 28개·필수 회귀 167/167 통과. 증거는 HANDOFF-174 참조.
+- `2026-10-03` — `Claude / Opus 5.5`: **보고자 재검증 통과.** 원래 재현 절차를 `59a7503` 에서 다시 돌려 기대대로 동작함을 확인했다(HANDOFF-174 검토 기록).
