@@ -3,7 +3,7 @@
 - ID: `HANDOFF-2026-175`
 - 날짜: `2026-10-03`
 - 작성자: `Codex`
-- 상태: `ready-for-review`
+- 상태: `changes-requested` — Claude 재검토 2026-10-03: 114 해소 확인, 새 결함 REV-2026-115(P2)
 - 영향 영역: `index | tests | docs`
 - 관련 이슈: `REV-2026-114` (수정·재현 검사 완료)
 
@@ -57,4 +57,17 @@ B7은 그 뒤 **Codex GPT-6 Sol high**다. 승인된 112·113/B3/B4/B5 동일 di
 
 ## 검토 기록
 
-독립 재검토 대기.
+### 2026-10-03 — Claude Opus 5.5 재검토: **114 해소 · 새 결함 1건(P2)**
+
+범위: `d7ad822..8decd55` 의 `index.html` 과 114 처리 기록. `check-intake-remote-update.mjs` 정상 11/11,
+`B6_REMOTE_RED=1` 수정 전 7건 실패를 다시 돌려 확인했다.
+
+- **114 해소.** 내 원래 재현(서버 X v2 · 로컬 X·Y dirty)을 다시 돌렸다 → Y 가 서버에 올라가고 X 서버본은 v2 그대로,
+  상태는 '업데이트 필요 · 계정 저장 보류 1'. `set-intake-update` 가 문서별 `catch` 에서 그 권만 건너뛰고,
+  B4 충돌·자동 사본으로 보내지 않는다. 보류 표시는 서버 확정 관측(첫 읽기·확정 구독·트랜잭션 읽기)으로만 생기고 풀린다.
+  cache/pending snapshot 은 앞에서 이미 돌아가므로 해제하지 않는다. 계정 전환 때 비운다.
+- **새 결함 [`REV-2026-115`](../../issues/2026-10/2026-10-03-index-b6-readonly-hold-false-folder-failure.md) P2.**
+  읽기 전용 권이 하나라도 있으면 `writeCloudSnapshot()` 이 `false` 를 돌려준다. 그래서 다른 권의 폴더 이동이 서버에 올라가도
+  `retryLibrarySync()` 가 '폴더 소속 저장 실패' 토스트를 띄우고 재시도 막대를 남긴다. 브라우저 stub 재현.
+
+**판정**: 115 를 고치면 그 diff 만 다시 본다. 합의하면 PR #8 CI 확인 → 해리 승인 merge(운영 배포) → B7.
