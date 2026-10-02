@@ -13,6 +13,7 @@
 | `REV-2026-075` | `P2` | AI 문서에 들어갔다 나오면 로그인이 안 된다(재현 절차 없음) | `issues/2026-09/2026-09-09-document-editor-login-after-return.md` |
 | `REV-2026-093` | `P2` | staging Gemini가 결제 전제 미충족(`FAILED_PRECONDITION`)으로 실패한다 | `issues/2026-09/2026-09-14-gemini-staging-provider-request-error.md` |
 | `REV-2026-108` | `P2` | 지문 묶음이 위치로만 정해져, 가운데 문항을 지우면 무관한 문항이 흡수된다 | `issues/2026-09/2026-09-23-index-passage-group-positional.md` |
+| `REV-2026-117` | `P3` | B6: 계정 삭제 중 Auth 삭제가 실패하면 이 브라우저의 일괄 AI 원문 저장이 영영 막힌다 | `issues/2026-10/2026-10-03-index-b6-account-delete-fence-persists.md` |
 | `REV-2026-116` | `P2` | B6: 원문 하나를 지우면 관계없는 작업의 진행 중 쪽 요청까지 끊겨 영영 잠긴다 | `issues/2026-10/2026-10-03-index-b6-delete-source-aborts-other-jobs.md` |
 
 ⚠️ 이 표는 `npm run check:review-hygiene` 가 **실제 이슈 파일의 상태와 양방향으로**
