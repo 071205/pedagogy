@@ -59,11 +59,16 @@ function seed(count){
 }
 
 let browser;
+const PNG=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==','base64');
+const IMG='https://firebasestorage.googleapis.com/v0/b/x/o/sheet-gate.png?alt=media';
 async function open(html,{viewport={width:1440,height:900},count=12}={}){
   const ctx=await browser.newContext({viewport,locale:'ko-KR'});
-  await ctx.route('**/*',r=>{
+  let release; ctx.imageGate=new Promise(r=>{release=r;}); ctx.releaseImages=()=>release();
+  await ctx.route('**/*',async r=>{
     const u=new URL(r.request().url());
     if(u.origin===base&&u.pathname==='/index.html'&&html) return r.fulfill({contentType:'text/html; charset=utf-8',body:html});
+    // 그림 응답은 시험이 문을 열 때까지 붙잡는다 — 조립 중 경합을 결정적으로 만든다
+    if(u.hostname==='firebasestorage.googleapis.com'){ await ctx.imageGate; return r.fulfill({contentType:'image/png',body:PNG}); }
     return (u.origin===base||u.hostname==='cdn.jsdelivr.net')?r.continue():r.abort();
   });
   await ctx.addInitScript(seed(count));
@@ -88,15 +93,18 @@ async function suite(html){
     await toSheet(p);
     const r=await p.evaluate(async()=>{
       const sig=root=>[...root.querySelectorAll('.page')].map(pg=>[...pg.querySelectorAll('.slot')].map(sl=>
-        [...sl.querySelectorAll('.pq')].map(pq=>pq.dataset.qid+'@'+(pq.style.transform||'-')+'|'+[...pq.querySelectorAll('.choices')].map(c=>c.className).join(','))));
+        [...sl.querySelectorAll('.pq')].map(pq=>pq.dataset.qid+'@'+(pq.style.transform||'-')+'|'+[...pq.querySelectorAll('.choices')].map(c=>c.className).join(',')
+          +'|'+pq.offsetWidth+'x'+pq.offsetHeight+'|'+pq.scrollHeight+'|'+(pq.querySelector('.content')?.innerHTML.length||0)+':'+[...(pq.querySelector('.content')?.innerHTML||'')].reduce((h,c)=>(h*31+c.charCodeAt(0))|0,7))));
       const pd=$("#printDoc");
       buildPrintDoc(!$("#sheetShowAns").checked);
       await warmPrintFonts(); if(document.fonts?.ready) await document.fonts.ready;
       await awaitPrintImages(pd);
       pd.classList.add('measuring'); void document.body.offsetHeight;
       await new Promise(r=>setTimeout(r,120));
-      try{ fitPrintDoc(); }finally{ pd.classList.remove('measuring'); }
-      const a=JSON.stringify(sig(pd)), b=JSON.stringify(sig($("#sheetStage")));
+      // ⚠️ 크기는 펼쳐 둔 동안 읽어야 한다 — measuring 을 떼면 display:none 이라 전부 0 이다
+      let a;
+      try{ fitPrintDoc(); a=JSON.stringify(sig(pd)); }finally{ pd.classList.remove('measuring'); }
+      const b=JSON.stringify(sig($("#sheetStage")));
       pd.innerHTML='';
       return {same:a===b,scaled:/scale\(/.test(b),pages:$("#sheetStage").querySelectorAll('.page').length,a:a.slice(0,160),b:b.slice(0,160)};
     });
@@ -139,6 +147,44 @@ async function suite(html){
     await settled(p);
     const t=await p.evaluate(()=>({has:$("#sheetStage").textContent.includes('바뀐 3번 본문입니다'),latest:sheetShownKey===sheetKey(),cover:!$("#sheetCover").hidden}));
     ok(t.has&&t.latest&&!t.cover,'반영 뒤 '+JSON.stringify(t));
+  });
+  await check('⑤-b 그림 대기 중 내용이 바뀌면 옛 조립 결과를 올리지 않음',async()=>{
+    // q2 에 붙잡힌 그림을 넣는다 → 조립이 '그림 확인' 에서 멈춘다
+    await p.evaluate(img=>{sets[0].problems[1].blocks.push({type:'image',data:{dataUrl:img,size:'m'}});saveSets();},IMG);
+    await p.waitForFunction(()=>sheetBusy&&/그림/.test($("#sheetState").textContent),null,{timeout:15000});
+    // 조립 중에 내용을 바꾸고, 다음 조립이 시작되기 전(220ms 안)에 그림을 놓아 준다
+    // ⚠️ 다음 조립 예약(220ms)을 이 검사 동안만 5초로 늘린다 — 그래야 '옛 조립이 먼저 끝나는' 경합이
+    //    그림 응답 속도와 상관없이 **반드시** 일어난다(늘리지 않으면 깨보기가 운에 따라 초록불이 됐다).
+    await p.evaluate(()=>{const st=window.setTimeout;window.__restoreTimeout=()=>{window.setTimeout=st;};
+      window.setTimeout=(f,ms,...rest)=>st(f,ms===220?5000:ms,...rest);});
+    await p.evaluate(()=>{window.__bad=[];window.__mark='새 4번 본문';
+      // 지면 교체 횟수 — 바뀐 뒤에는 **최신 조립 한 번**만 올라가야 한다(옛 조립은 덮개 밑에라도 올리지 않는다)
+      window.__swaps=0;window.__mo=new MutationObserver(rs=>{if(rs.some(r=>r.type==='childList'&&r.addedNodes.length))window.__swaps++;});
+      window.__mo.observe($("#sheetStage"),{childList:true});
+      sets[0].problems[3].blocks[0].data.text=window.__mark;saveSets();
+      window.__probe=setInterval(()=>{const st=$("#sheetState").dataset.s;if(st==='ok'&&!$("#sheetStage").textContent.includes(window.__mark))window.__bad.push(st);},5);});
+    p.context().releaseImages();
+    await p.waitForTimeout(1500);                       // 옛 조립이 끝날 시간(무효화가 없으면 이때 'ok' 로 게시된다)
+    await p.evaluate(()=>window.__restoreTimeout());
+    await settled(p);
+    const r=await p.evaluate(()=>{clearInterval(window.__probe);window.__mo.disconnect();return {bad:window.__bad.length,swaps:window.__swaps,has:$("#sheetStage").textContent.includes(window.__mark),latest:sheetShownKey===sheetKey()};});
+    ok(!r.bad,'옛 지면이 최신(ok)으로 게시됐다 '+r.bad+'회');
+    ok(r.swaps===1,'바뀐 뒤 지면 교체 '+r.swaps+'회 — 옛 조립 결과까지 올렸다');
+    ok(r.has&&r.latest,'반영 뒤 '+JSON.stringify(r));
+  });
+  await check('⑤-c 조립 중 문항 편집으로 나가면 늦은 결과를 게시하지 않음',async()=>{
+    const r=await p.evaluate(async()=>{
+      const before=$("#sheetStage").innerHTML.length;
+      sets[0].problems[5].blocks[0].data.text='나간 뒤 바뀐 6번'; saveSets(); scheduleSheet(true);
+      await new Promise(r=>setTimeout(r,10));
+      $("#viewSeg button[data-view=edit]").click();
+      await new Promise(r=>setTimeout(r,1500));
+      return {mode:editorMode,changed:$("#sheetStage").textContent.includes('나간 뒤 바뀐 6번'),busy:sheetBusy,building:$("#sheetBuild").classList.contains('building'),before};
+    });
+    ok(r.mode==='edit'&&!r.changed,'편집 모드로 나간 뒤 지면이 바뀌었다 '+JSON.stringify(r));
+    ok(!r.busy&&!r.building,'조립 상태가 남았다 '+JSON.stringify(r));
+    await toSheet(p);
+    ok(await p.evaluate(()=>$("#sheetStage").textContent.includes('나간 뒤 바뀐 6번')&&sheetShownKey===sheetKey()),'돌아오면 최신으로 다시 그려야 한다');
   });
   await check('⑥ 선택만 바뀌면 다시 조립하지 않음',async()=>{
     const g0=await p.evaluate(()=>sheetGen);
@@ -184,7 +230,11 @@ const BREAKS=[
   {name:'인쇄 문항에 문항 id 를 안 심는다',target:'②',
    pairs:[['        box.dataset.qid=String(q.id);','        void 0;']]},
   {name:'바뀐 직후 낡음 표시를 하지 않는다',target:'⑤',
-   pairs:[['  if(key!==sheetShownKey) setSheetState(sheetBusy?"busy":"stale","바뀐 내용 반영 대기");\n','']]},
+   pairs:[['  if(key!==sheetShownKey) setSheetState("stale","바뀐 내용 반영 대기");\n','']]},
+  {name:'조립 중 다른 내용이 와도 진행 중 조립을 무효화하지 않는다',target:'⑤-b',
+   pairs:[['  if(sheetBusy){ sheetGen++; sheetBusy=false; sheetBuildingKey=null; $("#sheetBuild").classList.remove("building"); }\n','']]},
+  {name:'지면에서만 본문을 숨긴다(배치 서명은 같다)',target:'①',
+   pairs:[['.sheet-stage .pq{position:relative;cursor:pointer}','.sheet-stage .pq{position:relative;cursor:pointer}\n.sheet-stage .pq .content{display:none}']]},
   {name:'선택만 바뀌어도 다시 조립한다',target:'⑥',
    pairs:[['  if(key===sheetShownKey && !sheetBusy){ syncSheetSelection(); return; }\n','']]},
   {name:'좁은 화면 탭이 보기를 바꾸지 않는다',target:'⑦-c',

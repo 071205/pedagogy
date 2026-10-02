@@ -25,7 +25,7 @@
      어렵다 — 새 로그인만 깨진다). 실제로 한 번 그랬으니 손대지 말 것. -->
 <meta http-equiv="Content-Security-Policy" content="
   default-src 'self';
-  script-src 'self' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-LeAkx5Sh3a08x4s5COsp0v9SJijPm9S5T0uZFmZgl8k=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
+  script-src 'self' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-TW3OsBo0Lu5sAurRMBHzT3fWVFoGNvnhZ/5IqONpqqw=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
   script-src-attr 'none';
   style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
   font-src 'self' data: https://cdn.jsdelivr.net;
@@ -2943,7 +2943,7 @@ function migrateSharedLocalCache(){
 }
 let sets=[]; let currentSetId=null; let currentQId=null; let orderMode=false;
 // 지면 배치 보기(U1) 상태 — renderPreview·setActivePane 이 읽으므로 여기서 선언한다(아래 선언이면 TDZ).
-let sheetZoomFit=true, editorMode="edit", sheetGen=0, sheetShownKey=null, sheetTimer=null, sheetBusy=false;
+let sheetZoomFit=true, editorMode="edit", sheetGen=0, sheetShownKey=null, sheetTimer=null, sheetBusy=false, sheetBuildingKey=null;
 let currentUser=null; // 로그인 유저
 let authEpoch=0;
 function sessionContext(){
@@ -8958,7 +8958,11 @@ function scheduleSheet(now=false){
   if(!sheetVisible()) return;
   const key=sheetKey();
   if(key===sheetShownKey && !sheetBusy){ syncSheetSelection(); return; }
-  if(key!==sheetShownKey) setSheetState(sheetBusy?"busy":"stale","바뀐 내용 반영 대기");
+  if(sheetBusy && key===sheetBuildingKey){ syncSheetSelection(); return; }   // 진행 중 조립이 바로 이 내용이다
+  /* ⚠️ 진행 중 조립이 **다른** 내용이면 지금 무효화한다(HANDOFF-175 Codex 검토). 세대를 다음 조립 시작 때
+     올리면, 그 사이(최대 220ms) 옛 조립의 그림 대기가 끝나 옛 지면이 'ok' 로 게시된다. */
+  if(sheetBusy){ sheetGen++; sheetBusy=false; sheetBuildingKey=null; $("#sheetBuild").classList.remove("building"); }
+  if(key!==sheetShownKey) setSheetState("stale","바뀐 내용 반영 대기");
   clearTimeout(sheetTimer);
   sheetTimer=setTimeout(renderSheet, now?0:220);
 }
@@ -8966,7 +8970,7 @@ async function renderSheet(){
   if(!sheetVisible()) return;
   const gen=++sheetGen, key=sheetKey(), session=sessionContext();
   const build=$("#sheetBuild");
-  sheetBusy=true; setSheetState("busy","지면 조립 중…");
+  sheetBusy=true; sheetBuildingKey=key; setSheetState("busy","지면 조립 중…");
   const live=()=>gen===sheetGen && sessionMatches(session) && sheetVisible();
   try{
     await painted(); if(!live()) return;
@@ -8988,7 +8992,7 @@ async function renderSheet(){
     build.classList.remove("building");
     decorateSheet(stage);
     sheetShownKey=key;
-    sheetBusy=false;
+    sheetBusy=false; sheetBuildingKey=null;
     layoutSheetScale(); renderSheetPages(); renderSheetIssues();
     const n=stage.querySelectorAll(".page").length;
     setSheetState("ok",`${n}쪽 · 인쇄와 같은 조판`);
@@ -9001,7 +9005,7 @@ async function renderSheet(){
     sheetBusy=false;
     setSheetState("fail","지면을 그리지 못했어요 · "+((e&&e.message)||e));
   }finally{
-    if(gen===sheetGen){ build.classList.remove("building"); if(sheetBusy) sheetBusy=false; }
+    if(gen===sheetGen){ build.classList.remove("building"); sheetBusy=false; sheetBuildingKey=null; }
   }
 }
 /* 확인할 문항 — 잘림(담기지 않음) · 문항 축소 · 수식/표/선지 일부 축소 · 그림 실패.

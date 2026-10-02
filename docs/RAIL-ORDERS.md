@@ -276,7 +276,7 @@ D3 운영 수치는 C3에서 확정한다. 그 전 로컬 fixture 구현/검토�
 
 ## ⑩-A U1 공통 UX·N제 전체 지면 — **Claude Sonnet 5 → Codex GPT-6 Sol medium 검토**
 
-**2026-10-03 1차 구현(지면 배치 보기) 완료 · Codex Sol medium 검토 대기**([HANDOFF-175](../reviews/handoffs/2026-10/2026-10-03-index-u1-sheet-layout.md), 브랜치 `claude/u1-sheet-layout`). 남은 U1: 라이브러리 시작·조작 정리·쪽 축소판·글꼴 실패 표시.
+**2026-10-03 1차 구현(지면 배치 보기) 완료 · Codex Sol medium 검토 대기**([HANDOFF-176](../reviews/handoffs/2026-10/2026-10-03-index-u1-sheet-layout.md), 브랜치 `claude/u1-sheet-layout`). 남은 U1: 라이브러리 시작·조작 정리·쪽 축소판·글꼴 실패 표시.
 
 **선행: U0 시안 확인 + B4 검토.** 기본은 B7 뒤; B5~B7/C1 대기 시 앞당길 수 있다.
 
