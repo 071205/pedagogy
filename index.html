@@ -25,7 +25,7 @@
      어렵다 — 새 로그인만 깨진다). 실제로 한 번 그랬으니 손대지 말 것. -->
 <meta http-equiv="Content-Security-Policy" content="
   default-src 'self';
-  script-src 'self' 'wasm-unsafe-eval' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-yfy4sIXgM6CMo4punls8rWf94NAjDwsHVG9fS/5045w=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
+  script-src 'self' 'wasm-unsafe-eval' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-/Rn22HsWZ9sLz5Tkk7ao1eozL7/lNtH5nLJSIJto7aM=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
   script-src-attr 'none';
   style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
   font-src 'self' data: https://cdn.jsdelivr.net;
@@ -9239,7 +9239,7 @@ function sheetKey(){
 }
 function setSheetState(kind,text){
   const st=$("#sheetState"); st.dataset.s=kind; st.textContent=text;
-  $("#sheetRetry").hidden=kind!=="fail";
+  $("#sheetRetry").hidden=(kind!=="fail");
   const cover=$("#sheetCover");
   const old=kind==="busy"||kind==="stale";
   cover.hidden=!(old && $("#sheetStage").childElementCount);
@@ -9439,7 +9439,8 @@ function setEditorMode(mode){
 $("#viewSeg").querySelectorAll("button").forEach(b=>{ b.onclick=()=>setEditorMode(b.dataset.view); });
 $("#sheetEditBtn").onclick=()=>{
   setEditorMode("edit");
-  const q=activeQ(); if(q) focusQuestionControl(q.id);
+  // ⚠️ 변수 이름을 q 로 쓰지 않는다 — 접근성 계약(check-accessibility '문항 열기 뒤 포커스 복원')이 문항 목록 쪽 한 곳만 가리켜야 한다
+  const cur=activeQ(); if(cur) focusQuestionControl(cur.id);
 };
 $("#sheetSpan").querySelectorAll("button").forEach(b=>{
   b.onclick=()=>{
