@@ -220,9 +220,21 @@ async function suite(html){
         ok(r.mode==='sheet'&&r.pane!=='none'&&!r.h&&r.pages>0,'지면 탭 '+JSON.stringify(r));
         await q.click('.pane-tab[data-pane="edit"]');
         ok(await q.evaluate(()=>editorMode==='edit'&&getComputedStyle($("#sheetPane")).display==='none'),'편집 탭 복귀 실패');
+        ok(!q.errs.length,'좁은 화면 페이지 오류: '+q.errs.join(' | '));
       }finally{ await q.context().close(); }
     });
   }
+  await check('⑦-d 넓은 화면에서 지면으로 바꾼 뒤 창을 좁혀도 한 칸만 보인다',async()=>{
+    const q=await open(html);
+    try{
+      await toSheet(q);
+      await q.setViewportSize({width:768,height:1024}); await q.waitForTimeout(150);
+      const r=await q.evaluate(()=>({pane:$("#editorView").dataset.pane,sheet:getComputedStyle($("#sheetPane")).display,
+        center:getComputedStyle($(".center")).display,tab:document.querySelector('.pane-tab.active')?.dataset.pane}));
+      ok(r.sheet!=='none'&&r.center==='none'&&r.tab==='sheet','좁혀진 뒤 '+JSON.stringify(r));
+      ok(!q.errs.length,'페이지 오류: '+q.errs.join(' | '));
+    }finally{ await q.context().close(); }
+  });
   return {checks,failures};
 }
 
@@ -241,6 +253,8 @@ const BREAKS=[
    pairs:[['.sheet-stage .pq{position:relative;cursor:pointer}','.sheet-stage .pq{position:relative;cursor:pointer}\n.sheet-stage .pq .content{display:none}']]},
   {name:'선택만 바뀌어도 다시 조립한다',target:'⑥',
    pairs:[['  if(key===sheetShownKey && !sheetBusy){ syncSheetSelection(); return; }\n','']]},
+  {name:'넓은 화면 보기 전환이 탭 상태를 안 바꾼다',target:'⑦-d',
+   pairs:[['function setEditorMode(mode){\n  setActivePane(mode==="sheet"?"sheet":"edit");\n}','function setEditorMode(mode){\n  if(window.matchMedia("(max-width:1023px)").matches) setActivePane(mode==="sheet"?"sheet":"edit");\n  else applyEditorMode(mode);\n}']]},
   {name:'좁은 화면 탭이 보기를 바꾸지 않는다',target:'⑦-c',
    pairs:[['  if(typeof applyEditorMode==="function" && (name==="sheet")!==(editorMode==="sheet")) applyEditorMode(name==="sheet"?"sheet":"edit");','']]},
 ];

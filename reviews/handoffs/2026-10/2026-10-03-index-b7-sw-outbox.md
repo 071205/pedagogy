@@ -71,4 +71,3 @@ Codex 샌드박스가 `.git` 쓰기·localhost·Chromium 을 막아, 막힌 검�
 - PR #10 merge `4dd674f` → Pages `built`. 운영 `index.html`·`pedagogy-intake.js`·`pedagogy-intake-outbox.js`·`pedagogy-intake-sw.js` 가 커밋과 바이트 동일.
 - CI 첫 실행의 Firefox 태블릿 `page.goto` 30초 초과는 로컬 Firefox 재실행(통과)과 CI 재실행(통과)으로 일시 실패로 확인.
 - 해리 로그인 세션(Chrome, 읽기만): 17권 전부 동기화 · 오류 안내 0 · 보류/읽기 전용 0 · **SW 미등록** · `PM_INTAKE_V1` 미생성(운영 사용자에게 B7 이 켜지지 않음을 확인).
-

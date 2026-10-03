@@ -25,7 +25,7 @@
      어렵다 — 새 로그인만 깨진다). 실제로 한 번 그랬으니 손대지 말 것. -->
 <meta http-equiv="Content-Security-Policy" content="
   default-src 'self';
-  script-src 'self' 'wasm-unsafe-eval' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-934YBeT0FUfUWlF/X4uZALxa29BPtm2oARgt0jTa6cw=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
+  script-src 'self' 'wasm-unsafe-eval' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-wE+33OJFIWocoVnVCBd+WJySnUyZK8N9/9ix4p6B9ic=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
   script-src-attr 'none';
   style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
   font-src 'self' data: https://cdn.jsdelivr.net;
@@ -9434,9 +9434,10 @@ function applyEditorMode(mode){
     if(typeof renderPreview==="function") renderPreview();
   }
 }
+/* ⚠️ 넓은 화면에서도 setActivePane 을 거친다 — data-pane 과 보기가 어긋나면 창을 1023px 이하로 줄였을 때
+   편집 칸과 지면 칸이 함께 보인다(CodeRabbit · PR #9). 넓은 화면에서 data-pane 은 화면에 영향이 없다. */
 function setEditorMode(mode){
-  if(SHEET_NARROW()) setActivePane(mode==="sheet"?"sheet":"edit");
-  else applyEditorMode(mode);
+  setActivePane(mode==="sheet"?"sheet":"edit");
 }
 $("#viewSeg").querySelectorAll("button").forEach(b=>{ b.onclick=()=>setEditorMode(b.dataset.view); });
 $("#sheetEditBtn").onclick=()=>{
