@@ -67,6 +67,10 @@ STATIC = {
     # App Check site key 같은 공개 런타임 설정. 비밀키는 절대 이 파일에 넣지 않는다.
     "/service-config.js": ("service-config.js", "application/javascript; charset=utf-8"),
     # 신뢰 경계(정규화). index.html 이 이 파일 없이는 아예 뜨지 않는다 — 빼면 404 로 죽는다.
+    "/pedagogy-intake-contract.js": ("pedagogy-intake-contract.js", "application/javascript; charset=utf-8"),
+    "/pedagogy-intake.js": ("pedagogy-intake.js", "application/javascript; charset=utf-8"),
+    "/vendor/pdfjs/pdf.mjs": ("vendor/pdfjs/pdf.mjs", "application/javascript; charset=utf-8"),
+    "/vendor/pdfjs/pdf.worker.mjs": ("vendor/pdfjs/pdf.worker.mjs", "application/javascript; charset=utf-8"),
     "/pedagogy-normalize.js": ("pedagogy-normalize.js", "application/javascript; charset=utf-8"),
     # 정규화된 데이터를 미리보기·인쇄용 HTML로 바꾸는 공용 렌더 계층.
     "/pedagogy-render.js": ("pedagogy-render.js", "application/javascript; charset=utf-8"),
@@ -105,6 +109,17 @@ STATIC = {
     # 로고가 폴백 서체로 나온다. 파일이 없으면 아래 do_GET 이 알아서 404 를 돌려준다.
     "/Adobe Caslon Pro Bold.ttf": ("Adobe Caslon Pro Bold.ttf", "font/ttf"),
 }
+# Exact vendored PDF.js asset inventory; never expose arbitrary repository paths.
+for _pdf_asset in json.loads((HERE / "vendor/pdfjs/assets.json").read_text()):
+    _parts = _pdf_asset.split("/")
+    if (len(_parts) != 4 or _parts[:2] != ["vendor", "pdfjs"]
+            or _parts[2] not in {"cmaps", "standard_fonts", "wasm", "iccs"}
+            or not all(c.isalnum() or c in "._+-" for c in _parts[3])):
+        raise ValueError("Invalid PDF asset inventory")
+    _mime = "application/wasm" if _pdf_asset.endswith(".wasm") else (
+        "application/javascript; charset=utf-8" if _pdf_asset.endswith(".js") else "application/octet-stream")
+    STATIC["/" + _pdf_asset] = (_pdf_asset, _mime)
+
 
 # https 사이트(깃허브 페이지 등)에서 이 로컬 서버를 부를 수 있게 허용할 출처.
 # 여기 적힌 곳만 허용한다. --allow-origin 으로 더 추가할 수 있다.

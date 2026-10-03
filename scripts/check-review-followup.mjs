@@ -14,7 +14,7 @@ function fn(name) {
 function context(code) {
   const c = vm.createContext({ console: { error() {}, warn() {} }, TextEncoder,
     setTimeout: () => 0, clearTimeout() {} });
-  vm.runInContext(code, c);
+  vm.runInContext("const intakeWriteAllowed=()=>true;"+code, c);
   return c;
 }
 

@@ -1,3 +1,4 @@
+import pdfAssets from '../vendor/pdfjs/assets.json' with {type:'json'};
 import { createHash } from 'node:crypto';
 import { lstat, mkdir, mkdtemp, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
@@ -8,6 +9,9 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 export const PUBLIC_INPUTS = Object.freeze([
   'index.html', 'mock-exam-editor.html', 'document-editor.html', 'legal.html',
   'service-config.js', 'pedagogy-normalize.js', 'pedagogy-render.js', 'pedagogy-print.js', 'pedagogy-ai-image.js',
+  'pedagogy-intake-contract.js', 'pedagogy-intake.js',
+  'vendor/pdfjs/assets.json', ...pdfAssets,
+  'vendor/pdfjs/pdf.mjs', 'vendor/pdfjs/pdf.worker.mjs', 'vendor/pdfjs/LICENSE',
   'mock-library-store.js', 'hwpx-engine.js', 'hwpx-document.js', 'hwpx-exam.js',
   'hwpx-exam-template.js', 'exam-template-data.js', 'blank-template-data.js', 'LICENSE',
   'experiments/hwp-export/templates/blank.hwpx',
@@ -72,7 +76,7 @@ async function plainPath(root, relative) {
 }
 
 function checkContent(file, bytes) {
-  if (!/\.(js|html)$/.test(file)) return;
+  if (!/\.(m?js|html)$/.test(file)) return;
   const content = bytes.toString('utf8');
   // Defense in depth, not a complete secret scanner. Public Firebase API keys are expected.
   if (/sourceMappingURL\s*=|-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|\bsk-ant-[A-Za-z0-9_-]{12,}/.test(content)) {
