@@ -65,6 +65,9 @@ async function send(message){
   }finally{db.close();}
 }
 self.addEventListener('message',event=>{
+  // 같은 출처의 페이지가 보낸 메시지만 받는다. SW 는 원래 같은 출처 클라이언트에게서만 메시지를 받지만,
+  // 출처와 보낸 쪽(Client)을 명시적으로 확인한다(SonarCloud 보안 규칙 · 깨보기는 check-intake-outbox).
+  if(event.origin!==self.location.origin||!(event.source&&'id' in event.source))return;
   if(event.data?.type!=='PM_B7_FIXTURE_SEND'||!event.ports?.[0])return;
   const port=event.ports[0],message=event.data;
   event.waitUntil(send(message).then(reply=>{

@@ -45,7 +45,8 @@ function fixture(baseline=false){
     navigator:{locks:{request:async(_key,run)=>run()},storage:{persisted:async()=>true}},
     setTimeout,clearTimeout,Date,PedagogyNormalize:{normProblem:value=>value}};
   let onMessage;
-  env.self={addEventListener(type,listener){if(type==='message')onMessage=listener;}};
+  const ORIGIN='https://pedagogy.fixture';
+  env.self={location:{origin:ORIGIN},addEventListener(type,listener){if(type==='message')onMessage=listener;}};
   vm.createContext(env);
   vm.runInContext(readFileSync('pedagogy-intake-contract.js','utf8'),env);
   const intake=baseline?execFileSync('git',['show','d4762f6:pedagogy-intake.js'],{encoding:'utf8'})
@@ -53,10 +54,10 @@ function fixture(baseline=false){
   vm.runInContext(intake,env);
   if(!baseline)vm.runInContext(readFileSync('pedagogy-intake-sw.js','utf8'),env);
   let calls=0;
-  function outbox(fixtureOptions={}){return {async send(request,meta){
+  function outbox(fixtureOptions={},{origin=ORIGIN,source={id:'client-1'}}={}){return {async send(request,meta){
     calls++;
     let message,work;
-    onMessage({data:{type:'PM_B7_FIXTURE_SEND',request,...meta,fixture:fixtureOptions},
+    onMessage({origin,source,data:{type:'PM_B7_FIXTURE_SEND',request,...meta,fixture:fixtureOptions},
       ports:[{postMessage(value){message=value;},close(){}}],waitUntil(p){work=p;}});
     await work;
     if(!message){const error=Error('injected lost delivery');error.ambiguous=true;throw error;}
@@ -169,5 +170,15 @@ async function main(baseline=false){
   const fenced=f.indexedDB.records('b7-fixture').get('A');
   assert.equal(fenced.deleted,true);assert.deepEqual(fenced.outbox,{});
   console.log('PASS 계정 삭제 fence 뒤 늦은 SW 응답 폐기');
+
+  // 다른 출처가 보낸 메시지는 무시한다 — 보존도 답도 하지 않는다(SonarCloud 보안 지적 · 출처 확인 깨보기)
+  state.owner='C';state.epoch++;
+  const foreign=client(f,session,lib,f.outbox({}, {origin:'https://evil.example'}));
+  const foreignId=(await foreign.createJob([file()])).jobId;
+  await foreign.run(foreignId);
+  const foreignRoot=f.indexedDB.records('b7-fixture').get('C');
+  assert.equal(Object.keys(foreignRoot.outbox||{}).length,0,'다른 출처 메시지를 보존했다');
+  assert.equal(foreignRoot.jobs[foreignId].drafts.length,0,'다른 출처 메시지로 초안이 생겼다');
+  console.log('PASS 다른 출처가 보낸 메시지는 보존·응답하지 않음');
 }
 await main(process.env.B7_RED==='1');
