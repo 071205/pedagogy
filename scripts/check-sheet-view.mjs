@@ -74,6 +74,8 @@ async function open(html,{viewport={width:1440,height:900},count=12,blockFonts=f
     if(u.hostname==='firebasestorage.googleapis.com'){ const gate=ctx.imageGate; await gate; return r.fulfill({contentType:'image/png',body:PNG}); }
     // ⑨-b: 본문 글꼴(KoPub) 파일만 막는다 — 글꼴 CSS 는 받아 정의는 있는데 내려받기가 실패하는 실제 모양
     if(blockFonts && /font-kopub@[^/]+\/fonts\//.test(u.href)) return r.abort();
+    // ⑨-c: 글꼴 CSS 째로 막는다 — KoPub 정의가 하나도 없는 모양
+    if(blockFonts==='css' && /font-kopub@/.test(u.href)) return r.abort();
     return (u.origin===base||u.hostname==='cdn.jsdelivr.net')?r.continue():r.abort();
   });
   await ctx.addInitScript(seed(count));
@@ -276,6 +278,20 @@ async function suite(html){
       ok(r.state==='ok'&&!r.hidden&&/본문/.test(r.text),'글꼴 실패 표시 '+JSON.stringify(r));
     }finally{ await q.context().close(); }
   });
+  await check('⑨-c 본문 굵기(300)의 정의가 없으면 다른 굵기 face 가 받아져 있어도 경고한다',async()=>{
+    const q=await open(html,{blockFonts:'css'});
+    try{
+      // 쓰지 않는 굵기(900)의 KoPub face 를 **받아진 상태로** 심는다 — 이름만 보면 통과해 버리는 모양
+      const b64=(await readFile(new URL('../vendor/pdfjs/standard_fonts/LiberationSans-Regular.ttf',import.meta.url))).toString('base64');
+      const st=await q.evaluate(async b=>{const bin=Uint8Array.from(atob(b),c=>c.charCodeAt(0));
+        const f=new FontFace('KoPub Batang',bin.buffer,{weight:'900'});await f.load();document.fonts.add(f);
+        return {loaded:f.status,n:[...document.fonts].filter(x=>x.family.replace(/["']/g,'')==='KoPub Batang').length};},b64);
+      ok(st.loaded==='loaded'&&st.n===1,'심은 face 상태 '+JSON.stringify(st)+' (검사가 헛돈다)');
+      await toSheet(q);
+      const r=await q.evaluate(()=>({hidden:$("#sheetFontWarn").hidden,text:$("#sheetFontWarn").textContent}));
+      ok(!r.hidden&&/본문/.test(r.text),'다른 굵기 face 로 통과했다 '+JSON.stringify(r));
+    }finally{ await q.context().close(); }
+  });
   await check('⑦-d 넓은 화면에서 지면으로 바꾼 뒤 창을 좁혀도 한 칸만 보인다',async()=>{
     const q=await open(html);
     try{
@@ -312,9 +328,11 @@ const BREAKS=[
   {name:'축소판 칸을 눌러도 문항을 고르지 않는다',target:'⑧',
    pairs:[['  if(k) selectSheetProblem(k.dataset.qid,{scroll:true}); else gotoSheetPage(Number(t.dataset.page));','  gotoSheetPage(Number(t.dataset.page));']]},
   {name:'글꼴 실패를 정의가 있는지로만 본다',target:'⑨-b',
-   pairs:[["|| specs.some(([spec,txt])=>!ready(spec,txt));","||false;"]]},
+   pairs:[["||!ready(spec,txt));","||false);"]]},
   {name:'같은 이름의 face 하나라도 실패면 경고한다',target:'⑨-a',
-   pairs:[["|| specs.some(([spec,txt])=>!ready(spec,txt));","||faces.some(f=>test(fam(f))&&f.status===\"error\");"]]},
+   pairs:[["||!ready(spec,txt));","||faces.some(f=>fam(f)===name&&f.status===\"error\"));"]]},
+  {name:'정의를 굵기·모양 없이 이름으로만 본다',target:'⑨-c',
+   pairs:[["!has(name,weight,style)||","!faces.some(f=>fam(f)===name)||"]]},
   {name:'좁은 화면 탭이 보기를 바꾸지 않는다',target:'⑦-c',
    pairs:[['  if(typeof applyEditorMode==="function" && (name==="sheet")!==(editorMode==="sheet")) applyEditorMode(name==="sheet"?"sheet":"edit");','']]},
 ];

@@ -25,7 +25,7 @@
      어렵다 — 새 로그인만 깨진다). 실제로 한 번 그랬으니 손대지 말 것. -->
 <meta http-equiv="Content-Security-Policy" content="
   default-src 'self';
-  script-src 'self' 'wasm-unsafe-eval' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-XpCnXA9LCT/B0YNSkhEb+NyRSi9D+b2F3tvvgpiyQo0=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
+  script-src 'self' 'wasm-unsafe-eval' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-6Z7GC0yHAOM7jka8Lzl4/rvutW4PYp6hii5r7VmeDls=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
   script-src-attr 'none';
   style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
   font-src 'self' data: https://cdn.jsdelivr.net;
@@ -6462,7 +6462,10 @@ function newSetPathButton(o, cls){
   else b.onclick=()=>startNewSet(o.kind);
   return b;
 }
+/* 밖을 누르면 닫는 리스너 — Esc·초점 이탈로 닫힐 때도 함께 걷는다(CodeRabbit · 남은 리스너가 쌓이지 않게). */
+const newSetMenuOutside=()=>closeNewSetMenu();
 function closeNewSetMenu(focusBtn){
+  document.removeEventListener("click",newSetMenuOutside);
   const m=$("#newSetMenu"); if(!m||m.style.display!=="block") return;
   m.style.display="none"; $("#newSetBtn").setAttribute("aria-expanded","false");
   if(focusBtn) $("#newSetBtn").focus();
@@ -6475,7 +6478,7 @@ $("#newSetBtn").onclick=(e)=>{
   NEW_SET_PATHS.forEach(o=>{ const b=newSetPathButton(o); b.setAttribute("role","menuitem"); m.append(b); });
   m.style.display="block"; $("#newSetBtn").setAttribute("aria-expanded","true");
   m.querySelector("button:not([disabled])")?.focus();
-  setTimeout(()=>document.addEventListener("click",()=>closeNewSetMenu(),{once:true}),0);
+  setTimeout(()=>{ if(m.style.display==="block") document.addEventListener("click",newSetMenuOutside,{once:true}); },0);
 };
 /* 메뉴 밖으로 초점이 나가면 닫고, 초점이 어디 있든 Esc 로 닫는다(Codex 검토 · Tab 으로 나간 뒤 Esc 가 안 듣던 것). */
 $("#newSetMenu").closest(".lib-menu-wrap").addEventListener("focusout",e=>{
@@ -9425,9 +9428,18 @@ function sheetFontProblems(){
     /* 실패 = 정의가 없다 · 또는 **실제로 쓰는** 굵기·모양이 준비되지 않았다. 같은 이름의 쓰지 않는 face 하나가 실패한
        것으로 경고하지 않는다(Codex 검토 · 거짓 양성). 판정 직전에 warmPrintFonts 가 쓰는 것을 모두 불렀다. */
     const ready=(spec,txt)=>{ try{ return document.fonts.check(spec,txt); }catch{ return true; } };
-    const failed=(test,specs)=>!faces.some(f=>test(fam(f))) || specs.some(([spec,txt])=>!ready(spec,txt));
-    if(failed(n=>n==="KoPub Batang",[["300 12px 'KoPub Batang'","가"]])) out.unshift("본문");
-    if(!out.includes("수식") && failed(n=>/^KaTeX_/.test(n),[["10px KaTeX_Main","x"],["italic 10px KaTeX_Math","x"]])) out.push("수식");
+    /* 정의도 **그 face 하나하나**로 본다 — 같은 이름의 다른 굵기·다른 KaTeX face 가 있으면 check() 가 그것으로
+       대신 통과하거나(없는 face 에도 true) 엉뚱한 굵기로 그려진다(CodeRabbit). 굵기는 범위("100 900")일 수 있다. */
+    const wNum=w=>w==="normal"?400:w==="bold"?700:Number(w);
+    const has=(name,weight,style)=>faces.some(f=>{
+      if(fam(f)!==name || !String(f.style||"normal").startsWith(style)) return false;
+      const [lo,hi=lo]=String(f.weight||"normal").trim().split(/\s+/).map(wNum);
+      return weight>=lo && weight<=hi;
+    });
+    const failed=specs=>specs.some(([name,weight,style,spec,txt])=>!has(name,weight,style)||!ready(spec,txt));
+    if(failed([["KoPub Batang",300,"normal","300 12px 'KoPub Batang'","가"]])) out.unshift("본문");
+    if(!out.includes("수식") && failed([["KaTeX_Main",400,"normal","10px KaTeX_Main","x"],
+      ["KaTeX_Math",400,"italic","italic 10px KaTeX_Math","x"]])) out.push("수식");
   }
   return out;
 }
