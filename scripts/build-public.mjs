@@ -9,7 +9,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 export const PUBLIC_INPUTS = Object.freeze([
   'index.html', 'mock-exam-editor.html', 'document-editor.html', 'legal.html',
   'service-config.js', 'pedagogy-normalize.js', 'pedagogy-render.js', 'pedagogy-print.js', 'pedagogy-ai-image.js',
-  'pedagogy-intake-contract.js', 'pedagogy-intake.js',
+  'pedagogy-intake-contract.js', 'pedagogy-intake.js', 'pedagogy-intake-outbox.js', 'pedagogy-intake-sw.js',
   'vendor/pdfjs/assets.json', ...pdfAssets,
   'vendor/pdfjs/pdf.mjs', 'vendor/pdfjs/pdf.worker.mjs', 'vendor/pdfjs/LICENSE',
   'mock-library-store.js', 'hwpx-engine.js', 'hwpx-document.js', 'hwpx-exam.js',
