@@ -21,7 +21,7 @@ async function persistence(){
     return await navigator.storage.persist()?'granted':'denied';
   }catch{ return 'error'; }
 }
-function create({session,library,renderer=browserRenderer(),transport=null,config,dbName='PM_INTAKE_V1',locks=navigator.locks}={}){
+function create({session,library,renderer=browserRenderer(),transport=null,outbox=null,config,dbName='PM_INTAKE_V1',locks=navigator.locks}={}){
   const cap=C.limits(config), db=openDB(dbName), controllers=new Map(), urls=new Map();
   const context=()=>{const s=session(); if(!s?.owner) fail('소유자 확인 필요'); return {...s};};
   const matches=s=>{const n=context(); if(n.owner!==s.owner||n.epoch!==s.epoch) fail('계정이 바뀌어 작업을 멈췄어요');};
@@ -80,7 +80,7 @@ function create({session,library,renderer=browserRenderer(),transport=null,confi
     await transact(s,r=>{
       if(Object.values(r.sources).reduce((n,x)=>n+(x.blob?x.bytes:0),0)+prepared.reduce((n,x)=>n+x.bytes,0)>cap.totalBytes)fail('원문 보관 합계 용량 초과');
       prepared.forEach(src=>{r.sources[src.id]=src;});
-      r.jobs[jobId]={id:jobId,version:1,generation:1,state:'pending',contract,draftVersion:1,calls:0,
+      r.jobs[jobId]={id:jobId,version:1,generation:1,state:'pending',contract,limits:cap,draftVersion:1,calls:0,
         sources:prepared.map(x=>x.id),pages:prepared.flatMap(x=>x.selected.map(pageNumber=>({
           sourceId:x.id,pageNumber,sourceGeneration:x.generation,state:'pending',attemptId:null,retries:0}))),drafts:[],groups:[]};
       return jobId;
@@ -89,10 +89,49 @@ function create({session,library,renderer=browserRenderer(),transport=null,confi
     return {jobId,persistence:storageState};
   }
   async function readJob(jobId){const s=context();return transact(s,r=>job(r,jobId),false);}
+  async function recoverOutbox(jobId=null){
+    const s=context();
+    if(!outbox) return [];
+    // The SW stores the response in this owner record before replying. Consume
+    // it in the same transaction as the page result so a crash cannot duplicate
+    // drafts or lose the only durable copy between two writes.
+    return transact(s,r=>{
+      const recovered=[];
+      for(const [key,item] of Object.entries(r.outbox||{})){
+        if(jobId && item.jobId!==jobId) continue;
+        const j=r.jobs[item.jobId],p=j?.pages[item.pageIndex],src=r.sources[item.sourceId];
+        if(!j||!p||!src?.blob||!['available','unlinked'].includes(src.state)
+          ||src.generation!==item.sourceGeneration||j.generation!==item.jobGeneration
+          ||j.state==='discarded'||j.state==='finished'||p.attemptId!==item.attemptId
+          ||p.sourceId!==item.sourceId||p.state!=='processing'&&p.state!=='locked'){
+          delete r.outbox[key];continue;
+        }
+        try{
+          const jobCap=j.limits||cap,parsed=C.validateResponse(item.reply,jobCap);
+          if(j.drafts.length+parsed.length>jobCap.problemsPerJob) fail('작업 문항 한도 초과 · 범위 선택 필요');
+          const groups=new Map(),drafts=parsed.map((raw,n)=>({id:id(),sourceId:item.sourceId,pageNumber:p.pageNumber,ordinal:n+1,raw}));
+          drafts.forEach(d=>{if(d.raw.group){if(!groups.has(d.raw.group))groups.set(d.raw.group,[]);groups.get(d.raw.group).push(d.id);}});
+          for(const members of groups.values()){
+            if(members.length<2||members.length>10) fail('공통지문 구성원 확인 필요');
+            j.groups.push({id:id(),members});
+          }
+          j.drafts.push(...drafts);j.draftVersion++;
+          Object.assign(p,{state:'success',checksum:item.checksum,
+            receipt:item.reply.usage?{used:item.reply.usage.used,limit:item.reply.usage.limit}:null,error:null});
+          recovered.push({jobId:item.jobId,pageIndex:item.pageIndex});
+        }catch(e){p.state='locked';p.error=e.message;}
+        delete r.outbox[key];
+      }
+      for(const j of Object.values(r.jobs)) if(recovered.some(x=>x.jobId===j.id))
+        j.state=j.pages.every(p=>p.state==='success')?'success':'partial';
+      return recovered;
+    });
+  }
   async function run(jobId,{retryPages=[],confirmCharge=false}={}){
     const s=context();
-    if(!transport) fail('C1~C3 승인·운영 한도 전에는 일괄 AI 호출을 사용할 수 없습니다');
+    if(!transport&&!outbox) fail('C1~C3 승인·운영 한도 전에는 일괄 AI 호출을 사용할 수 없습니다');
     return locked(s,`job:${jobId}`,async()=>{
+      await recoverOutbox(jobId);
       let j=await readJob(jobId);
       if(['finished','discarded'].includes(j.state))fail('종료한 작업은 재개 확인 필요');
       if(retryPages.length&&!confirmCharge) fail('재시도는 추가 차감 안내 확인이 필요합니다');
@@ -133,10 +172,14 @@ function create({session,library,renderer=browserRenderer(),transport=null,confi
         });
         const controller=new AbortController(); controllers.set(controller,p.sourceId);
         try{
-          const reply=await transport(request,{signal:controller.signal}); matches(s);
+          const reply=outbox
+            ? await outbox.send(request,{owner:s.owner,jobGeneration:j.generation,sourceGeneration:p.sourceGeneration,
+              pageIndex:i,dbName,signal:controller.signal})
+            : await transport(request,{signal:controller.signal}); matches(s);
           if(reply?.state==='completed'||reply?.state==='pending'){
             await transact(s,r=>{job(r,jobId,j.generation).pages[i].state='locked';});continue;
           }
+          if(outbox){await recoverOutbox(jobId);continue;}
           const parsed=C.validateResponse(reply,cap);
           const checksum=await hash(new TextEncoder().encode(JSON.stringify(parsed)));
           await transact(s,r=>{
@@ -154,7 +197,7 @@ function create({session,library,renderer=browserRenderer(),transport=null,confi
           });
         }catch(e){
           try{await transact(s,r=>{source(r,p.sourceId,p.sourceGeneration);const q=job(r,jobId,j.generation).pages[i];
-            q.state=e.ambiguous||e.name==='AbortError'?'locked':'failed';q.error=e.message;});}catch{}
+            q.state=outbox||e.ambiguous||e.name==='AbortError'?'locked':'failed';q.error=e.message;});}catch{}
         }finally{controllers.delete(controller);}
       }
       return transact(s,r=>{const live=job(r,jobId,j.generation);live.state=live.pages.every(p=>p.state==='success')?'success':'partial';return live;});
@@ -265,6 +308,7 @@ function create({session,library,renderer=browserRenderer(),transport=null,confi
         for(const j of Object.values(r.jobs)) if(j.sources.includes(sourceId)){
           j.generation++;j.state='partial';j.pages.forEach(p=>{if(p.sourceId===sourceId&&p.state!=='success')p.state='missing';});
         }
+        for(const [key,item] of Object.entries(r.outbox||{})) if(item.sourceId===sourceId) delete r.outbox[key];
       });
       for(const [controller,id] of controllers) if(id===sourceId){controller.abort();controllers.delete(controller);}
       for(const [url,id] of urls) if(id===sourceId){URL.revokeObjectURL(url);urls.delete(url);}
@@ -316,7 +360,7 @@ function create({session,library,renderer=browserRenderer(),transport=null,confi
     return new Promise((resolve,reject)=>{
       const tx=d.transaction('owners','readwrite'),store=tx.objectStore('owners');
       // Keep only the account fence, never an old job/source/receipt or D4 preference.
-      store.put({owner:s.owner,version:1,deleted:true,fence,generation:Date.now(),sources:{},jobs:{},adoptions:{},links:{}});
+      store.put({owner:s.owner,version:1,deleted:true,fence,generation:Date.now(),sources:{},jobs:{},adoptions:{},links:{},outbox:{}});
       tx.oncomplete=()=>resolve(fence);tx.onerror=tx.onabort=()=>reject(tx.error||Error('로컬 원문 파기 실패'));
     });
   }
@@ -389,7 +433,7 @@ function create({session,library,renderer=browserRenderer(),transport=null,confi
       });
     });
   }
-  return Object.freeze({adoptionStatus,inheritLinks,detachSource,createJob,readJob,run,adopt,impact,deleteSource,listSources,readSource,forProblem,linkSource,reconcile,finishJob,stop,purge,purgeFence,recoverPurge,reconnect,persistence});
+  return Object.freeze({adoptionStatus,inheritLinks,detachSource,createJob,readJob,run,recoverOutbox,adopt,impact,deleteSource,listSources,readSource,forProblem,linkSource,reconcile,finishJob,stop,purge,purgeFence,recoverPurge,reconnect,persistence});
 }
 function browserRenderer(){
   let pdfModule;
