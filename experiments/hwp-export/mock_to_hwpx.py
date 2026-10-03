@@ -46,9 +46,9 @@ ROOT = Path(__file__).resolve().parents[2]
 #    나간다.** 벗긴 틀은 그렇지 않다 — 결과물로 봐도 이쪽이 낫다.
 # 실물이 있으면 그것으로 되돌릴 수 있게 남겨 두되, **기본은 저장소의 틀**이다.
 BUNDLED_TEMPLATE = Path(__file__).resolve().parent / "templates" / "exam-math.hwpx"
-LOCAL_TEMPLATE = ROOT / "평가원 수학 양식.hwpx"
+LOCAL_TEMPLATE = ROOT / "실물자료" / "평가원 수학 양식.hwpx"
 DEFAULT_TEMPLATE = BUNDLED_TEMPLATE if BUNDLED_TEMPLATE.exists() else LOCAL_TEMPLATE
-DEFAULT_REF = ROOT / "2025학년도 수능 수학 문제.hwp"
+DEFAULT_REF = ROOT / "실물자료" / "2025학년도 수능 수학 문제.hwp"
 
 
 
