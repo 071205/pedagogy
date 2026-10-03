@@ -9,6 +9,7 @@
     "check:codex-bridge": "node scripts/check-codex-readonly.mjs",
     "check:claude-bridge": "node scripts/check-claude-readonly.mjs",
     "test:worker": "node worker/quota.test.mjs && node worker/app-check.test.mjs && node worker/worker-contract.test.mjs && node worker/attempt-ledger.test.mjs && node worker/gemini.test.mjs && node reviews/audits/2026-09-13/worker-telemetry-review.mjs && node scripts/check-audit-safety.mjs && node scripts/check-review-followup.mjs",
+    "test:intake": "node worker/intake.test.mjs && node scripts/check-intake.mjs && B6_RED=1 node scripts/check-intake.mjs && npm run test:intake-review",
     "test:ai-image": "node scripts/check-ai-image.mjs",
     "test:sheet": "node scripts/check-sheet-view.mjs",
     "test:fixtures": "node scripts/check-fixtures.mjs",
@@ -27,7 +28,7 @@
     "update:visual-baseline": "UPDATE_VISUAL_BASELINE=1 node scripts/visual-regression.mjs",
     "check:static": "node scripts/check-review-hygiene.mjs && node scripts/check-static.mjs && node scripts/check-launch-readiness.test.mjs && node scripts/check-accessibility.mjs && node scripts/check-document-blocks.mjs && node scripts/check-shared-design.mjs && node scripts/check-exam-style-roles.mjs",
     "check:rules": "npx --yes firebase-tools emulators:exec --project pedagogy-rules-test --only firestore,storage \"node scripts/verify-rules-emulator.mjs && node scripts/verify-b3-strict-rules.mjs\"",
-    "check:fast": "npm run check:review-hygiene && npm run check:sonar && npm run check:hooks && npm run test:public && npm run check:icons && npm run test:worker && npm run test:ai-image && npm run test:fixtures && npm run test:mock-layout && npm run test:mock-library && npm run test:sets-cloud && npm run test:set-sync-meta && npm run test:set-revision && npm run test:hwpx && npm run test:hwpx-exam && npm run test:hwpx-browser && npm run test:cross:fast && npm run check:static && npm run test:audit-browser && npm run test:review-contracts && npm run test:library-ui && npm run test:sheet && npm run test:mock-library-ui",
+    "check:fast": "npm run check:review-hygiene && npm run check:sonar && npm run check:hooks && npm run test:public && npm run check:icons && npm run test:worker && npm run test:ai-image && npm run test:intake && npm run test:fixtures && npm run test:mock-layout && npm run test:mock-library && npm run test:sets-cloud && npm run test:set-sync-meta && npm run test:set-revision && npm run test:hwpx && npm run test:hwpx-exam && npm run test:hwpx-browser && npm run test:cross:fast && npm run check:static && npm run test:audit-browser && npm run test:review-contracts && npm run test:library-ui && npm run test:sheet && npm run test:mock-library-ui",
     "test:all": "npm run check:fast && npm run check:rules && npm run test:visual",
     "check:launch": "node scripts/check-launch-readiness.mjs",
     "test:hwpx": "node scripts/check-hwpx.mjs",
@@ -45,11 +46,13 @@
     "test:public": "node scripts/check-source-csp.mjs && node scripts/build-public.test.mjs",
     "test:csp": "node scripts/check-csp-browser.mjs",
     "test:public-browser": "node scripts/check-public-browser.mjs",
-    "test:auth-navigation": "node scripts/check-auth-navigation.mjs"
+    "test:auth-navigation": "node scripts/check-auth-navigation.mjs",
+    "test:intake-review": "node scripts/check-intake-review-fixes.mjs && B6_REVIEW_RED=112 node scripts/check-intake-review-fixes.mjs && B6_REVIEW_RED=113 node scripts/check-intake-review-fixes.mjs && node scripts/check-intake-remote-update.mjs && B6_REMOTE_RED=1 node scripts/check-intake-remote-update.mjs && node scripts/check-intake-folder-sync.mjs && B6_FOLDER_RED=1 node scripts/check-intake-folder-sync.mjs && node scripts/check-intake-delete-fences.mjs && B6_DELETE_RED=116 node scripts/check-intake-delete-fences.mjs && B6_DELETE_RED=117 node scripts/check-intake-delete-fences.mjs && node scripts/check-intake-signin-recovery.mjs && B6_SIGNIN_RED=1 node scripts/check-intake-signin-recovery.mjs"
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^5.0.2",
     "firebase": "^12.18.0",
+    "pdfjs-dist": "6.3.289",
     "pixelmatch": "^7.2.0",
     "playwright": "^1.62.1",
     "pngjs": "^7.0.0"

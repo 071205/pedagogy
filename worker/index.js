@@ -30,6 +30,7 @@
  */
 
 import { verifyIdToken } from "./auth.js";
+import { intakeContract } from "./intake-contract.js";
 import { AppCheckError, verifyAppCheckToken } from "./app-check.js";
 import { GEMINI_STAGING_MODEL, buildGeminiRequest, decodeGeminiEnvelope } from "./gemini.js";
 import { AttemptLedger, attemptIdentity, imageSourceHash, sha256Hex, validAttempt } from "./attempt-ledger.js";
@@ -259,6 +260,8 @@ export function createWorker({
   requestLedger = ledgerRequest,
   generateProblems = callAI,
   generateDocument = callDocumentAI,
+  generateIntake = null,
+  intakeLimits = null,
   recordMetric = console.log,
 } = {}) {
   return {
@@ -386,6 +389,25 @@ export function createWorker({
       return json({ error: "JSON 객체가 필요합니다" }, 400, cors);
 
     const documentMode = body?.mode === "document";
+    const intakeMode = body.task === intakeContract.TASK;
+    if(body.task !== undefined && !intakeMode)
+      return json({error:"지원하지 않는 AI 작업입니다"},400,cors);
+    // C1~C3/D3 not approved: the default production instance has no intake
+    // transport or operating limits. Only dependency-injected fixture tests run it.
+    if(intakeMode && (!generateIntake || !intakeLimits))
+      return json({error:"일괄 AI는 운영 한도·비용 검토 전입니다"},503,cors);
+    if(intakeMode){
+      let caps;
+      try{caps=intakeContract.limits(intakeLimits);}catch{
+        return json({error:"일괄 AI 한도 설정 오류"},503,cors);
+      }
+      if(documentMode || !validAttempt(body.attempt) || !Number.isSafeInteger(body.width)
+        || !Number.isSafeInteger(body.height) || Math.min(body.width,body.height)<caps.minDimension
+        || Math.max(body.width,body.height)>caps.maxDimension
+        || new TextEncoder().encode(JSON.stringify(body)).length>caps.requestBytes
+        || typeof body.imageBase64!=='string' || Math.floor(body.imageBase64.length*3/4)-(body.imageBase64.endsWith('==')?2:body.imageBase64.endsWith('=')?1:0)>caps.imageBytes)
+        return json({error:"일괄 AI 쪽 요청 형식/한도 오류"},400,cors);
+    }
     const { imageBase64, mimeType, prompt } = body || {};
     if (documentMode) {
       // 범용 문서는 텍스트 지시만 받는다. HTML/HWPX/XML은 받지 않고, AI도 정해진
@@ -431,7 +453,8 @@ export function createWorker({
         // The client labels source/contract hashes for its staging UI, but cannot
         // choose the authoritative paid-call key by changing either label.
         const extractionContractHash = await sha256Hex(new TextEncoder().encode(
-          JSON.stringify(["problem-v1", SYSTEM_PROMPT, provider.name, provider.model])));
+          JSON.stringify([intakeMode?intakeContract.TASK:"problem-v1",
+            intakeMode?intakeContract.PROMPT:SYSTEM_PROMPT, provider.name, provider.model])));
         ledgerIdentity = await attemptIdentity(env, user.uid,
           { ...body.attempt, sourceHash, extractionContractHash });
         const begun = await requestLedger(env, ledgerIdentity, "begin", { retry: body.attempt.retry });
@@ -536,9 +559,13 @@ export function createWorker({
         recordAiMetric(recordMetric, aiTelemetry);
         return json({ document, usage: { used: after.used, limit: after.limit } }, 200, cors);
       }
-      const result = unwrapAiGeneration(await generateProblems(env, imageBase64, mimeType));
+      const result = unwrapAiGeneration(intakeMode
+        ? await generateIntake(env,imageBase64,mimeType)
+        : await generateProblems(env, imageBase64, mimeType));
       aiTelemetry = result.telemetry;
-      const problems = result.value;
+      const problems = intakeMode
+        ? intakeContract.validateResponse(result.value,intakeLimits)
+        : result.value;
       providerResultReady = true;
       if (ledgerIdentity) {
         const resultDigest = await ledgerIdentity.digest(JSON.stringify(problems));
@@ -547,7 +574,8 @@ export function createWorker({
         if (!completed.ok) throw new Error("AttemptLedger success commit failed");
       }
       recordAiMetric(recordMetric, aiTelemetry);
-      return json({ problems, usage: { used: after.used, limit: after.limit } }, 200, cors);
+      return json({ ...(intakeMode?{task:intakeContract.TASK}:{}),
+        problems, usage: { used: after.used, limit: after.limit } }, 200, cors);
     } catch (e) {
       if (ledgerIdentity && !providerResultReady) {
         try {

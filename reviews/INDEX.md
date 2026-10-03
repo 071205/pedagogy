@@ -1,6 +1,6 @@
 # 리뷰 현황
 
-마지막 정리: 2026-10-01
+마지막 정리: 2026-10-03
 
 **이 파일은 새 세션이 매번 읽는다.** 열린 이슈·현재 작업·최근 검토 다섯만 두고 과거는 `handoffs/`와 git에 보존한다. 기록 규칙은
 [`README.md`](README.md) 의 '기록의 수명' 절에 있다.
@@ -24,8 +24,8 @@
 [계약](../docs/PRODUCT-UX-U0-CONTRACT.md) · [과제·결정표](../docs/PRODUCT-UX-U0-SCENARIOS.md) ·
 [시안](../docs/mockups/u0-flow.html). 계약 주장 5건을 코드로 확인했고 `REV-2026-108`을 재현했다.
 **D1 사용자 결정: 문항을 다른 권에 넣을 때 독립 사본/수정 연동을 선택 가능하게 한다.**
-**현재: U0 개정 계약 Claude 재검토 합의(2026-10-01) → B6(Codex Sol high) 착수 가능**(`HANDOFF-172`).
-D3 운영 숫자·U1 시안 선택·사용자 관찰은 남아 U0 전체 완료는 아니다. 합의 뒤 B6(Sol high).
+**현재: B6 merge·운영 배포·확인 완료(`686d9fb`, `HANDOFF-178`) → 다음 B7(Codex Sol high). U1 1차는 별도 브랜치 PR 대기**.
+U0 개정 합의는 유지. B6 합의 뒤 B7(Sol high). D3/C1~C3·D1 연동·U1 시안/사용자 관찰은 별도 대기.
 순서·게이트는 [통합 레일](../docs/DEV-TOKEN-ROADMAP.md), 지시문은 [RAIL-ORDERS](../docs/RAIL-ORDERS.md).
 **B3 운영 장애 `REV-2026-109` 해결**(운영 `e50636c` → 문구 정정 `6679676`, 편집·삭제·진짜 충돌 운영 검증).
 `REV-2026-111`은 **B4 운영 배포(`451e8ba`)·운영 확인으로 해결**(`HANDOFF-169`).
@@ -86,20 +86,17 @@ U0→B6에서 정규화/복원·AI 계약을 함께 다룬다. Rules의 `hasOnly
 
 ## 최근 검토
 
+[HANDOFF-2026-178](handoffs/2026-10/2026-10-03-index-b6-delete-fences.md): B6 116·117 해소(Codex 구현·Claude 검토),
+로그인 복구 부작용은 Claude 수정·Codex 검토. **B6 112~117 전부 해소 · PR #8 merge 승인 대기.**
+
 [HANDOFF-2026-177](handoffs/2026-10/2026-10-03-index-u1-sheet-layout.md): U1 1차 — 지면 배치 보기(인쇄와 같은 조립·보정 공유,
 확인할 문항·배치 변경·⌘Z·편집↔지면 선택 유지). `test:sheet` 12개·깨보기 8종. **Codex Sol medium 검토 2회 · 미합의 없음 · 미배포.**
 
-[HANDOFF-2026-172](handoffs/2026-09/2026-09-26-docs-u0-contract-amendment.md): U0 D1/D2/D4 계약 개정·문서만. **재검토 합의 · B6 착수 가능.**
+[HANDOFF-2026-176](handoffs/2026-10/2026-10-03-index-b6-folder-sync-result.md): B6 115 거짓 폴더 실패 해소·재검토 확인.
 
-[HANDOFF-2026-171](handoffs/2026-09/2026-09-25-worker-b5-attempt-ledger.md): B5 별도 DO·서버 HMAC·항목별 만료·계정 삭제 전 파기 구현.
-Opus 5.5 검토 결함 없음 · **운영 배포(secret → Worker → Pages) 완료.**
+[HANDOFF-2026-175](handoffs/2026-10/2026-10-03-index-b6-remote-update-hold.md): B6 114 해소 재검토 확인.
 
-[HANDOFF-2026-170](handoffs/2026-09/2026-09-25-rules-b3-strict-deploy.md): B3 엄격 Rules 실제 배포(3/3),
-Opus 5.5 검토 결함 없음 · 운영 무 revision 쓰기 거절 확인 — **B3 완료.**
-
-[HANDOFF-2026-169](handoffs/2026-09/2026-09-25-index-b4-conflict-hold.md): B4 충돌 보류·복구 화면 — Codex Astra high 설계 2회,
-Sol medium 검토 2회(반례 넷 수정 → 동의). CAS 35/35 · 표적 변이 16종. **운영 `451e8ba` 배포·확인 완료.**
-
+[HANDOFF-2026-174](handoffs/2026-10/2026-10-03-index-b6-review-fixes.md): B6 112·113 해소 재검토 확인. 추가 114도 HANDOFF-175에서 **해소 재검토 확인**.
 
 저장 구조 관련 HANDOFF-162 Q1/Q2는 레일 D1/U0에서 이어받으며 미결을 승인으로 바꾸지 않는다.
 
