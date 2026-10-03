@@ -1,13 +1,13 @@
 # PEDAGOGY 통합 실행 레일 — 보안·저장·출시·비용
 
-개정: 2026-10-03 · B6 112~117 해소·Claude 재검토 완료 → PR #8 merge(해리 승인) 대기. B3·B4·B5 완료 유지.
+개정: 2026-10-03 · B6 운영 배포 완료. B7 fixture outbox 구현·Claude 독립 검토·브라우저 검증 완료 → PR #10 merge(해리 승인) 대기. U1 1차 PR #9 대기.
 사용자 요청: 기존 비용 레일과 Sonar·안티그래비티 검증 제안을 합쳐, 모델을 직접 바꿔 실행한다.
 **실행 순서·현재 단계는 이 문서 한 곳에서만 관리한다.**
 [이전 레일](DEV-TOKEN-ROADMAP-ARCHIVE-2026-09-20.md)은 완료 증거·계약 보관본이다.
 
-## 현재 위치 — B6 검토 완료 · PR #8 merge(해리 승인) 대기 → B7
+## 현재 위치 — B7 검토 완료·PR #10 merge 대기 → U1(1차 PR #9 · 나머지 범위) → U1.5
 
-- **B6 현재**: 최신 `main=2ff20f3` → `codex/b6-intake-storage`. [구현 계약/API](B6-INTAKE-STORAGE.md),
+- **B6 완료**: `main d4762f6`에 병합. [구현 계약/API](B6-INTAKE-STORAGE.md),
   [HANDOFF-173](../reviews/handoffs/2026-10/2026-10-01-index-b6-intake-storage.md). IDB/원문 삭제 세대·owner,
   쪽별 재개·독립 채택·정규화/클라우드/복원, 28개 수용+실패 주입·167개 회귀 검증 완료.
   **112·113 수정·Claude 재검토 해소 확인(2026-10-03)**: [HANDOFF-174](../reviews/handoffs/2026-10/2026-10-03-index-b6-review-fixes.md),
@@ -15,8 +15,10 @@
   **114 해소·Claude 재검토 확인**: [HANDOFF-175](../reviews/handoffs/2026-10/2026-10-03-index-b6-remote-update-hold.md), 원 재현/경계 11개·수정 전 빨간불.
   **115 해소·Claude 재검토 확인**: [HANDOFF-176](../reviews/handoffs/2026-10/2026-10-03-index-b6-folder-sync-result.md), 폴더 저장 원 재현/경계 8개·수정 전 빨간불.
   **116·117 해소·Claude 재검토 확인**: [HANDOFF-178](../reviews/handoffs/2026-10/2026-10-03-index-b6-delete-fences.md), 원문 삭제 요청 범위·삭제 울타리·로그인 복구 검사와 수정 전 빨간불.
-  **다음: PR #8 CI 확인 → 해리 승인 merge(운영 배포) → B7(Codex GPT-6 Sol high)**. merge 전 B7/U1.5 착수하지 않는다. 운영 AI는 차단,
-  C1~C3/D3·D1 연동 게이트는 유지. 이번 수정의 push/배포 없음.
+  **B7 검토 완료**: `codex/b7-outbox`(PR #10)에서 [fixture outbox 경계](B7-INTAKE-OUTBOX.md)를 구현했다(`HANDOFF-179`).
+  Claude 독립 검토 결함 없음 — 막혔던 브라우저 검증(SW 저장→재실행 복구)·`test:intake` 전체·각 `d4762f6` 빨간불을 Claude 가 실행해 통과.
+  SonarCloud 지적(SW 메시지 출처 확인)은 고치고 다른 출처 차단 검사를 더했다(Codex 검토 동의). 운영 AI 차단과
+  C1~C3/D3·D1 연동 게이트는 유지. 다음: PR #10 CI → 해리 승인 merge(운영 배포).
 
 - **운영 원본 정리(2026-09-25)**: 로컬 `main`(커밋 52개)을 원격에 올리고 Pages 원본을
   `codex/b3-release-prep` → **`main`/루트**로 되돌렸다. 운영과 `main` 의 실행 파일 차이는 검토를 마친
@@ -68,7 +70,7 @@
   U0에 반영했다([HANDOFF-172](../reviews/handoffs/2026-09/2026-09-26-docs-u0-contract-amendment.md)).
   2026-10-01: 문항 출처와 실제 권/충돌 snapshot/복구본 대조, 권 삭제와 원문 삭제 분리·Undo 보존을
   보완했다. 역참조·영속 저장 요청·D4 설정 켜기/끄기·문서 참조 메모도 반영했다. 독립 승인은 아직 아니다.
-  **Claude 재검토 합의(2026-10-01)**. B6 112~117 해소·Claude 재검토 완료 → PR #8 merge(해리 승인) 대기. D3 운영 숫자·U1 시안 선택·실제 사용자 관찰은 남았다.
+  **Claude 재검토 합의(2026-10-01)**. B6 112~117 해소·Claude 재검토·병합 완료. D3 운영 숫자·U1 시안 선택·실제 사용자 관찰은 남았다.
 - **R4/B5 검토·운영 배포 완료**: HANDOFF-171 후속 기록의 Opus 5.5 검토 결함 없음,
   secret → Worker `a63c4880` → Pages `2264ed7` 적용 증거를 유지한다. staging secret과 실제
   계정 삭제 종단 검증의 남은 한계도 그대로다. 이번 계약 개정 때문에 B5를 재실행하지 않는다.
@@ -241,7 +243,7 @@ node scripts/ask-codex-readonly.mjs … --model gpt-6-astra --effort high
 
 외부 조건으로 막힌 행은 대기 이유를 기록하고, 선행 조건을 충족한 다음 행의 독립 작업을 선택한다.
 완료 구간 R1(자기검증)→R2→R3→R4/B1~B3 코드·검토→R4.5는 재실행하지 않는다.
-현재 재개 순서는 **B6 → B7 → U1 → U1.5 → U2 → R5 → R6 → R7 → R8 → R9 → R10**이다.
+현재 재개 순서는 **B7 merge → U1(1차 merge · 나머지 범위) → U1.5 → U2 → R5 → R6 → R7 → R8 → R9 → R10**이다.
 U0~U2는 기존 R4 안의 작업 묶음이며 별도 실행 레일이 아니다. 각 구현 뒤 비구현자 검토를 끼운다.
 이 순서는 현 저장 계약을 유지하는 기준안이다. D1은 독립 사본/수정 연동을 삽입 시 선택하는
 방향으로 답했다. 연동 저장은 U0 §3-1의 별도 확장 게이트를 따르며 완료 B3/B4/B5는 유지하고, 미결 정책은
@@ -257,7 +259,7 @@ R7의 실제 환경 전환 대기 중에는 R8의 로컬 검증을 진행할 수
 | R1 · 자기검증 완료 | **완료 당시 Sol / high 배정** | Sonar 11건·실제 배포 경계·분석 누락 판단과 필요한 보안 수정 완료. HANDOFF-153 독립 검토 대기 |
 | R2 · 계약 확정 | **Astra high** | 문제 투입 설계 §19의 비라우팅·쪽별 순차·부분 성공 계약 보존. 새 UX가 바꾸는 범위·한도·수정 전파만 U0에서 보충. 기존 R2 계약 전체를 재개하지 않으며 모델·비용은 C3·R9 연동 |
 | R3 · 계약 완료 | **Astra high** | `STORAGE-CONTRACT.md`의 크기·충돌·복구·실패 보존 계약을 구현 기준으로 사용 |
-| R4 · B1~B5 완료, B6 112~117 해소·검토 완료(PR #8 merge 승인 대기) | **Astra high / Opus 5**(U0), **GPT-6 Sol / high**(B3·B5~B7), **Sonnet 5**(B4·U1·U2 UI) | 아래 묶음 표의 선행·완료 기준 적용. B6 merge 뒤 남은 저장 작업(B7)과 UX를 구현·검토. AI 구성과 N제 전체 지면을 같은 제품 UX 범위로 완성하고 R5에 합류 |
+| R4 · B1~B6 완료, B7 검토 완료·merge 대기 | **Astra high / Opus 5**(U0), **GPT-6 Sol / high**(B3·B5~B7), **Sonnet 5**(B4·U1·U2 UI) | 아래 묶음 표의 선행·완료 기준 적용. B7 독립 검토와 남은 UX를 완료한 뒤 R5에 합류 |
 | R4.5 · 두 묶음 승인 완료 | **Claude Sonnet 5 구현 → Codex Sol medium 검토(완료 기록)** | 선지 넘침 사다리와 `⋮`·`…` 단독행 가운데 정렬을 구현·독립 검토했다. HANDOFF-163·164 증거를 재사용하고 동일 diff를 다시 검토하지 않는다. |
 | 제품 UX 레일 통합 · 문서 완료 | **Astra high** | 요구 매핑·순서·담당·완료 기준을 기록. 기능 구현·사용자 결정·독립 승인은 미완료 |
 | R5 · R1·R4/B1~B7·U0~U2·R4.5 후 | **비구현자** — Codex 보안·저장 diff는 **Claude Opus 5**, Claude 출력·UX diff는 **GPT-6 Sol / medium** | 묶음별 독립 검토 증거를 합치는 종합 게이트. 승인된 B1/B2 등 동일 diff는 재심사하지 않고 미검토·수정 영향·AI 채택→충돌→편집/지면 연결만 확인. 미결 결함·배포 대기는 구분 기록하며 증거 없이 완료 처리하지 않음 |
@@ -333,13 +335,13 @@ D1에서 독립/연동 선택을 택했으므로 **연동 저장에 필요한 �
 | **B3 실제 배포 / 완료** | 3/3 운영 적용·인증 저장·독립 검토 완료 | HANDOFF-170 후속 기록 유지. 단순 롤백 불가 |
 | **B4 충돌 UX / Sonnet 5 → GPT-6 Sol / medium 검토** | **B3 실제 배포 완료 + U0의 D1/충돌 시안 확정** | §2-5의 서버 원본·로컬 사본 1회·기기 보존/ACK 구별·revision 설명·네 선택지·최신 revision 명시 CAS. 지속 상태에서 복구 가능하고 반복 충돌/삭제/저장 거절/계정 전환에도 어느 본문도 잃지 않음 |
 | **B5 원장 / GPT-6 Sol / high → Opus 5 검토** | **독립 검토·운영 배포 완료**(HANDOFF-171) | 별도 AttemptLedger DO, 서버 HMAC, pending 10분/completed 7일·항목별 만료, 계정 삭제 전 파기, quota와 호출 상태 분리. 자정·중복·응답 유실을 stub로 검증. UI에 exactly-once나 영구 무료 재개를 약속하지 않음 |
-| **B6 자료·채택 데이터 / 112~117 해소·검토 완료, merge 승인 대기** | **선행 충족**. [HANDOFF-173](../reviews/handoffs/2026-10/2026-10-01-index-b6-intake-storage.md)·[112·113 HANDOFF-174](../reviews/handoffs/2026-10/2026-10-03-index-b6-review-fixes.md)·[114 HANDOFF-175](../reviews/handoffs/2026-10/2026-10-03-index-b6-remote-update-hold.md)·[115 HANDOFF-176](../reviews/handoffs/2026-10/2026-10-03-index-b6-folder-sync-result.md)·[116·117 HANDOFF-178](../reviews/handoffs/2026-10/2026-10-03-index-b6-delete-fences.md)·[구현/API](B6-INTAKE-STORAGE.md) | 여러 파일/PDF의 쪽별 렌더·저해상도/크기 사전 검증, B6/U1.5 공통 원문 보관(U0 §5)·작업 전용 IndexedDB·쪽별 순차/성공 잠금·실패/미처리·원본 위치/꼬리표/출처 순서/체크섬 보존, 취소·명시 재시도·성공분 채택. task별 AI 응답 스키마/검증·정규화·내보내기 호환을 함께 구현하고 기존 문서 AI 경로 보존. 아래 채택 계약을 실패 주입으로 검증. D1 연동 저장 확장은 U0 §3-1 추가 게이트 별도 |
-| **B7 응답 복구 / GPT-6 Sol / high → Opus 5 검토** | B6 검토 | §3-4의 장치 내 Service Worker outbox가 페이지 전달 전 응답을 보존. 재실행 시 해당 owner의 기존 권한·삭제 세대로 복구하고 중복 채택·다른 계정 노출·삭제 원문 부활 없음. 브라우저 종료 중 처리 지속·다른 기기 복구를 약속하지 않음 |
+| **B6 자료·채택 데이터 / 병합 완료** | **`main d4762f6`**. [HANDOFF-173](../reviews/handoffs/2026-10/2026-10-01-index-b6-intake-storage.md)·[112·113 HANDOFF-174](../reviews/handoffs/2026-10/2026-10-03-index-b6-review-fixes.md)·[114 HANDOFF-175](../reviews/handoffs/2026-10/2026-10-03-index-b6-remote-update-hold.md)·[115 HANDOFF-176](../reviews/handoffs/2026-10/2026-10-03-index-b6-folder-sync-result.md)·[116·117 HANDOFF-178](../reviews/handoffs/2026-10/2026-10-03-index-b6-delete-fences.md)·[구현/API](B6-INTAKE-STORAGE.md) | 여러 파일/PDF의 쪽별 렌더·저해상도/크기 사전 검증, B6/U1.5 공통 원문 보관(U0 §5)·작업 전용 IndexedDB·쪽별 순차/성공 잠금·실패/미처리·원본 위치/꼬리표/출처 순서/체크섬 보존, 취소·명시 재시도·성공분 채택. task별 AI 응답 스키마/검증·정규화·내보내기 호환을 함께 구현하고 기존 문서 AI 경로 보존. 아래 채택 계약을 실패 주입으로 검증. D1 연동 저장 확장은 U0 §3-1 추가 게이트 별도 |
+| **B7 응답 복구 / GPT-6 Sol / high → Opus 5 검토** | **Claude 검토 완료(결함 없음) · PR #10 merge 대기**. [구현 경계](B7-INTAKE-OUTBOX.md)·`HANDOFF-179` | §3-4의 장치 내 Service Worker fixture outbox가 페이지 전달 전 응답을 보존. 재실행 시 해당 owner의 기존 권한·삭제 세대로 복구하고 중복 채택·다른 계정 노출·삭제 원문 부활 없음. Node 실패 주입은 통과, 브라우저 검증은 대기. 브라우저 종료 중 처리 지속·다른 기기 복구를 약속하지 않음 |
 | **U1 공통 UX·N제 전체 지면 / Sonnet 5 → GPT-6 Sol / medium 검토** | **U0 시안 확인 + B4 검토**. 기본은 B7 뒤, B5~B7/C1 대기 시 앞당길 수 있음 | 라이브러리 시작/행동 위계, 문항 편집↔지면 보기의 선택/스크롤 연결, 페이지 축소판/탐색·선택별 배치 설정. 기존 `buildPrintDoc`→폰트/그림 준비→`fitPrintDoc` 경로를 인쇄와 공유. 렌더 세대·최신/준비 실패 상태, 잘림/축소/그림 실패 위치 이동, 함께/단/쪽 배치·Undo 확인. PDF 없이 긴 문항과 풀이 공간을 조정하고 실제 출력과 대조 |
 | **U1.5 원본 대조 / Sonnet 5 → Sol medium 검토** | U1 검토 + B6 공통 원문 보관 검토 | U0 §5 저장소로 AI/수동 PDF·이미지 연결, 여러 쪽 대응·자유 탐색·원문 유실/다시 연결·원문만 삭제를 검증. 새 조판기·원문 저장소를 따로 만들지 않음 |
 | **U2 AI 일괄 구성 UX / Sonnet 5 → GPT-6 Sol / medium 검토** | **U1·B4~B7 검토** + U0 채택 계약. 실호출은 C1~C3 조건 별도 | 자료+요청/프리셋→목적지 권 목록+문항 목록+원문 상세→수동 이동/제외/수정→새 구성안 변경 확인/적용→문제집 N개 만들기→라이브러리/편집. 기존 여러 권 재구성도 같은 컨트롤. 아래 예외 시나리오와 채택 결과를 검증. 저장/Worker 변경이 필요하면 Sol high 별도 묶음→Opus 5 검토를 먼저 거침 |
 
-**U0 계약 초안**: [PRODUCT-UX-U0-CONTRACT.md](PRODUCT-UX-U0-CONTRACT.md) §3~7에 아래 항목을 구체화했다. 기존 초안 검토·D1/D2/D4 사용자 답을 반영했다. Claude 9/27 요청 1·2를 보완해 2026-10-01 재검토 합의했다. B6 112·113·114 해소는 HANDOFF-174·175 재검토로 확인됐고 115·116·117 도 HANDOFF-176·178 재검토로 확인됐다(PR #8 merge 승인 대기).
+**U0 계약 초안**: [PRODUCT-UX-U0-CONTRACT.md](PRODUCT-UX-U0-CONTRACT.md) §3~7에 아래 항목을 구체화했다. 기존 초안 검토·D1/D2/D4 사용자 답을 반영했다. Claude 9/27 요청 1·2를 보완해 2026-10-01 재검토 합의했다. B6 112·113·114 해소는 HANDOFF-174·175 재검토로 확인됐고 115·116·117도 HANDOFF-176·178 재검토로 확인됐으며 `main d4762f6`에 포함됐다.
 
 **U0가 B6 전에 고정할 채택 계약**: 초안/문항·출처·결과 문제집 ID 대응, 단원 자유 지정·난이도
 모델/사용자 구분·배점 없음·미확인 상태의 정규화/복원, 여러 권 저장 시 권별 로컬 보존/클라우드
@@ -510,9 +512,10 @@ C1을 진행하지 않기로 사용자가 결정하면 C2는 미검증으로 남
 
 다음 요청은 아래 문장을 그대로 쓰면 된다.
 
-> RAIL-ORDERS ⑨대로 B7을 구현해줘(Codex GPT-6 Sol high). B6(PR #8)는 112~117 독립 검토 합의 뒤
-> 해리 승인으로 main에 병합된 것을 전제로 최신 main에서 시작하고, 구현·검사·인계 뒤 Claude 검토를 기다려.
-> 승인된 B3~B6 동일 diff는 다시 검토하지 마. 배포·실제 AI 호출은 하지 마.
+> RAIL-ORDERS ⑩대로 B7 작업 트리(`codex/b7-outbox`, 기준 `main d4762f6`)의
+> `HANDOFF-179`와 diff를 Claude Opus 5가 독립 검토해줘. 이 환경에서 막힌
+> `npm run test:intake-outbox`의 브라우저 검사와 red 모드를 실행하고,
+> owner/삭제 세대·중복 채택·CSP·정적 배포 경계를 확인해줘. 승인된 B3~B6 동일 diff는 재검토하지 마.
 
 단계가 끝나면 이 문서의 현재 위치/해당 상태와 기존 인계의 검증·미결·다음 모델을 갱신한다.
 새 설계 또는 구현은 reviews 규약에 따라 인계를 만들고 INDEX는 최근 다섯 건만 유지한다.

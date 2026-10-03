@@ -25,7 +25,7 @@
      어렵다 — 새 로그인만 깨진다). 실제로 한 번 그랬으니 손대지 말 것. -->
 <meta http-equiv="Content-Security-Policy" content="
   default-src 'self';
-  script-src 'self' 'wasm-unsafe-eval' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-EmL5MgMxrNWRvNm9jnLvuAa8hcebaMBtgDclV4cIaAI=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
+  script-src 'self' 'wasm-unsafe-eval' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-qO3+LlRT2EmdrAAOju/OpTMFnEhoRy2z5PrzIppTCGw=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
   script-src-attr 'none';
   style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
   font-src 'self' data: https://cdn.jsdelivr.net;
@@ -2410,6 +2410,7 @@ function setEditorActions(on){
 <script src="pedagogy-ai-image.js"></script>
 <script src="pedagogy-intake-contract.js"></script>
 <script src="pedagogy-intake.js"></script>
+<script src="pedagogy-intake-outbox.js"></script>
 <script>
 /* ===== Utils ===== */
 const $=s=>document.querySelector(s);
@@ -2867,7 +2868,7 @@ function intakeSnapshot(){
   return {sets:structuredClone(sets),deleted:[...deletedIds.keys()],conflicts,recovery,unknown,
     cloudReady:!currentUser||intakeCloudReady,online:navigator.onLine};
 }
-function createIntakeFixture({config,transport=null,renderer,dbName,editorsConfirmed=false}={}){
+function createIntakeFixture({config,transport=null,renderer,dbName,editorsConfirmed=false,useOutbox=false,outboxOptions={}}={}){
   // Development API only, U2 supplies the reviewed UI. Acknowledging supported
   // editors is explicit: an old tab cannot participate in this write protocol.
   const library={
@@ -2922,7 +2923,8 @@ function createIntakeFixture({config,transport=null,renderer,dbName,editorsConfi
       return intakeCloudFailures.get(setId)?.json===setJSON(set)?"error":"pending";
     }
   };
-  const client=PedagogyIntake.create({config,transport,renderer,dbName,library,
+  const outbox=useOutbox?PedagogyIntakeOutbox.create(outboxOptions):null;
+  const client=PedagogyIntake.create({config,transport:useOutbox?null:transport,outbox,renderer,dbName,library,
     session:()=>({owner:intakeOwner(),epoch:authEpoch})});
   intakeClients.add(client); return client;
 }
@@ -9366,6 +9368,20 @@ async function bootLibrary(){
 }
 
 let intakeFenceRecovery=null;
+async function recoverIntakeOutboxOnSession(session){
+  if(location.protocol==='file:'||!navigator.serviceWorker||typeof indexedDB==='undefined')return [];
+  const registration=await navigator.serviceWorker.getRegistration('./');
+  if(!registration?.active?.scriptURL.endsWith('/pedagogy-intake-sw.js'))return [];
+  if(typeof indexedDB.databases==='function'
+    &&!(await indexedDB.databases()).some(d=>d?.name==='PM_INTAKE_V1'))return [];
+  if(!sessionMatches(session)||wiping)return [];
+  // Existing jobs carry the limits used for their response validation. This
+  // reader cannot initiate a call; it only consumes already durable replies.
+  const caps=PedagogyIntakeContract.LIMIT_KEYS.reduce((o,k)=>(o[k]=1,o),{});
+  const reader=PedagogyIntake.create({config:caps,outbox:{},
+    session:()=>({owner:intakeOwner(),epoch:authEpoch})});
+  return reader.recoverOutbox();
+}
 /* 로그인마다 돈다 — **일괄 AI 를 한 번도 안 쓴 사용자**도 지나간다.
    ⚠️ 원문 저장소(IndexedDB)가 없으면 울타리도 있을 수 없다 → 조용히 넘어간다(오류 안내 금지).
    ⚠️ 저장소를 아직 만든 적 없으면 여기서 만들지 않는다(`databases()` 를 지원하는 브라우저).
@@ -9439,6 +9455,8 @@ const onAuth=async (user)=>{
   const session=sessionContext();
   if(user)await recoverIntakeOnSignIn(user,session);
   if(!sessionMatches(session))return;
+  try{await recoverIntakeOutboxOnSession(session);}
+  catch(e){console.warn('outbox 복구 확인 보류',e);}
   migrateSharedLocalCache();   // 예전 공용 캐시가 있으면 지금 계정 칸으로
   migrateSharedAuxKeys();
   loadLastQ(); localStamps=readStamps();

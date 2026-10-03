@@ -69,6 +69,8 @@ STATIC = {
     # 신뢰 경계(정규화). index.html 이 이 파일 없이는 아예 뜨지 않는다 — 빼면 404 로 죽는다.
     "/pedagogy-intake-contract.js": ("pedagogy-intake-contract.js", "application/javascript; charset=utf-8"),
     "/pedagogy-intake.js": ("pedagogy-intake.js", "application/javascript; charset=utf-8"),
+    "/pedagogy-intake-outbox.js": ("pedagogy-intake-outbox.js", "application/javascript; charset=utf-8"),
+    "/pedagogy-intake-sw.js": ("pedagogy-intake-sw.js", "application/javascript; charset=utf-8"),
     "/vendor/pdfjs/pdf.mjs": ("vendor/pdfjs/pdf.mjs", "application/javascript; charset=utf-8"),
     "/vendor/pdfjs/pdf.worker.mjs": ("vendor/pdfjs/pdf.worker.mjs", "application/javascript; charset=utf-8"),
     "/pedagogy-normalize.js": ("pedagogy-normalize.js", "application/javascript; charset=utf-8"),
