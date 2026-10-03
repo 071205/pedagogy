@@ -3,7 +3,7 @@
 - ID: `HANDOFF-2026-180`
 - 날짜: `2026-10-03`
 - 작성자: `Claude / Opus 5.5` (레일 배정은 Sonnet 5 — 해리가 이 세션에 직접 지시)
-- 상태: `reviewed` — Codex Sol medium 2회, 미합의 없음 · 미배포
+- 상태: `reviewed` — Codex Sol medium 2회 + 후속 `b93c689` 좁은 재검토 1회(결함 없음) · 미배포
 - 영향 영역: `index | tests | docs`
 - 브랜치: `claude/u1-start` (기준 `main=11f1e12` · U1 1차 운영 배포 직후)
 - 관련: RAIL-ORDERS ⑩-A · [`docs/PRODUCT-UX-DESIGN.md`](../../../docs/PRODUCT-UX-DESIGN.md) §4 '라이브러리 → 시작' · 1차 [HANDOFF-177](2026-10-03-index-u1-sheet-layout.md)
@@ -88,3 +88,14 @@ PDF 일괄 구성(U2) · '선택한 여러 권으로 새로 구성'(§4, U2 구�
   CodeRabbit 재검토 'No actionable comments · Merge Risk Minimal'.
 - **남은 것**: SonarCloud 게이트는 통과했으나 **'새 이슈 3건'의 내용을 클라우드에서 볼 수 없었다**(`sonarcloud.io` 차단).
   이번 커밋에서 생긴 것인지 `ef4dc36` 부터 있던 것인지도 미확인 — 로컬에서 PR #11 Sonar 화면으로 확인할 것.
+
+### 2026-10-04 — `b93c689` 좁은 재검토 (로컬 Codex GPT-5.6 Sol medium) — **결함 없음 · merge 가능**
+
+- 범위 `ef4dc36..b93c689` 의 `index.html`·`scripts/check-sheet-view.mjs` 만. 판정: (a) 메뉴 리스너 — 같은 함수 참조라 중복 등록 없음,
+  `closeNewSetMenu()` 가 상태 검사보다 먼저 걷어 Esc·초점 이탈·항목 선택·토글 닫기 모두 정리됨. (b) 글꼴 굵기 파싱 —
+  `FontFace.weight` 의 유효 형식(normal·bold·숫자·범위)을 다 처리하고 `oblique` 는 `italic` 으로 오인되지 않음. 고정 CSS 선언과 일치.
+  (c) ⑨-a·⑨-b·⑨-c 깨보기가 각 분기를 실제로 붉게 만든다. (d) CSP — 셋째 인라인 블록만 `6Z7G…` 로 바뀐 것을 바이트 해시로 대조.
+- SonarCloud '새 이슈 3건'(로컬에서 API 로 확인) — 전부 `CODE_SMELL`, 게이트 통과:
+  `S3358` 중첩 삼항 `index.html:9433`(`wNum`, `b93c689`) · `S6819` `role="status"`→`<output>` `:2293` · `role="group"` `:2301`(둘 다 `ef4dc36`).
+  동작 결함이 아니므로 merge 를 막지 않는다. 고치면 다시 검토가 필요한 변경이라 **M1(Sonar 정리)** 로 넘긴다.
+
