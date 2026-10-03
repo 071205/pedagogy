@@ -8,6 +8,8 @@
  *   ⑤ 내용이 바뀐 직후 낡은 지면을 '최신' 으로 표시하지 않는가
  *   ⑥ 선택만 바뀌면 다시 조립하지 않는가(300문항 조립 시간도 잰다)
  *   ⑦ 좁은 화면의 '지면' 탭 · 키보드 선택 · 인쇄 매체에서 숨김
+ *   ⑧ 쪽 축소판이 지면의 쪽·문항 자리·확인 표시와 같고, 누르면 그 문항·쪽으로 가는가
+ *   ⑨ 글꼴을 다 받으면 경고가 없고, 본문 글꼴을 못 받으면 지면이 그렇게 말하는가
  *
  * 깨보기: 고장을 심은 index.html(인라인 해시를 다시 맞춘 사본)을 내려보내 대응 항목이
  * 빨간불이 되는지 스스로 본다. 항목을 더하면 BREAKS 에도 더할 것.
@@ -61,7 +63,7 @@ function seed(count){
 let browser;
 const PNG=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==','base64');
 const IMG='https://firebasestorage.googleapis.com/v0/b/x/o/sheet-gate.png?alt=media';
-async function open(html,{viewport={width:1440,height:900},count=12}={}){
+async function open(html,{viewport={width:1440,height:900},count=12,blockFonts=false}={}){
   const ctx=await browser.newContext({viewport,locale:'ko-KR'});
   // 그림 문 — 검사마다 새로 닫을 수 있다(closeImages). 요청이 **들어온 때의** 문을 기다린다.
   let release; ctx.closeImages=()=>{ctx.imageGate=new Promise(r=>{release=r;});}; ctx.closeImages(); ctx.releaseImages=()=>release();
@@ -70,6 +72,10 @@ async function open(html,{viewport={width:1440,height:900},count=12}={}){
     if(u.origin===base&&u.pathname==='/index.html'&&html) return r.fulfill({contentType:'text/html; charset=utf-8',body:html});
     // 그림 응답은 시험이 문을 열 때까지 붙잡는다 — 조립 중 경합을 결정적으로 만든다
     if(u.hostname==='firebasestorage.googleapis.com'){ const gate=ctx.imageGate; await gate; return r.fulfill({contentType:'image/png',body:PNG}); }
+    // ⑨-b: 본문 글꼴(KoPub) 파일만 막는다 — 글꼴 CSS 는 받아 정의는 있는데 내려받기가 실패하는 실제 모양
+    if(blockFonts && /font-kopub@[^/]+\/fonts\//.test(u.href)) return r.abort();
+    // ⑨-c: 글꼴 CSS 째로 막는다 — KoPub 정의가 하나도 없는 모양
+    if(blockFonts==='css' && /font-kopub@/.test(u.href)) return r.abort();
     return (u.origin===base||u.hostname==='cdn.jsdelivr.net')?r.continue():r.abort();
   });
   await ctx.addInitScript(seed(count));
@@ -202,6 +208,46 @@ async function suite(html){
     await p.focus('#sheetStage .pq[data-qid="q10"]'); await p.keyboard.press('Enter');
     ok(await p.evaluate(()=>currentQId==='q10'),'Enter 선택 실패');
   });
+  await check('⑧ 쪽 축소판 = 지면의 쪽·문항 자리·확인 표시 · 누르면 그 문항·쪽',async()=>{
+    const r=await p.evaluate(()=>{
+      const pages=[...$("#sheetStage").querySelectorAll('.page')], thumbs=[...$("#sheetThumbs").querySelectorAll('.sheet-thumb')];
+      const bad=[];
+      pages.forEach((pg,i)=>{
+        const pr=pg.getBoundingClientRect(), t=thumbs[i]; if(!t){bad.push('쪽 '+(i+1)+' 축소판 없음');return;}
+        const pqs=[...pg.querySelectorAll('.pq')], ks=[...t.querySelectorAll('.sheet-thumb-q')];
+        if(pqs.map(x=>x.dataset.qid).join()!==ks.map(x=>x.dataset.qid).join()){bad.push('쪽 '+(i+1)+' 문항 '+ks.map(x=>x.dataset.qid));return;}
+        pqs.forEach((pq,j)=>{const a=pq.getBoundingClientRect(),k=ks[j];
+          const want=[(a.left-pr.left)/pr.width,(a.top-pr.top)/pr.height,a.width/pr.width,a.height/pr.height].map(v=>v*100);
+          const got=[k.style.left,k.style.top,k.style.width,k.style.height].map(parseFloat);
+          if(want.some((v,n)=>!(Math.abs(v-got[n])<1))) bad.push(pq.dataset.qid+' 자리 '+got.map(Math.round)+' ≠ '+want.map(Math.round));});
+      });
+      const flagged=[...$("#sheetThumbs").querySelectorAll('.sheet-thumb-q.bad')].map(k=>k.dataset.qid).sort().join();
+      return {bad,pages:pages.length,thumbs:thumbs.length,flagged,issues:[...sheetIssues.keys()].sort().join(),
+        sel:[...$("#sheetThumbs").querySelectorAll('.sheet-thumb-q.sel')].map(k=>k.dataset.qid).join()};
+    });
+    ok(r.pages===r.thumbs&&!r.bad.length,'축소판이 지면과 다르다 '+JSON.stringify(r).slice(0,300));
+    ok(r.issues&&r.flagged===r.issues,'확인 표시 '+r.flagged+' ≠ '+r.issues);
+    ok(r.sel==='q10','선택 표시 '+r.sel);
+    await p.click('#sheetThumbs .sheet-thumb-q[data-qid="q3"]');
+    const s=await p.evaluate(()=>({cur:currentQId,sel:$("#sheetStage .pq.is-selected")?.dataset.qid,th:$("#sheetThumbs .sheet-thumb-q.sel")?.dataset.qid}));
+    ok(s.cur==='q3'&&s.sel==='q3'&&s.th==='q3','축소판 칸 누름 '+JSON.stringify(s));
+    const last=r.pages;
+    await p.click(`#sheetThumbs .sheet-thumb[data-page="${last}"] .sheet-thumb-n`); await p.waitForTimeout(80);
+    const g=await p.evaluate(()=>({cur:currentSheetPage().cur,on:$("#sheetThumbs .sheet-thumb[aria-current=true]")?.dataset.page}));
+    ok(g.cur===last&&g.on===String(last),'축소판 쪽 누름 '+JSON.stringify(g)+' 마지막 '+last);
+  });
+  await check('⑨-a 글꼴을 다 받으면 글꼴 경고가 없다(쓰지 않는 굵기 하나가 실패해도)',async()=>{
+    const r=await p.evaluate(()=>({hidden:$("#sheetFontWarn").hidden,text:$("#sheetFontWarn").textContent}));
+    ok(r.hidden,'멀쩡한데 글꼴 경고 '+JSON.stringify(r));
+    // 본문이 안 쓰는 굵기(900)의 KoPub face 를 실패 상태로 더하고 다시 그린다 — 경고가 나면 거짓 양성이다
+    await p.evaluate(async()=>{const f=new FontFace('KoPub Batang','url(/no-such-font.woff)',{weight:'900'});document.fonts.add(f);await f.load().catch(()=>{});
+      sheetShownKey=null;scheduleSheet(true);});
+    await p.waitForTimeout(30); await settled(p);
+    const u=await p.evaluate(()=>({hidden:$("#sheetFontWarn").hidden,text:$("#sheetFontWarn").textContent,
+      err:[...document.fonts].some(f=>f.family.replace(/["']/g,'')==='KoPub Batang'&&f.status==='error')}));
+    ok(u.err,'실패 face 를 심지 못했다(검사가 헛돈다)');
+    ok(u.hidden,'쓰지 않는 굵기 하나의 실패로 경고했다 '+JSON.stringify(u));
+  });
   await check('⑦-b 인쇄 매체에서는 지면 배치·조립 그릇이 숨는다',async()=>{
     await p.emulateMedia({media:'print'});
     const r=await p.evaluate(()=>({pane:getComputedStyle($("#editorView")).display,build:getComputedStyle($("#sheetBuild")).display}));
@@ -224,6 +270,28 @@ async function suite(html){
       }finally{ await q.context().close(); }
     });
   }
+  await check('⑨-b 본문 글꼴을 못 받으면 지면이 그렇게 말한다',async()=>{
+    const q=await open(html,{blockFonts:true});
+    try{
+      await toSheet(q);
+      const r=await q.evaluate(()=>({hidden:$("#sheetFontWarn").hidden,text:$("#sheetFontWarn").textContent,state:$("#sheetState").dataset.s}));
+      ok(r.state==='ok'&&!r.hidden&&/본문/.test(r.text),'글꼴 실패 표시 '+JSON.stringify(r));
+    }finally{ await q.context().close(); }
+  });
+  await check('⑨-c 본문 굵기(300)의 정의가 없으면 다른 굵기 face 가 받아져 있어도 경고한다',async()=>{
+    const q=await open(html,{blockFonts:'css'});
+    try{
+      // 쓰지 않는 굵기(900)의 KoPub face 를 **받아진 상태로** 심는다 — 이름만 보면 통과해 버리는 모양
+      const b64=(await readFile(new URL('../vendor/pdfjs/standard_fonts/LiberationSans-Regular.ttf',import.meta.url))).toString('base64');
+      const st=await q.evaluate(async b=>{const bin=Uint8Array.from(atob(b),c=>c.charCodeAt(0));
+        const f=new FontFace('KoPub Batang',bin.buffer,{weight:'900'});await f.load();document.fonts.add(f);
+        return {loaded:f.status,n:[...document.fonts].filter(x=>x.family.replace(/["']/g,'')==='KoPub Batang').length};},b64);
+      ok(st.loaded==='loaded'&&st.n===1,'심은 face 상태 '+JSON.stringify(st)+' (검사가 헛돈다)');
+      await toSheet(q);
+      const r=await q.evaluate(()=>({hidden:$("#sheetFontWarn").hidden,text:$("#sheetFontWarn").textContent}));
+      ok(!r.hidden&&/본문/.test(r.text),'다른 굵기 face 로 통과했다 '+JSON.stringify(r));
+    }finally{ await q.context().close(); }
+  });
   await check('⑦-d 넓은 화면에서 지면으로 바꾼 뒤 창을 좁혀도 한 칸만 보인다',async()=>{
     const q=await open(html);
     try{
@@ -255,6 +323,16 @@ const BREAKS=[
    pairs:[['  if(key===sheetShownKey && !sheetBusy){ syncSheetSelection(); return; }\n','']]},
   {name:'넓은 화면 보기 전환이 탭 상태를 안 바꾼다',target:'⑦-d',
    pairs:[['function setEditorMode(mode){\n  setActivePane(mode==="sheet"?"sheet":"edit");\n}','function setEditorMode(mode){\n  if(window.matchMedia("(max-width:1023px)").matches) setActivePane(mode==="sheet"?"sheet":"edit");\n  else applyEditorMode(mode);\n}']]},
+  {name:'축소판이 문항 자리를 옮기지 않는다',target:'⑧',
+   pairs:[['      k.style.left=pct(r.left-pr.left,pr.width); k.style.top=pct(r.top-pr.top,pr.height);\n','']]},
+  {name:'축소판 칸을 눌러도 문항을 고르지 않는다',target:'⑧',
+   pairs:[['  if(k) selectSheetProblem(k.dataset.qid,{scroll:true}); else gotoSheetPage(Number(t.dataset.page));','  gotoSheetPage(Number(t.dataset.page));']]},
+  {name:'글꼴 실패를 정의가 있는지로만 본다',target:'⑨-b',
+   pairs:[["||!ready(spec,txt));","||false);"]]},
+  {name:'같은 이름의 face 하나라도 실패면 경고한다',target:'⑨-a',
+   pairs:[["||!ready(spec,txt));","||faces.some(f=>fam(f)===name&&f.status===\"error\"));"]]},
+  {name:'정의를 굵기·모양 없이 이름으로만 본다',target:'⑨-c',
+   pairs:[["!has(name,weight,style)||","!faces.some(f=>fam(f)===name)||"]]},
   {name:'좁은 화면 탭이 보기를 바꾸지 않는다',target:'⑦-c',
    pairs:[['  if(typeof applyEditorMode==="function" && (name==="sheet")!==(editorMode==="sheet")) applyEditorMode(name==="sheet"?"sheet":"edit");','']]},
 ];

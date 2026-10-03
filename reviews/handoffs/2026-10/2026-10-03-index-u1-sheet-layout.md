@@ -3,7 +3,7 @@
 - ID: `HANDOFF-2026-177`
 - 날짜: `2026-10-03`
 - 작성자: `Claude / Opus 5.5` (레일 배정은 Sonnet 5 — 해리가 이 세션에 직접 지시)
-- 상태: `reviewed` — Codex Sol medium 2회, 미합의 없음 · **미배포(main 병합 전 해리 승인)**
+- 상태: `deployed` — Codex Sol medium 2회, 미합의 없음 · **운영 배포 `11f1e12`(PR #9, 2026-10-03)**
 - 영향 영역: `index | tests | docs`
 - 브랜치: `claude/u1-sheet-layout` (기준 `main=2ff20f3` · B6 브랜치와 별개)
 - 관련: RAIL-ORDERS ⑩-A · 설계 [`docs/PRODUCT-UX-DESIGN.md`](../../../docs/PRODUCT-UX-DESIGN.md) §4 '문항 편집 ↔ 전체 지면 배치' · §7 'U1 1차 구현'
@@ -73,3 +73,9 @@
 - CodeRabbit ① **결함**: 넓은 화면에서 지면으로 바꾸면 `data-pane` 이 '편집' 에 남아, 창을 1023px 이하로 줄이면 편집 칸과 지면 칸이 함께 보였다 →
   `setEditorMode` 가 언제나 `setActivePane` 을 거치게 고쳤다. 검사 ⑦-d·깨보기 추가. ② 좁은 화면 검사에 페이지 오류 확인 추가.
   ③ 이 인계의 깨보기 개수 정정. ④ 로드맵의 U1 병합 표현을 'merge 대기' 로.
+
+### 2026-10-03 — 운영 배포 확인 (Claude)
+
+- PR #9 CI 5개 통과 → merge `11f1e12` → Pages 빌드 완료, 운영 `index.html` 이 main 과 바이트 일치.
+- 로그인한 크롬(읽기만): 문제집 17권 · 오류 토스트·콘솔 오류·4xx 없음 · 지면 보기 코드 실림 · SW 등록 0 · `PM_INTAKE_V1` 없음.
+  사용자 문제집은 열지 않았다(편집기가 빠진 필드를 채워 저장할 수 있다).
