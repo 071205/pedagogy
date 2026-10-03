@@ -86,13 +86,14 @@ U0→B6에서 정규화/복원·AI 계약을 함께 다룬다. Rules의 `hasOnly
 
 ## 최근 검토
 
-[HANDOFF-2026-176](handoffs/2026-10/2026-10-03-index-b6-folder-sync-result.md): B6 115 거짓 폴더 실패 수정·재현/경계 8개·수정 전 빨간불. **재검토 대기 · 116 미수정 · 미배포**.
+[HANDOFF-2026-178](handoffs/2026-10/2026-10-03-index-b6-delete-fences.md): B6 116·117 해소(Codex 구현·Claude 검토),
+로그인 복구 부작용은 Claude 수정·Codex 검토. **B6 112~117 전부 해소 · PR #8 merge 승인 대기.**
 
-[HANDOFF-2026-175](handoffs/2026-10/2026-10-03-index-b6-remote-update-hold.md): B6 114 해소 재검토 확인. 추가 115는 HANDOFF-176로 수정·검증, **116은 미수정**.
+[HANDOFF-2026-176](handoffs/2026-10/2026-10-03-index-b6-folder-sync-result.md): B6 115 거짓 폴더 실패 해소·재검토 확인.
+
+[HANDOFF-2026-175](handoffs/2026-10/2026-10-03-index-b6-remote-update-hold.md): B6 114 해소 재검토 확인.
 
 [HANDOFF-2026-174](handoffs/2026-10/2026-10-03-index-b6-review-fixes.md): B6 112·113 해소 재검토 확인. 추가 114도 HANDOFF-175에서 **해소 재검토 확인**.
-
-[HANDOFF-2026-173](handoffs/2026-10/2026-10-01-index-b6-intake-storage.md): B6 공통 원문·쪽 staging·독립 채택 구현/검증, **검토 결함 2건 수정 완료 · 재검토/배포 대기**.
 
 [HANDOFF-2026-172](handoffs/2026-09/2026-09-26-docs-u0-contract-amendment.md): U0 D1/D2/D4 계약 개정·문서만. **재검토 합의 · B6 착수 가능.**
 
