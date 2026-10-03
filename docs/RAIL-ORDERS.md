@@ -53,7 +53,7 @@ B3 전환 Rules → 플래그 1 클라이언트 → 엄격 Rules가 순서대로
 | **REV-2026-108 지문 묶음 소속** *(2026-10-03 추가)* | Codex **GPT-6 Astra / high** 선행 판정 → Codex **GPT-6 Sol / high** 구현 → Claude **Opus** 검토 | ⑩-A3 지시문 | U1.5 검토·merge(선행 판정은 그 전에 로컬에서 미리 가능). U2 앞 |
 | **U2 AI 일괄 구성 UX** | Claude **Sonnet 5** → Codex **GPT-6 Sol / medium** 검토 | ⑩-B 지시문 | U1 및 B4~B7 검토 완료. 실제 Gemini 검증은 C1~C3와 호출 승인 필요 |
 | **R5 연결 게이트** | Claude **Opus 5**, 방향 공격이 비어 있을 때 Codex **GPT-6 Astra / high** | ⑪ 지시문, 두 번째 공격 검토는 방향이 아직 미검증일 때만 | R1·R4 저장/UX 묶음 검토 증거 준비 |
-| **R6 검사·도구** | Codex **GPT-6 Luna / medium** | ⑫ 기존 CI·secret·의존성 공백 대조 · **Dependabot PR #7 포함** | R5 완료. 클라우드 Claude 는 CI 증거 수집만 보조 |
+| **R6 검사·도구** | Codex **GPT-6 Luna / medium** | ⑫ 기존 CI·secret·의존성 공백 대조 · **Dependabot PR #1~#7 포함** | R5 완료. 클라우드 Claude 는 CI 증거 수집만 보조 |
 | **R7 환경 전환 준비** | Codex **GPT-6 Sol / medium** | ⑬ 호스트·App Check·롤백 증거 준비 | R1·R5·R6. 실제 이전은 별도 사용자 승인 |
 | **R8 종단 검증** | Codex **GPT-6 Sol / medium** | ⑭ UX 사용자 여정·저장·AI·출력·복구 검증 | R5·R6. 운영 검증 완료는 R7 뒤 |
 | **R9 결제** | GPT-6 Astra / high 설계 → GPT-6 Sol / high 구현 → Claude Opus 5 검토 | ⑮ 상품·가격·법무 결정 후 결제 구현 | 사용자가 상품·가격·PG·법무 결정을 먼저 제공 |
@@ -362,7 +362,7 @@ Claude(`Opus 5`)가 종합하고, **방향 자체를 아직 아무도 안 공격
 ## ⑫ R6 검사·의존성 — **Codex · GPT-6 Luna medium**
 
 > R6 해줘. 같은 커밋의 기존 CI 결과를 먼저 재사용하고, 의존성·secret 검사 공백과 도구 고정만
-> 처리해. 유효한 증거가 있는 검사는 다시 돌리지 마. Dependabot PR #7(firebase dev 의존성)도
+> 처리해. 유효한 증거가 있는 검사는 다시 돌리지 마. Dependabot PR #1~#7(GitHub Actions 5 · Playwright · firebase dev 의존성)도
 > 여기서 변경 범위·검사 공백을 대조해 판단해.
 
 클라우드 Claude 는 CI·PR 증거 수집만 보조한다 — 공백 판정·의존성 결정·도구 고정·완료 판정을 맡으면 담당 교체다.

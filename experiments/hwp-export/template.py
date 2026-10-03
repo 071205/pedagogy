@@ -792,7 +792,7 @@ def open_template(path: Path | str) -> tuple[HwpxDocument, dict]:
 
 if __name__ == "__main__":
     import sys
-    ref = Path(sys.argv[1] if len(sys.argv) > 1 else "평가원 수학 양식.hwpx")
+    ref = Path(sys.argv[1] if len(sys.argv) > 1 else "실물자료/평가원 수학 양식.hwpx")
     roles = read_roles(ref)
     print(f"틀: {roles['_source']}")
     for k, label in (("num", "문항 번호"), ("stem", "발문"),

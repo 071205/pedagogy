@@ -33,7 +33,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### 이 컴퓨터에만 있는 자료 (저작물 — 저장소에 없다)
 
 `.gitignore` 가 막고 있다. **없으면 관련 검사가 `⏭` 로 건너뛰고**, 실물 대조가 필요한
-작업은 시작할 수 없다.
+작업은 시작할 수 없다. **전부 `실물자료/` 폴더 하나에 있다**(2026-10-04 루트에서 옮겼다).
+⚠️ 시험지 틀 검사 넷(`test_structure`·`test_sections`·`test_page_layout`·`test_style_roles`)은
+실물이 없으면 **조용히 저장소의 벗긴 틀로 대체**한다 — 경로가 틀려도 빨간불이 아니라 '실물 대조'만
+빠진다. 경로를 바꾸면 그 넷이 실물을 읽는지 직접 확인할 것.
 
 | 파일 | 무엇에 쓰나 |
 |---|---|

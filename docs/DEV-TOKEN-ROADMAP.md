@@ -249,7 +249,7 @@ node scripts/ask-codex-readonly.mjs … --model gpt-6-astra --effort high
 
 외부 조건으로 막힌 행은 대기 이유를 기록하고, 선행 조건을 충족한 다음 행의 독립 작업을 선택한다.
 완료 구간 R1(자기검증)→R2→R3→R4/B1~B3 코드·검토→R4.5는 재실행하지 않는다.
-현재 재개 순서는 **PR #11 `b93c689` 재검토·merge·U1 완료 확인 → U1.5 → REV-108 → U2 → R5 → R6(Dependabot #7 포함) → R7 → R8 → R9 → R10**이다
+현재 재개 순서는 **PR #11 `b93c689` 재검토·merge·U1 완료 확인 → U1.5 → REV-108 → U2 → R5 → R6(Dependabot #1~#7 포함) → R7 → R8 → R9 → R10**이다
 (2026-10-03 [세션 분담](#세션-분담--클라우드--로컬-2026-10-03--astra-high-판정) 판정).
 U0~U2는 기존 R4 안의 작업 묶음이며 별도 실행 레일이 아니다. 각 구현 뒤 비구현자 검토를 끼운다.
 이 순서는 현 저장 계약을 유지하는 기준안이다. D1은 독립 사본/수정 연동을 삽입 시 선택하는
@@ -270,7 +270,7 @@ R7의 실제 환경 전환 대기 중에는 R8의 로컬 검증을 진행할 수
 | R4.5 · 두 묶음 승인 완료 | **Claude Sonnet 5 구현 → Codex Sol medium 검토(완료 기록)** | 선지 넘침 사다리와 `⋮`·`…` 단독행 가운데 정렬을 구현·독립 검토했다. HANDOFF-163·164 증거를 재사용하고 동일 diff를 다시 검토하지 않는다. |
 | 제품 UX 레일 통합 · 문서 완료 | **Astra high** | 요구 매핑·순서·담당·완료 기준을 기록. 기능 구현·사용자 결정·독립 승인은 미완료 |
 | R5 · R1·R4/B1~B7·U0~U2·R4.5 후 | **비구현자** — Codex 보안·저장 diff는 **Claude Opus 5**, Claude 출력·UX diff는 **GPT-6 Sol / medium** | 묶음별 독립 검토 증거를 합치는 종합 게이트. 승인된 B1/B2 등 동일 diff는 재심사하지 않고 미검토·수정 영향·AI 채택→충돌→편집/지면 연결만 확인. 미결 결함·배포 대기는 구분 기록하며 증거 없이 완료 처리하지 않음 |
-| R6 · R5 후 | **GPT-6 Luna / medium**(로컬) | 기존 CI 결과 대조, 의존성/secret 검사 공백 및 필요한 도구 고정 처리. 규칙 검사는 유효한 증거가 없거나 변경됐을 때 실행. **Dependabot PR #7(firebase dev 의존성)을 하위 항목으로 여기서 처리** — dev 의존성이라는 이유만으로 먼저 merge 하지 않는다. 클라우드 Claude 는 CI·PR 증거 수집만 보조하고, 공백 판정·의존성 변경 결정·도구 고정·완료 판정은 Luna 몫이다(넘기면 담당 교체) |
+| R6 · R5 후 | **GPT-6 Luna / medium**(로컬) | 기존 CI 결과 대조, 의존성/secret 검사 공백 및 필요한 도구 고정 처리. 규칙 검사는 유효한 증거가 없거나 변경됐을 때 실행. **Dependabot PR #1~#7(GitHub Actions 5 · Playwright · firebase dev 의존성)을 하위 항목으로 여기서 처리** — dev 의존성이라는 이유만으로 먼저 merge 하지 않는다. 클라우드 Claude 는 CI·PR 증거 수집만 보조하고, 공백 판정·의존성 변경 결정·도구 고정·완료 판정은 Luna 몫이다(넘기면 담당 교체) |
 | R7 · R1·R5·R6 후 | **GPT-6 Sol / medium** | 검증된 공개 산출물·새 호스트·App Check·origin 이전 준비와 승인된 staging 검증. 전환/롤백/정상·거절 증적 확보 |
 | R8 · R5·R6 후, 운영 확인은 R7 후 | **GPT-6 Sol / medium**(로컬) | 아래 UX 과제와 핵심 사용자 여정·복구·출력·장애·관측 검증. AI 일괄 구성과 N제 전체 지면을 함께 확인하며 실제 Safari/iOS·한글 미확인은 별도 남김. 클라우드의 자동 여정 검사 실행은 보조이며 완료 판정을 대신하지 않는다 |
 | R9 · R2·R5 후, 공개는 R7·R8 후 | **Astra high 설계 → GPT-6 Sol / high 구현 → Claude Opus 5 독립 검토** | 상품·가격·PG·법무 결정을 반영해 결제/권한/해지·환불/지원/비용 차단 구현·검증 |
@@ -301,7 +301,7 @@ Codex 구현의 검토자 Claude 는 어디서든 된다.
 | **REV-2026-108** | Claude Opus 독립 검토 | Astra high 선행 판정 → **Sol high 구현** |
 | **U2**(Claude 구현) | 구현·PR(실호출 없음) | Codex 검토. 저장/Worker 변경은 **Sol high 구현 → Opus 검토 묶음을 먼저 완료** |
 | **R5** | Codex diff 를 Opus 가 보는 부분 | Claude diff 를 Sol medium 이 보는 부분. 양쪽 diff 재검토 목록이 아니라 **기존 승인 증거 + 변경 영향 + 연결 경로**의 종합 게이트 |
-| **R6** | CI·PR 증거 수집(보조) | **Luna medium 주담당** · Dependabot #7 포함 |
+| **R6** | CI·PR 증거 수집(보조) | **Luna medium 주담당** · Dependabot #1~#7 포함 |
 | **R7** | — | 전부(콘솔·자격 증명) |
 | **R8** | 자동 여정 검사 실행(보조) | **Sol medium 주담당** · 로그인 여정·한글·실기기(해리) |
 | **R9** | Opus 독립 검토 | 해리 결정 → Astra 설계 → Sol high 구현 |
@@ -314,7 +314,7 @@ Codex 구현의 검토자 Claude 는 어디서든 된다.
 
 **#11 `b93c689` 로컬 재검토·승인·merge·U1 완료 확인 → U1.5 Claude 구현·Codex 검토·merge〔B6 검토 충족〕
 → REV-108 Codex 선행 판정·구현·Claude 검토·merge → U2 Claude 구현·Codex 검토·merge〔U0·B4~B7 검토,
-필요한 저장/Worker 묶음 선완료〕 → R5〔R1·B1~B7·U0~U2·R4.5 증거〕 → R6〔#7 포함〕 → R7 → R8 운영 완료 → R9 공개 → R10**
+필요한 저장/Worker 묶음 선완료〕 → R5〔R1·B1~B7·U0~U2·R4.5 증거〕 → R6〔Dependabot #1~#7 포함〕 → R7 → R8 운영 완료 → R9 공개 → R10**
 
 대기 규칙:
 - **검토가 밀리면 그 PR 에 의존하는 다음 구현도 멈춘다.** U1.5·REV-108·U2 PR 을 미검토 코드 위에 쌓지 않는다.
@@ -546,7 +546,7 @@ C1을 진행하지 않기로 사용자가 결정하면 C2는 미검증으로 남
 | 출시 실패: 지원 이메일 / 법무 버전 / 법무 TODO / 결제 포털 / 유료 AI 상한 | R9, R2 상품·C3 비용 전제와 연동 |
 | REV-074 / REV-075 / REV-093 | R6(막을 때) / R8 / C1 |
 | REV-2026-108 / 지문 묶음 위치 의존 | U1.5 뒤 · U2 앞 별도 묶음(Astra high 판정 → Sol high 구현 → Opus 검토) → R5 |
-| Dependabot PR #7 / firebase dev 의존성 | R6 하위 항목 |
+| Dependabot PR #1~#7 / Actions·Playwright·firebase 의존성 | R6 하위 항목 |
 | HANDOFF-148·150 Sonar / 유지보수성 | R1 / M1 |
 | REV-2026-104 / 인쇄 선지 넘침 | **R4.5 구현·묶음 검토 → 남은 R4 → R5 종합 → R8 종단 재검증** |
 | HANDOFF-159 / `⋮`·`…` 단독행 렌더 | R4.5 에서 REV-104 **뒤** 별도 구현·검토 묶음 → 남은 R4 → R5 |

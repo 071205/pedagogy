@@ -40,7 +40,7 @@ HERE = Path(__file__).parent
 #    저장소에 없어 이 검사가 **CI 에서 늘 건너뛰었다.** 이제 내용을 벗긴 틀이 저장소에
 #    있으므로(`templates/exam-math.hwpx` · `make_exam_template.py`) 어디서나 돈다.
 #    실물이 있으면 그쪽을 쓴다 — 실물과 벗긴 틀이 같은 결과를 내는지도 함께 보게 된다.
-_LOCAL = HERE.parents[1] / "평가원 수학 양식.hwpx"
+_LOCAL = HERE.parents[1] / "실물자료" / "평가원 수학 양식.hwpx"
 _BUNDLED = HERE.parents[1] / "experiments" / "hwp-export" / "templates" / "exam-math.hwpx"
 TEMPLATE = _LOCAL if _LOCAL.exists() else _BUNDLED
 SAMPLE = HERE / "samples" / "full-exam.json"
