@@ -25,7 +25,7 @@
      어렵다 — 새 로그인만 깨진다). 실제로 한 번 그랬으니 손대지 말 것. -->
 <meta http-equiv="Content-Security-Policy" content="
   default-src 'self';
-  script-src 'self' 'wasm-unsafe-eval' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-wE+33OJFIWocoVnVCBd+WJySnUyZK8N9/9ix4p6B9ic=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
+  script-src 'self' 'wasm-unsafe-eval' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-XpCnXA9LCT/B0YNSkhEb+NyRSi9D+b2F3tvvgpiyQo0=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
   script-src-attr 'none';
   style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
   font-src 'self' data: https://cdn.jsdelivr.net;
@@ -774,6 +774,18 @@ select:focus{border-color:var(--blue)}
 .sheet-ans{margin-left:auto;display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-secondary);cursor:pointer}
 .sheet-issues{flex:0 0 auto;padding:8px 14px;border-bottom:1px solid var(--border);background:var(--surface-1);display:flex;flex-wrap:wrap;gap:6px;max-height:200px;overflow:auto}
 .sheet-issues[hidden]{display:none}
+.sheet-font-warn{font-size:12px;color:var(--danger)}
+.sheet-font-warn[hidden]{display:none}
+.sheet-thumbs{flex:0 0 auto;display:flex;gap:8px;overflow-x:auto;padding:8px 14px;border-bottom:1px solid var(--border);background:var(--surface-1);scrollbar-width:thin}
+.sheet-thumbs:empty{display:none}
+/* 축소판은 A4 비율(210:297)이다. 안의 칸은 지면에서 잰 자리를 % 로 옮긴 것이라 배율과 무관하다. */
+.sheet-thumb{position:relative;flex:0 0 auto;display:block;width:48px;height:68px;min-height:0;padding:0;background:#fff;border:1px solid var(--border);border-radius:3px;cursor:pointer;overflow:hidden}
+.sheet-thumb[aria-current="true"]{border-color:var(--blue);box-shadow:0 0 0 2px var(--blue)}
+.sheet-thumb:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.sheet-thumb-q{position:absolute;box-sizing:border-box;background:#e8edf5;border:1px solid #b9c3d3;color:#333;font:600 8px/1 system-ui,sans-serif;padding:1px;overflow:hidden;text-align:left}
+.sheet-thumb-q.bad{background:#fde3e5;border-color:var(--danger);color:#a1121f}
+.sheet-thumb-q.sel{background:var(--blue-on-white-text);border-color:var(--blue-on-white-text);color:#fff}
+.sheet-thumb-n{position:absolute;right:1px;bottom:1px;font:600 9px/1 system-ui,sans-serif;color:#555;background:rgba(255,255,255,.9);padding:1px 2px;border-radius:2px}
 .sheet-issues button{font-size:12px;height:30px;padding:0 10px;border:1px solid var(--border);background:var(--surface-2);color:var(--text-primary);border-radius:var(--radius-md);cursor:pointer}
 .sheet-body{flex:1 1 auto;min-height:0;display:flex}
 .sheet-scroll{position:relative;flex:1 1 auto;min-width:0;overflow:auto;padding:20px 16px;background:var(--surface-2)}
@@ -1656,6 +1668,14 @@ input:focus-visible,textarea:focus-visible{outline:none}
 .lib-tools{display:flex;align-items:center;gap:6px;margin-left:auto}
 .lib-menu-wrap{position:relative}
 .lib-menu{right:0;left:auto;top:calc(100% + 4px)}
+.new-set-menu{min-width:250px}
+.new-set-menu button,.es-start button{flex-direction:column;align-items:flex-start;gap:2px;height:auto}
+.es-start button{padding:10px 14px}
+.nsm-name{font-weight:600}
+.nsm-sub{font-size:12px;color:var(--text-tertiary);font-weight:400}
+.es-start .btn-accent .nsm-sub{color:inherit;opacity:.85}
+.new-set-menu button[disabled]{cursor:default;opacity:.55}
+.new-set-menu button[disabled]:hover{background:transparent}
 #sortBtn{max-width:116px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 /* 폴더는 레일 안 세로 목록이다. ⚠️ 예전에는 검색줄에 가로로 놓여서, 폴더가 늘면
    줄바꿈해 **본문을 아래로 밀었다** — 카드가 보이는 자리를 폴더 개수가 정하고 있었다. */
@@ -1804,8 +1824,8 @@ input:focus-visible,textarea:focus-visible{outline:none}
     <button id="exportJsonBtn" class="btn">내보내기</button>
     <button id="saveBtn">저장</button>
     <span id="saveStatus" style="font-size:12px;color:var(--text-tertiary);min-width:54px;white-space:nowrap"></span>
-    <button id="loadBtn" class="btn">불러오기</button>
-    <input id="loadInput" aria-label="문제집 JSON 불러오기" type="file" accept="application/json" style="display:none">
+    <button id="loadBtn" class="btn" title="다른 문제집 파일(JSON)의 문항을 지금 문항 뒤에 넣는다">문항 불러오기</button>
+    <input id="loadInput" aria-label="문항을 넣을 문제집 파일(JSON)" type="file" accept="application/json" style="display:none">
     <!-- ⚠️ 편집기에서도 설정에 닿아야 한다. 한컴 규격서 고지를 `설정 → 정보` 로 옮기는
          전제 조건이다(`HANDOFF-2026-098` 3번: "모든 편집기에서 키보드와 터치로 항상
          접근 가능하고 뒤로 돌아갈 경로가 생긴 뒤에만"). 라이브러리를 거쳐 두 번 누르는
@@ -1909,10 +1929,16 @@ input:focus-visible,textarea:focus-visible{outline:none}
       <button id="selectBtn" class="btn-ghost" aria-pressed="false">선택</button>
     </div>
     <div class="lib-actions" id="setsActions">
-      <button id="newSetBtn" class="btn-accent">+ 새 문제집</button>
+      <!-- U1: '+ 새 문제집' 은 두 경로를 고르게 한다(docs/PRODUCT-UX-DESIGN.md §4 '라이브러리 → 시작').
+           PDF 여러 개 일괄 구성은 U2 몫이라 메뉴에 자리만 보이고 누를 수 없다. -->
+      <div class="lib-menu-wrap">
+        <button id="newSetBtn" class="btn-accent" aria-haspopup="true" aria-expanded="false" aria-controls="newSetMenu">+ 새 문제집</button>
+        <div id="newSetMenu" class="menu lib-menu new-set-menu" role="menu"></div>
+      </div>
       <button id="exportAllBtn">전체 내보내기</button>
-      <button id="importAllBtn">가져오기</button>
-      <input id="importAllInput" aria-label="전체 문제집 JSON 가져오기" type="file" accept="application/json" style="display:none">
+      <!-- JSON 파일은 '자료(PDF·사진)로 만들기' 와 다른 길이다 — 이름에서 갈라 보인다. -->
+      <button id="importAllBtn">문제집 파일 불러오기</button>
+      <input id="importAllInput" aria-label="문제집 파일(JSON) 불러오기" type="file" accept="application/json" style="display:none">
     </div>
   </div>
   <div id="selectBar" class="select-bar" hidden>
@@ -1942,7 +1968,7 @@ input:focus-visible,textarea:focus-visible{outline:none}
       </div>
       <div class="lib-actions" id="mocksActions">
         <button id="newMockBtn" class="btn-accent">+ 새 모의고사</button>
-        <button id="importMockBtn">가져오기</button>
+        <button id="importMockBtn">모의고사 파일 불러오기</button>
         <input id="importMockInput" aria-label="모의고사 JSON 가져오기" type="file" accept="application/json" style="display:none">
       </div>
     </div>
@@ -2264,12 +2290,15 @@ function setEditorActions(on){
         <button type="button" id="sheetNext" class="btn" aria-label="다음 쪽">›</button>
       </div>
       <span id="sheetState" class="sheet-state" role="status" aria-live="polite"></span>
+      <span id="sheetFontWarn" class="sheet-font-warn" role="status" hidden></span>
       <button type="button" id="sheetRetry" class="btn" hidden>다시 확인</button>
       <button type="button" id="sheetIssuesBtn" class="btn sheet-issues-btn" aria-expanded="false" aria-controls="sheetIssues" hidden></button>
       <label class="sheet-ans"><input type="checkbox" id="sheetShowAns"> 정답 표시</label>
       <button type="button" id="sheetZoomBtn" class="btn" title="폭에 맞추기 ↔ 실제 크기(100%)">100%</button>
     </div>
     <div id="sheetIssues" class="sheet-issues" hidden></div>
+    <!-- 쪽 축소판 — 칸·문항 번호·확인 표시만 그린 모양도다(조판을 다시 하지 않고 지면의 자리를 비율로 옮긴다) -->
+    <div id="sheetThumbs" class="sheet-thumbs" role="group" aria-label="쪽 축소판"></div>
     <div class="sheet-body">
       <div class="sheet-scroll" id="sheetScroll">
         <div class="sheet-frame" id="sheetFrame"><div class="sheet-stage" id="sheetStage"></div></div>
@@ -6167,7 +6196,13 @@ function renderLibrary(){
   if(!visible.length){
     const es=el("div","empty-state");
     es.append(el("div","es-title", term?"검색 결과가 없어요":"아직 문제집이 없어요"));
-    es.append(el("div","es-sub", term?`'${setSearchTerm}'와(과) 일치하는 문제집이 없어요`:"오른쪽 위 ‘+ 새 문제집’으로 시작해보세요"));
+    es.append(el("div","es-sub", term?`'${setSearchTerm}'와(과) 일치하는 문제집이 없어요`:"직접 쓰거나, 문제 사진으로 AI 가 옮기게 해 보세요"));
+    /* 빈 라이브러리에서는 '+ 새 문제집' 메뉴와 같은 두 길을 바로 보여 준다(§4). 준비 중인 길은 뺀다. */
+    if(!term){
+      const row=el("div","es-actions es-start");
+      NEW_SET_PATHS.filter(o=>!o.disabled).forEach((o,i)=>row.append(newSetPathButton(o, i?null:"btn-accent")));
+      es.append(row);
+    }
     grid.append(es);
     return;
   }
@@ -6401,11 +6436,61 @@ function showLibraryLoading(sub){
 
 const _setSearchEl=$("#setSearch");
 if(_setSearchEl){ _setSearchEl.oninput=(e)=>{ setSearchTerm=e.target.value||""; renderLibrary(); }; }
-$("#newSetBtn").onclick=()=>{
+/* U1 '라이브러리 → 시작' — 새 문제집은 두 길로 연다(docs/PRODUCT-UX-DESIGN.md §4).
+   메뉴와 빈 라이브러리가 **같은 함수**를 부른다(베끼면 갈라진다). */
+function startNewSet(kind){
+  closeNewSetMenu();
+  /* AI 는 로그인해야 쓸 수 있다 — 빈 문제집부터 만들고 나서 막히면 쓸모없는 문제집만 남는다. */
+  if(kind==="ai" && !currentUser){ toast("AI 변환은 로그인 후 사용할 수 있어요","error"); return; }
   const ns={id:uid(), name:"새 문제집", header:"", problems:[newProblem()]};sets.push(ns);
   setFolder(ns.id,libMeta.folders.some(f=>f.id===libFolderFilter)?libFolderFilter:'');
   writeLibMeta();setSearchTerm="";$("#setSearch").value="";saveSets(ns.id);showEditor(ns.id);
+  /* 같은 클릭 안에서 파일 창을 연다 — 사용자 동작을 벗어나면 브라우저가 파일 창을 막는다.
+     취소해도 편집기의 '사진으로 자동 생성' 칸이 그대로 남는다. */
+  if(kind==="ai"){ $("#aiDropZone")?.scrollIntoView({block:"nearest"}); $("#aiImgInput")?.click(); }
+}
+const NEW_SET_PATHS=[
+  {kind:"blank", name:"직접 만들기", sub:"빈 문제집에서 문항을 하나씩 쓴다"},
+  {kind:"ai", name:"자료로 만들기 · AI", sub:"문제 사진을 넣으면 AI 가 문항으로 옮긴다"},
+  {kind:"batch", name:"PDF 여러 개로 한꺼번에", sub:"준비 중 — 다음 단계(U2)에서 열린다", disabled:true}
+];
+function newSetPathButton(o, cls){
+  const b=el("button",cls);
+  b.append(el("span","nsm-name",o.name), el("span","nsm-sub",
+    o.kind==="ai"&&!currentUser ? "로그인 후 쓸 수 있다" : o.sub));
+  if(o.disabled){ b.disabled=true; b.setAttribute("aria-disabled","true"); }
+  else b.onclick=()=>startNewSet(o.kind);
+  return b;
+}
+function closeNewSetMenu(focusBtn){
+  const m=$("#newSetMenu"); if(!m||m.style.display!=="block") return;
+  m.style.display="none"; $("#newSetBtn").setAttribute("aria-expanded","false");
+  if(focusBtn) $("#newSetBtn").focus();
+}
+$("#newSetBtn").onclick=(e)=>{
+  e.stopPropagation();
+  const m=$("#newSetMenu");
+  if(m.style.display==="block"){ closeNewSetMenu(); return; }
+  m.innerHTML="";
+  NEW_SET_PATHS.forEach(o=>{ const b=newSetPathButton(o); b.setAttribute("role","menuitem"); m.append(b); });
+  m.style.display="block"; $("#newSetBtn").setAttribute("aria-expanded","true");
+  m.querySelector("button:not([disabled])")?.focus();
+  setTimeout(()=>document.addEventListener("click",()=>closeNewSetMenu(),{once:true}),0);
 };
+/* 메뉴 밖으로 초점이 나가면 닫고, 초점이 어디 있든 Esc 로 닫는다(Codex 검토 · Tab 으로 나간 뒤 Esc 가 안 듣던 것). */
+$("#newSetMenu").closest(".lib-menu-wrap").addEventListener("focusout",e=>{
+  if(e.relatedTarget && !e.currentTarget.contains(e.relatedTarget)) closeNewSetMenu();
+});
+document.addEventListener("keydown",e=>{
+  if(e.key==="Escape" && $("#newSetMenu").style.display==="block"){ e.preventDefault(); closeNewSetMenu(true); }
+});
+$("#newSetMenu").addEventListener("keydown",e=>{
+  if(e.key!=="ArrowDown"&&e.key!=="ArrowUp") return;
+  e.preventDefault();
+  const items=[...$("#newSetMenu").querySelectorAll("button:not([disabled])")];
+  const at=items.indexOf(document.activeElement);
+  items[(at+(e.key==="ArrowDown"?1:items.length-1))%items.length]?.focus();
+});
 $("#exportAllBtn").onclick=()=>{ const blob=new Blob([JSON.stringify(sets.map(portableIntakeSet),null,2)],{type:"application/json"}); const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="pedagogy_sets.json"; a.click(); };
 /* 가져오기 상한. 남이 준 파일이 브라우저를 멈추게 하지 못하도록.
    (normSet 이 문제집 안쪽은 제한하지만, '문제집 개수'와 '파일 크기'는 여기서 막는다) */
@@ -6871,11 +6956,11 @@ function renderMockLibrary(){
     const es=el("div","empty-state");
     es.append(el("div","es-title", term?"검색 결과가 없어요":"아직 모의고사가 없어요"));
     es.append(el("div","es-sub", term?`'${term}'와(과) 일치하는 모의고사가 없어요`
-                                     :"‘+ 새 모의고사’ 로 시작하거나 기존 .json 을 가져오세요"));
+                                     :"‘+ 새 모의고사’ 로 시작하거나 기존 모의고사 파일을 불러오세요"));
     if(!term){
       const row=el("div","es-actions");
       const mk=el("button","btn-accent","새 모의고사 만들기"); mk.onclick=newMock;
-      const imp=el("button",null,"기존 JSON 가져오기"); imp.onclick=()=>$("#importMockInput").click();
+      const imp=el("button",null,"모의고사 파일 불러오기"); imp.onclick=()=>$("#importMockInput").click();
       row.append(mk,imp);
       /* 이전을 취소했거나 실패했으면 파일로 꺼낼 길을 여기 남긴다(설계 4번). */
       if(legacyMockPending()){
@@ -8407,14 +8492,20 @@ async function aiGenerateFromImage(file){
        결과는 '사진을 떨어뜨릴 때 열려 있던 문제집' 에 넣는 게 맞다. 다만
        포커스는 지금 그 문제집을 보고 있을 때만 옮기고, 아니면 어디에 들어갔는지
        알려 준다. */
-    const stillExists=sets.some(s=>s.id===set.id);
-    if(!stillExists){
+    /* ⚠️ 시작 때 잡은 `set` 객체에 넣지 않는다 — 기다리는 동안 ⌘Z/다른 탭 반영이 `sets` 를 **새 객체로 갈아 끼우면**
+       옛 객체에 넣은 결과는 어디에도 저장되지 않는데 '추가됨' 이라고 말한다(Codex 검토 · HANDOFF-180). id 로 다시 찾는다. */
+    const live=sets.find(s=>s.id===set.id);
+    if(!live){
       aiStatus("", false);
       toast(`'${set.name||"문제집"}' 이 사라져서 변환 결과를 넣지 못했어요`,"error");
       return;
     }
     const newQs=problems.map(aiBlocksToProblem);
-    set.problems.push(...newQs);
+    /* 새로 만든 문제집에는 빈 1번이 하나 있다. 결과가 도착했을 때도 그 문항 하나뿐이고 여전히
+       비어 있으면 그 자리를 결과로 바꾼다 — 안 그러면 '자료로 만들기' 로 시작한 문제집 맨 앞에
+       빈 문항이 남는다. 그 사이 무엇이라도 적었으면 건드리지 않고 뒤에 붙인다. */
+    if(live.problems.length===1 && !setHasContent({problems:live.problems})) live.problems.splice(0,1,...newQs);
+    else live.problems.push(...newQs);
 
     if(currentSetId===set.id){
       currentQId=newQs[0].id;              // 같은 문제집을 보고 있을 때만 포커스 이동
@@ -9288,9 +9379,10 @@ async function renderSheet(){
     decorateSheet(stage);
     sheetShownKey=key;
     sheetBusy=false; sheetBuildingKey=null;
-    layoutSheetScale(); renderSheetPages(); renderSheetIssues();
+    layoutSheetScale(); renderSheetPages(); renderSheetIssues(); renderSheetThumbs();
     const n=stage.querySelectorAll(".page").length;
     setSheetState("ok",`${n}쪽 · 인쇄와 같은 조판`);
+    showSheetFontWarn(sheetFontProblems());
     syncSheetSelection(true);
     // 그 사이 내용이 또 바뀌었으면 한 번 더
     if(sheetKey()!==sheetShownKey) scheduleSheet();
@@ -9320,6 +9412,54 @@ function collectSheetIssues(root, overflowed){
     if(bad) add(qid,"image",`그림 ${bad}장을 불러오지 못했어요`);
   });
   return m;
+}
+/* 글꼴 준비 실패 — 받지 못한 글꼴이 있으면 지면(=인쇄)이 대체 글꼴로 그려진 것이다. 조용히 넘기지 않는다.
+   ⚠️ document.fonts.check() 로 판정하지 않는다 — 그 이름의 @font-face 가 **아예 없을 때도** true 다
+   (글꼴 CSS 자체가 막힌 경우를 놓친다). 정의가 있는가 + 받다가 실패했는가(status "error")를 함께 본다. */
+function sheetFontProblems(){
+  const out=[];
+  if(typeof renderMathInElement!=="function") out.push("수식");
+  if(document.fonts && typeof document.fonts.forEach==="function"){
+    const faces=[]; document.fonts.forEach(f=>faces.push(f));
+    const fam=f=>String(f.family||"").replace(/["']/g,"").trim();
+    /* 실패 = 정의가 없다 · 또는 **실제로 쓰는** 굵기·모양이 준비되지 않았다. 같은 이름의 쓰지 않는 face 하나가 실패한
+       것으로 경고하지 않는다(Codex 검토 · 거짓 양성). 판정 직전에 warmPrintFonts 가 쓰는 것을 모두 불렀다. */
+    const ready=(spec,txt)=>{ try{ return document.fonts.check(spec,txt); }catch{ return true; } };
+    const failed=(test,specs)=>!faces.some(f=>test(fam(f))) || specs.some(([spec,txt])=>!ready(spec,txt));
+    if(failed(n=>n==="KoPub Batang",[["300 12px 'KoPub Batang'","가"]])) out.unshift("본문");
+    if(!out.includes("수식") && failed(n=>/^KaTeX_/.test(n),[["10px KaTeX_Main","x"],["italic 10px KaTeX_Math","x"]])) out.push("수식");
+  }
+  return out;
+}
+function showSheetFontWarn(list){
+  const w=$("#sheetFontWarn");
+  w.hidden = !list.length;
+  w.textContent=list.length?`⚠ ${list.join("·")} 글꼴을 받지 못해 대체 글꼴로 그렸어요 · 인쇄도 이 모양이에요 · 새로고침하면 다시 받아요`:"";
+}
+/* 쪽 축소판 — 지면에 실제로 놓인 문항 칸의 자리를 쪽에 대한 비율로 옮긴다(배율·확대와 무관).
+   ⚠️ 조판을 따로 하지 않는다 — 축소판이 지면과 다른 배치를 보이면 안 된다. */
+function renderSheetThumbs(){
+  const box=$("#sheetThumbs"), pages=[...$("#sheetStage").querySelectorAll(".page")];
+  const cur=activeQ()?String(activeQ().id):"";
+  const pct=(v,t)=>(t>0?Math.max(0,Math.min(1,v/t))*100:0).toFixed(2)+"%";
+  box.replaceChildren(...pages.map((pg,i)=>{
+    const pr=pg.getBoundingClientRect(), b=el("button","sheet-thumb"), said=[];
+    b.type="button"; b.dataset.page=String(i+1);
+    pg.querySelectorAll(".pq").forEach(pq=>{
+      const r=pq.getBoundingClientRect(), qid=pq.dataset.qid, bad=sheetIssues.has(qid);
+      const num=pq.querySelector(".num")?.textContent.trim()||"";
+      const k=el("span","sheet-thumb-q"+(bad?" bad":"")+(qid===cur?" sel":""),num);
+      k.dataset.qid=qid; k.setAttribute("aria-hidden","true");
+      k.style.left=pct(r.left-pr.left,pr.width); k.style.top=pct(r.top-pr.top,pr.height);
+      k.style.width=pct(r.width,pr.width); k.style.height=pct(r.height,pr.height);
+      b.append(k);
+      if(num) said.push(num+"번"+(bad?" 확인 필요":""));
+    });
+    const n=el("span","sheet-thumb-n",String(i+1)); n.setAttribute("aria-hidden","true"); b.append(n);
+    b.setAttribute("aria-label",`${i+1}쪽으로 이동`+(said.length?` · ${said.join(", ")}`:""));
+    return b;
+  }));
+  updateSheetPageNav();
 }
 function sheetNumOf(qid){
   const pq=$("#sheetStage").querySelector(`.pq[data-qid="${CSS.escape(qid)}"] .num`);
@@ -9351,6 +9491,7 @@ function syncSheetSelection(scroll=false){
   stage.querySelectorAll(".pq.is-selected").forEach(x=>x.classList.remove("is-selected"));
   const box=q&&stage.querySelector(`.pq[data-qid="${CSS.escape(String(q.id))}"]`);
   if(box){ box.classList.add("is-selected"); if(scroll) box.scrollIntoView({block:"center",behavior:"auto"}); }
+  $("#sheetThumbs").querySelectorAll(".sheet-thumb-q").forEach(k=>k.classList.toggle("sel",!!q&&k.dataset.qid===String(q.id)));
   renderSheetInspector();
 }
 function renderSheetInspector(){
@@ -9401,6 +9542,14 @@ function updateSheetPageNav(){
   const {cur,total}=currentSheetPage();
   $("#sheetPageSel").value=String(cur);
   $("#sheetPrev").disabled=cur<=1; $("#sheetNext").disabled=cur>=total;
+  const strip=$("#sheetThumbs");
+  strip.querySelectorAll(".sheet-thumb").forEach(t=>{
+    const on=t.dataset.page===String(cur);
+    if(on) t.setAttribute("aria-current","true"); else t.removeAttribute("aria-current");
+    /* 지금 쪽이 띠 밖에 있으면 띠만 가로로 민다 — scrollIntoView 는 바깥 화면까지 움직인다 */
+    if(on && (t.offsetLeft<strip.scrollLeft || t.offsetLeft+t.offsetWidth>strip.scrollLeft+strip.clientWidth))
+      strip.scrollLeft=t.offsetLeft-strip.clientWidth/2+t.offsetWidth/2;
+  });
 }
 function gotoSheetPage(n){
   const pg=$("#sheetStage").querySelector(`.page[data-page="${n}"]`);
@@ -9460,6 +9609,12 @@ $("#sheetStage").addEventListener("click",e=>{
 $("#sheetStage").addEventListener("keydown",e=>{
   const pq=e.target.closest(".pq"); if(!pq) return;
   if(e.key==="Enter"||e.key===" "){ e.preventDefault(); selectSheetProblem(pq.dataset.qid,{scroll:false}); }
+});
+$("#sheetThumbs").addEventListener("click",e=>{
+  const t=e.target.closest(".sheet-thumb"); if(!t) return;
+  /* 칸을 누르면 그 문항, 빈 곳을 누르면 그 쪽으로 간다. 키보드는 쪽 단위로 가고 지면에서 문항을 고른다. */
+  const k=e.target.closest(".sheet-thumb-q");
+  if(k) selectSheetProblem(k.dataset.qid,{scroll:true}); else gotoSheetPage(Number(t.dataset.page));
 });
 $("#sheetPrev").onclick=()=>gotoSheetPage(currentSheetPage().cur-1);
 $("#sheetNext").onclick=()=>gotoSheetPage(currentSheetPage().cur+1);
