@@ -66,3 +66,25 @@ PDF 일괄 구성(U2) · '선택한 여러 권으로 새로 구성'(§4, U2 구�
 ### 2026-10-03 — Codex GPT-6 Sol medium 2차
 
 - 동의: 세 반영이 지적을 닫는다. 반영이 새로 만든 재현 결함 없음. 미합의 없음.
+
+### 2026-10-03 — 검토 뒤 후속 커밋 `b93c689` (클라우드 Claude · CodeRabbit 반영) — **로컬 Sol medium 좁은 재검토 대기**
+
+2차 승인 뒤 CodeRabbit 'Major' 두 건을 반영했다. 독립 검토 전이라 merge 하지 않는다(DEV-TOKEN-ROADMAP '세션 분담').
+재검토 범위는 `ef4dc36..b93c689` 의 `index.html`·`scripts/check-sheet-view.mjs` 뿐이다.
+
+- **메뉴 바깥 클릭 리스너**: 이름 붙인 `newSetMenuOutside` 를 `closeNewSetMenu()` 가 Esc·초점 이탈에서도 걷는다.
+  열 때 `setTimeout` 안에서 메뉴가 여전히 열려 있을 때만 붙인다. ⚠️ CodeRabbit 재현('다음 열기를 바로 닫음')은
+  **재현되지 않는다** — `#newSetBtn` 이 `stopPropagation()` 이다(CodeRabbit 도 스레드에서 인정). 리스너가 남는 것만 정리했다.
+  `const newSetMenuOutside` 는 `closeNewSetMenu`(호이스팅) 보다 뒤에 초기화되지만 호출은 사용자 동작뿐이라 TDZ 없음.
+  `function` 선언으로 바꾸지 않은 이유: `window` 표면이 하나 늘어난다.
+- **글꼴 판정**: 같은 이름의 다른 face(다른 굵기 KoPub · KaTeX_Size1 …)로 정의 검사가 통과하던 구멍.
+  필요한 face 셋을 이름·굵기(범위 `"100 900"` 포함)·모양으로 하나씩 찾은 뒤 `document.fonts.check()`.
+  KoPub Batang 300/normal · KaTeX_Main 400/normal · KaTeX_Math 400/italic — npm `font-kopub@1.0.2`·`katex@0.16.11` CSS 선언과 대조함.
+- **검사**: ⑨-c 신설(KoPub CSS 차단 + **받아진** 900 face 하나 → '본문' 경고). 깨보기 3종을 새 코드에 맞춰 갱신
+  (⑨-b 정의만 · ⑨-a 같은 이름 실패 face · **⑨-c 이름만**). CSP sha256 재계산(셋째 인라인 블록만 바뀜).
+- **검증**: 클라우드에서 `check:static`·`check:review-hygiene`·`check-source-csp` 12/12·`git diff --check`·`test:library-ui` 통과.
+  ⚠️ 클라우드는 `cdn.jsdelivr.net` 이 막혀 ⑨-a 를 못 돌렸다 → **CI verify 가 처음 판정**했다:
+  ⑨-a·⑨-b·⑨-c PASS, 깨보기 셋 모두 RED(로그 12:22~12:26). CI 4종(verify·cross-platform·hwpx·SonarCloud) 초록.
+  CodeRabbit 재검토 'No actionable comments · Merge Risk Minimal'.
+- **남은 것**: SonarCloud 게이트는 통과했으나 **'새 이슈 3건'의 내용을 클라우드에서 볼 수 없었다**(`sonarcloud.io` 차단).
+  이번 커밋에서 생긴 것인지 `ef4dc36` 부터 있던 것인지도 미확인 — 로컬에서 PR #11 Sonar 화면으로 확인할 것.
