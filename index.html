@@ -25,7 +25,7 @@
      어렵다 — 새 로그인만 깨진다). 실제로 한 번 그랬으니 손대지 말 것. -->
 <meta http-equiv="Content-Security-Policy" content="
   default-src 'self';
-  script-src 'self' 'wasm-unsafe-eval' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-6Z7GC0yHAOM7jka8Lzl4/rvutW4PYp6hii5r7VmeDls=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
+  script-src 'self' 'wasm-unsafe-eval' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-nGQ76O+XOUpDMyXQOIj3wnMIBrBqCZ+93Ym6cHdvEvg=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
   script-src-attr 'none';
   style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
   font-src 'self' data: https://cdn.jsdelivr.net;
@@ -807,6 +807,22 @@ select:focus{border-color:var(--blue)}
 .sheet-cover{position:absolute;inset:0;background:color-mix(in srgb,var(--surface-2) 55%,transparent);display:flex;align-items:flex-start;justify-content:center;padding-top:40px;pointer-events:none}
 .sheet-cover[hidden]{display:none}
 .sheet-cover span{position:sticky;top:12px;background:var(--surface-1);border:1px solid var(--border);border-radius:999px;padding:6px 14px;font-size:12.5px;color:var(--text-primary)}
+/* 원본 대조(U1.5) — 지면과 선택 문항 설정 사이. 원문 쪽 그림은 폭에 맞춘다. */
+.sheet-src{flex:0 0 360px;width:360px;min-width:0;border-left:1px solid var(--border);background:var(--surface-1);padding:12px;display:flex;flex-direction:column;gap:8px;overflow:auto}
+.sheet-src[hidden],.sheet-src-nav[hidden],.sheet-src-relink[hidden]{display:none}
+.sheet-src-head{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.sheet-src-title{font-weight:600;font-size:13px}
+.sheet-src-state{font-size:12px;color:var(--text-secondary)}
+.sheet-src-state[data-s="miss"]{color:var(--danger)}
+.sheet-src-nav{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.sheet-src-nav .btn{min-width:32px;padding:0 8px}
+.sheet-src-nav select{height:32px;max-width:100%}
+.sheet-src-page{font-size:12px;color:var(--text-secondary);min-width:56px;text-align:center}
+.sheet-src-view{flex:1 1 auto;min-height:0;overflow:auto;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md)}
+.sheet-src-view img{display:block;width:100%;height:auto;background:#fff}
+.sheet-src-view img[hidden]{display:none}
+.sheet-src-relink{align-self:flex-start}
+.sheet-src-note{font-size:11px;color:var(--text-secondary)}
 .sheet-insp{flex:0 0 260px;width:260px;border-left:1px solid var(--border);background:var(--surface-1);padding:16px 14px;display:flex;flex-direction:column;gap:10px;overflow:auto}
 .sheet-insp-title{font-size:15px;font-weight:700;color:var(--text-primary)}
 .sheet-insp-note{font-size:12.5px;line-height:1.55;color:var(--text-secondary)}
@@ -1500,7 +1516,10 @@ body.hide-answers .answer-block{display:none!important}
   .sheetPane{width:100%;flex:1 1 auto;order:0}
   /* 좁은 화면 — 선택한 문항 설정을 지면 **위** 로 올린다(옆에 둘 폭이 없다). */
   .sheet-body{flex-direction:column}
-  .sheet-insp{flex:0 0 auto;width:auto;border-left:0;border-bottom:1px solid var(--border);order:-1;padding:12px 14px}
+  .sheet-insp{flex:0 0 auto;width:auto;border-left:0;border-bottom:1px solid var(--border);order:-2;padding:12px 14px}
+  /* 원본은 선택 문항 설정 아래·지면 위에 둔다(나란히 둘 폭이 없다) */
+  .sheet-src{flex:0 0 auto;width:auto;border-left:0;border-bottom:1px solid var(--border);order:-1}
+  .sheet-src-view{max-height:520px}
   .sheet-span{flex-direction:row;flex-wrap:wrap}
   .sheet-span button{flex:1 1 30%;min-width:96px}
   .sheet-insp-foot{display:none}
@@ -2294,6 +2313,7 @@ function setEditorActions(on){
       <button type="button" id="sheetRetry" class="btn" hidden>다시 확인</button>
       <button type="button" id="sheetIssuesBtn" class="btn sheet-issues-btn" aria-expanded="false" aria-controls="sheetIssues" hidden></button>
       <label class="sheet-ans"><input type="checkbox" id="sheetShowAns"> 정답 표시</label>
+      <button type="button" id="sheetSrcBtn" class="btn" aria-pressed="false" aria-controls="sheetSrc">원본</button>
       <button type="button" id="sheetZoomBtn" class="btn" title="폭에 맞추기 ↔ 실제 크기(100%)">100%</button>
     </div>
     <div id="sheetIssues" class="sheet-issues" hidden></div>
@@ -2304,6 +2324,24 @@ function setEditorActions(on){
         <div class="sheet-frame" id="sheetFrame"><div class="sheet-stage" id="sheetStage"></div></div>
         <div class="sheet-cover" id="sheetCover" hidden></div>
       </div>
+      <!-- 원본 대조 (U1.5) — 이 기기에만 보관된 원문을 지면 옆에 나란히 본다. 원문은 서버·계정에 올리지 않는다.
+           읽기는 언제나 그 문제집의 연결을 확인하는 forProblem 을 거친다(가져온 JSON 의 출처만으로는 열지 않는다). -->
+      <aside class="sheet-src" id="sheetSrc" aria-label="원본" hidden>
+        <div class="sheet-src-head">
+          <span class="sheet-src-title">원본</span>
+          <output id="sheetSrcState" class="sheet-src-state" aria-live="polite"></output>
+        </div>
+        <div class="sheet-src-nav" id="sheetSrcNav" hidden>
+          <select id="sheetSrcPick" aria-label="원본 고르기" hidden></select>
+          <button type="button" id="sheetSrcPrev" class="btn" aria-label="원본 이전 쪽">‹</button>
+          <span id="sheetSrcPage" class="sheet-src-page"></span>
+          <button type="button" id="sheetSrcNext" class="btn" aria-label="원본 다음 쪽">›</button>
+        </div>
+        <div class="sheet-src-view" id="sheetSrcView"><img id="sheetSrcImg" alt="" hidden></div>
+        <button type="button" class="btn sheet-src-relink" id="sheetSrcRelink" hidden>다시 연결</button>
+        <input type="file" id="sheetSrcFile" accept="application/pdf,image/png,image/jpeg,image/webp" hidden>
+        <div class="sheet-src-note">원본은 이 브라우저에만 보관돼요 · 기기 간 동기화되지 않아요</div>
+      </aside>
       <aside class="sheet-insp" id="sheetInsp" aria-label="선택한 문항">
         <div class="sheet-insp-title" id="sheetInspTitle">문항을 고르세요</div>
         <div class="sheet-insp-note" id="sheetInspNote"></div>
@@ -3092,14 +3130,20 @@ function createIntakeFixture({config,transport=null,renderer,dbName,editorsConfi
 // A reload/boot must not depend on a UI fixture being alive. No sources are
 // authorized from imported metadata: inheritLinks only copies existing IDB grants.
 let intakeLinkClient=null;
-async function inheritIntakeLinks(fromSetId,toSetId,set){
-  if(!(set.problems||[]).some(p=>p.intake?.sources?.length))return;
+// 원본 대조(U1.5)도 이 클라이언트로 읽는다 — 호출·채택 경로가 없는 읽기·연결 전용이다.
+// ⚠️ 만들면 IndexedDB 가 열린다 — 출처가 있는 문제집에서만 부를 것.
+function intakeReadClient(){
   if(!intakeLinkClient) intakeLinkClient=PedagogyIntake.create({
     session:()=>({owner:intakeOwner(),epoch:authEpoch}),renderer:{},
     config:{files:1,fileBytes:1,totalBytes:1,pages:1,minDimension:1,maxDimension:1,
       imageBytes:1,requestBytes:1,calls:1,retries:1,problemsPerPage:1,
       problemsPerJob:1,problemsPerSet:1,fieldChars:1,blocks:1,items:1}
   });
+  return intakeLinkClient;
+}
+async function inheritIntakeLinks(fromSetId,toSetId,set){
+  if(!(set.problems||[]).some(p=>p.intake?.sources?.length))return;
+  intakeReadClient();
   // Also cover explicit development stores; production always uses PM_INTAKE_V1.
   await Promise.all([...new Set([intakeLinkClient,...intakeClients])]
     .map(c=>c.inheritLinks(fromSetId,toSetId)));
@@ -9491,6 +9535,136 @@ function decorateSheet(stage){
   });
   stage.querySelectorAll(".page").forEach((pg,i)=>{ pg.dataset.page=String(i+1); });
 }
+/* 원본 대조(U1.5 화면 1단계) — 출처가 이미 있는 문항(AI 로 만든 문제집)의 원문 쪽을 지면 옆에 띄운다.
+   손으로 원문을 붙이는 길(새 원문 등록 · '이 문항 = n쪽')은 B6 엔진의 저장 변경이 먼저다(레일: Codex Sol high).
+   ⚠️ 읽기는 언제나 forProblem(그 문제집의 연결 확인)을 거친다 — readSource 로 바로 열면 가져온 JSON 의
+      출처 ID 만으로 이 기기의 원문이 열린다(U0 §5-1 · B6 '외부 JSON 출처는 Blob 접근 권한을 만들지 않음').
+   ⚠️ 원문을 서버로 보내는 경로가 없다 — 쪽은 이 기기에서 그려 data URL 로만 띄운다.
+   ⚠️ 늦게 도착한 읽기·그리기는 세대(gen)·계정(owner·epoch)이 같을 때만 화면에 올린다. */
+const sheetSource=(()=>{
+  const S={on:false,gen:0,key:"",refs:[],pick:0,page:1,count:0,blob:null,setId:null,sourceId:null};
+  const CAP={minDimension:1,maxDimension:1600,imageBytes:40*1024*1024};
+  const MISSING="이 브라우저에 연결된 원본이 없습니다 · 원본은 기기 간 동기화되지 않습니다";
+  let renderer=null;
+  const validRef=r=>r&&typeof r.sourceId==="string"&&Array.isArray(r.pages);
+  function setState(text,kind){
+    const o=$("#sheetSrcState"); o.textContent=text||"";
+    if(kind) o.dataset.s=kind; else delete o.dataset.s;
+  }
+  function clearView(){
+    const img=$("#sheetSrcImg"); img.hidden=true; img.removeAttribute("src"); img.alt="";
+    $("#sheetSrcNav").hidden=true; $("#sheetSrcRelink").hidden=true; S.blob=null;
+  }
+  // 문항 자신의 출처 → 없으면 같은 문제집 다른 문항의 출처를 자유 탐색으로
+  function collect(set,q){
+    const own=(q?.intake?.sources||[]).filter(validRef).map(r=>({sourceId:r.sourceId,pages:r.pages.slice(),mapped:true}));
+    if(own.length) return own;
+    const seen=new Set(), out=[];
+    for(const p of set?.problems||[]) for(const r of (p?.intake?.sources||[]).filter(validRef)){
+      if(seen.has(r.sourceId)) continue;
+      seen.add(r.sourceId); out.push({sourceId:r.sourceId,pages:[],mapped:false});
+    }
+    return out;
+  }
+  function liveCheck(){
+    const gen=S.gen, owner=intakeOwner(), epoch=authEpoch;
+    return ()=>gen===S.gen&&S.on&&owner===intakeOwner()&&epoch===authEpoch;
+  }
+  function syncPick(){
+    const sel=$("#sheetSrcPick");
+    sel.hidden = S.refs.length<2;
+    sel.replaceChildren(...S.refs.map((r,i)=>{ const o=el("option",null,`원본 ${i+1}`); o.value=String(i); return o; }));
+    sel.value=String(S.pick);
+  }
+  function missing(ref,text,canRelink){
+    clearView(); S.sourceId=ref.sourceId;
+    setState(text||MISSING,"miss");
+    $("#sheetSrcRelink").hidden = !canRelink;
+  }
+  async function draw(live){
+    const ref=S.refs[S.pick];
+    setState("원본 쪽을 그리는 중…");
+    let out;
+    try{ out=await renderer.page(S.blob,S.page,CAP); }
+    catch(e){ if(live()) setState("이 쪽을 그리지 못했어요 · "+((e&&e.message)||e),"miss"); return; }
+    if(!live()) return;
+    const img=$("#sheetSrcImg");
+    img.src=`data:${out.mimeType};base64,${out.imageBase64}`; img.alt=`원본 ${S.page}쪽`; img.hidden=false;
+    $("#sheetSrcNav").hidden=false;
+    $("#sheetSrcPage").textContent=`${S.page} / ${S.count}쪽`;
+    $("#sheetSrcPrev").disabled = S.page<=1;
+    $("#sheetSrcNext").disabled = S.page>=S.count;
+    if(!ref.mapped) setState("이 문항에 지정된 쪽이 없어 원본을 자유롭게 넘겨 봐요");
+    else if(ref.pages.includes(S.page)) setState("이 문항의 원본 쪽");
+    else setState(`이 문항은 ${ref.pages.join("·")}쪽에 있어요`);
+  }
+  async function open(firstPage){
+    const live=liveCheck(), ref=S.refs[S.pick];
+    clearView(); setState("원본을 여는 중…");
+    let got;
+    try{ got=await intakeReadClient().forProblem(S.setId,{intake:{sources:[{sourceId:ref.sourceId,pages:ref.pages}]}}); }
+    catch(e){ if(live()) missing(ref,"원본을 확인하지 못했어요 · "+((e&&e.message)||e),false); return; }
+    if(!live()) return;
+    if(!got?.blob){
+      if(got?.state==="deleted") missing(ref,"원문을 삭제했어요 · 같은 파일이어도 새 원문으로 다시 등록해야 해요",false);
+      else missing(ref,MISSING,true);
+      return;
+    }
+    renderer ||= PedagogyIntake.browserRenderer();
+    let count;
+    try{ count=await renderer.count(got.blob,CAP); }
+    catch(e){ if(live()) missing(ref,"원본을 열지 못했어요 · "+((e&&e.message)||e),false); return; }
+    if(!live()) return;
+    S.blob=got.blob; S.sourceId=ref.sourceId; S.count=count;
+    if(firstPage) S.page=Math.min(count,Math.max(1,ref.pages[0]||1));
+    await draw(live);
+  }
+  // 선택 문항이 바뀌었을 때만 다시 연다(지면을 다시 그릴 때마다 원문을 다시 읽지 않는다)
+  function refresh(force){
+    if(!S.on) return;
+    const set=activeSet(), q=activeQ();
+    const refs=set?collect(set,q):[];
+    const key=JSON.stringify([set?.id,q?.id,intakeOwner(),authEpoch,refs]);
+    if(!force&&key===S.key) return;
+    S.key=key; S.gen++; S.refs=refs; S.setId=set?.id??null; S.pick=0;
+    clearView(); syncPick();
+    if(!refs.length){ setState(q?"이 문항에 연결된 원본이 없어요 · 손으로 만든 문제집의 원본 연결은 다음 단계에서 열려요":"문항을 고르세요"); return; }
+    if(typeof indexedDB==="undefined"||!indexedDB){ setState("이 브라우저에서는 원본을 열 수 없어요","miss"); return; }
+    open(true);
+  }
+  function close(note){
+    S.gen++; S.key=""; S.refs=[]; S.setId=null; S.sourceId=null;
+    clearView(); setState(note||"");
+  }
+  function toggle(on){
+    S.on=!!on;
+    $("#sheetSrcBtn").setAttribute("aria-pressed",String(S.on));
+    $("#sheetSrc").hidden = !S.on;
+    if(S.on) refresh(true); else close();
+  }
+  function step(d){
+    const next=S.page+d;
+    if(!S.blob||next<1||next>S.count) return;
+    S.gen++; S.page=next; draw(liveCheck());
+  }
+  $("#sheetSrcBtn").onclick=()=>toggle(!S.on);
+  $("#sheetSrcPrev").onclick=()=>step(-1);
+  $("#sheetSrcNext").onclick=()=>step(1);
+  $("#sheetSrcPick").onchange=e=>{ S.gen++; S.pick=Number(e.target.value)||0; open(true); };
+  // ⚠️ 숨긴 파일 입력을 label 로 감싸면 키보드 초점이 닿지 않는다 — 진짜 단추가 연다
+  $("#sheetSrcRelink").onclick=()=>$("#sheetSrcFile").click();
+  // 다시 연결은 '같은 파일'일 때만 된다(내용 해시·크기·형식) — 다른 파일에 옛 쪽 대응을 옮기지 않는다(U0 §5-2)
+  $("#sheetSrcFile").onchange=async e=>{
+    const f=e.target.files&&e.target.files[0]; e.target.value="";
+    if(!f||!S.sourceId) return;
+    const live=liveCheck(), id=S.sourceId;
+    setState("파일을 확인하는 중…");
+    try{ await intakeReadClient().reconnect(id,f); }
+    catch(err){ if(live()) setState(((err&&err.message)||"다시 연결하지 못했어요")+" · 새 원문 등록은 아직 준비 중이에요","miss"); return; }
+    if(live()) refresh(true);
+  };
+  return Object.freeze({refresh,close,toggle,isOn:()=>S.on});
+})();
 function selectSheetProblem(qid,{scroll=true,focus=false}={}){
   const s=activeSet(); if(!s||!s.problems.some(p=>String(p.id)===String(qid))) return;
   currentQId=s.problems.find(p=>String(p.id)===String(qid)).id;
@@ -9505,6 +9679,7 @@ function syncSheetSelection(scroll=false){
   if(box){ box.classList.add("is-selected"); if(scroll) box.scrollIntoView({block:"center",behavior:"auto"}); }
   $("#sheetThumbs").querySelectorAll(".sheet-thumb-q").forEach(k=>k.classList.toggle("sel",!!q&&k.dataset.qid===String(q.id)));
   renderSheetInspector();
+  sheetSource.refresh();
 }
 function renderSheetInspector(){
   const q=activeQ(), arr=activeProblems();
@@ -9989,6 +10164,8 @@ const onAuth=async (user)=>{
     clearTimeout(histTimer); histTimer=null;
     intakeClients.forEach(c=>c.stop());intakeCloudReady=false;intakeCloudFailures.clear();intakeRemoteBlocked.clear();
     authEpoch++;
+    // 원본 대조: 이전 계정의 원문 읽기·화면을 멈추고 패널을 닫는다(U0 §5-2)
+    sheetSource.toggle(false);
     clearTimeout(saveTimer);
     if(setsUnsub){ setsUnsub(); setsUnsub=null; }   // 이전 계정 구독 해제
     if(prefsUnsub){ prefsUnsub(); prefsUnsub=null; }
