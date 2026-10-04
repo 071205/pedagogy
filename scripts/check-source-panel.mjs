@@ -186,8 +186,11 @@ async function suite(html){
     ok(!a.img&&a.miss&&/연결된 원본이 없습니다/.test(a.state),'연결 없는데 원문이 열렸다 '+JSON.stringify(a));
     ok(a.relink,'다시 연결 단추가 없다');
     // 키보드만으로 다시 연결 창을 열 수 있어야 한다(숨긴 입력을 label 로 감싸면 초점이 닿지 않는다)
-    await p.focus('#sheetSrcRelink');
-    const [chooser]=await Promise.all([p.waitForEvent('filechooser',{timeout:5000}),p.keyboard.press('Enter')]);
+    // 초점과 Enter 를 한 동작으로 — 사이에 지면 조립이 끝나며 패널이 다시 그려지면 초점이 빠진다(깜빡였다)
+    await p.waitForFunction(()=>!$("#sheetSrcRelink").hidden);
+    const relink=p.locator('#sheetSrcRelink');
+    ok(await relink.evaluate(b=>{b.focus();return document.activeElement===b;}),'다시 연결 단추에 키보드 초점이 닿지 않는다');
+    const [chooser]=await Promise.all([p.waitForEvent('filechooser',{timeout:10000}),relink.press('Enter')]);
     ok(await chooser.element().getAttribute('id')==='sheetSrcFile','다른 파일 창이 열렸다');
   });
   await check('⑤ 다시 연결은 다른 파일을 거절하고 그리지 않는다',async()=>{
