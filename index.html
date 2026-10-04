@@ -25,7 +25,7 @@
      어렵다 — 새 로그인만 깨진다). 실제로 한 번 그랬으니 손대지 말 것. -->
 <meta http-equiv="Content-Security-Policy" content="
   default-src 'self';
-  script-src 'self' 'wasm-unsafe-eval' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-DJ5FbfOw3eb7tQqMuJ3u3BEwvLVc5PEn9dEG1kw4hVc=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
+  script-src 'self' 'wasm-unsafe-eval' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-1ffMo1EyhOE7f1EuGWp/YK6m/ZlKa6qV+52VrluIYAE=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
   script-src-attr 'none';
   style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
   font-src 'self' data: https://cdn.jsdelivr.net;
@@ -3057,14 +3057,14 @@ function intakeSnapshot(){
     }
     if(!intakeWriteAllowed())unknown=true;
   }catch{unknown=true;}
+  const writeUnknown=unknown;
   if([...sets,...recovery,...conflicts].some(intakeSetReadOnly))unknown=true;
-  return {sets:structuredClone(sets),deleted:[...deletedIds.keys()],conflicts,recovery,unknown,
+  return {sets:structuredClone(sets),deleted:[...deletedIds.keys()],conflicts,recovery,unknown,writeUnknown,
     cloudReady:!currentUser||intakeCloudReady,online:navigator.onLine};
 }
-function createIntakeFixture({config,transport=null,renderer,dbName,editorsConfirmed=false,useOutbox=false,outboxOptions={}}={}){
-  // Development API only, U2 supplies the reviewed UI. Acknowledging supported
-  // editors is explicit: an old tab cannot participate in this write protocol.
-  const library={
+function createIntakeLibrary({editorsConfirmed=false}={}){
+  // Every writer uses this protocol. Confirmation that older tabs are closed is explicit.
+  return {
     snapshot:intakeSnapshot,
     async exclusive(run){
       if(!editorsConfirmed || !navigator.locks) throw Error("구형 탭을 닫고 최신 편집기만 사용한다는 확인 필요");
@@ -3098,14 +3098,21 @@ function createIntakeFixture({config,transport=null,renderer,dbName,editorsConfi
       });
     },
     commit(next,before){
-      if(wiping||!intakeWriteAllowed()||JSON.stringify(sets)!==JSON.stringify(before.sets)) throw Error("경쟁 저장/계정 상태 확인 필요");
+      if(wiping||!intakeWriteAllowed()||JSON.stringify(sets)!==JSON.stringify(before.sets)
+        ||next.some(s=>intakeSetReadOnly(s)&&JSON.stringify(s)!==JSON.stringify(before.sets.find(x=>x.id===s.id))))
+        throw Error("경쟁 저장/계정 상태 확인 필요");
+      flushHistory(); // Pending typing and this library write are separate Undo steps.
       intakeAdopting=true;
+      const previous=sets,previousDirty=localDirty;
+      let saved=false;
       try{
         sets=next; next.forEach(s=>touchSet(s.id));localDirty=true;
-        const ok=writeLocalNow();
-        if(ok){pushHistory(); if(currentUser)flushToCloud(currentUser.uid);renderLibrary();}
+        const ok=writeLocalNow();saved=ok;
+        if(ok){flushHistory(); if(currentUser)flushToCloud(currentUser.uid);renderLibrary();}
+        else{sets=previous;localDirty=previousDirty;}
         return ok;
-      }finally{intakeAdopting=false;}
+      }catch(e){if(!saved){sets=previous;localDirty=previousDirty;}throw e;}
+      finally{intakeAdopting=false;}
     },
     cloud(setId){
       const set=sets.find(x=>x.id===setId),i=sets.findIndex(x=>x.id===setId);
@@ -3114,12 +3121,21 @@ function createIntakeFixture({config,transport=null,renderer,dbName,editorsConfi
       if(currentUser&&heldSetIds(currentUser.uid).has(setId))return "conflict";
       if(currentUser&&isCloudSynced(set,i))return "ack";
       return intakeCloudFailures.get(setId)?.json===setJSON(set)?"error":"pending";
-    }
+    },
+    canWriteSet(setId){const set=sets.find(x=>x.id===setId);return !!set&&!intakeSetReadOnly(set);}
   };
+}
+function createIntakeFixture({config,transport=null,renderer,dbName,editorsConfirmed=false,useOutbox=false,outboxOptions={}}={}){
+  const library=createIntakeLibrary({editorsConfirmed});
   const outbox=useOutbox?PedagogyIntakeOutbox.create(outboxOptions):null;
   const client=PedagogyIntake.create({config,transport:useOutbox?null:transport,outbox,renderer,dbName,library,
     session:()=>({owner:intakeOwner(),epoch:authEpoch})});
   intakeClients.add(client); return client;
+}
+function createIntakeStorageClient({editorsConfirmed=false,renderer,dbName}={}){
+  const client=PedagogyIntake.create({renderer,dbName,library:createIntakeLibrary({editorsConfirmed}),
+    session:()=>({owner:intakeOwner(),epoch:authEpoch})});
+  intakeClients.add(client);return client;
 }
 // Link-only access does not activate paid intake or the library write protocol.
 // A reload/boot must not depend on a UI fixture being alive. No sources are
@@ -3128,10 +3144,7 @@ let intakeLinkClient=null;
 async function inheritIntakeLinks(fromSetId,toSetId,set){
   if(!(set.problems||[]).some(p=>p.intake?.sources?.length))return;
   if(!intakeLinkClient) intakeLinkClient=PedagogyIntake.create({
-    session:()=>({owner:intakeOwner(),epoch:authEpoch}),renderer:{},
-    config:{files:1,fileBytes:1,totalBytes:1,pages:1,minDimension:1,maxDimension:1,
-      imageBytes:1,requestBytes:1,calls:1,retries:1,problemsPerPage:1,
-      problemsPerJob:1,problemsPerSet:1,fieldChars:1,blocks:1,items:1}
+    session:()=>({owner:intakeOwner(),epoch:authEpoch}),renderer:{}
   });
   // Also cover explicit development stores; production always uses PM_INTAKE_V1.
   await Promise.all([...new Set([intakeLinkClient,...intakeClients])]
@@ -9695,7 +9708,6 @@ async function sheetSourceReader(){
   /* ⚠️ databases() 가 없는 브라우저는 저장소가 있는지 알 수 없다 — 열면 빈 저장소가 생기므로 읽지 않는다(Codex 검토). */
   if(typeof indexedDB.databases!=="function"||!(await indexedDB.databases()).some(d=>d?.name==="PM_INTAKE_V1")) return null;
   return srcReader||=PedagogyIntake.create({renderer:{},
-    config:PedagogyIntakeContract.LIMIT_KEYS.reduce((o,k)=>(o[k]=1,o),{}),
     session:()=>({owner:intakeOwner(),epoch:authEpoch})});
 }
 const SRC_STATE_TEXT={
