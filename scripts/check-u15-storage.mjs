@@ -9,6 +9,7 @@ const red=process.env.U15_RED||'';
 const expectedRed={dedup:'해시·바이트·종류 재사용, 이름만 같으면 별도',
   rollback:'연결 실패 때 문제집 불변·재대조 뒤 같은 ID 재시도',
   epoch:'렌더 중 epoch 변경 거절',permission:'문항 쪽 지정·Undo·외부 권한 거절',
+  linked:'권 자유 탐색 링크 검사',
   editors:'구형 편집기 확인·owner·epoch 경계',limits:'AI 한도 없이 Blob과 첫 권 연결',
   undo:'문항 쪽 지정·Undo·외부 권한 거절'};
 if(red&&!expectedRed[red])throw Error('알 수 없는 U15_RED: '+red);
@@ -37,7 +38,10 @@ try{
   const mutations={
     dedup:['x.hash===prepared.hash','true'],
     epoch:["const matches=s=>{const n=context(); if(n.owner!==s.owner||n.epoch!==s.epoch) fail('계정이 바뀌어 작업을 멈췄어요');};",'const matches=s=>{};'],
-    permission:["const link=r.links[setId];\n      if(!link||link.state", "const link=r.links[setId]||{state:'active',sources:Object.keys(r.sources)};\n      if(!link||link.state"],
+    // forProblem 만 겨냥한다 — forSet 도 같은 줄로 시작해서, 짧은 문자열은 앞의 forSet 에 심겨 헛돌았다(Claude 검토).
+    permission:["const link=r.links[setId];\n      if(!link||link.state!=='active') return {state:'missing',reason:", "const link=r.links[setId]||{state:'active',sources:Object.keys(r.sources)};\n      if(!link||link.state!=='active') return {state:'missing',reason:"],
+    linked:["if(!link||link.state!=='active'||!link.sources.includes(sourceId))return {state:'missing'};",
+      "if(false)return {state:'missing'};"],
     limits:['const cap=config?C.limits(config):null','const cap=C.limits(config)'],
     rollback:['else{sets=previous;localDirty=previousDirty;}','else{localDirty=previousDirty;}'],
     editors:['function createIntakeStorageClient({editorsConfirmed=false','function createIntakeStorageClient({editorsConfirmed=true'],
@@ -83,6 +87,41 @@ try{
       eq((await client.readSource(sourceId)).blob.size,4);
       deepEq((await client.forProblem(setId,sets[0].problems[0])).state,'missing');
       await reject(()=>client.readJob('none'),/작업/);
+    });
+    await check('권 자유 탐색 링크 검사',async()=>{
+      const list=await client.forSet(setId);
+      eq(list.state,'linked');eq(list.sources.length,1);
+      deepEq(Object.keys(list.sources[0]).sort(),['bytes','name','pageCount','sourceId','state','type']);
+      eq(list.sources[0].sourceId,sourceId);
+      eq((await client.readLinked(setId,sourceId)).blob.size,4);
+      eq((await client.forSet(sets[1].id)).state,'missing');
+      eq((await client.readLinked(sets[1].id,sourceId)).state,'missing');
+      eq((await client.readLinked(setId,crypto.randomUUID())).state,'missing');
+    });
+    await check('detached·삭제 원문은 권 읽기 차단',async()=>{
+      const db=await new Promise((resolve,reject)=>{const request=indexedDB.open(dbName);
+        request.onerror=()=>reject(request.error);request.onsuccess=()=>resolve(request.result);});
+      const readRoot=()=>new Promise((resolve,reject)=>{const tx=db.transaction('owners','readonly');
+        const request=tx.objectStore('owners').get(owner);request.onsuccess=()=>resolve(request.result);
+        request.onerror=()=>reject(request.error);});
+      const changeRoot=change=>new Promise((resolve,reject)=>{const tx=db.transaction('owners','readwrite');
+        const store=tx.objectStore('owners'),request=store.get(owner);
+        request.onsuccess=()=>{const root=request.result;change(root);store.put(root);};
+        tx.oncomplete=resolve;tx.onerror=tx.onabort=()=>reject(tx.error||Error('IDB 변경 실패'));});
+      const saved=structuredClone((await readRoot()).sources[sourceId]);
+      try{
+        await changeRoot(root=>{root.links[setId].state='detached';});
+        eq((await client.forSet(setId)).state,'missing');
+        eq((await client.readLinked(setId,sourceId)).state,'missing');
+        await changeRoot(root=>{root.links[setId].state='active';root.sources[sourceId].state='deleting';});
+        eq((await client.readLinked(setId,sourceId)).state,'deleting');
+        await changeRoot(root=>{root.sources[sourceId].state='deleted';root.sources[sourceId].blob=null;});
+        eq((await client.forSet(setId)).sources[0].state,'deleted');
+        deepEq(await client.readLinked(setId,sourceId),{state:'deleted'});
+      }finally{
+        await changeRoot(root=>{root.links[setId].state='active';root.sources[sourceId]=saved;});
+        db.close();
+      }
     });
     await check('해시·바이트·종류 재사용, 이름만 같으면 별도',async()=>{
       eq((await client.registerSource(file('AAAA','different.png'),setId)).sourceId,sourceId);
@@ -158,8 +197,14 @@ try{
       await reject(()=>blocked.registerSource(file('new'),setId),/구형 탭/);
       const oldOwner=currentUser;currentUser={uid:'other'};authEpoch++;
       deepEq(await client.listSources(),[]);
+      eq((await client.forSet(setId)).state,'missing');
+      eq((await client.readLinked(setId,sourceId)).state,'missing');
       await reject(()=>client.readSource(sourceId),/원문/);
       currentUser=oldOwner;authEpoch++;
+      const lateList=client.forSet(setId);authEpoch++;
+      await reject(()=>lateList,/계정이 바뀌어/);
+      const lateRead=client.readLinked(setId,sourceId);authEpoch++;
+      await reject(()=>lateRead,/계정이 바뀌어/);
       eq((await client.readSource(sourceId)).id,sourceId);
     });
     await check('다시 연결은 내용 확인, 기록 없으면 새 ID와 쪽 미적용',async()=>{

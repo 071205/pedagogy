@@ -14,7 +14,7 @@
     "test:ai-image": "node scripts/check-ai-image.mjs",
     "test:sheet": "node scripts/check-sheet-view.mjs",
     "test:sheet-source": "node scripts/check-sheet-source.mjs",
-    "test:u15-storage": "node scripts/check-u15-storage-node.mjs && U15_RED=dedup node scripts/check-u15-storage-node.mjs --expect-red && node scripts/check-u15-storage.mjs && U15_RED=dedup node scripts/check-u15-storage.mjs --expect-red && U15_RED=rollback node scripts/check-u15-storage.mjs --expect-red && U15_RED=epoch node scripts/check-u15-storage.mjs --expect-red && U15_RED=permission node scripts/check-u15-storage.mjs --expect-red && U15_RED=editors node scripts/check-u15-storage.mjs --expect-red && U15_RED=limits node scripts/check-u15-storage.mjs --expect-red && U15_RED=undo node scripts/check-u15-storage.mjs --expect-red",
+    "test:u15-storage": "node scripts/check-u15-storage-node.mjs && U15_RED=dedup node scripts/check-u15-storage-node.mjs --expect-red && U15_RED=linked node scripts/check-u15-storage-node.mjs --expect-red && node scripts/check-u15-storage.mjs && U15_RED=dedup node scripts/check-u15-storage.mjs --expect-red && U15_RED=rollback node scripts/check-u15-storage.mjs --expect-red && U15_RED=epoch node scripts/check-u15-storage.mjs --expect-red && U15_RED=permission node scripts/check-u15-storage.mjs --expect-red && U15_RED=linked node scripts/check-u15-storage.mjs --expect-red && U15_RED=editors node scripts/check-u15-storage.mjs --expect-red && U15_RED=limits node scripts/check-u15-storage.mjs --expect-red && U15_RED=undo node scripts/check-u15-storage.mjs --expect-red",
     "test:fixtures": "node scripts/check-fixtures.mjs",
     "fix:icons": "node scripts/clean-mac-icons.mjs",
     "check:icons": "node scripts/clean-mac-icons.mjs --check",

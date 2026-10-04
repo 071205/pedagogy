@@ -352,6 +352,32 @@ function create({session,library,renderer=browserRenderer(),transport=null,outbo
   }
   async function listSources(){if(library)await reconcile();const s=context();return transact(s,r=>Object.values(r.sources).map(({blob,...v})=>v),false);}
   async function readSource(sourceId){const s=context();return transact(s,r=>source(r,sourceId),false);}
+  const linkedState=src=>{
+    if(src?.state==='deleted'||src?.state==='deleting')return src.state;
+    return src?.blob&&['available','unlinked'].includes(src.state)?src.state:'missing';
+  };
+  // A set link is the local capability. Imported source IDs never grant it.
+  async function forSet(setId){
+    const s=context();return transact(s,r=>{
+      const link=r.links[setId];
+      if(!link||link.state!=='active')return {state:'missing'};
+      return {state:'linked',sources:link.sources.map(sourceId=>{
+        const src=r.sources[sourceId];
+        return {sourceId,name:src?.name||'',type:src?.type||'',bytes:src?.bytes||0,
+          pageCount:src?.pageCount||0,state:linkedState(src)};
+      })};
+    },false);
+  }
+  async function readLinked(setId,sourceId){
+    const s=context();return transact(s,r=>{
+      const link=r.links[setId];
+      if(!link||link.state!=='active'||!link.sources.includes(sourceId))return {state:'missing'};
+      const src=r.sources[sourceId],state=linkedState(src);
+      if(state!=='available'&&state!=='unlinked')return {state};
+      return {state,sourceId,name:src.name,type:src.type,bytes:src.bytes,
+        pageCount:src.pageCount,blob:src.blob};
+    },false);
+  }
   async function forProblem(setId,p){
     const s=context();return transact(s,r=>{
       const link=r.links[setId];
@@ -500,7 +526,7 @@ function create({session,library,renderer=browserRenderer(),transport=null,outbo
       });
     });
   }
-  return Object.freeze({adoptionStatus,inheritLinks,detachSource,createJob,registerSource,assignPages,readJob,run,recoverOutbox,adopt,impact,deleteSource,listSources,readSource,forProblem,linkSource,reconcile,finishJob,stop,purge,purgeFence,recoverPurge,reconnect,persistence});
+  return Object.freeze({adoptionStatus,inheritLinks,detachSource,createJob,registerSource,assignPages,readJob,run,recoverOutbox,adopt,impact,deleteSource,listSources,readSource,forSet,readLinked,forProblem,linkSource,reconcile,finishJob,stop,purge,purgeFence,recoverPurge,reconnect,persistence});
 }
 function browserRenderer(){
   let pdfModule;
