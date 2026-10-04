@@ -63,6 +63,7 @@ transaction 안에서 갱신한다. 라이브러리 전체를 IDB로 옮기지 �
 - `registerSource(file,setId)`는 PDF/지원 이미지의 형식·해시·쪽수를 검사한다. 파일당 100MB,
   owner별 실제 Blob 합계 1GB, 파일당 500쪽을 적용한다. 같은 owner의 hash·bytes·type이 모두
   맞는 Blob만 재사용하며 첫 권 연결과 Blob은 한 IDB 트랜잭션에 쓴다. job과 AI 호출 예산은 만들지 않는다.
+- `forSet(setId)`은 active 권 연결의 원문 목록을 Blob 없이 `{state:'linked',sources:[{sourceId,name,type,bytes,pageCount,state}]}`로 주고, `readLinked(setId,sourceId)`만 같은 권의 active 연결과 원문 상태를 확인한 뒤 Blob을 준다. 미연결 권은 `{state:'missing'}`이며 외부 JSON의 ID는 권한이 아니다.
 - **B6 `createJob` 동작 변경:** AI 요청 한 번의 파일/총바이트 제한은 기존 `config`를 그대로
   적용한다. 이미 저장한 원문의 누적 합계 제한은 AI `cap.totalBytes`에서 D6의 1GB로 바꿨다.
 - `assignPages(setId,problemId,[{sourceId,pages}])`는 원문/쪽 범위와 권 권한을 확인한 뒤 문항

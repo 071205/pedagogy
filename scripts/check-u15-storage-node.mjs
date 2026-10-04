@@ -35,6 +35,11 @@ if(process.env.U15_RED==='dedup'){
   assert.ok(source.includes('x.hash===prepared.hash'));
   source=source.replace('x.hash===prepared.hash','true');
 }
+if(process.env.U15_RED==='linked'){
+  const guard="if(!link||link.state!=='active'||!link.sources.includes(sourceId))return {state:'missing'};";
+  assert.ok(source.includes(guard));
+  source=source.replace(guard,"if(false)return {state:'missing'};");
+}
 global.PedagogyIntakeContract={limits:()=>{throw Error('AI limit must not be read');}};
 runInNewContext(source,global);
 let owner='A',epoch=1,commitFails=false;
@@ -61,6 +66,28 @@ await check('AI 설정 없는 Blob·첫 권 연결',async()=>{
   assert.equal((await client.forProblem('set',disk[0].problems[0])).state,'missing');
   assert.equal(Object.keys(records.get('u15-node').get('A').jobs).length,0);
   assert.ok(records.get('u15-node').get('A').links.set.sources.includes(sourceId));
+});
+await check('권 연결 없는 Blob 읽기 거절',async()=>{
+  const list=await client.forSet('set');
+  assert.equal(list.state,'linked');
+  assert.equal(list.sources.length,1);
+  assert.deepEqual(Object.keys(list.sources[0]).sort(),['bytes','name','pageCount','sourceId','state','type']);
+  assert.equal(list.sources[0].sourceId,sourceId);
+  assert.equal((await client.readLinked('set',sourceId)).blob.size,3);
+  assert.equal((await client.forSet('other-set')).state,'missing');
+  assert.equal((await client.readLinked('other-set',sourceId)).state,'missing');
+  assert.equal((await client.readLinked('set',webcrypto.randomUUID())).state,'missing');
+});
+await check('detached·삭제 상태의 권 읽기는 Blob을 내주지 않음',async()=>{
+  const root=records.get('u15-node').get('A'),saved=structuredClone(root.sources[sourceId]);
+  root.links.set.state='detached';
+  assert.equal((await client.forSet('set')).state,'missing');
+  assert.equal((await client.readLinked('set',sourceId)).state,'missing');
+  root.links.set.state='active';
+  root.sources[sourceId].state='deleted';root.sources[sourceId].blob=null;
+  assert.equal((await client.forSet('set')).sources[0].state,'deleted');
+  assert.deepEqual(await client.readLinked('set',sourceId),{state:'deleted'});
+  root.sources[sourceId]=saved;
 });
 await check('해시·바이트·종류로만 재사용',async()=>{
   assert.equal((await client.registerSource(file('one','other.png'),'set')).sourceId,sourceId);
@@ -108,8 +135,14 @@ await check('저장 실패면 문제집 불변·재시도',async()=>{
 await check('owner·epoch·재연결·해제 경계',async()=>{
   owner='B';epoch++;
   assert.equal((await client.listSources()).length,0);
+  assert.equal((await client.forSet('set')).state,'missing');
+  assert.equal((await client.readLinked('set',sourceId)).state,'missing');
   await rejects(()=>client.readSource(sourceId),/원문/);
   owner='A';epoch++;
+  const lateSet=client.forSet('set');epoch++;
+  await rejects(()=>lateSet,/계정이 바뀌어/);
+  const lateRead=client.readLinked('set',sourceId);epoch++;
+  await rejects(()=>lateRead,/계정이 바뀌어/);
   await rejects(()=>client.reconnect(sourceId,file('other')),/다른 파일/);
   assert.equal(await client.reconnect(sourceId,file('one')),sourceId);
   const fresh=await client.reconnect(webcrypto.randomUUID(),file('fresh'),{setId:'set'});
@@ -124,5 +157,6 @@ for(const result of checks)console.log(result.pass?'PASS':'FAIL',result.name,res
 const failed=checks.filter(x=>!x.pass);
 console.log(`U1.5 Node storage: ${checks.length-failed.length} passed, ${failed.length} failed, 0 skipped`);
 if(process.argv.includes('--expect-red')){
-  assert.ok(failed.some(x=>x.name==='해시·바이트·종류로만 재사용'),'고장 주입이 빨간불을 만들지 못함');
+  const expected={dedup:'해시·바이트·종류로만 재사용',linked:'권 연결 없는 Blob 읽기 거절'}[process.env.U15_RED];
+  assert.ok(expected&&failed.some(x=>x.name===expected),'고장 주입이 빨간불을 만들지 못함');
 }else if(failed.length)process.exitCode=1;

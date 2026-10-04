@@ -19,6 +19,7 @@
 AI 출처 유지 시 호출자가 기존 목록을 함께 넘긴다. 저장 직후에도 Undo 한 번으로 복원되도록
 라이브러리 commit 전후에 히스토리 경계를 확정한다. `reconnect`는 기존 기록을 내용으로 검증하고,
 기록이 없으면 새 등록만 한다. `forProblem`은 권한 있는 원문 ID를 함께 반환한다.
+ⓑ 자유 탐색용 `forSet`/`readLinked`는 active 권 연결을 확인해 목록은 Blob 없이, 원문 읽기는 해당 권에 허용된 Blob만 반환한다.
 
 `index.html`의 fixture 라이브러리 어댑터를 `createIntakeLibrary`로 추출했고,
 운영용 `createIntakeStorageClient({editorsConfirmed})`도 이를 사용한다. 확인 기본값은 false다.
@@ -42,11 +43,11 @@ API 요약은 `docs/B6-INTAKE-STORAGE.md`에 덧붙였다.
 - Claude Opus 실측(수정 전): `test:public`·`check:static`·`check:sonar`·
   `check:review-hygiene`·`test:intake`·`test:sheet-source` 통과. `test:u15-storage`는
   Node `assert`의 브라우저 참조 오류로 0/8 실패했다.
-- 수정 후 Codex 환경: Node 저장 검사 7/7, dedup 고장 주입에서 대응 항목 실패,
+- 수정 후 Codex 환경: Node 저장 검사 9/9, dedup·linked 고장 주입에서 각 대응 항목 실패,
   `npm run test:public`, `npm run check:static`, `npm run check:sonar`,
   `npm run check:review-hygiene` 통과. `npm run test:u15-storage`의 Node 두 단계는
   통과했고 브라우저 단계는 이 샌드박스의 `listen EPERM 127.0.0.1` 때문에 시작 전 중단됐다.
-  브라우저 기본 검사 10개와 `dedup/rollback/epoch/permission/editors/limits/undo`
+  브라우저 기본 검사 12개와 `dedup/rollback/epoch/permission/linked/editors/limits/undo`
   `--expect-red`는 Claude가 정상 환경에서 실행·기록한다.
 
 ## 다음 검토자에게
@@ -66,3 +67,7 @@ API 요약은 `docs/B6-INTAKE-STORAGE.md`에 덧붙였다.
   ④는 전체 교체로 문서화, ⑤는 B6 문서에 '변경' 표시. ⚠️ 깨보기 대응표의 검사 이름 한 곳(`editors`)이 실제 이름과 달라 주입은 빨간불을 냈는데도
   판정이 실패였다 — **검토자가 이름만 맞췄다.** ⓐ 브랜치를 합친 뒤 `check:fast` 전체 로컬 통과(종료 0 · HWPX 12건 실행 · MISS 0).
   ⓑ 화면은 `assignPages` 를 부를 때 기존 출처를 합쳐 넘겨야 한다(AI 출처를 잃지 않게).
+- 2026-10-04 · Claude Opus 3차(ⓑ 설계 중 찾은 API 공백 — `forSet`·`readLinked` 추가분) · **결함 없음 · 검사 한 곳 보정** — 둘 다 권 연결이
+  active 이고 그 원문을 포함할 때만 답하며 `forSet` 은 Blob 을 주지 않는다. 이 맥에서 Node 9/9 · 브라우저 12/12 · 깨보기 10회 전부 빨간불.
+  ⚠️ 기존 `permission` 깨보기가 `const link=r.links[setId];` 로 시작하는 줄을 찾는데, 같은 줄로 시작하는 `forSet` 이 앞에 생겨 고장이 엉뚱한 함수에
+  심겨 **헛돌았다** — 검토자가 대상 문자열을 `forProblem` 만 맞도록 좁혔다(짧은 고장 주입 문자열은 코드가 늘면 다른 곳에 걸린다).
