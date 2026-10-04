@@ -25,7 +25,7 @@
      어렵다 — 새 로그인만 깨진다). 실제로 한 번 그랬으니 손대지 말 것. -->
 <meta http-equiv="Content-Security-Policy" content="
   default-src 'self';
-  script-src 'self' 'wasm-unsafe-eval' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-iwRBJsqVQ2CbxI5eaV5n5LS2UMr8cNi/FNVThYw2YFU=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
+  script-src 'self' 'wasm-unsafe-eval' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-xW+MrrRhmZ+x+i6QyHjugIQi+0E7kyC+21wbhCgNFUg=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
   script-src-attr 'none';
   style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
   font-src 'self' data: https://cdn.jsdelivr.net;
@@ -7280,6 +7280,8 @@ function showEditor(setId){
   // 이 문제집에서 마지막으로 보던 문항 복원 (없거나 삭제됐으면 첫 문항)
   const remembered=lastQIdBySet[setId];
   currentQId=(remembered && s.problems.some(p=>p.id===remembered)) ? remembered : s.problems[0].id;
+  // 원본 패널은 지면 조립이 끝나야 갱신되던 탓에, 문제집을 바꾼 직후(조립이 실패하면 그 뒤로도) 이전 문제집 원문이 남았다(CodeRabbit)
+  sheetSource.refresh();
 
   $("#libraryView").style.display="none"; closeSettingsDialog(false,false);
   $("#mockView").style.display="none"; if(window.__mockClose) window.__mockClose();

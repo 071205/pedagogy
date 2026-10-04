@@ -9,6 +9,7 @@
  *   ⑤ 다시 연결은 같은 파일만 받는다 — 다른 파일이면 거절하고 그리지 않는다
  *   ⑥ 읽는 도중 계정(epoch)이 바뀌면 늦은 결과를 화면에 올리지 않는다
  *   ⑦ 출처 없는 문제집은 원문 저장소(IndexedDB)를 만들지 않는다
+ *   ⑪ 문제집을 바꾸면 지면 조립을 기다리지 않고 이전 원문을 내린다
  *   ⑩ 원본이 여럿일 때 첫 원본을 못 열어도 고르기로 다른 원본을 연다
  *   ⑨ 좁은 화면(375px)에서 패널을 켜도 가로로 넘치지 않는다
  *   ⑧ 계정이 바뀌면(onAuth) 패널을 닫는다 — 소스 대조(보조망). 늦은 결과 차단 자체는 ⑥ 이 실제로 본다
@@ -176,6 +177,14 @@ async function suite(html){
     const b=await view(p);
     ok(b.img&&b.page==='2 / 2쪽','둘째 원본으로 넘어가지 못했다 '+JSON.stringify(b));
   });
+  await check('⑪ 문제집을 바꾸면 지면 조립을 기다리지 않고 이전 원문을 내린다',async()=>{
+    await toSheet(p,src.setId);
+    await p.evaluate(id=>selectSheetProblem(id,{scroll:false}),q[0]); await settled(p);
+    ok((await view(p)).img,'준비: 원문이 떠 있지 않다');
+    const r=await p.evaluate(()=>{const s={id:'other-set',name:'다른',header:'',problems:[newProblem()]};sets.push(s);
+      showEditor('other-set'); return {img:!$("#sheetSrcImg").hidden,state:$("#sheetSrcState").textContent};});
+    ok(!r.img&&/연결된 원본이 없어요/.test(r.state),'문제집을 바꿨는데 이전 원문이 남았다 '+JSON.stringify(r));
+  });
   await check('④ 연결 없는 문제집은 같은 sourceId 가 적혀 있어도 원문을 열지 않는다',async()=>{
     const id=await p.evaluate(({sid,orig})=>{
       const o=sets.find(x=>x.id===orig); const s=structuredClone(o); s.id='imported-json'; s.name='가져온 사본'; sets.push(s); return s.id;
@@ -213,12 +222,14 @@ async function suite(html){
       try{
         sheetSource.toggle(true);
         // 원문을 읽어 문 앞에 도착했다 — 깨보기로 forProblem 을 우회하면 영영 안 오므로 상한을 둔다
-        await Promise.race([entered,new Promise(res=>setTimeout(res,8000))]);
+        const arrived=await Promise.race([entered.then(()=>true),new Promise(res=>setTimeout(()=>res(false),8000))]);
+        if(!arrived) return {img:null,gate:false};       // 문 앞에 오지 않았으면 이 검사는 아무것도 재지 못한 것이다(CodeRabbit)
         currentUser={uid:'other-account'}; authEpoch++;    // 계정 전환과 같은 울타리
         release(); await new Promise(res=>setTimeout(res,1500));
         return {img:!$("#sheetSrcImg").hidden};
-      }finally{ currentUser=prevUser; authEpoch++; intakeLinkClient=real; }
+      }finally{ release(); currentUser=prevUser; authEpoch++; intakeLinkClient=real; }
     },q[0]);
+    ok(r.gate!==false,'원문 읽기가 문 앞에 도착하지 않았다 — 검사가 늦은 결과 상황을 만들지 못했다');
     ok(!r.img,'계정이 바뀐 뒤 옛 원문이 화면에 올라왔다');
   });
   if(p.errs.length) failures.push('페이지 오류: '+p.errs.join(' | '));
@@ -242,6 +253,8 @@ const BREAKS=[
    pairs:[['  .sheet-src{flex:0 0 auto;width:auto;border-left:0;','  .sheet-src{flex:0 0 auto;width:600px;border-left:0;']]},
   {name:'원본을 못 열면 고르기까지 숨긴다',target:'⑩',
    pairs:[['    $("#sheetSrcNav").hidden = S.refs.length<2;\n','    $("#sheetSrcNav").hidden = true;\n']]},
+  {name:'문제집을 바꿔도 패널을 갱신하지 않는다',target:'⑪',
+   pairs:[['이전 문제집 원문이 남았다(CodeRabbit)\n  sheetSource.refresh();\n','이전 문제집 원문이 남았다(CodeRabbit)\n']]},
   {name:'선택이 바뀌어도 패널을 갱신하지 않는다',target:'①',
    pairs:[['  renderSheetInspector();\n  sheetSource.refresh();\n','  renderSheetInspector();\n']]},
 ];
