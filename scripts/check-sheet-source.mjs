@@ -8,6 +8,9 @@
  *   ⑩-e 계정이 바뀌면 패널·뷰어가 닫히고 비워진다
  *   ⑩-f 원문 저장소가 없는 사용자에게 저장소를 만들지 않는다
  *   ⑩-g 닫은 뒤 늦게 도착한 원문은 패널에 올리지 않는다
+ *   ⑩-h 라이브러리로 나가거나 삭제(wiping)가 시작되면 뷰어를 비운다
+ *   ⑩-i 다른 탭에서 원문을 지웠으면 이 탭으로 돌아올 때 다시 확인해 내린다
+ *   ⑩-j indexedDB.databases() 가 없는 브라우저에서는 저장소를 열지(만들지) 않는다
  *
  * 원문은 B6 fixture(createIntakeFixture)로 실제 IDB 에 넣는다 — 운영에서 쓰는 저장 경로 그대로다.
  * 깨보기: 고장을 심은 index.html(인라인 해시를 다시 맞춘 사본)로 대응 항목이 빨간불이 되는지 본다.
@@ -167,16 +170,58 @@ async function suite(html){
     ok(!r.img&&!r.canvas,'권한 없는 문제집에서 원문이 보인다 '+JSON.stringify(r));
     ok(/이 브라우저에 연결된 원본이 없습니다/.test(r.msg),'안내 '+r.msg);
   });
+  await check('⑩-h 라이브러리로 나가거나 삭제가 시작되면 뷰어를 비운다',async()=>{
+    const q=await open(html);   // 자기 창 — '모든 문제집 삭제' 가 뒤 검사의 자료를 지우지 않게
+    try{
+      const s2=await seedSources(q);
+      for(const how of ['library','wiping']){
+        await toSheetOf(q,s2.imgSet);
+        await q.evaluate(()=>{ if(!srcOpen) $('#sheetSrcBtn').click(); });
+        await q.waitForFunction(()=>$('#sheetSrcView img')?.naturalWidth>0,null,{timeout:8000});
+        const r=await q.evaluate(async how=>{
+          const state=()=>({open:srcOpen,view:!!srcView,kids:$('#sheetSrcView').childElementCount});
+          if(how==='library'){ showLibrary(); return state(); }
+          /* '삭제 구간 동안' 닫혔는지 본다 — 끝에 라이브러리로 가며 닫히는 것과 가른다. 비로그인 삭제는 대기 없이 한 번에 끝나서
+             첫 await 전에 재도 끝난 뒤의 상태다. 그래서 wiping 이 켜진 직후(바로 다음 줄의 clearTimeout)의 상태를 잡는다. */
+          let during=null; const ct=window.clearTimeout;
+          window.clearTimeout=function(...a){ if(during===null&&wiping) during=state(); return ct.apply(this,a); };
+          try{ await deleteAllSets().catch(()=>{}); }finally{ window.clearTimeout=ct; }
+          return during||{missed:'wiping 구간을 관측하지 못했다'};
+        },how);
+        ok(!r.open&&!r.view&&r.kids===0,how+' 뒤에도 원본 뷰어가 남았다 '+JSON.stringify(r));
+      }
+    }finally{ await q.context().close(); }
+  });
   await check('⑩-e 계정이 바뀌면 패널·뷰어가 닫힌다',async()=>{
     await toSheetOf(p,seed.imgSet);
     await p.evaluate(()=>{ if(!srcOpen) $('#sheetSrcBtn').click(); });
     await p.waitForFunction(()=>$('#sheetSrcView img')?.naturalWidth>0,null,{timeout:8000});
-    await p.evaluate(()=>{ onAuth({uid:'other-account',email:'x@example.com'}).catch(()=>{}); });
-    await p.waitForTimeout(50);
-    const r=await p.evaluate(()=>({open:srcOpen,panel:getComputedStyle($('#sheetSrc')).display,kids:$('#sheetSrcView').childElementCount}));
+    // ⚠️ 첫 await 전에 동기로 판정한다 — 그 뒤에는 라이브러리 이동(showLibrary)이 대신 닫아 줘서 onAuth 의 정리가 빠져도 통과한다.
+    const r=await p.evaluate(()=>{ onAuth({uid:'other-account',email:'x@example.com'}).catch(()=>{});
+      return {open:srcOpen,panel:getComputedStyle($('#sheetSrc')).display,kids:$('#sheetSrcView').childElementCount}; });
     ok(!r.open&&r.panel==='none'&&r.kids===0,'계정 전환 뒤에도 원본이 남았다 '+JSON.stringify(r));
   });
   await p.context().close();
+
+  await check('⑩-i 다른 탭에서 원문을 지웠으면 돌아올 때 다시 확인해 내린다',async()=>{
+    const q=await open(html);
+    try{
+      const s2=await seedSources(q);
+      await toSheetOf(q,s2.imgSet);
+      await q.evaluate(()=>{ if(!srcOpen) $('#sheetSrcBtn').click(); });
+      await q.waitForFunction(()=>$('#sheetSrcView img')?.naturalWidth>0,null,{timeout:8000});
+      // 다른 탭의 deleteSource() 를 흉내 낸다 — 이 탭의 저장소 읽기가 이제 '삭제됨' 을 돌려준다
+      // B6 클라이언트는 동결돼 있어 함수만 바꿔치기할 수 없다 — 읽기 클라이언트를 통째로 갈아 끼운다
+      await q.evaluate(()=>{ srcReader={forProblem:async()=>({state:'deleted'})}; });
+      await q.evaluate(()=>{
+        Object.defineProperty(document,'visibilityState',{configurable:true,get:()=>'visible'});
+        document.dispatchEvent(new Event('visibilitychange'));
+      });
+      await q.waitForFunction(()=>/삭제됐어요/.test($('#sheetSrcMsg').textContent),null,{timeout:5000});
+      const r=await q.evaluate(()=>({view:!!srcView,kids:$('#sheetSrcView').childElementCount}));
+      ok(!r.view&&r.kids===0,'지운 원문이 계속 보인다 '+JSON.stringify(r));
+    }finally{ await q.context().close(); }
+  });
 
   await check('⑩-f 원문 저장소가 없으면 만들지 않는다',async()=>{
     const q=await open(html);
@@ -190,6 +235,26 @@ async function suite(html){
         return {msg:$('#sheetSrcMsg').textContent,dbs:(await indexedDB.databases()).map(d=>d.name)};
       });
       ok(!r.dbs.includes('PM_INTAKE_V1'),'원문 저장소를 새로 만들었다 '+JSON.stringify(r.dbs));
+      ok(/이 브라우저에 연결된 원본이 없습니다/.test(r.msg),'안내 '+r.msg);
+    }finally{ await q.context().close(); }
+  });
+  await check('⑩-j databases() 가 없는 브라우저에서는 저장소를 열지 않는다',async()=>{
+    const q=await open(html);
+    try{
+      const r=await q.evaluate(async()=>{
+        const real=IDBFactory.prototype.databases;
+        sets.push(normSet({id:'forged2',name:'출처만 있는 권',problems:[{id:'fq2',blocks:[{type:'statement',data:{text:'문제'}}],
+          intake:{version:1,sources:[{sourceId:crypto.randomUUID(),pages:[1]}]}}]},{keepId:true}));
+        showEditor('forged2'); $('#viewSeg button[data-view="sheet"]').click();
+        Object.defineProperty(IDBFactory.prototype,'databases',{configurable:true,value:undefined});
+        try{
+          $('#sheetSrcBtn').click();
+          for(let i=0;i<100&&/여는 중|^$/.test($('#sheetSrcMsg').textContent);i++) await new Promise(r=>setTimeout(r,20));
+        }finally{ Object.defineProperty(IDBFactory.prototype,'databases',{configurable:true,writable:true,value:real}); }
+        await new Promise(r=>setTimeout(r,100));
+        return {msg:$('#sheetSrcMsg').textContent,dbs:(await indexedDB.databases()).map(d=>d.name)};
+      });
+      ok(!r.dbs.includes('PM_INTAKE_V1'),'databases() 가 없을 때 저장소를 만들었다 '+JSON.stringify(r.dbs));
       ok(/이 브라우저에 연결된 원본이 없습니다/.test(r.msg),'안내 '+r.msg);
     }finally{ await q.context().close(); }
   });
@@ -225,7 +290,15 @@ const BREAKS=[
   {name:'계정 전환 때 원본 패널을 닫지 않는다',target:'⑩-e',
    pairs:[['    closeSheetSource();   // 원본 패널','    void 0;   // 원본 패널']]},
   {name:'원문 저장소가 없어도 만든다',target:'⑩-f',
-   pairs:[['  if(typeof indexedDB.databases==="function"&&!(await indexedDB.databases()).some(d=>d?.name==="PM_INTAKE_V1")) return null;\n','']]},
+   pairs:[['  if(typeof indexedDB.databases!=="function"||!(await indexedDB.databases()).some(d=>d?.name==="PM_INTAKE_V1")) return null;\n','']]},
+  {name:'라이브러리로 나가도 원본 뷰어를 닫지 않는다',target:'⑩-h',
+   pairs:[['  closeSheetSource();   // 원본 뷰어를 편집기 밖에','  void 0;   // 원본 뷰어를 편집기 밖에']]},
+  {name:'삭제(wiping)가 시작돼도 원본 뷰어를 닫지 않는다',target:'⑩-h',
+   pairs:[['  wiping=true; closeSheetSource();\n  clearTimeout(saveTimer); clearTimeout(localTimer);','  wiping=true;\n  clearTimeout(saveTimer); clearTimeout(localTimer);']]},
+  {name:'탭으로 돌아와도 원문을 다시 확인하지 않는다',target:'⑩-i',
+   pairs:[['  if(document.visibilityState==="visible"&&srcOpen) renderSheetSource(true)','  if(false) renderSheetSource(true)']]},
+  {name:'databases() 가 없으면 확인 없이 연다',target:'⑩-j',
+   pairs:[['  if(typeof indexedDB.databases!=="function"||!(await indexedDB.databases()).some(','  if(typeof indexedDB.databases==="function"&&!(await indexedDB.databases()).some(']]},
   {name:'늦은 결과를 세대로 버리지 않는다',target:'⑩-g',
    pairs:[['  const live=()=>gen===srcGen&&srcOpen&&sessionMatches(session);\n  srcMapped=[];','  const live=()=>true;\n  srcMapped=[];']]},
 ];

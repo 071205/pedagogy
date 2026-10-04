@@ -23,13 +23,14 @@ B6 API 만으로는 U1.5 수동 연결이 안 된다 — 원문 등록 길이 `c
 
 - **권한 경계**: 원문은 B6 의 `forProblem(setId, problem)` 으로만 연다(권 연결이 active 이고 문항 `intake.sources` 에 그 원문이 있어야 한다).
   출처 ID 만 보고 `readSource()` 로 열지 않는다 — 가져온 `.json` 이 같은 ID 를 들고 와도 이 기기의 원문을 못 연다.
-- **저장소를 만들지 않는다**: `PedagogyIntake.create()` 는 여는 순간 DB 를 만든다. `indexedDB.databases()` 에 `PM_INTAKE_V1` 이 없으면
-  클라이언트를 만들지 않고 '연결된 원본 없음' 으로 답한다.
+- **저장소를 만들지 않는다**: `PedagogyIntake.create()` 는 여는 순간 DB 를 만든다. `indexedDB.databases()` 에 `PM_INTAKE_V1` 이 없거나
+  **`databases()` 자체가 없는 브라우저면** 클라이언트를 만들지 않고 '연결된 원본 없음' 으로 답한다(구형 브라우저는 원본을 못 본다 — 대가로 받아들임).
 - **단추는 출처가 있는 문제집에서만** 보인다(`setHasSourceRefs`). 운영은 일괄 AI 가 꺼져 있어 지금 사용자에게는 **아무것도 바뀌지 않는다.**
   문제집을 바꾼 순간 맞추려고 `scheduleSheet()` 첫머리에서도 단추를 맞춘다(조립을 기다리면 그 사이 옛 문제집의 단추가 남았다 — 검사가 잡았다).
-- **늦은 결과**: 세대 `srcGen` + `sessionMatches` 로 버린다. 열다 만 PDF 는 닫는다. 같은 원문이면 다시 열지 않는다
-  (`forProblem()` 이 원문 ID 를 주지 않아 크기·이름·앞뒤 64KB 해시로 가른다).
-- **계정 전환**: `onAuth` 의 계정 바뀜 블록에서 `closeSheetSource()` — 세대 증가 · PDF 문서 파기 · object URL 해제 · 패널 닫기(U0 §5-2).
+- **늦은 결과**: 세대 `srcGen` + `sessionMatches` 로 버린다. 열다 만 PDF 는 닫는다. 원문은 **문항마다 새로 연다**(캐시 없음 — 아래 검토 1차).
+- **닫기**: `onAuth` 계정 바뀜 · `showLibrary()` · 삭제 시작(`wiping=true` 두 곳)에서 `closeSheetSource()` — 세대 증가 · PDF 파기 ·
+  object URL 해제 · 패널 닫기(U0 §5-2). 다른 탭의 원문 삭제는 IDB 에 탭 간 알림이 없어 **이 탭으로 돌아올 때**(`visibilitychange`) 다시 확인한다.
+  상태 변수는 `showLibrary()` 가 부르므로 지면 상태 옆(스크립트 앞)에 둔다 — 뒤에 두면 부팅 중 TDZ.
 - **보기**: PDF 는 vendoring 된 pdf.js 6.3.289 를 B6 와 같은 옵션(`isEvalSupported:false` · 로컬 cmap/글꼴/wasm)으로 열어 canvas 에 그린다.
   이미지는 `blob:` URL. 문항에 지정된 쪽으로 열고(`이 문항: n쪽`) ‹ › 로 자유 탐색. 쪽 지정이 없으면 1쪽과 안내.
 - **문구**: 없음 `이 브라우저에 연결된 원본이 없습니다 · 원본은 기기 간 동기화되지 않습니다`(U0 계약 문구) · 삭제됨 · 삭제 중 · 열기 실패를 구분.
@@ -43,11 +44,12 @@ B6 API 만으로는 U1.5 수동 연결이 안 된다 — 원문 등록 길이 `c
 
 ## 검증
 
-- 새 `npm run test:sheet-source`(`scripts/check-sheet-source.mjs`, `check:fast` 에 연결) — 실제 크로미움, 원문은 B6 fixture 로 실제 IDB 에 채택:
-  ⑩-a 출처 없는 권은 단추·패널 없음 · ⑩-b 이미지 원문 표시(`blob:`·300px) · ⑩-c 2쪽 PDF 가 지정 쪽(2쪽, 빨강 픽셀)으로 열리고 ‹ 로 1쪽 ·
-  ⑩-d 권한 없는 사본은 원문 안 열림 · ⑩-e `onAuth` 계정 전환에 패널·뷰어 비움 · ⑩-f 저장소 없는 사용자에게 DB 를 만들지 않음 ·
-  ⑩-g 닫은 뒤 늦은 원문 버림. **깨보기 7종 전부 빨간불**(`[hidden]` 규칙 제거 · 늘 1쪽 · `readSource` 로 권한 우회 · 계정 전환 닫기 제거 ·
-  DB 존재 확인 제거 · 세대 확인 제거 · 단추 즉시 동기화 제거).
+- 새 `npm run test:sheet-source`(`scripts/check-sheet-source.mjs`, `check:fast` 에 연결) — 실제 크로미움, 원문은 B6 fixture 로 실제 IDB 에 채택.
+  **10개**: ⑩-a 출처 없는 권은 단추·패널 없음 · ⑩-b 이미지 원문(`blob:`·300px) · ⑩-c 2쪽 PDF 가 지정 쪽(빨강 픽셀)으로 열리고 ‹ 로 1쪽 ·
+  ⑩-d 권한 없는 사본은 원문 안 열림 · ⑩-h 라이브러리 이동·삭제 시작에 뷰어 비움 · ⑩-e `onAuth` 계정 전환(첫 await 전 판정) ·
+  ⑩-i 다른 탭 삭제를 돌아올 때 반영 · ⑩-f 저장소 없으면 안 만듦 · ⑩-j `databases()` 없는 브라우저에서도 안 만듦 · ⑩-g 닫은 뒤 늦은 원문 버림.
+  **깨보기 11종 전부 빨간불.** ⚠️ 비로그인 '모든 문제집 삭제' 는 대기 없이 한 번에 끝나 '삭제 구간' 이 없다 — 첫 await 전에 재면 끝난 뒤를
+  재서 깨보기가 헛돌았다. `wiping` 이 켜진 직후(다음 줄 `clearTimeout`)를 가로채 잰다.
 - `test:sheet` 17개·깨보기 14종 · `test:public`(CSP) · `check:static` · `check:sonar` 통과. `test:library-ui`·`test:cross:fast` 는 아래 검증 기록.
 - 눈으로: 1440 넓은 화면(지면·원본·설정 나란히) · 375 좁은 화면(쌓임 · 가로 넘침 0px).
 - 못 한 것: 실제 Safari/iPad 의 원문 회수 뒤 동작(R8) · 큰 스캔 PDF 의 렌더 시간.
@@ -58,3 +60,9 @@ B6 API 만으로는 U1.5 수동 연결이 안 된다 — 원문 등록 길이 `c
 `scripts/check-sheet-source.mjs`. 특히 권한 경계(⑩-d)·DB 생성 금지(⑩-f)·늦은 결과(⑩-g)·계정 전환(⑩-e)이 실제로 닫혔는지.
 
 ## 검토 기록
+
+- 2026-10-04 · Codex GPT-5.6 Sol medium 1차 · **merge 반대 — 결함 3** · Claude 가 근거 줄을 확인하고 셋 다 재현·반영:
+  (b) `databases()` 없는 브라우저에서 빈 저장소 생성 → 그 경우 읽지 않음, ⑩-j · (c) 앞뒤 64KB 키로 다른 원문을 같은 것으로 볼 수 있음 →
+  캐시 제거(문항마다 새로 연다) · (d) '모든 문제집 삭제'·삭제 구간·다른 탭 원문 삭제 뒤 뷰어 잔존 → `showLibrary`·`wiping` 시작에서 닫고
+  탭 복귀 때 재확인, ⑩-h·⑩-i. (a) 권한 경계(가져오기는 새 id)와 (e) ⑩-e 의 대표성은 합의. 반영 중 ⑩-e 가 `showLibrary` 경로 때문에
+  헛도는 것을 발견해 첫 await 전 판정으로 좁혔다.
