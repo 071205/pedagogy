@@ -25,7 +25,7 @@
      어렵다 — 새 로그인만 깨진다). 실제로 한 번 그랬으니 손대지 말 것. -->
 <meta http-equiv="Content-Security-Policy" content="
   default-src 'self';
-  script-src 'self' 'wasm-unsafe-eval' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-1ffMo1EyhOE7f1EuGWp/YK6m/ZlKa6qV+52VrluIYAE=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
+  script-src 'self' 'wasm-unsafe-eval' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-lm0RsVl1OI5gLECMLgWQS7xgoFcHc+i9ZVwYMc+1fpg=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
   script-src-attr 'none';
   style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
   font-src 'self' data: https://cdn.jsdelivr.net;
@@ -502,6 +502,12 @@ label.btn input{display:none}
   border:1px solid var(--border);border-radius:var(--radius-md);
   background:var(--bg);color:var(--text-primary);font-size:13px}
 .dm-note{font-size:11.5px;color:var(--text-tertiary);margin-top:8px;line-height:1.6}
+.dm-src-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.dm-src-list:empty{display:none}
+.dm-src-list li{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12.5px;color:var(--text-primary);
+  padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-md)}
+.dm-src-list li .meta{color:var(--text-secondary);flex:1 1 160px;min-width:0}
+.dm-src-list li .name{font-weight:600;word-break:break-all}
 /* 지문 기호 빠른 입력 — ㉠ ⓐ 는 한글 자판에서 한자키를 거쳐야 해 번거롭다 */
 .psg-syms{display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-top:8px}
 .psg-syms-t{font-size:11.5px;color:var(--text-tertiary);margin-right:4px}
@@ -844,6 +850,10 @@ select:focus{border-color:var(--blue)}
 /* 원본은 종이다 — 어두운 테마에서도 흰 바탕 */
 .sheet-src-view canvas,.sheet-src-view img{display:block;width:100%;height:auto;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.25)}
 .sheet-src-msg{flex:0 0 auto;padding:10px 12px;font-size:12.5px;line-height:1.55;color:var(--text-secondary)}
+.sheet-src-acts{flex:0 0 auto;display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:8px 12px;border-bottom:1px solid var(--border)}
+.sheet-src-acts select{height:32px;max-width:100%;min-width:0;flex:1 1 160px}
+.sheet-src-acts .btn{height:32px;padding:0 10px;font-size:12.5px}
+.sheet-src-acts [hidden]{display:none}
 .sheet-src-msg:empty{display:none}
 .sheet-src-msg[data-s="bad"]{color:var(--danger)}
 #sheetSrcBtn[aria-pressed="true"]{border-color:var(--blue);color:var(--blue);font-weight:600}
@@ -2332,6 +2342,16 @@ function setEditorActions(on){
             <button type="button" id="sheetSrcNext" class="btn" aria-label="원본 다음 쪽">›</button>
           </div>
         </div>
+        <!-- ⓑ 수동 연결 — 고른 원문 · 이 문항 쪽 지정 · 파일 연결/다시 연결. 쓰기는 저장 묶음 API(registerSource·assignPages·reconnect)만 거친다. -->
+        <div class="sheet-src-acts" id="sheetSrcActs">
+          <select id="sheetSrcSel" aria-label="볼 원본 고르기" hidden></select>
+          <button type="button" id="sheetSrcAssign" class="btn" hidden></button>
+          <button type="button" id="sheetSrcAddPage" class="btn" hidden></button>
+          <button type="button" id="sheetSrcUnassign" class="btn" hidden>쪽 지정 해제</button>
+          <button type="button" id="sheetSrcAdd" class="btn">원본 파일 연결</button>
+          <button type="button" id="sheetSrcRelink" class="btn" hidden>다시 연결</button>
+          <input type="file" id="sheetSrcFile" accept="application/pdf,image/png,image/jpeg,image/webp" hidden>
+        </div>
         <div class="sheet-src-view" id="sheetSrcView"></div>
         <div class="sheet-src-msg" id="sheetSrcMsg" role="status"></div>
       </section>
@@ -2412,6 +2432,15 @@ function setEditorActions(on){
         <button id="dmRestoreBtn" class="btn" style="height:38px" disabled>되돌리기</button>
       </div>
       <div class="dm-note">되돌리기 직전 상태도 백업으로 바꿔 두므로, 잘못 눌렀으면 한 번 더 눌러 원래대로 돌아올 수 있어요.</div>
+    </div>
+
+    <!-- 원본 대조(U1.5 ⓑ)에서 이 브라우저에 보관한 원본 — 목록·용량·원문만 삭제. 문항·문제집은 지우지 않는다. -->
+    <div class="dm-sec" id="dmSourcesSec">
+      <h4>이 기기에 보관한 원본</h4>
+      <p id="dmSourcesInfo">확인 중…</p>
+      <ul class="dm-src-list" id="dmSourcesList"></ul>
+      <div class="dm-note">원본 PDF·사진은 이 브라우저에만 있어요 — 다른 기기·브라우저에는 동기화되지 않고, 브라우저가 공간이 부족하면 지울 수 있어요.
+        원본을 지워도 문항과 문제집은 그대로예요. 보관 한도는 파일당 100MB · 합계 1GB 예요.</div>
     </div>
 
     <!-- 되돌릴 수 없는 것 -->
@@ -3009,6 +3038,7 @@ let sets=[]; let currentSetId=null; let currentQId=null; let orderMode=false;
 let sheetZoomFit=true, editorMode="edit", sheetGen=0, sheetShownKey=null, sheetTimer=null, sheetBusy=false, sheetBuildingKey=null;
 // 원본 대조 패널(U1.5 ⓐ) — showLibrary()·삭제 경로가 부르므로 앞에 둔다(뒤에 두면 부팅 중 TDZ)
 let srcOpen=false, srcGen=0, srcReader=null, srcView=null, srcPage=1, srcMapped=[], srcShownFor=null;
+let srcPersistNoted=false, srcWriter=null, srcWriterOwner=null, srcEditorsOk=false, srcSel=null, srcSelFor=null, srcCur=null, srcList=[], srcMissing=null, srcFileMode=null;
 let currentUser=null; // 로그인 유저
 let authEpoch=0;
 function sessionContext(){
@@ -5775,6 +5805,7 @@ function prepDataPane(){
   $("#dmBackupInfo").textContent = b
     ? `마지막 백업: ${new Date(b.t).toLocaleString("ko-KR")} · 문제집 ${b.sets.length}권`
     : "아직 백업이 없어요. 접속할 때마다 직전 상태가 하나 보관됩니다.";
+  renderDataSources().catch(e=>{ $("#dmSourcesInfo").textContent="원본 목록을 읽지 못했어요 · "+errText(e); });
 
   // 계정 삭제는 로그인 상태에서만
   const acct=$("#dmAccountSec");
@@ -9695,14 +9726,18 @@ $("#sheetScroll").addEventListener("scroll",()=>{ if(editorMode==="sheet") updat
 if(typeof ResizeObserver==="function")
   new ResizeObserver(()=>{ if(editorMode==="sheet") layoutSheetScale(); }).observe($("#sheetScroll"));
 
-/* ══ 원본 대조 (U1.5 ⓐ) ════════════════════════════════════════════════════
-   지면 옆에 원본(PDF/이미지)을 나란히 본다. **이 브라우저에 연결 권한이 이미 있는 원문만** 보여 준다 —
-   B6 저장소의 forProblem() 을 거친다. ⚠️ 출처 ID 만 보고 readSource() 로 권한 검사를 건너뛰지 않는다
-   (가져온 .json 의 같은 ID 가 이 기기의 원문을 열게 된다).
-   ⚠️ 원문 저장소가 없으면 만들지 않는다 — PedagogyIntake.create() 는 여는 순간 DB 를 만든다.
-   ⚠️ 계정이 바뀌면 closeSheetSource() 가 읽기·뷰어·object URL 을 비운다(U0 §5-2). 늦은 결과는 세대·계정으로 버린다.
-   ⚠️ 원본 단추는 출처가 붙은 문항이 있는 문제집에서만 보인다. 수동 연결·다시 연결·원문 관리는 ⓑ(저장 묶음 뒤). */
-function setHasSourceRefs(s){ return !!s&&(s.problems||[]).some(p=>(p.intake?.sources||[]).length>0); }
+/* ══ 원본 대조 (U1.5 ⓐ 보기 · ⓑ 수동 연결) ═══════════════════════════════════
+   지면 옆에 원본(PDF/이미지)을 나란히 본다. 원본은 **이 브라우저에만** 보관한다(서버·계정에 올리지 않는다).
+   보여 주는 순서: ① 문항에 쪽이 지정된 원문(forProblem) ② 이 문제집에 연결된 원문을 자유 탐색(forSet → readLinked)
+   ③ 없으면 '원본 파일 연결'. 문항 쪽이 가리키는 원문이 이 브라우저에 없으면 '다시 연결'.
+   ⚠️ 읽기는 권 연결을 확인하는 API 만 쓴다 — 출처 ID 만 보고 readSource() 로 열지 않는다(가져온 .json 의 같은 ID 가
+      이 기기의 원문을 열게 된다).
+   ⚠️ 원문 저장소가 없으면 읽기 때문에 만들지 않는다 — PedagogyIntake.create() 는 여는 순간 DB 를 만든다.
+      저장소는 사용자가 '원본 파일 연결' 을 눌러 실제로 보관할 때만 생긴다.
+   ⚠️ 쓰기(등록·쪽 지정·다시 연결)는 저장 묶음 API 만 거친다. 처음 쓰기 전에 다른 탭을 닫았는지 한 번 묻는다
+      (B6: 구형 탭 확인은 호출자가 명시해야 한다). assignPages 는 문항 출처를 **통째로 교체**하므로 다른 원문의 출처를 합쳐 넘긴다.
+   ⚠️ 계정이 바뀌면 closeSheetSource() 가 읽기·뷰어·object URL 을 비운다(U0 §5-2). 늦은 결과는 세대·계정으로 버린다. */
+const SRC_OK=st=>st==="available"||st==="unlinked";
 async function sheetSourceReader(){
   if(typeof indexedDB==="undefined"||typeof PedagogyIntake==="undefined"||wiping) return null;
   /* ⚠️ databases() 가 없는 브라우저는 저장소가 있는지 알 수 없다 — 열면 빈 저장소가 생기므로 읽지 않는다(Codex 검토). */
@@ -9710,31 +9745,47 @@ async function sheetSourceReader(){
   return srcReader||=PedagogyIntake.create({renderer:{},
     session:()=>({owner:intakeOwner(),epoch:authEpoch})});
 }
+/* 쓰기 클라이언트 — 계정마다 하나. 처음 쓰기 전에 한 번 다른 탭을 확인한다. 취소하면 null(아무것도 쓰지 않는다). */
+function sheetSourceWriter(){
+  if(srcWriter&&srcWriterOwner===intakeOwner()) return srcWriter;
+  if(srcWriter){ intakeClients.delete(srcWriter); srcWriter=null; }
+  if(!navigator.locks) throw Error("이 브라우저에서는 원본을 연결할 수 없어요 · 최신 크롬·엣지·사파리에서 열어 주세요");
+  if(!srcEditorsOk){
+    if(!confirm("원본 파일은 이 브라우저에만 보관돼요. 다른 기기나 브라우저에는 동기화되지 않아요.\n\n"
+      +"같은 브라우저의 다른 탭에 PEDAGOGY 가 열려 있다면 먼저 닫아 주세요 — 예전 화면과 함께 쓰면 문제집이 덮일 수 있어요.\n\n"
+      +"다른 탭을 닫았으면 확인을 눌러 주세요.")) return null;
+    srcEditorsOk=true;
+  }
+  srcWriter=createIntakeStorageClient({editorsConfirmed:true}); srcWriterOwner=intakeOwner();
+  return srcWriter;
+}
 const SRC_STATE_TEXT={
   missing:"이 브라우저에 연결된 원본이 없습니다 · 원본은 기기 간 동기화되지 않습니다",
   deleted:"이 원본은 이 브라우저에서 삭제됐어요 · 문항은 그대로입니다",
   deleting:"이 원본을 지우는 중이에요",
 };
+const errText=e=>(e&&e.message)||String(e);
 function setSrcMsg(text,bad=false){
   const m=$("#sheetSrcMsg"); m.textContent=text||"";
   if(bad) m.dataset.s="bad"; else delete m.dataset.s;
 }
 function dropSourceView(){
   if(srcView){ try{ srcView.close(); }catch{} srcView=null; }
+  srcCur=null;
   $("#sheetSrcView").replaceChildren();
 }
 function closeSheetSource(){
-  srcGen++; srcOpen=false; srcReader=null; srcShownFor=null; srcMapped=[];
+  srcGen++; srcOpen=false; srcReader=null; srcShownFor=null; srcMapped=[]; srcList=[]; srcMissing=null; srcSel=null; srcSelFor=null;
   dropSourceView(); setSrcMsg(""); $("#sheetSrcPage").textContent="";
   $("#sheetSrc").hidden=true; $("#sheetSrcBtn").setAttribute("aria-pressed","false");
 }
+/* 원본 단추는 문제집이 열려 있으면 늘 보인다 — 연결하려면 단추가 있어야 한다. 누르기 전에는 저장소를 건드리지 않는다. */
 function syncSheetSrcBtn(){
-  const has=setHasSourceRefs(activeSet());
+  const has=!!activeSet();
   $("#sheetSrcBtn").hidden=!has;
   if(!has&&srcOpen) closeSheetSource();
 }
-/* ⚠️ 원문을 문항마다 새로 연다. 일부 내용으로 '같은 원문' 을 가르면 다른 원문을 보여 줄 수 있다(Codex 검토 —
-   forProblem() 은 원문 ID 를 주지 않는다). 캐시가 필요해지면 저장 묶음이 ID 를 돌려주게 한 뒤 그 ID 로 가른다. */
+/* ⚠️ 원문을 새로 고를 때마다 새로 연다. 일부 내용으로 '같은 원문' 을 가르면 다른 원문을 보여 줄 수 있다(Codex 검토). */
 async function openSourceView(blob){
   if(blob.type==="application/pdf"){
     const mod=await import("./vendor/pdfjs/pdf.mjs");
@@ -9749,15 +9800,35 @@ async function openSourceView(blob){
   const url=URL.createObjectURL(blob);
   return {kind:"image",total:1,url,close(){ URL.revokeObjectURL(url); }};
 }
+const pageList=a=>a.length>1&&a[a.length-1]-a[0]===a.length-1?a[0]+"~"+a[a.length-1]:a.join("·");
 function srcPageLabel(){
   if(!srcView) return "";
-  const list=srcMapped.length>1?srcMapped[0]+"~"+srcMapped[srcMapped.length-1]:String(srcMapped[0]||"");
-  return `${srcPage} / ${srcView.total}쪽`+(srcMapped.length?` · 이 문항: ${list}쪽`:"");
+  return `${srcPage} / ${srcView.total}쪽`+(srcMapped.length?` · 이 문항: ${pageList(srcMapped)}쪽`:"");
+}
+/* 단추 상태 — 고른 원문 · 지금 쪽 · 이 문항의 지정으로 정한다(쪽을 넘길 때마다 다시 맞춘다). */
+function renderSrcActs(){
+  const s=activeSet(), q=activeQ(), sel=$("#sheetSrcSel"), cur=srcCur;
+  sel.hidden=srcList.length<2;
+  if(!sel.hidden){
+    sel.replaceChildren(...srcList.map(x=>{ const o=el("option",null,`${x.name||"원본"} · ${x.pageCount||1}쪽`); o.value=x.sourceId; return o; }));
+    sel.value=cur?.sourceId||"";
+  }
+  const ref=cur&&(q?.intake?.sources||[]).find(r=>r.sourceId===cur.sourceId);
+  const mine=ref?.pages||[];
+  const assign=$("#sheetSrcAssign"), add=$("#sheetSrcAddPage"), un=$("#sheetSrcUnassign");
+  assign.hidden=!(cur&&q&&srcView)||(mine.length===1&&mine[0]===srcPage);
+  assign.textContent=`이 문항 = ${srcPage}쪽`;
+  add.hidden=!(ref&&srcView)||mine.includes(srcPage);
+  add.textContent=`+ ${srcPage}쪽 더하기`;
+  un.hidden=!ref;
+  $("#sheetSrcRelink").hidden=!srcMissing;
+  $("#sheetSrcAdd").hidden=!s;
 }
 function updateSrcNav(){
   $("#sheetSrcPrev").disabled=!srcView||srcPage<=1;
   $("#sheetSrcNext").disabled=!srcView||srcPage>=srcView.total;
   $("#sheetSrcPage").textContent=srcPageLabel();
+  renderSrcActs();
 }
 async function drawSourcePage(){
   const v=srcView, want=srcPage, box=$("#sheetSrcView"); if(!v) return;
@@ -9779,51 +9850,79 @@ async function drawSourcePage(){
   if(srcView!==v||srcPage!==want) return;
   box.replaceChildren(c); box.scrollTop=0;
 }
+/* 무엇을 보여 줄지 정한다 — 문항 지정(이 문항에서 사용자가 다른 원문을 고르지 않았으면) → 권의 연결 원문 → 없음. */
+async function pickSheetSource(reader,s,q,refs){
+  let shown=null, missing=null, list=[];
+  if(!reader) return {shown,list,missing:refs.length?{sourceId:refs[0].sourceId,state:"missing"}:null};
+  const fs=await reader.forSet(s.id);
+  list=fs?.state==="linked"?(fs.sources||[]).filter(x=>SRC_OK(x.state)):[];
+  const chosen=srcSelFor===(q?.id??null)&&list.some(x=>x.sourceId===srcSel)?srcSel:null;
+  if(q&&refs.length){
+    const r=await reader.forProblem(s.id,q);
+    if(r.blob&&SRC_OK(r.state)&&(!chosen||chosen===r.sourceId)) shown={sourceId:r.sourceId,blob:r.blob,pages:r.pages||[]};
+    else if(!(r.blob&&SRC_OK(r.state))) missing={sourceId:refs[0].sourceId,state:r.state||"missing"};
+  }
+  if(!shown&&list.length){
+    const pick=list.find(x=>x.sourceId===chosen)||list[0];
+    const r=await reader.readLinked(s.id,pick.sourceId);
+    if(r.blob&&SRC_OK(r.state)){
+      const ref=(q?.intake?.sources||[]).find(x=>x.sourceId===pick.sourceId);
+      shown={sourceId:pick.sourceId,blob:r.blob,pages:ref?.pages||[]};
+    }
+  }
+  return {shown,list,missing};
+}
 async function renderSheetSource(force=false){
   syncSheetSrcBtn();
   if(!srcOpen||!sheetVisible()) return;
   const s=activeSet(), q=activeQ(), refs=q?.intake?.sources||[];
-  const want=s&&q?JSON.stringify([s.id,q.id,refs]):null;
+  const want=s?JSON.stringify([s.id,q?.id??null,refs,srcSelFor===(q?.id??null)?srcSel:null]):null;
   if(!force&&want===srcShownFor) return;
   srcShownFor=want;
   const gen=++srcGen, session=sessionContext();
   const live=()=>gen===srcGen&&srcOpen&&sessionMatches(session);
   srcMapped=[];
-  if(!q){ dropSourceView(); updateSrcNav(); setSrcMsg("문항을 고르면 그 문항의 원본을 보여 줘요"); return; }
-  if(!refs.length){ dropSourceView(); updateSrcNav(); setSrcMsg("이 문항에는 연결된 원본이 없어요"); return; }
+  if(!s){ dropSourceView(); srcList=[]; srcMissing=null; updateSrcNav(); setSrcMsg(""); return; }
   setSrcMsg("원본 여는 중…");
-  let r;
-  try{ const reader=await sheetSourceReader(); r=reader?await reader.forProblem(s.id,q):{state:"missing"}; }
-  catch(e){ r={state:"error",reason:(e&&e.message)||String(e)}; }
+  let got;
+  try{ got=await pickSheetSource(await sheetSourceReader(),s,q,refs); }
+  catch(e){ if(!live()) return; dropSourceView(); srcList=[]; srcMissing=null; updateSrcNav(); setSrcMsg("원본을 열지 못했어요 · "+errText(e),true); return; }
   if(!live()) return;
-  if(!r.blob||!["available","unlinked"].includes(r.state)){
+  srcList=got.list; srcMissing=got.missing;
+  const missText=srcMissing?(SRC_STATE_TEXT[srcMissing.state]||SRC_STATE_TEXT.missing):"";
+  if(!got.shown){
     dropSourceView(); updateSrcNav();
-    setSrcMsg(r.state==="error"?"원본을 열지 못했어요 · "+r.reason:(SRC_STATE_TEXT[r.state]||SRC_STATE_TEXT.missing),r.state==="error");
+    setSrcMsg(missText||(q?"이 문제집에 연결된 원본이 없어요 · '원본 파일 연결' 로 PDF·사진을 이 브라우저에 보관하면 나란히 볼 수 있어요"
+      :"문항을 고르면 그 문항의 원본을 보여 줘요"));
     return;
   }
   try{
-    const v=await openSourceView(r.blob);
+    const v=await openSourceView(got.shown.blob);
     if(!live()){ v.close(); return; }
-    dropSourceView(); srcView=v;
-    srcMapped=(r.pages||[]).filter(n=>Number.isSafeInteger(n)&&n>=1&&n<=srcView.total);
+    dropSourceView(); srcView=v; srcCur={sourceId:got.shown.sourceId};
+    srcMapped=got.shown.pages.filter(n=>Number.isSafeInteger(n)&&n>=1&&n<=srcView.total);
     srcPage=srcMapped[0]||1;
-    setSrcMsg(srcMapped.length?"":"이 문항의 쪽이 지정되지 않았어요 · 원본을 넘겨 보세요");
+    setSrcMsg(missText||(srcMapped.length||!q?"":"이 문항의 쪽이 지정되지 않았어요 · 원본을 넘겨 맞는 쪽에서 '이 문항 = n쪽' 을 누르세요"));
     await drawSourcePage();
   }catch(e){
     if(!live()) return;
-    dropSourceView(); setSrcMsg("원본을 열지 못했어요 · "+((e&&e.message)||e),true);
+    dropSourceView(); setSrcMsg("원본을 열지 못했어요 · "+errText(e),true);
   }
   if(live()) updateSrcNav();
+}
+function refreshSheetSource(){
+  srcShownFor=null;
+  renderSheetSource(true).catch(e=>console.error("원본 패널",e));
 }
 $("#sheetSrcBtn").onclick=()=>{
   if(srcOpen){ closeSheetSource(); return; }
   srcOpen=true; $("#sheetSrc").hidden=false; $("#sheetSrcBtn").setAttribute("aria-pressed","true");
-  renderSheetSource(true).catch(e=>console.error("원본 패널",e));
+  refreshSheetSource();
 };
 const stepSourcePage=d=>{
   if(!srcView) return;
   const n=Math.min(srcView.total,Math.max(1,srcPage+d)); if(n===srcPage) return;
-  srcPage=n; drawSourcePage().catch(e=>setSrcMsg("원본 쪽을 그리지 못했어요 · "+((e&&e.message)||e),true));
+  srcPage=n; drawSourcePage().catch(e=>setSrcMsg("원본 쪽을 그리지 못했어요 · "+errText(e),true));
 };
 /* 다른 탭에서 원문을 지웠을 수 있다 — IDB 에는 탭 간 알림이 없으므로 이 탭으로 돌아올 때 다시 확인한다. */
 document.addEventListener("visibilitychange",()=>{
@@ -9831,6 +9930,107 @@ document.addEventListener("visibilitychange",()=>{
 });
 $("#sheetSrcPrev").onclick=()=>stepSourcePage(-1);
 $("#sheetSrcNext").onclick=()=>stepSourcePage(1);
+$("#sheetSrcSel").onchange=e=>{ srcSel=e.target.value; srcSelFor=activeQ()?.id??null; refreshSheetSource(); };
+/* 이 문항의 쪽 지정 — 'set' 이 쪽으로 · 'add' 이 쪽 더하기 · 'remove' 지정 해제.
+   ⚠️ assignPages 는 문항 출처 목록을 통째로 교체한다 — 다른 원문(예: AI 출처)의 지정을 합쳐 넘겨야 잃지 않는다. */
+async function assignSourcePage(mode){
+  const s=activeSet(), q=activeQ(), cur=srcCur; if(!s||!q||!cur) return;
+  let w; try{ w=sheetSourceWriter(); }catch(e){ toast(errText(e),"error"); return; }
+  if(!w) return;
+  const refs=q.intake?.sources||[];
+  const others=refs.filter(r=>r.sourceId!==cur.sourceId), mine=refs.find(r=>r.sourceId===cur.sourceId);
+  const pages=mode==="add"?[...new Set([...(mine?.pages||[]),srcPage])].sort((a,b)=>a-b):[srcPage];
+  const next=mode==="remove"?others:[...others,{sourceId:cur.sourceId,pages}];
+  try{
+    await w.assignPages(s.id,q.id,next);
+    srcSel=cur.sourceId; srcSelFor=q.id;
+    toast(mode==="remove"?"이 문항의 원본 쪽 지정을 풀었어요":`이 문항 = 원본 ${pageList(pages)}쪽`);
+  }catch(e){ toast("쪽을 지정하지 못했어요 · "+errText(e),"error"); }
+  scheduleSheet(); refreshSheetSource();
+}
+$("#sheetSrcAssign").onclick=()=>assignSourcePage("set");
+$("#sheetSrcAddPage").onclick=()=>assignSourcePage("add");
+$("#sheetSrcUnassign").onclick=()=>assignSourcePage("remove");
+function pickSourceFile(mode){
+  srcFileMode=mode; const f=$("#sheetSrcFile"); f.value=""; f.click();
+}
+$("#sheetSrcAdd").onclick=()=>pickSourceFile({kind:"add"});
+$("#sheetSrcRelink").onclick=()=>{ if(srcMissing) pickSourceFile({kind:"relink",sourceId:srcMissing.sourceId}); };
+/* 파일 연결·다시 연결. ⚠️ 다른 파일이면 옛 쪽 지정을 옮기지 않는다 — 새 원본으로 보관할지 사용자가 정한다(U0 §5-2). */
+$("#sheetSrcFile").onchange=async e=>{
+  const f=e.target.files?.[0], mode=srcFileMode, s=activeSet(); srcFileMode=null;
+  if(!f||!mode||!s) return;
+  let w; try{ w=sheetSourceWriter(); }catch(err){ toast(errText(err),"error"); return; }
+  if(!w) return;
+  setSrcMsg(mode.kind==="relink"?"원본을 확인하는 중…":"이 브라우저에 보관하는 중…");
+  try{
+    let r;
+    if(mode.kind==="relink"){
+      try{ r=await w.reconnect(mode.sourceId,f,{setId:s.id}); }
+      catch(err){
+        if(!/다른 파일|새 원문/.test(errText(err))) throw err;
+        if(!confirm("연결했던 원본과 다른 파일이에요.\n\n새 원본으로 이 브라우저에 보관할까요? 문항에 지정했던 쪽은 옮기지 않으니 다시 지정해 주세요.")){ refreshSheetSource(); return; }
+        r=await w.registerSource(f,s.id);
+      }
+      /* 같은 파일임을 내용으로 확인했다 — 이 문제집에도 연결해야 보인다(기록이 다른 문제집에만 이어져 있을 수 있다). */
+      if(r===mode.sourceId){ await w.linkSource(r,s.id); srcSel=r; toast("원본을 다시 연결했어요"); }
+      else{ srcSel=r.sourceId; toast("새 원본으로 보관했어요 · 문항의 쪽을 다시 지정해 주세요"); }
+    }else{
+      r=await w.registerSource(f,s.id); srcSel=r.sourceId;
+      toast(r.reused?"이미 보관한 같은 파일을 이 문제집에 연결했어요":"이 브라우저에 보관했어요 · 다른 기기에는 동기화되지 않아요");
+      /* 크롬은 보관 보장 요청을 흔히 거절한다 — 매번 오류로 띄우면 겁만 준다. 세션에 한 번, 일반 안내로(설정 칸에도 적혀 있다). */
+      if(r.persistence==="denied"&&!srcPersistNoted){ srcPersistNoted=true; toast("브라우저가 공간이 부족하면 보관한 원본을 지울 수 있어요 · 설정 → 데이터에서 확인"); }
+    }
+    srcSelFor=activeQ()?.id??null;
+  }catch(err){ setSrcMsg("원본을 연결하지 못했어요 · "+errText(err),true); return; }
+  refreshSheetSource();
+};
+/* ── 설정 → 데이터 → 이 기기에 보관한 원본(U1.5 ⓑ) ──
+   ⚠️ 목록을 보려고 저장소를 만들지 않는다(sheetSourceReader 와 같은 조건).
+   ⚠️ 원문 삭제는 impact() 의 영향 범위(쓰는 문제집·진행 중 작업·복구본)를 보여 준 뒤, 그 확인표(ticket)로만 지운다.
+      다른 탭이 그 사이 범위를 바꾸면 deleteSource 가 거절한다. 문항·문제집·결과 그림은 지우지 않는다(U0 §5-1). */
+const fmtBytes=n=>n>=1048576?(n/1048576).toFixed(1)+"MB":Math.max(1,Math.round(n/1024))+"KB";
+const SRC_STATE_LABEL={available:"보관 중",unlinked:"보관 중 · 연결된 문제집 없음",deleting:"지우는 중",deleted:"삭제됨",missing:"없음"};
+async function renderDataSources(){
+  const info=$("#dmSourcesInfo"), list=$("#dmSourcesList");
+  const reader=await sheetSourceReader();
+  const rows=reader?(await reader.listSources()).filter(x=>x.state!=="deleted"):[];
+  const used=rows.filter(x=>SRC_OK(x.state)).reduce((n,x)=>n+(x.bytes||0),0);
+  let keep="";
+  try{ if(navigator.storage?.persisted) keep=(await navigator.storage.persisted())?" · 브라우저 보관 보장 받음":" · 브라우저가 공간이 부족하면 지울 수 있음"; }catch{}
+  info.textContent=rows.length?`원본 ${rows.length}개 · ${fmtBytes(used)} / 1GB${keep}`:"보관한 원본이 없어요. 지면 배치의 '원본' 에서 PDF·사진을 연결할 수 있어요.";
+  list.replaceChildren(...rows.map(x=>{
+    const li=document.createElement("li");
+    const meta=el("span","meta"); meta.append(el("span","name",x.name||"원본"),
+      document.createTextNode(` · ${fmtBytes(x.bytes||0)} · ${x.pageCount||1}쪽 · ${SRC_STATE_LABEL[x.state]||x.state}`));
+    li.append(meta);
+    if(SRC_OK(x.state)){
+      const b=el("button","btn-danger","원문 삭제"); b.type="button";
+      b.setAttribute("aria-label",`${x.name||"원본"} 원문 삭제`);
+      b.onclick=()=>deleteSourceFromSettings(x).catch(e=>toast("원본을 지우지 못했어요 · "+errText(e),"error"));
+      li.append(b);
+    }
+    return li;
+  }));
+}
+/* ⚠️ listSources() 의 기록은 식별자가 `id` 다(forSet() 은 `sourceId`). 섞어 읽으면 빈 ID 로 지우려다 '원문 없음' 이 된다(검사가 잡았다). */
+async function deleteSourceFromSettings(src){
+  let w; try{ w=sheetSourceWriter(); }catch(e){ toast(errText(e),"error"); return; }
+  if(!w) return;
+  const im=await w.impact(src.id);
+  if(im.state!=="ready"){ toast("지금은 지울 수 없어요 · "+(im.reason||"확인 필요"),"error"); return; }
+  const names=im.active.map(id=>sets.find(s=>s.id===id)?.name||"(이 기기에 아직 없는 문제집)");
+  const lines=[`'${im.name||src.name||"원본"}' (${fmtBytes(im.bytes||src.bytes||0)}) 를 이 브라우저에서 지울까요?`,""];
+  lines.push(names.length?`· 이 원본을 쓰는 문제집 ${names.length}권: ${names.slice(0,5).join(", ")}${names.length>5?" 외":""}`:"· 지금 이 원본을 쓰는 문제집은 없어요");
+  if(im.jobs.length) lines.push(`· 진행 중인 작업 ${im.jobs.length}개는 멈춰요`);
+  if(im.recovery.length) lines.push(`· 되돌리기용 복구본 ${im.recovery.length}권도 이 원본을 볼 수 없게 돼요`);
+  lines.push("· 문항과 문제집은 그대로예요","","되돌릴 수 없어요 — 되돌리기·백업으로도 원본은 돌아오지 않아요.");
+  if(!confirm(lines.join("\n"))) return;
+  await w.deleteSource(src.id,{ticket:im.ticket,confirmed:true});
+  toast("원본을 이 브라우저에서 지웠어요");
+  await renderDataSources();
+  if(srcOpen) refreshSheetSource();
+}
 
 $("#exportWithAns").onclick=()=>doPrint(false);
 $("#exportNoAns").onclick=()=>doPrint(true);

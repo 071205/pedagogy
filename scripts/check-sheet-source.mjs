@@ -1,7 +1,7 @@
 /* U1.5 ⓐ 원본 대조 패널 — 실제 브라우저 회귀 + 깨보기.
  *
  * 보는 것
- *   ⑩-a 출처가 없는 문제집에서는 '원본' 단추도 패널도 보이지 않는다
+ *   ⑩-a '원본' 단추는 늘 보이고 누르기 전에는 패널이 없다 · 연결 안 된 권은 연결 안내만(저장소를 만들지 않는다)
  *   ⑩-b AI 채택 문제집(이미지 원문) — 단추를 누르면 그 원문이 패널에 보인다
  *   ⑩-c PDF 원문 — 문항에 지정된 쪽으로 열리고 이전/다음 쪽으로 넘긴다
  *   ⑩-d 연결 권한이 없는 문제집(같은 출처 ID 를 가진 사본)에서는 원문을 열지 않는다
@@ -11,6 +11,11 @@
  *   ⑩-h 라이브러리로 나가거나 삭제(wiping)가 시작되면 뷰어를 비운다
  *   ⑩-i 다른 탭에서 원문을 지웠으면 이 탭으로 돌아올 때 다시 확인해 내린다
  *   ⑩-j indexedDB.databases() 가 없는 브라우저에서는 저장소를 열지(만들지) 않는다
+ *   ⑪-a (ⓑ) 파일 연결 — 다른 탭 확인을 거쳐 보관하고 이 문제집에서 자유 탐색. 확인을 취소하면 아무것도 저장하지 않는다
+ *   ⑪-b 이 문항 = n쪽 · 쪽 더하기 · ⌘Z 한 번으로 되돌림
+ *   ⑪-c 수동 쪽 지정이 같은 문항의 AI 출처를 지우지 않는다 · 지정 해제도 그 원문만 뺀다
+ *   ⑪-d 다시 연결 — 같은 파일은 이 문제집에 이어지고, 다른 파일은 새 원본이며 옛 쪽 지정을 옮기지 않는다
+ *   ⑪-e 설정의 원문 삭제 — 영향 범위를 보여 준 뒤 지우고, 그 원문을 가리키던 문항은 '삭제됨' 이 된다
  *
  * 원문은 B6 fixture(createIntakeFixture)로 실제 IDB 에 넣는다 — 운영에서 쓰는 저장 경로 그대로다.
  * 깨보기: 고장을 심은 index.html(인라인 해시를 다시 맞춘 사본)로 대응 항목이 빨간불이 되는지 본다.
@@ -63,6 +68,22 @@ function twoPagePdf(){
   return Buffer.from(out,'latin1').toString('base64');
 }
 const PDF64=twoPagePdf();
+const PDF_FILE={name:'원본.pdf',mimeType:'application/pdf',buffer:Buffer.from(PDF64,'base64')};
+/* 진짜 파일 선택 창을 거친다 — 단추를 누르면 열리는 그 창에 파일을 넣는다 */
+async function chooseFile(q,btn,file){
+  const [fc]=await Promise.all([q.waitForEvent('filechooser'),q.click(btn)]);
+  await fc.setFiles(file);
+}
+/* 다시 연결 — 'same' 은 이 기기에 보관된 그 원문의 바이트, 'other' 는 다른 그림. 다시 연결 단추의 파일 창에 넣는다. */
+async function relinkWith(q,sid,kind){
+  const b64=await q.evaluate(async({sid,kind})=>{
+    let blob;
+    if(kind==='same') blob=(await PedagogyIntake.create({renderer:{},session:()=>({owner:intakeOwner(),epoch:authEpoch})}).readSource(sid)).blob;
+    else{ const c=document.createElement('canvas'); c.width=120; c.height=90; c.getContext('2d').fillRect(0,0,60,45); blob=await new Promise(r=>c.toBlob(r,'image/png')); }
+    const u=new Uint8Array(await blob.arrayBuffer()); let s=''; u.forEach(v=>s+=String.fromCharCode(v)); return btoa(s);
+  },{sid,kind});
+  await chooseFile(q,'#sheetSrcRelink',{name:kind+'.png',mimeType:'image/png',buffer:Buffer.from(b64,'base64')});
+}
 
 let browser;
 async function open(html){
@@ -73,6 +94,9 @@ async function open(html){
     return (u.origin===base||u.hostname==='cdn.jsdelivr.net')?r.continue():r.abort();
   });
   const p=await ctx.newPage(); p.errs=[]; p.on('pageerror',e=>p.errs.push(e.message));
+  // 확인창 — 검사가 미리 정한 답(dialogPlan)대로 누르고 문구를 남긴다. 계획이 없으면 취소(안전한 쪽).
+  p.dialogPlan=[]; p.dialogs=[];
+  p.on('dialog',d=>{ p.dialogs.push(d.message()); const a=p.dialogPlan.shift(); return a?d.accept():d.dismiss(); });
   await p.goto(base+'/index.html');
   await p.waitForFunction(()=>typeof showEditor==='function'&&typeof createIntakeFixture==='function'&&Array.isArray(sets),null,{timeout:15000});
   return p;
@@ -129,11 +153,16 @@ async function suite(html){
   let seed;
   try{ seed=await seedSources(p); }catch(e){ failures.push('준비: 원문 채택 실패 '+(e?.message||e)); return {checks,failures}; }
 
-  await check('⑩-a 출처 없는 문제집에서는 원본 단추·패널이 없다',async()=>{
+  await check('⑩-a 원본 단추는 늘 보이고 누르기 전에는 패널이 없다 · 연결 안 된 권은 안내만',async()=>{
     await toSheetOf(p,'plain');
     const r=await srcState(p);
-    ok(r.btnHidden&&!r.btnShown,'단추가 보인다 '+JSON.stringify(r));
-    ok(r.panel==='none','패널이 보인다(display '+r.panel+')');
+    ok(!r.btnHidden&&r.btnShown,'단추가 안 보인다 '+JSON.stringify(r));
+    ok(r.panel==='none','누르기 전에 패널이 보인다(display '+r.panel+')');
+    await p.click('#sheetSrcBtn');
+    await p.waitForFunction(()=>/연결된 원본이 없어요/.test($('#sheetSrcMsg').textContent),null,{timeout:8000});
+    const r2=await p.evaluate(()=>({add:!$('#sheetSrcAdd').hidden,img:!!$('#sheetSrcView img,#sheetSrcView canvas')}));
+    ok(r2.add&&!r2.img,'연결 안내가 아니다 '+JSON.stringify(r2));
+    await p.click('#sheetSrcBtn');
   });
   await check('⑩-b 이미지 원문이 패널에 보인다',async()=>{
     await toSheetOf(p,seed.imgSet);
@@ -212,7 +241,7 @@ async function suite(html){
       await q.waitForFunction(()=>$('#sheetSrcView img')?.naturalWidth>0,null,{timeout:8000});
       // 다른 탭의 deleteSource() 를 흉내 낸다 — 이 탭의 저장소 읽기가 이제 '삭제됨' 을 돌려준다
       // B6 클라이언트는 동결돼 있어 함수만 바꿔치기할 수 없다 — 읽기 클라이언트를 통째로 갈아 끼운다
-      await q.evaluate(()=>{ srcReader={forProblem:async()=>({state:'deleted'})}; });
+      await q.evaluate(()=>{ srcReader={forSet:async()=>({state:'missing'}),forProblem:async()=>({state:'deleted'})}; });
       await q.evaluate(()=>{
         Object.defineProperty(document,'visibilityState',{configurable:true,get:()=>'visible'});
         document.dispatchEvent(new Event('visibilitychange'));
@@ -273,6 +302,112 @@ async function suite(html){
       ok(r.kids===0&&!r.view,'닫은 뒤 원문이 올라왔다 '+JSON.stringify(r));
     }finally{ await q.context().close(); }
   });
+  await check('⑪-a 파일 연결 — 다른 탭 확인을 거쳐 보관 · 취소하면 아무것도 저장하지 않는다',async()=>{
+    const q=await open(html);
+    try{
+      await q.evaluate(()=>{ sets.push(normSet({id:'manual',name:'손으로 만든 권',problems:[{id:'mq1',blocks:[{type:'statement',data:{text:'문제'}}]}]},{keepId:true})); });
+      await toSheetOf(q,'manual');
+      await q.click('#sheetSrcBtn');
+      q.dialogPlan.push(false);
+      await chooseFile(q,'#sheetSrcAdd',PDF_FILE);
+      await q.waitForTimeout(300);
+      const no=await q.evaluate(async()=>({dbs:(await indexedDB.databases()).map(d=>d.name)}));
+      ok(!no.dbs.includes('PM_INTAKE_V1'),'확인을 취소했는데 원문 저장소가 생겼다');
+      ok(/다른 탭/.test(q.dialogs[0]||''),'다른 탭 확인을 묻지 않았다 '+q.dialogs[0]);
+      q.dialogPlan.push(true);
+      await chooseFile(q,'#sheetSrcAdd',PDF_FILE);
+      await q.waitForFunction(()=>$('#sheetSrcView canvas')?.getAttribute('aria-label')==='원본 1쪽',null,{timeout:15000});
+      const r=await q.evaluate(async()=>({msg:$('#sheetSrcMsg').textContent,list:(await (await sheetSourceReader()).forSet('manual')).sources.length}));
+      ok(/쪽이 지정되지 않았어요/.test(r.msg),'자유 탐색 안내가 아니다 '+r.msg);
+      ok(r.list===1,'이 문제집에 연결되지 않았다 '+r.list);
+    }finally{ await q.context().close(); }
+  });
+  await check('⑪-b 이 문항 = n쪽 · 쪽 더하기 · ⌘Z 한 번',async()=>{
+    const q=await open(html);
+    try{
+      await q.evaluate(()=>{ sets.push(normSet({id:'manual',name:'손으로 만든 권',problems:[{id:'mq1',blocks:[{type:'statement',data:{text:'문제'}}]}]},{keepId:true})); });
+      await toSheetOf(q,'manual'); await q.click('#sheetSrcBtn');
+      q.dialogPlan.push(true); await chooseFile(q,'#sheetSrcAdd',PDF_FILE);
+      await q.waitForFunction(()=>$('#sheetSrcView canvas')?.getAttribute('aria-label')==='원본 1쪽',null,{timeout:15000});
+      await q.click('#sheetSrcNext');
+      await q.waitForFunction(()=>$('#sheetSrcView canvas')?.getAttribute('aria-label')==='원본 2쪽',null,{timeout:8000});
+      await q.click('#sheetSrcAssign');
+      const pages=()=>q.evaluate(()=>JSON.stringify(sets.find(s=>s.id==='manual').problems[0].intake?.sources?.map(x=>x.pages)||null));
+      await q.waitForFunction(()=>sets.find(s=>s.id==='manual').problems[0].intake?.sources?.[0]?.pages?.[0]===2,null,{timeout:8000});
+      await q.waitForFunction(()=>/이 문항: 2쪽/.test($('#sheetSrcPage').textContent),null,{timeout:8000});
+      await q.click('#sheetSrcPrev');
+      await q.waitForFunction(()=>!$('#sheetSrcAddPage').hidden,null,{timeout:8000});
+      await q.click('#sheetSrcAddPage');
+      await q.waitForFunction(()=>JSON.stringify(sets.find(s=>s.id==='manual').problems[0].intake?.sources?.[0]?.pages)==='[1,2]',null,{timeout:8000});
+      await q.evaluate(()=>doUndo());
+      ok(await pages()==='[[2]]','⌘Z 한 번이 쪽 더하기를 되돌리지 않았다 '+await pages());
+    }finally{ await q.context().close(); }
+  });
+  await check('⑪-c 수동 쪽 지정이 같은 문항의 AI 출처를 지우지 않는다',async()=>{
+    const q=await open(html);
+    try{
+      const s2=await seedSources(q);
+      await toSheetOf(q,s2.imgSet); await q.click('#sheetSrcBtn');
+      await q.waitForFunction(()=>$('#sheetSrcView img')?.naturalWidth>0,null,{timeout:8000});
+      const ai=await q.evaluate(id=>sets.find(s=>s.id===id).problems[0].intake.sources[0].sourceId,s2.imgSet);
+      q.dialogPlan.push(true); await chooseFile(q,'#sheetSrcAdd',PDF_FILE);
+      await q.waitForFunction(()=>$('#sheetSrcView canvas')?.getAttribute('aria-label')==='원본 1쪽',null,{timeout:15000});
+      await q.click('#sheetSrcAssign');
+      await q.waitForFunction(id=>(sets.find(s=>s.id===id).problems[0].intake?.sources||[]).length===2,s2.imgSet,{timeout:8000});
+      let ids=await q.evaluate(id=>sets.find(s=>s.id===id).problems[0].intake.sources.map(x=>x.sourceId),s2.imgSet);
+      ok(ids.includes(ai),'AI 출처가 사라졌다 '+JSON.stringify(ids));
+      await q.click('#sheetSrcUnassign');
+      await q.waitForFunction(id=>(sets.find(s=>s.id===id).problems[0].intake?.sources||[]).length===1,s2.imgSet,{timeout:8000});
+      ids=await q.evaluate(id=>sets.find(s=>s.id===id).problems[0].intake.sources.map(x=>x.sourceId),s2.imgSet);
+      ok(ids.length===1&&ids[0]===ai,'지정 해제가 AI 출처를 건드렸다 '+JSON.stringify(ids));
+    }finally{ await q.context().close(); }
+  });
+  await check('⑪-d 다시 연결 — 같은 파일은 이 문제집에 이어지고 다른 파일은 옛 쪽 지정을 옮기지 않는다',async()=>{
+    const q=await open(html);
+    try{
+      const s2=await seedSources(q);
+      await q.evaluate(id=>{ const c=structuredClone(sets.find(s=>s.id===id)); c.id='copy-2'; c.name='권한 없는 사본 2'; sets.push(c); },s2.imgSet);
+      const sid=await q.evaluate(()=>sets.find(s=>s.id==='copy-unlinked').problems[0].intake.sources[0].sourceId);
+      await toSheetOf(q,'copy-unlinked'); await q.click('#sheetSrcBtn');
+      await q.waitForFunction(()=>!$('#sheetSrcRelink').hidden,null,{timeout:8000});
+      q.dialogPlan.push(true);
+      await relinkWith(q,sid,'same');
+      await q.waitForFunction(()=>$('#sheetSrcView img')?.naturalWidth>0,null,{timeout:8000});
+      await toSheetOf(q,'copy-2');
+      await q.waitForFunction(()=>!$('#sheetSrcRelink').hidden,null,{timeout:8000});
+      q.dialogPlan.push(true);
+      await relinkWith(q,sid,'other');
+      await q.waitForFunction(()=>$('#sheetSrcView img')?.naturalWidth>0,null,{timeout:8000});
+      const r=await q.evaluate(async sid=>{
+        const p=sets.find(s=>s.id==='copy-2').problems[0];
+        const fs=await (await sheetSourceReader()).forSet('copy-2');
+        return {ref:p.intake.sources.map(x=>x.sourceId),linked:fs.sources.map(x=>x.sourceId),sid};
+      },sid);
+      ok(r.ref.length===1&&r.ref[0]===sid,'옛 쪽 지정이 바뀌었다 '+JSON.stringify(r));
+      ok(r.linked.length===1&&r.linked[0]!==sid,'다른 파일이 새 원본으로 연결되지 않았다 '+JSON.stringify(r));
+      ok(q.dialogs.some(m=>/다른 파일/.test(m)),'다른 파일임을 묻지 않았다');
+    }finally{ await q.context().close(); }
+  });
+  await check('⑪-e 설정의 원문 삭제 — 영향 범위를 보여 준 뒤 지운다',async()=>{
+    const q=await open(html);
+    try{
+      const s2=await seedSources(q);
+      const second=s2.pdfQs.find(x=>x.pages?.[0]===2);
+      await q.evaluate(()=>{ srcEditorsOk=true; });
+      await q.evaluate(()=>showSettings('data'));
+      await q.waitForFunction(()=>$('#dmSourcesList li'),null,{timeout:8000});
+      q.dialogPlan.push(true);
+      await q.locator('#dmSourcesList li',{hasText:'원본.pdf'}).getByRole('button',{name:/원문 삭제/}).click();
+      await q.waitForFunction(()=>![...$('#dmSourcesList').querySelectorAll('li')].some(li=>/원본\.pdf/.test(li.textContent)),null,{timeout:8000});
+      ok(q.dialogs.some(m=>/PDF 원본권/.test(m)&&/되돌릴 수 없어요/.test(m)),'영향 범위를 보여 주지 않았다 '+JSON.stringify(q.dialogs));
+      await q.evaluate(()=>{ $('#settingsView').close(); });
+      await toSheetOf(q,s2.pdfSet,second.id);
+      await q.evaluate(()=>{ if(!srcOpen) $('#sheetSrcBtn').click(); });
+      await q.waitForFunction(()=>/삭제됐어요/.test($('#sheetSrcMsg').textContent),null,{timeout:8000});
+      const r=await q.evaluate(id=>({n:sets.find(s=>s.id===id).problems.length,view:!!srcView}),s2.pdfSet);
+      ok(r.n===2&&!r.view,'문항이 사라졌거나 지운 원문이 보인다 '+JSON.stringify(r));
+    }finally{ await q.context().close(); }
+  });
   if(p.errs.length) failures.push('페이지 오류: '+p.errs.join(' | '));
   return {checks,failures};
 }
@@ -280,13 +415,21 @@ async function suite(html){
 const BREAKS=[
   {name:'[hidden] 패널을 display:flex 가 이긴다',target:'⑩-a',
    pairs:[['.sheet-src[hidden]{display:none}\n','']]},
-  {name:'문제집을 바꿔도 조립이 끝날 때까지 원본 단추를 맞추지 않는다',target:'⑩-b',
-   pairs:[['  syncSheetSrcBtn();   // 원본 단추는 조립을 기다리지 않는다','  void 0;   // 원본 단추는 조립을 기다리지 않는다']]},
+  {name:'다른 탭 확인을 건너뛰고 보관한다',target:'⑪-a',
+   pairs:[['  if(!srcEditorsOk){\n    if(!confirm(','  if(false){\n    if(!confirm(']]},
+  {name:'쪽 더하기가 기존 쪽을 버린다',target:'⑪-b',
+   pairs:[['const pages=mode==="add"?[...new Set([...(mine?.pages||[]),srcPage])].sort((a,b)=>a-b):[srcPage];','const pages=[srcPage];']]},
+  {name:'수동 쪽 지정이 다른 원문의 출처를 버린다',target:'⑪-c',
+   pairs:[['const next=mode==="remove"?others:[...others,{sourceId:cur.sourceId,pages}];','const next=mode==="remove"?[]:[{sourceId:cur.sourceId,pages}];']]},
+  {name:'설정의 원문 삭제가 기록 식별자를 잘못 읽는다',target:'⑪-e',
+   pairs:[['  const im=await w.impact(src.id);','  const im=await w.impact(src.sourceId);']]},
+  {name:'같은 파일 다시 연결이 이 문제집에 잇지 않는다',target:'⑪-d',
+   pairs:[['if(r===mode.sourceId){ await w.linkSource(r,s.id); srcSel=r;','if(r===mode.sourceId){ srcSel=r;']]},
   {name:'지정된 쪽이 아니라 늘 1쪽으로 연다',target:'⑩-c',
    pairs:[['    srcPage=srcMapped[0]||1;\n','    srcPage=1;\n']]},
   {name:'권한 검사(forProblem)를 건너뛰고 출처 ID 로 연다',target:'⑩-d',
-   pairs:[['r=reader?await reader.forProblem(s.id,q):{state:"missing"};',
-           'r=reader?{state:"available",blob:(await reader.readSource(refs[0].sourceId)).blob,pages:refs[0].pages}:{state:"missing"};']]},
+   pairs:[['    const r=await reader.forProblem(s.id,q);\n',
+           '    const r=await reader.readSource(refs[0].sourceId).then(x=>({state:"available",sourceId:x.id,blob:x.blob,pages:refs[0].pages}));\n']]},
   {name:'계정 전환 때 원본 패널을 닫지 않는다',target:'⑩-e',
    pairs:[['    closeSheetSource();   // 원본 패널','    void 0;   // 원본 패널']]},
   {name:'원문 저장소가 없어도 만든다',target:'⑩-f',
