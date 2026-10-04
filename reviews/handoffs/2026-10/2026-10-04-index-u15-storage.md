@@ -3,7 +3,7 @@
 - ID: `HANDOFF-2026-183`
 - 날짜: `2026-10-04`
 - 작성자: `Codex`
-- 상태: `ready-for-review`
+- 상태: `reviewed` — Claude Opus 검토 2회(1차 반려 5건 → 2차 전부 닫힘) · 미배포
 - 영향 영역: `index`, `tests`, `docs`
 - 관련 이슈: `없음` (열린 `REV-2026-108`은 별도 지문 묶음 작업)
 - 검토 요청: `Claude Opus`
@@ -58,4 +58,11 @@ API 요약은 `docs/B6-INTAKE-STORAGE.md`에 덧붙였다.
 
 ## 검토 기록
 
-검토 대기.
+- 2026-10-04 · Claude Opus 1차 · **반려 5건** — ① 브라우저 검사가 `page.evaluate` 안에서 Node `assert` 를 써 한 번도 돈 적 없음(실측 0/8)
+  ② 'Undo' 를 이름에만 두고 ⌘Z 를 안 봄 ③ 깨보기가 dedup 하나뿐 ④ `assignPages` 가 출처 목록을 **통째로 교체**함을 명시 ⑤ `createJob`
+  저장 합계 상한이 AI 한도 → D6 로 바뀐 B6 동작 변경을 표시. (a) 권한 경계·(b) 등록 트랜잭션·(c) 다시 연결 의미는 판정대로라 합의.
+- 2026-10-04 · Claude Opus 2차 · **전부 닫힘** — 이 맥에서 실행: 브라우저 10/10 · Node 7/7 · 깨보기 7종(dedup·rollback·epoch·permission·
+  editors·limits·undo) 전부 빨간불. Undo 는 `commit()` 앞뒤 `flushHistory()` 로 타이핑과 이 쓰기를 각각 한 단계로 둔다(`historyStep` 과 같은 원리).
+  ④는 전체 교체로 문서화, ⑤는 B6 문서에 '변경' 표시. ⚠️ 깨보기 대응표의 검사 이름 한 곳(`editors`)이 실제 이름과 달라 주입은 빨간불을 냈는데도
+  판정이 실패였다 — **검토자가 이름만 맞췄다.** ⓐ 브랜치를 합친 뒤 `check:fast` 전체 로컬 통과(종료 0 · HWPX 12건 실행 · MISS 0).
+  ⓑ 화면은 `assignPages` 를 부를 때 기존 출처를 합쳐 넘겨야 한다(AI 출처를 잃지 않게).
