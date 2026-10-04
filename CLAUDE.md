@@ -33,11 +33,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### 이 컴퓨터에만 있는 자료 (저작물 — 저장소에 없다)
 
 `.gitignore` 가 막고 있다. **없으면 관련 검사가 `⏭` 로 건너뛰고**, 실물 대조가 필요한
-작업은 시작할 수 없다.
+작업은 시작할 수 없다. **전부 `실물자료/` 폴더 하나에 있다**(2026-10-04 루트에서 옮겼다).
+⚠️ 시험지 틀 검사 넷(`test_structure`·`test_sections`·`test_page_layout`·`test_style_roles`)은
+실물이 없으면 **조용히 저장소의 벗긴 틀로 대체**한다 — 경로가 틀려도 빨간불이 아니라 '실물 대조'만
+빠진다. 경로를 바꾸면 그 넷이 실물을 읽는지 직접 확인할 것.
 
 | 파일 | 무엇에 쓰나 |
 |---|---|
-| `평가원 수학 양식.hwpx` | 모의고사 HWPX 의 **틀**. 없으면 `test_structure`·`test_sections`·`test_page_layout`·`test_style_roles` 가 ⏭ |
+| `평가원 수학 양식.hwpx` | 모의고사 HWPX 의 **틀**. 없으면 `test_structure`·`test_sections`·`test_page_layout`·`test_style_roles` 가 저장소의 벗긴 틀(`templates/exam-math.hwpx`)로 돈다 — 실물 대조만 빠진다 |
 | `평가원 영어 양식.hwp` | 영어 과목 조판의 근거(`docs/ENGLISH-SUBJECT-DESIGN.md`) |
 | `평가원 국어 양식.pdf` | 국어 지문 조판의 근거 |
 | `2025학년도 수능 수학 문제.hwp` | 틀이 없을 때 값만 읽는 대비 경로 |
@@ -573,7 +576,8 @@ node worker/quota.test.mjs
 CI 는 `.github/workflows/verify.yml` 의 **`hwpx` 작업**에서 `HWPX_REQUIRE=1` 로 돈다.
 제품 검사(`verify`)와 **분리된 작업**이라 베타 의존성이 제품 검사 환경에 섞이지 않는다.
 CI 에는 실물 틀이 없으므로 `test_structure` · `test_sections` · `test_page_layout` ·
-`test_style_roles` 는 `⏭` 로 남는다 — **그 넷은 사람이 로컬에서 돌려야 한다.**
+`test_style_roles` 는 저장소의 벗긴 틀로 돈다(CI 로그에서 ✅ 확인 · 2026-10-04).
+**실물과 같은지 대조하는 것은 로컬에서만 된다**(`실물자료/` 가 있을 때).
 
 ⚠️ 그래서 변환기에 **경고를 더할 때는 틀 없이 도는 경로를 함께 확인할 것.** 틀이 없을 때도
 그 경고가 나오면 '경고 없음' 을 보는 검사(`test_image_paths`·`test_endpoint`)가 **CI 에서만**

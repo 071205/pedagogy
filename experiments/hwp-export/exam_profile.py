@@ -222,5 +222,5 @@ def describe(prof: dict) -> str:
 
 if __name__ == "__main__":
     import sys
-    ref = sys.argv[1] if len(sys.argv) > 1 else "2025학년도 수능 수학 문제.hwp"
+    ref = sys.argv[1] if len(sys.argv) > 1 else "실물자료/2025학년도 수능 수학 문제.hwp"
     print(describe(profile_from(ref)))

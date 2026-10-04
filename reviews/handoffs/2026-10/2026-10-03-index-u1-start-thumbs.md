@@ -3,7 +3,7 @@
 - ID: `HANDOFF-2026-180`
 - 날짜: `2026-10-03`
 - 작성자: `Claude / Opus 5.5` (레일 배정은 Sonnet 5 — 해리가 이 세션에 직접 지시)
-- 상태: `reviewed` — Codex Sol medium 2회 + 후속 `b93c689` 좁은 재검토 1회(결함 없음) · 미배포
+- 상태: `deployed` — Codex Sol medium 2회 + 후속 `b93c689` 좁은 재검토 1회(결함 없음) · 운영 `a93e7e3`
 - 영향 영역: `index | tests | docs`
 - 브랜치: `claude/u1-start` (기준 `main=11f1e12` · U1 1차 운영 배포 직후)
 - 관련: RAIL-ORDERS ⑩-A · [`docs/PRODUCT-UX-DESIGN.md`](../../../docs/PRODUCT-UX-DESIGN.md) §4 '라이브러리 → 시작' · 1차 [HANDOFF-177](2026-10-03-index-u1-sheet-layout.md)
@@ -98,3 +98,14 @@ PDF 일괄 구성(U2) · '선택한 여러 권으로 새로 구성'(§4, U2 구�
 - SonarCloud '새 이슈 3건'(로컬에서 API 로 확인) — 전부 `CODE_SMELL`, 게이트 통과:
   `S3358` 중첩 삼항 `index.html:9433`(`wNum`, `b93c689`) · `S6819` `role="status"`→`<output>` `:2293` · `role="group"` `:2301`(둘 다 `ef4dc36`).
   동작 결함이 아니므로 merge 를 막지 않는다. 고치면 다시 검토가 필요한 변경이라 **M1(Sonar 정리)** 로 넘긴다.
+
+### 2026-10-04 — 운영 배포 확인 (로컬 Claude)
+
+- PR #11 merge `a93e7e3` → Pages `built`, 운영 `index.html` 이 main 과 SHA-256 일치.
+- 로그인한 크롬(읽기만): 문제집 17권 · 토스트·콘솔 오류 없음(새로고침 포함) · `+ 새 문제집` 메뉴 세 항목(셋째 '준비 중' 비활성)이 열리고
+  Esc 로 닫힘 · 단추 이름 `문항 불러오기`·`문제집 파일 불러오기`·`모의고사 파일 불러오기` · `#sheetThumbs`·`#sheetFontWarn` 실림 ·
+  SW 등록 0 · `PM_INTAKE*` 키 0. 메뉴 항목은 누르지 않았고 사용자 문제집은 열지 않았다.
+- **U1 완료 기준 대조**(DEV-TOKEN-ROADMAP U1 행 · RAIL-ORDERS ⑩-A): 라이브러리 시작 두 길 · 편집↔지면 선택/스크롤 · 축소판/쪽 탐색 ·
+  인쇄와 같은 조립·보정 경로 · 렌더 세대/낡음/준비 실패(글꼴 포함) · 잘림/축소/그림 실패 위치 이동 · 함께/단/쪽 배치·⌘Z ·
+  풀이 공간(설계상 mm 가 아니라 배치로 정한다, PRODUCT-UX-DESIGN §'지면 배치') · 300문항 성능 · 키보드 — **1차·2차로 충족.**
+  넘긴 것: 상단 조작의 큰 재배치와 '여러 권으로 새로 구성' 은 ⑩-A 가 정한 대로 U2. 시안 과제의 사용자 관찰(1~6)과 실제 기기 터치는 별도 대기.

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """실물 시험지 파일에서 **조판 틀만** 남긴 배포용 틀을 만든다.
 
-    python3 experiments/hwp-export/make_exam_template.py "평가원 수학 양식.hwpx"
+    python3 experiments/hwp-export/make_exam_template.py "실물자료/평가원 수학 양식.hwpx"
 
 ⚠️ **왜 필요한가.** 실물 파일에는 2025 수능 문제·도형과 만든 사람 이름(532곳)이 들어 있어
    저장소에 올릴 수 없었고, 그래서 시험지 HWPX 내보내기는 **이 컴퓨터에서만** 됐다.
@@ -124,7 +124,7 @@ def leftovers(path: Path) -> list[str]:
 
 
 if __name__ == "__main__":
-    src = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("평가원 수학 양식.hwpx")
+    src = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("실물자료/평가원 수학 양식.hwpx")
     if not src.exists():
         raise SystemExit(f"실물 틀이 없습니다: {src}")
     rep = build(src)

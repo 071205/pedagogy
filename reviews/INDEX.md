@@ -24,7 +24,7 @@
 [계약](../docs/PRODUCT-UX-U0-CONTRACT.md) · [과제·결정표](../docs/PRODUCT-UX-U0-SCENARIOS.md) ·
 [시안](../docs/mockups/u0-flow.html). 계약 주장 5건을 코드로 확인했고 `REV-2026-108`을 재현했다.
 **D1 사용자 결정: 문항을 다른 권에 넣을 때 독립 사본/수정 연동을 선택 가능하게 한다.**
-**현재: B6·B7 운영 배포 완료(`686d9fb`·`4dd674f`). U1 1차 지면 배치 운영 배포 `11f1e12`(`HANDOFF-177`) · U1 2차 Codex 검토 중(`HANDOFF-180`)**.
+**현재: B6·B7 운영 배포 완료(`686d9fb`·`4dd674f`). U1 1차 `11f1e12`(`HANDOFF-177`) · U1 2차 `a93e7e3`(`HANDOFF-180`, 후속 `b93c689` 로컬 재검토 결함 없음) 운영 배포 · U1 완료 대조 끝 → U1.5**.
 U0 개정 합의는 유지. D3/C1~C3·D1 연동·U1 시안/사용자 관찰은 별도 대기.
 순서·게이트는 [통합 레일](../docs/DEV-TOKEN-ROADMAP.md), 지시문은 [RAIL-ORDERS](../docs/RAIL-ORDERS.md).
 **B3 운영 장애 `REV-2026-109` 해결**(운영 `e50636c` → 문구 정정 `6679676`, 편집·삭제·진짜 충돌 운영 검증).
@@ -86,8 +86,8 @@ U0→B6에서 정규화/복원·AI 계약을 함께 다룬다. Rules의 `hasOnly
 
 ## 최근 검토
 
-[HANDOFF-2026-180](handoffs/2026-10/2026-10-03-index-u1-start-thumbs.md): U1 2차 — 새 문제집 두 길(직접/자료로·AI, PDF 일괄은 준비 중)·
-'문항 불러오기'/'문제집 파일 불러오기'·쪽 축소판·글꼴 실패 표시. **Codex Sol medium 검토 중.**
+[HANDOFF-2026-180](handoffs/2026-10/2026-10-03-index-u1-start-thumbs.md): U1 2차 — 시작 두 길·불러오기 이름·쪽 축소판·글꼴 실패 표시.
+Codex 2회 + 후속 `b93c689` 재검토 결함 없음. **운영 배포 `a93e7e3`·로그인 확인 · U1 완료 기준 대조 끝.**
 
 [HANDOFF-2026-179](handoffs/2026-10/2026-10-03-index-b7-sw-outbox.md): B7 기기 내 응답 outbox(SW) — Codex 구현·Claude 검토 결함 없음,
 SonarCloud 출처 확인 반영. **운영 배포 `4dd674f`·로그인 확인(SW 미등록).**
