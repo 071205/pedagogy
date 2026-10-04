@@ -154,6 +154,7 @@ try{
     await p.evaluate(schema=>{window.PEDAGOGY_PUBLIC_CONFIG={...window.PEDAGOGY_PUBLIC_CONFIG,libraryCloudSchema:schema};if(schema)sets.forEach(s=>s.folderId=libMeta.folderBySetId[s.id]);},schema);
     await p.evaluate(()=>{libFolderFilter='f';renderLibrary();});
     await p.locator('#newSetBtn').click();
+    await p.getByRole('menuitem',{name:/직접 만들기/}).click();
     assert.equal(await p.evaluate(()=>folderOf(currentSetId)),'f');
     await p.evaluate(()=>showLibrary());
     await p.locator('.set-card').filter({has:p.locator('h3', {hasText:/^가$/})}).locator('.dotbtn').click();
@@ -294,6 +295,79 @@ try{
       return {ed:getComputedStyle(document.getElementById('editorView')).display,
               st:getComputedStyle(document.getElementById('settingsView')).display}; });
     assert.deepEqual(got,{ed:'none',st:'none'},'삭제 뒤 편집기/설정이 남아 있다: '+JSON.stringify(got));
+  });
+
+  /* U1 '라이브러리 → 시작' — 새 문제집은 '직접 / 자료로 · AI' 두 길이고, 빈 라이브러리도 같은 두 길을 보인다.
+     PDF 일괄은 U2 몫이라 자리만 있고 누를 수 없다. AI 는 로그인 없이 빈 문제집을 만들지 않는다.
+     ⚠️ AI 응답은 가짜다(Worker 주소를 이 페이지에서 가로챈다) — 실제 AI·로그인을 부르지 않는다. */
+  await check('새 문제집은 두 길을 고르고 빈 라이브러리도 같은 두 길을 보인다',async p=>{
+    await p.setViewportSize({width:1194,height:834});
+    p.on('request',r=>{if(/workers\.dev/.test(r.url()))console.log('  (AI 요청 가로챔)');});
+    const btn=p.locator('#newSetBtn');
+    await btn.click();
+    assert.equal(await btn.getAttribute('aria-expanded'),'true');
+    const items=p.locator('#newSetMenu [role=menuitem]');
+    assert.equal(await items.count(),3);
+    assert.match(await items.nth(0).textContent(),/직접 만들기/);
+    assert.match(await items.nth(1).textContent(),/자료로 만들기 · AI/);
+    assert.equal(await items.nth(2).isDisabled(),true,'PDF 일괄(U2)이 눌린다');
+    assert.match(await items.nth(2).textContent(),/준비 중/);
+    assert.equal(await p.evaluate(()=>document.activeElement?.textContent),await items.nth(0).textContent(),'메뉴를 열면 첫 항목에 포커스');
+    await p.keyboard.press('ArrowDown');
+    assert.match(await p.evaluate(()=>document.activeElement?.textContent),/자료로 만들기/);
+    await p.keyboard.press('ArrowDown');
+    assert.match(await p.evaluate(()=>document.activeElement?.textContent),/직접 만들기/,'준비 중 항목을 건너뛰어야 한다');
+    await p.keyboard.press('Escape');
+    assert.equal(await btn.getAttribute('aria-expanded'),'false');
+    assert.equal(await p.evaluate(()=>document.activeElement?.id),'newSetBtn');
+    // 초점이 메뉴 밖으로 나가면 닫히고, 밖에서도 Esc 가 듣는다
+    await btn.click(); await p.locator('#exportAllBtn').focus();
+    assert.equal(await btn.getAttribute('aria-expanded'),'false','초점이 메뉴 밖으로 나갔는데 열려 있다');
+    await btn.click(); await p.evaluate(()=>document.activeElement.blur());
+    await p.keyboard.press('Escape');
+    assert.equal(await btn.getAttribute('aria-expanded'),'false','메뉴 밖에서 Esc 가 안 듣는다');
+    // 로그아웃 상태의 AI 길: 빈 문제집을 만들지 않고 알린다
+    await btn.click(); await p.getByRole('menuitem',{name:/자료로 만들기/}).click();
+    assert.equal(await p.evaluate(()=>sets.length),2,'로그인 없이 AI 길이 빈 문제집을 만들었다');
+    assert.equal(await p.evaluate(()=>getComputedStyle(document.getElementById('libraryView')).display!=='none'),true);
+    // 빈 라이브러리: 같은 두 길(준비 중 제외)
+    await p.evaluate(()=>{sets=[];libFolderFilter='';renderLibrary();});
+    const start=p.locator('.empty-state .es-start button');
+    assert.equal(await start.count(),2);
+    assert.match(await start.nth(0).textContent(),/직접 만들기/);
+    assert.match(await start.nth(1).textContent(),/자료로 만들기/);
+    await start.nth(0).click();
+    assert.equal(await p.evaluate(()=>sets.length===1&&currentSetId===sets[0].id&&getComputedStyle(document.getElementById('editorView')).display!=='none'),true,'빈 화면의 직접 만들기');
+    // 로그인 상태의 AI 길: 같은 클릭에서 사진 고르기 창이 열리고, 결과가 빈 1번 자리를 채운다
+    await p.evaluate(()=>{showLibrary();sets=[];renderLibrary();
+      currentUser={uid:'ui-ai',getIdToken:async()=>'fixture-token'};window.getAiAppCheckToken=async()=>'';
+      try{localStorage.setItem('PM_AI_TRANSFER_NOTICE',String(publicConfig.legalVersion||'2026-08-28-ai-transfer'));}catch{}});
+    await p.route(/workers\.dev/,r=>r.fulfill({contentType:'application/json',
+      body:JSON.stringify({problems:[{blocks:[{type:'statement',text:'AI 가 옮긴 1번'}]},{blocks:[{type:'statement',text:'AI 가 옮긴 2번'}]}]})}));
+    const [chooser]=await Promise.all([p.waitForEvent('filechooser'),p.locator('.empty-state .es-start button').nth(1).click()]);
+    assert.equal(await chooser.element().getAttribute('id'),'aiImgInput');
+    const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==','base64');
+    await chooser.setFiles({name:'q.png',mimeType:'image/png',buffer:png});
+    await p.waitForFunction(()=>sets[0]?.problems.some(q=>q.blocks?.[0]?.data?.text==='AI 가 옮긴 1번'),null,{timeout:10000})
+      .catch(async e=>{throw new Error('AI 결과 미도착 '+await p.evaluate(()=>JSON.stringify({toast:[...document.querySelectorAll('.toast')].map(t=>t.textContent),ai:document.querySelector('#aiGenStatus')?.textContent,user:!!currentUser,n:sets.length,blocks:sets[0]?.problems.map(q=>q.blocks)})));});
+    const got=await p.evaluate(()=>({n:sets.length,texts:sets[0].problems.map(q=>q.blocks?.[0]?.data?.text||''),cur:currentQId===sets[0].problems[0].id}));
+    await p.evaluate(()=>{currentUser=null;});
+    assert.deepEqual(got,{n:1,texts:['AI 가 옮긴 1번','AI 가 옮긴 2번'],cur:true},'빈 1번이 남았거나 결과 자리가 틀렸다: '+JSON.stringify(got));
+    // 응답을 기다리는 동안 고치고 ⌘Z 로 되돌려도(sets 객체가 갈아 끼워진다) 결과가 지금 sets 에 들어가야 한다
+    let release; const gate=new Promise(r=>{release=r;});
+    await p.unroute(/workers\.dev/);
+    await p.route(/workers\.dev/,async r=>{await gate;r.fulfill({contentType:'application/json',
+      body:JSON.stringify({problems:[{blocks:[{type:'statement',text:'되돌린 뒤 도착'}]}]})});});
+    await p.evaluate(()=>{currentUser={uid:'ui-ai',getIdToken:async()=>'fixture-token'};flushHistory();});
+    const [c2]=await Promise.all([p.waitForEvent('filechooser'),p.locator('#aiDropZone').click()]);
+    await c2.setFiles({name:'q2.png',mimeType:'image/png',buffer:png});
+    await p.waitForFunction(()=>/AI가 문제를 변환/.test(document.querySelector('#aiGenStatus')?.textContent||''));
+    await p.evaluate(()=>{historyStep(()=>{sets[0].name='기다리는 중 바꾼 이름';});saveSets();doUndo();});
+    release();
+    await p.waitForFunction(()=>!/변환하는 중/.test(document.querySelector('#aiGenStatus')?.textContent||''),null,{timeout:10000});
+    const kept=await p.evaluate(()=>({has:sets[0].problems.some(q=>q.blocks?.[0]?.data?.text==='되돌린 뒤 도착'),name:sets[0].name}));
+    await p.evaluate(()=>{currentUser=null;});
+    assert.equal(kept.has,true,'되돌리기 뒤 도착한 AI 결과가 지금 문제집에 없다 '+JSON.stringify(kept));
   });
 
   assert.deepEqual(failures,[]);
