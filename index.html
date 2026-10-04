@@ -25,7 +25,7 @@
      어렵다 — 새 로그인만 깨진다). 실제로 한 번 그랬으니 손대지 말 것. -->
 <meta http-equiv="Content-Security-Policy" content="
   default-src 'self';
-  script-src 'self' 'wasm-unsafe-eval' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-nGQ76O+XOUpDMyXQOIj3wnMIBrBqCZ+93Ym6cHdvEvg=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
+  script-src 'self' 'wasm-unsafe-eval' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-Ef64vfo1JqYjGeA0u9hhFHQ9Tb2otSDfg/Dv8aquAXQ=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
   script-src-attr 'none';
   style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
   font-src 'self' data: https://cdn.jsdelivr.net;
@@ -2339,7 +2339,7 @@ function setEditorActions(on){
         </div>
         <div class="sheet-src-view" id="sheetSrcView"><img id="sheetSrcImg" alt="" hidden></div>
         <button type="button" class="btn sheet-src-relink" id="sheetSrcRelink" hidden>다시 연결</button>
-        <input type="file" id="sheetSrcFile" accept="application/pdf,image/png,image/jpeg,image/webp" hidden>
+        <input type="file" id="sheetSrcFile" accept="application/pdf,image/png,image/jpeg,image/webp" aria-label="다시 연결할 원본 파일" hidden>
         <div class="sheet-src-note">원본은 이 브라우저에만 보관돼요 · 기기 간 동기화되지 않아요</div>
       </aside>
       <aside class="sheet-insp" id="sheetInsp" aria-label="선택한 문항">
@@ -9586,7 +9586,10 @@ const sheetSource=(()=>{
     setState("원본 쪽을 그리는 중…");
     let out;
     try{ out=await renderer.page(S.blob,S.page,CAP); }
-    catch(e){ if(live()) setState("이 쪽을 그리지 못했어요 · "+((e&&e.message)||e),"miss"); return; }
+    catch(e){
+      if(live()) setState("이 쪽을 그리지 못했어요 · "+((e&&e.message)||e),"miss");
+      return;
+    }
     if(!live()) return;
     const img=$("#sheetSrcImg");
     img.src=`data:${out.mimeType};base64,${out.imageBase64}`; img.alt=`원본 ${S.page}쪽`; img.hidden=false;
@@ -9603,7 +9606,10 @@ const sheetSource=(()=>{
     clearView(); setState("원본을 여는 중…");
     let got;
     try{ got=await intakeReadClient().forProblem(S.setId,{intake:{sources:[{sourceId:ref.sourceId,pages:ref.pages}]}}); }
-    catch(e){ if(live()) missing(ref,"원본을 확인하지 못했어요 · "+((e&&e.message)||e),false); return; }
+    catch(e){
+      if(live()) missing(ref,"원본을 확인하지 못했어요 · "+((e&&e.message)||e),false);
+      return;
+    }
     if(!live()) return;
     if(!got?.blob){
       if(got?.state==="deleted") missing(ref,"원문을 삭제했어요 · 같은 파일이어도 새 원문으로 다시 등록해야 해요",false);
@@ -9613,7 +9619,10 @@ const sheetSource=(()=>{
     renderer ||= PedagogyIntake.browserRenderer();
     let count;
     try{ count=await renderer.count(got.blob,CAP); }
-    catch(e){ if(live()) missing(ref,"원본을 열지 못했어요 · "+((e&&e.message)||e),false); return; }
+    catch(e){
+      if(live()) missing(ref,"원본을 열지 못했어요 · "+((e&&e.message)||e),false);
+      return;
+    }
     if(!live()) return;
     S.blob=got.blob; S.sourceId=ref.sourceId; S.count=count;
     if(firstPage) S.page=Math.min(count,Math.max(1,ref.pages[0]||1));
@@ -9660,7 +9669,10 @@ const sheetSource=(()=>{
     const live=liveCheck(), id=S.sourceId;
     setState("파일을 확인하는 중…");
     try{ await intakeReadClient().reconnect(id,f); }
-    catch(err){ if(live()) setState(((err&&err.message)||"다시 연결하지 못했어요")+" · 새 원문 등록은 아직 준비 중이에요","miss"); return; }
+    catch(err){
+      if(live()) setState(((err&&err.message)||"다시 연결하지 못했어요")+" · 새 원문 등록은 아직 준비 중이에요","miss");
+      return;
+    }
     if(live()) refresh(true);
   };
   return Object.freeze({refresh,close,toggle,isOn:()=>S.on});

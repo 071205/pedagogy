@@ -48,6 +48,10 @@ U1.5 중 **B6 엔진을 바꾸지 않고 되는 화면 절반**이다. 지면 �
 - 검사를 만들며 **검사 쪽 결함 셋**을 고쳤다: epoch 만 올리면 같은 소유자의 정당한 재열기와 구별 안 됨(⑥) · `showEditor()` 가 보기를
   '편집' 으로 되돌려 패널이 화면에 없었음(④) · 지면 칸이 `overflow:hidden` 이라 문서 가로 스크롤로는 넘침이 안 보임(⑨ — 깨보기가 잡음).
 - `check:static`·`check-source-csp`(12/12)·`check:review-hygiene`·`git diff --check`·`test:review-contracts`·`test:library-ui`·`test:intake` 통과.
+- **CI 첫 회 반영(2커밋째)**: ① `test:worker` 안의 `check-audit-safety` 가 `onAuth` 를 떼어 Node 샌드박스에서 돌리는데 `sheetSource` 대역이
+  없어 `ReferenceError` — 하네스 관례대로 대역을 넣고, **계정이 바뀔 때만 패널을 닫는지**(같은 계정 알림 0회 · 전환 1회)를 실제 동작으로
+  단언했다(onAuth 닫기를 지우면 빨간불 확인). 처음에 `test:worker` 를 돌리지 않은 것이 누락이었다.
+  ② SonarCloud 신뢰성 C — `S2681`(한 줄 `if(live()) …; return;`) 4곳을 중괄호로 풀고, 숨긴 파일 입력에 `aria-label`.
 - **아직 못 한 것**: 클라우드는 `cdn.jsdelivr.net` 이 막혀 `test:sheet` ⑨-a(글꼴)는 여기서 판정 불가 → CI 몫. 실제 iPad/Safari 의
   원문 표시·PDF.js 메모리, 스캔 PDF 표본, 로그인 계정 전환 실측은 로컬/R8.
 

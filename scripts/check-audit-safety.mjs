@@ -146,13 +146,16 @@ test('032: repeated auth notification preserves edits; switching flushes old own
     const $=()=>({style:{}}),updatePlanBadge=()=>{},inAppBrowserName=()=>null,showInAppNotice=()=>{};
     const bootLibrary=async()=>{},loadSets=async()=>{},showLibraryLoading=()=>{},snapshot=()=>'',updateHistButtons=()=>{},showLibrary=()=>{};
     const recoverIntakeOnSignIn=async()=>{};
+    let srcCloses=0; const sheetSource={toggle:on=>{ if(!on) srcCloses++; }};   // U1.5 원본 패널 — 계정 전환에서 닫혀야 한다
     const ensureConflictCopies=()=>false;`);
   const start=src.indexOf('const onAuth=async (user)=>{');
   vm.runInContext(src.slice(start,src.indexOf('\n};',start)+3),c);
   await vm.runInContext("onAuth({uid:'A'})",c);
   assert.equal(vm.runInContext("sets[0].id",c),'work');
+  assert.equal(vm.runInContext('srcCloses',c),0,'같은 계정 알림에서 원본 패널을 닫았다');
   await vm.runInContext("onAuth({uid:'B'})",c);
   assert.equal(vm.runInContext('writes.join()',c),'A');
+  assert.equal(vm.runInContext('srcCloses',c),1,'계정이 바뀌었는데 원본 패널을 닫지 않았다');
   assert.equal(vm.runInContext('localDirty',c),false);
   await vm.runInContext('onAuth(null)',c);
   vm.runInContext("sets=[{id:'guest-work'}]",c);await vm.runInContext('onAuth(null)',c);
