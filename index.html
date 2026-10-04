@@ -25,7 +25,7 @@
      어렵다 — 새 로그인만 깨진다). 실제로 한 번 그랬으니 손대지 말 것. -->
 <meta http-equiv="Content-Security-Policy" content="
   default-src 'self';
-  script-src 'self' 'wasm-unsafe-eval' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-Ef64vfo1JqYjGeA0u9hhFHQ9Tb2otSDfg/Dv8aquAXQ=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
+  script-src 'self' 'wasm-unsafe-eval' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-iwRBJsqVQ2CbxI5eaV5n5LS2UMr8cNi/FNVThYw2YFU=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
   script-src-attr 'none';
   style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
   font-src 'self' data: https://cdn.jsdelivr.net;
@@ -9553,7 +9553,10 @@ const sheetSource=(()=>{
   }
   function clearView(){
     const img=$("#sheetSrcImg"); img.hidden=true; img.removeAttribute("src"); img.alt="";
-    $("#sheetSrcNav").hidden=true; $("#sheetSrcRelink").hidden=true; S.blob=null;
+    // 원본이 둘 이상이면 고르기는 남긴다 — 첫 원본을 못 열어도 다른 원본으로 넘어갈 수 있어야 한다(CodeRabbit)
+    $("#sheetSrcNav").hidden = S.refs.length<2;
+    for(const id of ["#sheetSrcPrev","#sheetSrcNext","#sheetSrcPage"]) $(id).hidden=true;
+    $("#sheetSrcRelink").hidden=true; S.blob=null;
   }
   // 문항 자신의 출처 → 없으면 같은 문제집 다른 문항의 출처를 자유 탐색으로
   function collect(set,q){
@@ -9594,6 +9597,7 @@ const sheetSource=(()=>{
     const img=$("#sheetSrcImg");
     img.src=`data:${out.mimeType};base64,${out.imageBase64}`; img.alt=`원본 ${S.page}쪽`; img.hidden=false;
     $("#sheetSrcNav").hidden=false;
+    for(const id of ["#sheetSrcPrev","#sheetSrcNext","#sheetSrcPage"]) $(id).hidden=false;
     $("#sheetSrcPage").textContent=`${S.page} / ${S.count}쪽`;
     $("#sheetSrcPrev").disabled = S.page<=1;
     $("#sheetSrcNext").disabled = S.page>=S.count;

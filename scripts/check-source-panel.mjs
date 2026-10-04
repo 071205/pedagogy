@@ -9,6 +9,7 @@
  *   ⑤ 다시 연결은 같은 파일만 받는다 — 다른 파일이면 거절하고 그리지 않는다
  *   ⑥ 읽는 도중 계정(epoch)이 바뀌면 늦은 결과를 화면에 올리지 않는다
  *   ⑦ 출처 없는 문제집은 원문 저장소(IndexedDB)를 만들지 않는다
+ *   ⑩ 원본이 여럿일 때 첫 원본을 못 열어도 고르기로 다른 원본을 연다
  *   ⑨ 좁은 화면(375px)에서 패널을 켜도 가로로 넘치지 않는다
  *   ⑧ 계정이 바뀌면(onAuth) 패널을 닫는다 — 소스 대조(보조망). 늦은 결과 차단 자체는 ⑥ 이 실제로 본다
  *
@@ -162,6 +163,19 @@ async function suite(html){
     const a=await view(p);
     ok(a.img&&/자유롭게/.test(a.state)&&a.page==='1 / 2쪽','자유 탐색 '+JSON.stringify(a));
   });
+  await check('⑩ 첫 원본을 못 열어도 고르기로 다른 원본을 연다',async()=>{
+    // 첫 출처는 이 문제집에 연결되지 않은(=이 기기에서 못 여는) 원본, 둘째가 실제 원본
+    const id=await p.evaluate(({sid,real})=>{const s=sets.find(x=>x.id===sid);const n=newProblem();
+      n.intake={version:1,sources:[{sourceId:'00000000-0000-4000-8000-000000000000',pages:[1]},{sourceId:real,pages:[2]}]};
+      s.problems.push(n);return n.id;},{sid:src.setId,real:src.sourceId});
+    await p.evaluate(id=>selectSheetProblem(id,{scroll:false}),id); await settled(p);
+    const a=await p.evaluate(()=>({miss:$("#sheetSrcState").dataset.s==='miss',nav:!$("#sheetSrcNav").hidden,pick:!$("#sheetSrcPick").hidden,
+      pageCtl:!$("#sheetSrcPrev").hidden,opts:$("#sheetSrcPick").options.length}));
+    ok(a.miss&&a.nav&&a.pick&&a.opts===2&&!a.pageCtl,'첫 원본 실패 뒤 고르기 '+JSON.stringify(a));
+    await p.selectOption('#sheetSrcPick','1'); await settled(p);
+    const b=await view(p);
+    ok(b.img&&b.page==='2 / 2쪽','둘째 원본으로 넘어가지 못했다 '+JSON.stringify(b));
+  });
   await check('④ 연결 없는 문제집은 같은 sourceId 가 적혀 있어도 원문을 열지 않는다',async()=>{
     const id=await p.evaluate(({sid,orig})=>{
       const o=sets.find(x=>x.id===orig); const s=structuredClone(o); s.id='imported-json'; s.name='가져온 사본'; sets.push(s); return s.id;
@@ -188,12 +202,15 @@ async function suite(html){
        epoch 만 올리면 같은 소유자(guest)로 다시 여는 정당한 갱신과 구별되지 않는다. */
     const r=await p.evaluate(async q0=>{
       sheetSource.toggle(false); selectSheetProblem(q0,{scroll:false});
-      const real=intakeReadClient(); let release; const gate=new Promise(res=>{release=res;});
-      intakeLinkClient={...real,forProblem:async(...a)=>{const out=await real.forProblem(...a);await gate;return out;}};
+      // 고정 대기로 '읽는 도중' 을 만들면 읽기가 느린 기계에서 계정 전환이 먼저 와 깨보기가 헛돈다 — 도착 신호를 기다린다(CodeRabbit)
+      const real=intakeReadClient(); let release,enter;
+      const gate=new Promise(res=>{release=res;}), entered=new Promise(res=>{enter=res;});
+      intakeLinkClient={...real,forProblem:async(...a)=>{const out=await real.forProblem(...a);enter();await gate;return out;}};
       const prevUser=currentUser;
       try{
         sheetSource.toggle(true);
-        await new Promise(res=>setTimeout(res,300));      // 원문을 읽어 문 앞에서 기다린다
+        // 원문을 읽어 문 앞에 도착했다 — 깨보기로 forProblem 을 우회하면 영영 안 오므로 상한을 둔다
+        await Promise.race([entered,new Promise(res=>setTimeout(res,8000))]);
         currentUser={uid:'other-account'}; authEpoch++;    // 계정 전환과 같은 울타리
         release(); await new Promise(res=>setTimeout(res,1500));
         return {img:!$("#sheetSrcImg").hidden};
@@ -220,6 +237,8 @@ const BREAKS=[
    pairs:[['  $("#sheetSrcRelink").onclick=()=>$("#sheetSrcFile").click();\n','']]},
   {name:'좁은 화면에서도 패널 폭을 고정한다',target:'⑨',
    pairs:[['  .sheet-src{flex:0 0 auto;width:auto;border-left:0;','  .sheet-src{flex:0 0 auto;width:600px;border-left:0;']]},
+  {name:'원본을 못 열면 고르기까지 숨긴다',target:'⑩',
+   pairs:[['    $("#sheetSrcNav").hidden = S.refs.length<2;\n','    $("#sheetSrcNav").hidden = true;\n']]},
   {name:'선택이 바뀌어도 패널을 갱신하지 않는다',target:'①',
    pairs:[['  renderSheetInspector();\n  sheetSource.refresh();\n','  renderSheetInspector();\n']]},
 ];
