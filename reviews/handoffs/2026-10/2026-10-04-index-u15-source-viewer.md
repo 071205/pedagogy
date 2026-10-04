@@ -68,3 +68,10 @@ B6 API 만으로는 U1.5 수동 연결이 안 된다 — 원문 등록 길이 `c
   헛도는 것을 발견해 첫 await 전 판정으로 좁혔다.
 - 2026-10-04 · Codex GPT-5.6 Sol medium 2차(`8bcded1` 만) · **세 결함 닫힘 · 새 결함 없음 · merge 가능** — `showLibrary` 에서 닫는 것은 편집기 이탈 의미와
   일치하고 멱등, 상태 변수 이동은 원시값 초기화뿐이라 TDZ·부팅 부작용 없음, 탭 복귀 재조회는 `srcGen` 으로 경합 시 최신만 반영.
+- 2026-10-04 · PR #14 CI · `verify` 빨간불 — `test:worker` 의 함수 떼어 돌리기 검사(`check-audit-safety`·`check-review-followup`)가
+  `onAuth`·삭제 경로에 들어간 `closeSheetSource()` 를 몰라 ReferenceError(계정 삭제 검사는 그 예외로 `wiping` 이 안 풀렸다).
+  가짜 환경에 빈 함수 자리를 더했다(`c93306d`). ⚠️ ⓐ 를 올리기 전 `check:fast` 전체가 아니라 관련 검사만 골라 돌린 탓이다 —
+  이후 `check:fast` 전체 로컬 통과(종료 0, HWPX 실행).
+- SonarCloud 새 이슈 5건(게이트 통과, 전부 CODE_SMELL): `S6819` `role="status"`(:2336) · `S1121` `||=` 대입식 · `S3776` `renderSheetSource`
+  복잡도 21/15 · `S2681`(한 줄 `catch{ if(취소) return; throw e; }` 를 조건 밖으로 읽음 — 의도대로, 결함 아님) · `S878`(줄만 밀린 기존 B6 코드).
+  검토 뒤 변경을 만들지 않으려고 **M1(Sonar 정리)** 로 넘긴다.
