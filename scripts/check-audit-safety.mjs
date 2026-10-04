@@ -145,7 +145,7 @@ test('032: repeated auth notification preserves edits; switching flushes old own
     const migrateSharedLocalCache=()=>{},migrateSharedAuxKeys=()=>{},loadLastQ=()=>{},readStamps=()=>({}),loadSetSyncMeta=()=>{};
     const $=()=>({style:{}}),updatePlanBadge=()=>{},inAppBrowserName=()=>null,showInAppNotice=()=>{};
     const bootLibrary=async()=>{},loadSets=async()=>{},showLibraryLoading=()=>{},snapshot=()=>'',updateHistButtons=()=>{},showLibrary=()=>{};
-    const recoverIntakeOnSignIn=async()=>{};
+    const recoverIntakeOnSignIn=async()=>{},closeSheetSource=()=>{};
     const ensureConflictCopies=()=>false;`);
   const start=src.indexOf('const onAuth=async (user)=>{');
   vm.runInContext(src.slice(start,src.indexOf('\n};',start)+3),c);

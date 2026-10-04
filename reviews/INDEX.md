@@ -86,8 +86,8 @@ U0→B6에서 정규화/복원·AI 계약을 함께 다룬다. Rules의 `hasOnly
 
 ## 최근 검토
 
-[HANDOFF-2026-180](handoffs/2026-10/2026-10-03-index-u1-start-thumbs.md): U1 2차 — 새 문제집 두 길(직접/자료로·AI, PDF 일괄은 준비 중)·
-'문항 불러오기'/'문제집 파일 불러오기'·쪽 축소판·글꼴 실패 표시. **Codex Sol medium 검토 중.**
+[HANDOFF-2026-180](handoffs/2026-10/2026-10-03-index-u1-start-thumbs.md): U1 2차 — 시작 두 길·불러오기 이름·쪽 축소판·글꼴 실패 표시.
+Codex 2회 + 후속 `b93c689` 재검토 결함 없음. **운영 배포 `a93e7e3`·로그인 확인 · U1 완료 기준 대조 끝.**
 
 [HANDOFF-2026-179](handoffs/2026-10/2026-10-03-index-b7-sw-outbox.md): B7 기기 내 응답 outbox(SW) — Codex 구현·Claude 검토 결함 없음,
 SonarCloud 출처 확인 반영. **운영 배포 `4dd674f`·로그인 확인(SW 미등록).**

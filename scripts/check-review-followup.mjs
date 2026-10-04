@@ -14,7 +14,8 @@ function fn(name) {
 function context(code) {
   const c = vm.createContext({ console: { error() {}, warn() {} }, TextEncoder,
     setTimeout: () => 0, clearTimeout() {} });
-  vm.runInContext("const intakeWriteAllowed=()=>true;"+code, c);
+  // 원본 패널 정리(U1.5 ⓐ)는 화면 몫이라 이 검사에서는 빈 함수다 — 삭제 경로가 부른다.
+  vm.runInContext("const intakeWriteAllowed=()=>true,closeSheetSource=()=>{};"+code, c);
   return c;
 }
 
