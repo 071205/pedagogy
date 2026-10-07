@@ -19,6 +19,7 @@
 | 후속 완료 | R1 독립 검토 완료. **B3 3/3 완료**(`HANDOFF-170` 검토). **B5 검토·운영 배포 완료**(`HANDOFF-171`) |
 | 다음 | **U1.5 원본 대조 / Claude 구현 → Codex Sol medium 검토**(⑩-A2) — U1 완료: 2차(시작 두 길·불러오기 이름·쪽 축소판·글꼴 실패 표시)는 `b93c689` 로컬 재검토(결함 없음) 뒤 PR #11 로 운영 배포(`a93e7e3`, `HANDOFF-180`). U1 1차 `11f1e12`(`HANDOFF-177`), B7 `4dd674f`. 그 뒤 **REV-108 → U2**. Worker 재배포는 U2(실호출 연결) 때 |
 | 세션 | 클라우드/로컬 병렬 — 어느 세션에서 무엇을 하는지는 [DEV-TOKEN-ROADMAP '세션 분담'](DEV-TOKEN-ROADMAP.md#세션-분담--클라우드--로컬-2026-10-03--astra-high-판정)(2026-10-03 Astra high 판정). Codex 검토·배포·한글·로그인 확인은 로컬에만 있다 |
+| 유료화 갈래 | **F0 설계 합의**(`HANDOFF-185`). R9 를 F1~F5·L1~L3·D7~D11 로 쪼갰다 — 지금 할 수 있는 것은 **결정 D7~D11 · L1 사업자 등록 · L2 약관 초안 · F1·F2 fixture**(Codex 가 비어 있을 때). 아래 ⑮ |
 | 결정·외부 대기 | D1 독립/연동 선택 완료. D2②·D4 답 반영·U0 개정 재검토 합의, D3 운영 숫자·D1 기본값/패널 시안 선택, C1 결제·새 호출 승인, R7 외부 환경. 구 탭은 사용자가 다른 기기 새로고침으로 정리하고 별도 안내 없이 엄격 Rules 적용을 결정 |
 
 기본 순서: **U0 → B3 실제 배포 → B4 → B5 → (U0 계약 개정) → B6 → B7 → U1 → U1.5 → REV-108 → U2 → R5~R10**.
@@ -56,7 +57,11 @@ B3 전환 Rules → 플래그 1 클라이언트 → 엄격 Rules가 순서대로
 | **R6 검사·도구** | Codex **GPT-6 Luna / medium** | ⑫ 기존 CI·secret·의존성 공백 대조 · **Dependabot PR #1~#7 포함** | R5 완료. 클라우드 Claude 는 CI 증거 수집만 보조 |
 | **R7 환경 전환 준비** | Codex **GPT-6 Sol / medium** | ⑬ 호스트·App Check·롤백 증거 준비 | R1·R5·R6. 실제 이전은 별도 사용자 승인 |
 | **R8 종단 검증** | Codex **GPT-6 Sol / medium** | ⑭ UX 사용자 여정·저장·AI·출력·복구 검증 | R5·R6. 운영 검증 완료는 R7 뒤 |
-| **R9 결제** | GPT-6 Astra / high 설계 → GPT-6 Sol / high 구현 → Claude Opus 5 검토 | ⑮ 상품·가격·법무 결정 후 결제 구현 | 사용자가 상품·가격·PG·법무 결정을 먼저 제공 |
+| **R9-F1·F2 결제 엔진·장부 fixture** *(주 순서 밖 · 2026-10-08)* | Codex **GPT-6 Astra / high** 판정 → **GPT-6 Sol / high** 구현 → Claude **Opus** 검토 | ⑮-F1 · ⑮-F2 | F0 합의(완료) + 별도 구현 요청. 주 레일 Codex 일이 우선 · F1 merge 뒤 F2 · 운영 파일과 겹치면 멈춤 |
+| **R9-F3a Worker 연결** | Codex Sol high → Opus 검토 | ⑮-F3 | F2 · R5(U2 포함) · D7 한도 단위 |
+| **R9-F3b 요금제·사용량 화면** | Claude → Codex Sol medium 검토 | ⑮-F3 | F3a merge · **다른 PR** |
+| **R9-F4 PG sandbox** | Sol high → Opus 검토 | ⑮-F4 | F3 · D11 · PG 테스트 키 |
+| **R9-F5 상품 확정·활성화** | Sol high → Opus 검토 → R10 | ⑮-F5 | D7~D10 · L1~L3 · R7 · R8 · C3 |
 | **R10 준비 판정** | Codex **GPT-6 Sol / high** | ⑯ 출시 증거만 대조, 새 기능 없음 | 필수 단계 증거 완료 |
 
 **외부 결정이 필요한 옆길:** C1은 GPT-6 Sol / medium으로 staging을 준비하고 새 결제·호출 승인을 기다린다.
@@ -117,7 +122,11 @@ PDF 없이 잘림/풀이 공간 조정 → 인쇄/PDF → 다시 로그인·충�
 
 ### R9 = **"돈 받는 부분"** ⚠️ 해리 결정이 먼저
 
-가격 · 결제사 · 환불 · 약관. 정해지기 전에는 시작할 수 없다.
+세 갈래로 나눴다(2026-10-08). **D7~D11** 은 해리가 고르는 것(요금·AI·과세·저작권·결제사),
+**L1~L3** 는 해리가 밖에서 하는 것(사업자 등록·약관 전문가 검토·결제사 심사),
+**F1~F5** 는 코드다. [공통 기반 설계](BILLING-FOUNDATION-DESIGN.md)는 합의됐다(`HANDOFF-185`).
+F1·F2(돈 계산 엔진과 장부를 따로 떼어 시험)는 지금도 할 수 있고, 실제 앱에 붙이는 F3 부터는 R5 뒤다.
+⚠️ **새 호스트(R7) 없이 유료 공개는 없다** — GitHub Pages 약관이 상업 SaaS 를 막는다.
 
 ### R10 = **"내보내도 되나 판정"**
 
@@ -383,7 +392,26 @@ Claude(`Opus 5`)가 종합하고, **방향 자체를 아직 아무도 안 공격
 
 ## ⑮ R9 결제 — **Astra high 설계 → GPT-6 Sol high 구현 → Claude Opus 5 검토**
 
-⚠️ **상품·가격·법무는 해리가 정해야 시작된다.**
+순서·선행·완료 조건은 [DEV-TOKEN-ROADMAP 'R9 세부'](DEV-TOKEN-ROADMAP.md#r9-세부--유료화-갈래-fl-2026-10-08)가 정답표다.
+아래는 붙여 넣을 지시문만이다. 각 묶음은 구현 → 비구현자 검토 → merge 뒤 다음으로 간다.
+
+**⑮-F1** (Codex · 먼저 Astra high, 이어서 Sol high)
+> R9-F1 해줘. 먼저 Astra high 로 BILLING-FOUNDATION-DESIGN §3~§4-2 의 불변조건만 좁게 판정하고(재설계 아님),
+> 합의되면 Sol high 로 공통 엔진을 Node fixture 로 구현해. 운영 endpoint·index.html·Worker 진입점은 건드리지 마.
+> §9 의 해당 행을 깨보기로 빨간불 확인한 뒤 check:fast 에 걸고 ready-for-review 인계를 남겨.
+
+**⑮-F2** (Codex · Astra high 선행 판정 → Sol high)
+> R9-F2 해줘. 사용자별 장부·기간 사용량·청구 스케줄을 격리 환경에서. 저장·동시성·삭제 fence 는 Astra high 가 먼저 판정.
+> 운영 바인딩은 배포하지 마.
+
+**⑮-F3** (U2·R5 뒤)
+> R9-F3a 해줘(Codex Sol high). Worker 를 장부에 연결하고 출시 플래그는 꺼 둔 채로, 실제 AI 는 stub.
+> 그 PR 이 검토·merge 된 뒤 R9-F3b(Claude) — 설정 '요금제·사용량' 화면을 **다른 PR** 로.
+
+**⑮-F4** (D11·PG 테스트 키 뒤)
+> R9-F4 해줘. 고른 PG 의 sandbox 로 정기결제·갱신·해지·환불·webhook 위조/중복/역순을 종단검사. live 키는 쓰지 마.
+
+**⑮-F5** — 결정·외부 절차·R7·R8 이 다 모인 뒤 상품을 확정하고 R10 판정을 받는다. 지시문은 그때 쓴다.
 
 ## ⑯ R10 출시 판정 — **Codex · GPT-6 Sol high**
 
@@ -400,6 +428,8 @@ Claude(`Opus 5`)가 종합하고, **방향 자체를 아직 아무도 안 공격
 | **C1** 제미나이 staging | Codex · GPT-6 Sol medium | 결제 연결과 **새 호출 승인**이 해리 결정이다 |
 | C2 → C3 | GPT-6 Luna medium / Astra high | C1 이 풀려야 데이터가 생긴다 |
 | `subitems` · 이미지 자유 % | 보류 | 제품 범위 승인이 먼저다 |
+| **D7~D11** 유료화 결정 | 해리 | 요금 구조·한도 단위 · AI 공급자 · 과세 유형 · 저작권 정책 · PG. 추천은 [LAUNCH-DECISIONS](LAUNCH-DECISIONS.md) |
+| **L1~L3** 사업자·약관·PG 심사 | 해리(약관 초안은 Claude) | 사업자 등록 → 통신판매업은 지금 가능. PG 심사는 R7 새 도메인·약관 게시 뒤 |
 
 ---
 
