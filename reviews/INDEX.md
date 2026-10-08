@@ -27,7 +27,7 @@
 **현재: B6·B7 운영 배포 완료(`686d9fb`·`4dd674f`). U1 1차 `11f1e12`(`HANDOFF-177`) · U1 2차 `a93e7e3`(`HANDOFF-180`, 후속 `b93c689` 로컬 재검토 결함 없음) 운영 배포 · U1 완료 대조 끝 → U1.5**.
 U0 개정 합의는 유지. D3/C1~C3·D1 연동·U1 시안/사용자 관찰은 별도 대기.
 순서·게이트는 [통합 레일](../docs/DEV-TOKEN-ROADMAP.md), 지시문은 [RAIL-ORDERS](../docs/RAIL-ORDERS.md).
-[유료화 공통 기반 설계](../docs/BILLING-FOUNDATION-DESIGN.md) 합의(`HANDOFF-185`). R9 를 F1~F5·L1~L3·D7~D11 로 레일에 통합. 다음 U1.5 유지.
+결제 기반 합의(`HANDOFF-185`) 유지. [서비스 준비 확장](../docs/SERVICE-READINESS-DESIGN.md) 검토 완료·출시 2단계 결정(`HANDOFF-186`): F3c·L4·D12/D13 통합. 다음 U1.5 유지.
 **B3 운영 장애 `REV-2026-109` 해결**(운영 `e50636c` → 문구 정정 `6679676`, 편집·삭제·진짜 충돌 운영 검증).
 `REV-2026-111`은 **B4 운영 배포(`451e8ba`)·운영 확인으로 해결**(`HANDOFF-169`).
 **B3 3/3 완료**(엄격 Rules · Opus 5.5 검토 결함 없음 · 운영 거절 확인, `HANDOFF-170`).
@@ -87,6 +87,8 @@ U0→B6에서 정규화/복원·AI 계약을 함께 다룬다. Rules의 `hasOnly
 
 ## 최근 검토
 
+[HANDOFF-2026-186](handoffs/2026-10/2026-10-08-docs-service-readiness-rail.md): **설계만 · Claude 검토 결함 0 · 해리 결정 A(P1 초대 베타 → P2 공개) 반영 · Codex 법령 대조.** 계정/보안/UI/운영/복구 요구와 F3c·L4·D12/D13을 기존 레일에 통합.
+
 [HANDOFF-2026-185](handoffs/2026-10/2026-10-08-billing-foundation-design.md): **설계만 · Claude 검토 2회 합의.** 상점 주도 갱신·전환 동의·무료 사용량. 레일 'R9 세부'로 통합.
 
 [HANDOFF-2026-180](handoffs/2026-10/2026-10-03-index-u1-start-thumbs.md): U1 2차 — 시작 두 길·불러오기 이름·쪽 축소판·글꼴 실패 표시.
@@ -97,9 +99,6 @@ SonarCloud 출처 확인 반영. **운영 배포 `4dd674f`·로그인 확인(SW 
 
 [HANDOFF-2026-178](handoffs/2026-10/2026-10-03-index-b6-delete-fences.md): B6 116·117 해소(Codex 구현·Claude 검토),
 로그인 복구 부작용은 Claude 수정·Codex 검토. **B6 112~117 전부 해소·병합 완료.**
-
-[HANDOFF-2026-177](handoffs/2026-10/2026-10-03-index-u1-sheet-layout.md): U1 1차 — 지면 배치 보기(인쇄와 같은 조립·보정 공유,
-확인할 문항·배치 변경·⌘Z·편집↔지면 선택 유지). `test:sheet` 13개·깨보기 9종. **Codex Sol medium 검토 2회 · 운영 배포 `11f1e12`.**
 
 저장 구조 관련 HANDOFF-162 Q1/Q2는 레일 D1/U0에서 이어받으며 미결을 승인으로 바꾸지 않는다.
 
