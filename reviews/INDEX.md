@@ -13,6 +13,7 @@
 | `REV-2026-075` | `P2` | AI 문서에 들어갔다 나오면 로그인이 안 된다(재현 절차 없음) | `issues/2026-09/2026-09-09-document-editor-login-after-return.md` |
 | `REV-2026-093` | `P2` | staging Gemini가 결제 전제 미충족(`FAILED_PRECONDITION`)으로 실패한다 | `issues/2026-09/2026-09-14-gemini-staging-provider-request-error.md` |
 | `REV-2026-108` | `P2` | 지문 묶음이 위치로만 정해져, 가운데 문항을 지우면 무관한 문항이 흡수된다 | `issues/2026-09/2026-09-23-index-passage-group-positional.md` |
+| `REV-2026-118` | `P1` | 설정 원문 목록의 늦은 응답이 다음 owner 화면에 표시된다 | `issues/2026-10/2026-10-08-index-source-list-owner-race.md` |
 
 ⚠️ 이 표는 `npm run check:review-hygiene` 가 **실제 이슈 파일의 상태와 양방향으로**
 대조한다. 지난 요약을 지워도 안전한 이유가 이 대조다 — 남은 한 곳이 정확해야
@@ -86,6 +87,8 @@ U0→B6에서 정규화/복원·AI 계약을 함께 다룬다. Rules의 `hasOnly
 
 ## 최근 검토
 
+[HANDOFF-2026-184](handoffs/2026-10/2026-10-04-index-u15-manual-link.md): U1.5 ⓑ Codex Sol medium 검토 **보완 필요**. REV-118 설정 목록 owner 경합 브라우저 재현.
+
 [HANDOFF-2026-180](handoffs/2026-10/2026-10-03-index-u1-start-thumbs.md): U1 2차 — 시작 두 길·불러오기 이름·쪽 축소판·글꼴 실패 표시.
 Codex 2회 + 후속 `b93c689` 재검토 결함 없음. **운영 배포 `a93e7e3`·로그인 확인 · U1 완료 기준 대조 끝.**
 
@@ -95,10 +98,7 @@ SonarCloud 출처 확인 반영. **운영 배포 `4dd674f`·로그인 확인(SW 
 [HANDOFF-2026-178](handoffs/2026-10/2026-10-03-index-b6-delete-fences.md): B6 116·117 해소(Codex 구현·Claude 검토),
 로그인 복구 부작용은 Claude 수정·Codex 검토. **B6 112~117 전부 해소·병합 완료.**
 
-[HANDOFF-2026-177](handoffs/2026-10/2026-10-03-index-u1-sheet-layout.md): U1 1차 — 지면 배치 보기(인쇄와 같은 조립·보정 공유,
-확인할 문항·배치 변경·⌘Z·편집↔지면 선택 유지). `test:sheet` 13개·깨보기 9종. **Codex Sol medium 검토 2회 · 운영 배포 `11f1e12`.**
-
-[HANDOFF-2026-176](handoffs/2026-10/2026-10-03-index-b6-folder-sync-result.md): B6 115 거짓 폴더 실패 해소·재검토 확인.
+[HANDOFF-2026-177](handoffs/2026-10/2026-10-03-index-u1-sheet-layout.md): U1 1차 · Codex 검토 2회·운영 배포 `11f1e12`.
 
 
 저장 구조 관련 HANDOFF-162 Q1/Q2는 레일 D1/U0에서 이어받으며 미결을 승인으로 바꾸지 않는다.
