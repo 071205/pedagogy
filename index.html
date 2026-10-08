@@ -25,7 +25,7 @@
      어렵다 — 새 로그인만 깨진다). 실제로 한 번 그랬으니 손대지 말 것. -->
 <meta http-equiv="Content-Security-Policy" content="
   default-src 'self';
-  script-src 'self' 'wasm-unsafe-eval' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-lm0RsVl1OI5gLECMLgWQS7xgoFcHc+i9ZVwYMc+1fpg=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
+  script-src 'self' 'wasm-unsafe-eval' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-b1H12syMVKUW5UN4NtkBXVAvl0DfW/1kAMj7clQ7Gfc=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
   script-src-attr 'none';
   style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
   font-src 'self' data: https://cdn.jsdelivr.net;
@@ -3038,7 +3038,7 @@ let sets=[]; let currentSetId=null; let currentQId=null; let orderMode=false;
 let sheetZoomFit=true, editorMode="edit", sheetGen=0, sheetShownKey=null, sheetTimer=null, sheetBusy=false, sheetBuildingKey=null;
 // 원본 대조 패널(U1.5 ⓐ) — showLibrary()·삭제 경로가 부르므로 앞에 둔다(뒤에 두면 부팅 중 TDZ)
 let srcOpen=false, srcGen=0, srcReader=null, srcView=null, srcPage=1, srcMapped=[], srcShownFor=null;
-let srcPersistNoted=false, srcWriter=null, srcWriterOwner=null, srcEditorsOk=false, srcSel=null, srcSelFor=null, srcCur=null, srcList=[], srcMissing=null, srcFileMode=null;
+let srcPersistNoted=false, dsGen=0, srcWriter=null, srcWriterOwner=null, srcEditorsOk=false, srcSel=null, srcSelFor=null, srcCur=null, srcList=[], srcMissing=null, srcFileMode=null;
 let currentUser=null; // 로그인 유저
 let authEpoch=0;
 function sessionContext(){
@@ -3138,7 +3138,7 @@ function createIntakeLibrary({editorsConfirmed=false}={}){
       try{
         sets=next; next.forEach(s=>touchSet(s.id));localDirty=true;
         const ok=writeLocalNow();saved=ok;
-        if(ok){flushHistory(); if(currentUser)flushToCloud(currentUser.uid);renderLibrary();}
+        if(ok){flushHistory(); if(currentUser){ flushToCloud(currentUser.uid); } renderLibrary();}
         else{sets=previous;localDirty=previousDirty;}
         return ok;
       }catch(e){if(!saved){sets=previous;localDirty=previousDirty;}throw e;}
@@ -5805,7 +5805,7 @@ function prepDataPane(){
   $("#dmBackupInfo").textContent = b
     ? `마지막 백업: ${new Date(b.t).toLocaleString("ko-KR")} · 문제집 ${b.sets.length}권`
     : "아직 백업이 없어요. 접속할 때마다 직전 상태가 하나 보관됩니다.";
-  renderDataSources().catch(e=>{ $("#dmSourcesInfo").textContent="원본 목록을 읽지 못했어요 · "+errText(e); });
+  renderDataSources();   // 오류 표시도 스스로 한다 — 늦게 끝난 이전 계정의 오류를 다음 계정 화면에 쓰지 않게(REV-2026-118)
 
   // 계정 삭제는 로그인 상태에서만
   const acct=$("#dmAccountSec");
@@ -9846,7 +9846,7 @@ async function drawSourcePage(){
   const c=document.createElement("canvas"); c.width=Math.floor(vp.width); c.height=Math.floor(vp.height);
   c.setAttribute("role","img"); c.setAttribute("aria-label",`원본 ${want}쪽`);
   const task=page.render({canvasContext:c.getContext("2d"),viewport:vp}); v.render=task;
-  try{ await task.promise; }catch(e){ if(e?.name==="RenderingCancelledException") return; throw e; }
+  try{ await task.promise; }catch(e){ if(e?.name==="RenderingCancelledException"){ return; } throw e; }
   if(srcView!==v||srcPage!==want) return;
   box.replaceChildren(c); box.scrollTop=0;
 }
@@ -9886,7 +9886,7 @@ async function renderSheetSource(force=false){
   setSrcMsg("원본 여는 중…");
   let got;
   try{ got=await pickSheetSource(await sheetSourceReader(),s,q,refs); }
-  catch(e){ if(!live()) return; dropSourceView(); srcList=[]; srcMissing=null; updateSrcNav(); setSrcMsg("원본을 열지 못했어요 · "+errText(e),true); return; }
+  catch(e){ if(!live()){ return; } dropSourceView(); srcList=[]; srcMissing=null; updateSrcNav(); setSrcMsg("원본을 열지 못했어요 · "+errText(e),true); return; }
   if(!live()) return;
   srcList=got.list; srcMissing=got.missing;
   const missText=srcMissing?(SRC_STATE_TEXT[srcMissing.state]||SRC_STATE_TEXT.missing):"";
@@ -9991,13 +9991,29 @@ $("#sheetSrcFile").onchange=async e=>{
       다른 탭이 그 사이 범위를 바꾸면 deleteSource 가 거절한다. 문항·문제집·결과 그림은 지우지 않는다(U0 §5-1). */
 const fmtBytes=n=>n>=1048576?(n/1048576).toFixed(1)+"MB":Math.max(1,Math.round(n/1024))+"KB";
 const SRC_STATE_LABEL={available:"보관 중",unlinked:"보관 중 · 연결된 문제집 없음",deleting:"지우는 중",deleted:"삭제됨",missing:"없음"};
+/* ⚠️ 목록은 await 를 세 번 지난다 — 그 사이 계정이 바뀌거나 새 목록 요청이 오면 늦게 끝난 쪽은 아무것도 쓰지 않는다
+   (오류 문구도 포함). 그러지 않으면 이전 계정의 파일명·크기·삭제 단추가 다음 계정 설정에 뜬다(REV-2026-118). */
+function resetDataSources(){
+  dsGen++;
+  $("#dmSourcesList").replaceChildren();
+  $("#dmSourcesInfo").textContent="계정이 바뀌었어요 · 설정을 다시 열면 이 계정의 원본을 보여 드려요";
+}
 async function renderDataSources(){
   const info=$("#dmSourcesInfo"), list=$("#dmSourcesList");
-  const reader=await sheetSourceReader();
-  const rows=reader?(await reader.listSources()).filter(x=>x.state!=="deleted"):[];
+  const gen=++dsGen, session={owner:intakeOwner(),epoch:authEpoch};
+  const live=()=>gen===dsGen&&session.owner===intakeOwner()&&session.epoch===authEpoch;
+  let rows;
+  try{
+    const reader=await sheetSourceReader();
+    rows=reader?(await reader.listSources()).filter(x=>x.state!=="deleted"):[];
+  }catch(e){
+    if(live()) info.textContent="원본 목록을 읽지 못했어요 · "+errText(e);
+    return;
+  }
   const used=rows.filter(x=>SRC_OK(x.state)).reduce((n,x)=>n+(x.bytes||0),0);
   let keep="";
   try{ if(navigator.storage?.persisted) keep=(await navigator.storage.persisted())?" · 브라우저 보관 보장 받음":" · 브라우저가 공간이 부족하면 지울 수 있음"; }catch{}
+  if(!live()) return;
   info.textContent=rows.length?`원본 ${rows.length}개 · ${fmtBytes(used)} / 1GB${keep}`:"보관한 원본이 없어요. 지면 배치의 '원본' 에서 PDF·사진을 연결할 수 있어요.";
   list.replaceChildren(...rows.map(x=>{
     const li=document.createElement("li");
@@ -10375,6 +10391,7 @@ const onAuth=async (user)=>{
     clearTimeout(histTimer); histTimer=null;
     intakeClients.forEach(c=>c.stop());intakeCloudReady=false;intakeCloudFailures.clear();intakeRemoteBlocked.clear();
     closeSheetSource();   // 원본 패널 — 이전 계정의 읽기·뷰어·object URL 을 남기지 않는다(U0 §5-2)
+    resetDataSources();   // 설정의 원문 목록 — 이전 계정의 파일명·크기·삭제 단추를 남기지 않는다(REV-2026-118)
     authEpoch++;
     clearTimeout(saveTimer);
     if(setsUnsub){ setsUnsub(); setsUnsub=null; }   // 이전 계정 구독 해제

@@ -3,7 +3,7 @@
 - ID: `REV-2026-118`
 - 날짜: `2026-10-08`
 - 보고자: `Codex / GPT-6 Sol medium 독립 검토 · 부모 브라우저 재현`
-- 상태: `open`
+- 상태: `in-progress`
 - 심각도: `P1`
 - 영향 영역: `index | tests`
 - 관련 인계: `HANDOFF-2026-184`
@@ -74,3 +74,13 @@ const after = document.querySelector('#dmSourcesList').textContent;
 
 - `2026-10-08` — Codex: 부모가 실제 Chromium fixture에서 재현. 요청한 GPT-6 Sol medium
   검토자가 probe/로그를 코드 경로와 독립 대조해 보완 필요 판정. 기능 수정 없음.
+- `2026-10-08` — Claude(구현자, 클라우드 세션): **원인** — `renderDataSources()` 가 `sheetSourceReader()`·`listSources()`·
+  `persisted()` 세 await 뒤 세션·세대를 다시 보지 않고 DOM 을 썼고, `prepDataPane()` 의 오류 표시도 같았다. `onAuth` 는
+  원본 패널만 닫고 설정의 원문 목록은 그대로 두었다.
+  **수정**(`index.html`) — ① `renderDataSources()` 가 시작할 때 세대(`dsGen`)·owner·epoch 를 잡고, 목록 읽기 오류 표시와
+  DOM 쓰기 직전에 셋이 그대로일 때만 쓴다(`live()`). 오류 처리도 이 안으로 옮겨 `prepDataPane()` 의 `catch` 를 걷었다.
+  ② `resetDataSources()` — `onAuth` 의 계정 전환 구간(`closeSheetSource()` 옆)에서 세대를 올리고 목록을 비운다.
+  저장 API 의 권한 검사는 건드리지 않았다. `check-audit-safety` 의 `onAuth` 샌드박스에 대역 하나를 더했다.
+  **검증** — `check-sheet-source.mjs` 에 **⑪-f** 를 더했다: 다 그린 뒤 전환하면 즉시 비움 · `persisted()` 를 붙잡은 채
+  전환 후 놓기 · Codex 재현 그대로(전환 → 새 계정 목록 → 놓기) · 같은 계정에서 먼저 시작한 목록이 나중 목록을 덮지 않음(역순 완료).
+  깨보기 2종(`live()` 검사 제거 · `onAuth` 의 비우기 제거) 모두 ⑪-f 빨간불. 전체 결과는 HANDOFF-2026-184 검토 기록 아래 '보완' 줄.

@@ -3,7 +3,7 @@
 - ID: `HANDOFF-2026-184`
 - 날짜: `2026-10-04`
 - 작성자: `Claude / Opus 5.5`
-- 상태: `needs-follow-up` — **Codex Sol medium 독립 검토: REV-2026-118 재현 · 보완/재검토 전 merge 금지**
+- 상태: `ready-for-review` — **REV-2026-118 보완 완료 · Codex Sol medium 재검토 전 merge 금지** (#14·#15 는 2026-10-08 main 에 merge)
 - 영향 영역: `index | tests | docs`
 - 관련 이슈: `REV-2026-118` (REV-2026-108 선행 판정 기록을 같은 브랜치에 실었다)
 - 브랜치: `claude/u15-manual-link` (기준 `codex/u15-storage` = PR #15 `f29af93` · 그 아래 PR #14). **#14 → #15 → 이것** 순서로만 merge.
@@ -55,3 +55,16 @@ U1.5 의 마지막 묶음. 저장 묶음 API(`registerSource`·`assignPages`·`r
   `regression-test.html`은 이 브랜치에 없어 실행 불가. `check:fast` 전체·실제 Safari/iPad·Google
   로그인은 미실행. 이번 변경은 검토 기록/이슈 등록이며 기능 수정·merge·배포 없음.
   다음: REV-118의 owner/세대 방어와 경합 회귀를 구현한 뒤 같은 범위를 독립 재검토.
+- `2026-10-08` · **보완(구현자 Claude · 클라우드 세션)** — REV-2026-118 수정과 SonarCloud 신뢰성 C 해소. 재검토 요청.
+  · `renderDataSources()` 가 세대(`dsGen`)·owner·epoch 를 잡고 오류 표시·DOM 쓰기 직전에 확인한다(오류 처리도 안으로 옮겨
+    `prepDataPane()` 의 `catch` 를 걷었다). `onAuth` 계정 전환 구간에 `resetDataSources()` — 세대를 올리고 목록을 비운다.
+  · 회귀 **⑪-f**(`check-sheet-source.mjs`): 전환 즉시 비움 · 붙잡힌 이전 목록을 전환 뒤 놓음 · Codex 재현 순서 그대로 ·
+    같은 계정 역순 완료. 깨보기 2종(`live()` 제거 · 비우기 제거) 추가 → 둘 다 ⑪-f 빨간불.
+  · Sonar S2681 3곳(한 줄 `if … return;`·`if(currentUser)flushToCloud(…);renderLibrary();`)을 중괄호로 — 동작 같음.
+    인지 복잡도·`Error()`·label·`role=status` 경고는 maintainability 라 이 보완에 넣지 않았다.
+  · `check-audit-safety` 의 `onAuth` 샌드박스에 `resetDataSources` 대역.
+  · 실행: `test:sheet-source` **16/16 통과 · 깨보기 17/17 빨간불**(380초, exit 0) · `check:static`·CSP 12/12·`test:worker`·`test:review-contracts`·`test:library-ui`·
+    `test:intake`·`test:u15-storage`·리뷰 위생·`git diff --check` 통과.
+  · 재검토 범위: `7229f62..` 이 보완 커밋 — `index.html`(`renderDataSources`·`resetDataSources`·`onAuth` 한 줄·S2681 3곳)·
+    `scripts/check-sheet-source.mjs`·`scripts/check-audit-safety.mjs`. 특히 `deleteSourceFromSettings()` 의 await 뒤 `toast` 는
+    세션 검사를 하지 않는다(쓰기 클라이언트가 owner/epoch 로 거절하므로 남는 것은 안내 한 줄) — 이 판단이 맞는지.

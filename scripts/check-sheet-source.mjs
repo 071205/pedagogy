@@ -408,6 +408,57 @@ async function suite(html){
       ok(r.n===2&&!r.view,'문항이 사라졌거나 지운 원문이 보인다 '+JSON.stringify(r));
     }finally{ await q.context().close(); }
   });
+  /* REV-2026-118 — 설정의 원문 목록은 await 를 지나는 사이 계정이 바뀌거나 새 목록이 오면 늦은 쪽이 아무것도 쓰지 않는다.
+     persisted() 를 문 앞에 붙잡아 '이전 계정의 목록은 이미 읽었고 DOM 쓰기만 남은' 순간을 만든다(Codex 재현 절차). */
+  await check('⑪-f 설정의 원문 목록 — 계정 전환·새 요청 뒤 늦게 끝난 목록은 쓰지 않는다',async()=>{
+    const q=await open(html);
+    try{
+      await seedSources(q);
+      const r=await q.evaluate(async()=>{
+        const native=navigator.storage.persisted.bind(navigator.storage);
+        const hold=async()=>{
+          let release; navigator.storage.persisted=()=>new Promise(res=>{ release=res; });
+          const run=renderDataSources();
+          for(let i=0;i<400&&!release;i++) await new Promise(res=>setTimeout(res,10));
+          navigator.storage.persisted=native;
+          if(!release) throw Error('목록 읽기가 persisted() 에 닿지 않았다');
+          return {run,release};
+        };
+        const text=()=>$('#dmSourcesList').textContent+'|'+$('#dmSourcesInfo').textContent;
+        showSettings('data'); await renderDataSources();
+        const a0=$('#dmSourcesList').childElementCount;
+        // ① 다 그린 뒤 계정이 바뀌면 이전 목록은 바로 사라진다
+        await onAuth({uid:'u15-review-B',email:'b@example.invalid',displayName:'검토 B'});
+        const afterSwitch=$('#dmSourcesList').childElementCount;
+        // ② 이전 계정 목록이 붙잡힌 채 계정이 바뀌고, 놓으면 — 아무것도 쓰지 않는다
+        await onAuth(null);
+        const h2=await hold();
+        await onAuth({uid:'u15-review-B',email:'b@example.invalid',displayName:'검토 B'});
+        const b2=text(); h2.release(false); await h2.run;
+        const a2=text();
+        // ③ Codex 재현: 붙잡힌 이전 목록 → 전환 → 새 계정 목록 → 놓기
+        await onAuth(null);
+        const h3=await hold();
+        await onAuth({uid:'u15-review-C',email:'c@example.invalid',displayName:'검토 C'});
+        showSettings('data'); await renderDataSources();
+        const b3=text(); h3.release(false); await h3.run;
+        const a3=text();
+        // ④ 같은 계정 — 먼저 시작한 목록이 나중 목록을 덮지 않는다
+        await onAuth(null); await renderDataSources();
+        const h4=await hold();
+        await renderDataSources();
+        $('#dmSourcesInfo').textContent='나중 목록';
+        h4.release(true); await h4.run;
+        const a4=$('#dmSourcesInfo').textContent;
+        return {a0,afterSwitch,b2,a2,b3,a3,a4};
+      });
+      ok(r.a0>=2,'준비: 이전 계정 목록이 그려지지 않았다 '+JSON.stringify(r));
+      ok(r.afterSwitch===0,'계정이 바뀌어도 이전 목록이 남았다 '+JSON.stringify(r));
+      ok(r.a2===r.b2&&!/원본\.p/.test(r.a2),'붙잡힌 이전 계정 목록이 전환 뒤 쓰였다 '+JSON.stringify(r));
+      ok(r.a3===r.b3&&!/원본\.p/.test(r.a3),'이전 계정 목록이 새 계정 설정을 덮었다 '+JSON.stringify(r));
+      ok(r.a4==='나중 목록','먼저 시작한 목록이 나중 목록을 덮었다 '+JSON.stringify(r));
+    }finally{ await q.context().close(); }
+  });
   if(p.errs.length) failures.push('페이지 오류: '+p.errs.join(' | '));
   return {checks,failures};
 }
@@ -444,6 +495,10 @@ const BREAKS=[
    pairs:[['  if(typeof indexedDB.databases!=="function"||!(await indexedDB.databases()).some(','  if(typeof indexedDB.databases==="function"&&!(await indexedDB.databases()).some(']]},
   {name:'늦은 결과를 세대로 버리지 않는다',target:'⑩-g',
    pairs:[['  const live=()=>gen===srcGen&&srcOpen&&sessionMatches(session);\n  srcMapped=[];','  const live=()=>true;\n  srcMapped=[];']]},
+  {name:'설정의 원문 목록이 늦은 결과를 버리지 않는다',target:'⑪-f',
+   pairs:[['  if(!live()) return;\n  info.textContent=rows.length','  info.textContent=rows.length']]},
+  {name:'계정 전환 때 설정의 원문 목록을 비우지 않는다',target:'⑪-f',
+   pairs:[['    resetDataSources();   // 설정의 원문 목록','    void 0;   // 설정의 원문 목록']]},
 ];
 
 let exit=0;
