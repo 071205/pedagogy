@@ -3,9 +3,9 @@
 - ID: `HANDOFF-2026-184`
 - 날짜: `2026-10-04`
 - 작성자: `Claude / Opus 5.5`
-- 상태: `ready-for-review` — **Codex Sol medium 독립 검토 전 · merge 금지**
+- 상태: `needs-follow-up` — **Codex Sol medium 독립 검토: REV-2026-118 재현 · 보완/재검토 전 merge 금지**
 - 영향 영역: `index | tests | docs`
-- 관련 이슈: `없음` (REV-2026-108 선행 판정 기록을 같은 브랜치에 실었다)
+- 관련 이슈: `REV-2026-118` (REV-2026-108 선행 판정 기록을 같은 브랜치에 실었다)
 - 브랜치: `claude/u15-manual-link` (기준 `codex/u15-storage` = PR #15 `f29af93` · 그 아래 PR #14). **#14 → #15 → 이것** 순서로만 merge.
 
 ## 변경 내용
@@ -39,3 +39,19 @@ U1.5 의 마지막 묶음. 저장 묶음 API(`registerSource`·`assignPages`·`r
 '같은 파일임을 내용으로 확인한 경우' 뿐인지 ④ 원문 삭제가 `impact` 확인표 없이 지울 길이 없는지 ⑤ 저장소를 읽기만으로 만드는 경로가 없는지.
 
 ## 검토 기록
+
+- `2026-10-08` · **Codex GPT-6 Sol / medium 독립 검토** · 판정: **보완 필요**.
+  검토 범위는 요청한 `origin/codex/u15-storage f29af93..claude/u15-manual-link 114ba27`의 6개 파일.
+  [REV-2026-118](../../issues/2026-10/2026-10-08-index-source-list-owner-race.md): 설정 원문 목록이
+  `persisted()`를 기다리는 사이 owner가 바뀌면, 이전 owner의 파일명/크기/쪽수·삭제 단추가 다음
+  계정 설정에 표시됨. 부모가 실제 `onAuth` 전환과 합성 자료로 브라우저 재현했고 Sol medium이
+  probe/로그를 코드와 대조했다. Blob 접근/타인 원문 삭제까지 확인한 것은 아니다.
+  지정 저장 API·기존 출처 보존·같은 파일 재연결 경계에서 추가 확정 결함은 발견하지 않았다.
+  `test:public` 통과(CSP red 12/12·공개 빌드), `check:static` 통과(리뷰 위생 자기검사 6/6 포함).
+  `test:sheet-source`: 정상 **15/15 통과**, 실패 주입 **15/15 빨간불**(359초, exit 0).
+  로그 `/tmp/u15-184-sheet-source.log`; 새 owner 경합 probe `/tmp/u15-184-owner-race.log`.
+  검토 기록 추가 후 리뷰 위생(이슈 118/열림 5·INDEX 120줄·최근 5·자기검사 6/6)과 `git diff --check` 통과.
+  Sol 검토자의 localhost 실행은 EPERM으로 막혔고 부모는 승인된 실행으로 브라우저 검사를 수행했다.
+  `regression-test.html`은 이 브랜치에 없어 실행 불가. `check:fast` 전체·실제 Safari/iPad·Google
+  로그인은 미실행. 이번 변경은 검토 기록/이슈 등록이며 기능 수정·merge·배포 없음.
+  다음: REV-118의 owner/세대 방어와 경합 회귀를 구현한 뒤 같은 범위를 독립 재검토.
