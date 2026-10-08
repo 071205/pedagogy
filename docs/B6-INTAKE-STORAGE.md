@@ -54,6 +54,26 @@ transaction 안에서 갱신한다. 라이브러리 전체를 IDB로 옮기지 �
 | `reconnect` | 같은 파일 hash/type/bytes 확인. 삭제한 원문/다른 파일은 새 ID로 명시 등록해야 함 |
 | `stop/purge` | 계정 전환의 늦은 작업 중단, 계정 삭제의 IDB fence/원문·job·adoption 파기 |
 
+### U1.5 저장 묶음 API (2026-10-04)
+
+`PedagogyIntake.create({session,library,renderer})`는 AI `config` 없이 원문 읽기·수동 등록·연결에 쓴다.
+운영 바인딩은 `index.html`의 `createIntakeStorageClient({editorsConfirmed})`이며 fixture와 같은
+`createIntakeLibrary()`를 사용한다. 구형 탭 종료 확인은 호출자가 명시해야 한다.
+
+- `registerSource(file,setId)`는 PDF/지원 이미지의 형식·해시·쪽수를 검사한다. 파일당 100MB,
+  owner별 실제 Blob 합계 1GB, 파일당 500쪽을 적용한다. 같은 owner의 hash·bytes·type이 모두
+  맞는 Blob만 재사용하며 첫 권 연결과 Blob은 한 IDB 트랜잭션에 쓴다. job과 AI 호출 예산은 만들지 않는다.
+- `forSet(setId)`은 active 권 연결의 원문 목록을 Blob 없이 `{state:'linked',sources:[{sourceId,name,type,bytes,pageCount,state}]}`로 주고, `readLinked(setId,sourceId)`만 같은 권의 active 연결과 원문 상태를 확인한 뒤 Blob을 준다. 미연결 권은 `{state:'missing'}`이며 외부 JSON의 ID는 권한이 아니다.
+- **B6 `createJob` 동작 변경:** AI 요청 한 번의 파일/총바이트 제한은 기존 `config`를 그대로
+  적용한다. 이미 저장한 원문의 누적 합계 제한은 AI `cap.totalBytes`에서 D6의 1GB로 바꿨다.
+- `assignPages(setId,problemId,[{sourceId,pages}])`는 원문/쪽 범위와 권 권한을 확인한 뒤 문항
+  `intake.sources` **전체를 교체**해 라이브러리 저장 경로로 쓴다. AI 출처를 유지하며 수동 출처를
+  더하려면 호출자가 기존 목록을 합쳐 넘긴다. 다른 문항·권의 출처는 바꾸지 않는다. 실패하면
+  문제집 본문은 이전 값으로 되돌리고, 재시도 때 현재 문제집을 다시 대조한다. 문항 쪽 번호는
+  IDB에 저장하지 않는다. 저장 성공 직후 Undo 한 번으로 해당 교체를 되돌릴 수 있다.
+- `reconnect(sourceId,file,{setId})`는 기록이 있으면 hash·bytes·type을 검사한다. 기록이 없으면
+  `setId`를 명시한 새 등록이며 이전 문항 쪽 대응을 옮기지 않는다. `detachSource`는 Blob을 파기하지 않는다.
+
 쪽 상태는 pending → processing → success/failed/locked/missing이다. processing 중단·completed 원장만
 있고 결과가 없는 경우는 locked로 남겨 자동 재호출하지 않는다. B7 outbox는 아직 없다.
 공통지문은 job의 실제 draft IDs로 묶는다. 목적지에서 구성원 순서/연속성/완전성을 검사한 뒤

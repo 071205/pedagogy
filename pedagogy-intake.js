@@ -6,6 +6,7 @@ const C=global.PedagogyIntakeContract;
 const copy=v=>structuredClone(v), id=()=>crypto.randomUUID();
 const fail=message=>{throw Error(message);};
 const hash=async bytes=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),v=>v.toString(16).padStart(2,'0')).join('');
+const STORAGE_LIMITS=Object.freeze({fileBytes:100000000,totalBytes:1000000000,pages:500,minDimension:1});
 function openDB(name){
   return new Promise((resolve,reject)=>{
     const r=indexedDB.open(name,1);
@@ -22,7 +23,8 @@ async function persistence(){
   }catch{ return 'error'; }
 }
 function create({session,library,renderer=browserRenderer(),transport=null,outbox=null,config,dbName='PM_INTAKE_V1',locks=navigator.locks}={}){
-  const cap=C.limits(config), db=openDB(dbName), controllers=new Map(), urls=new Map();
+  // Reading and manual storage must not require the unset production AI budget.
+  const cap=config?C.limits(config):null, db=openDB(dbName), controllers=new Map(), urls=new Map();
   const context=()=>{const s=session(); if(!s?.owner) fail('소유자 확인 필요'); return {...s};};
   const matches=s=>{const n=context(); if(n.owner!==s.owner||n.epoch!==s.epoch) fail('계정이 바뀌어 작업을 멈췄어요');};
   async function transact(s,fn,write=true){
@@ -59,26 +61,31 @@ function create({session,library,renderer=browserRenderer(),transport=null,outbo
     if(!j||j.state==='discarded'||(generation!=null&&j.generation!==generation)) fail('작업이 중단되었어요');
     return j;
   }
-  async function createJob(files,{selection=null,contract='fixture-v1'}={}){
-    const s=context();
-    if(!Array.isArray(files)||!files.length||files.length>cap.files) fail('파일 개수 한도 초과');
-    if(files.some(f=>!f.size||f.size>cap.fileBytes)||files.reduce((n,f)=>n+f.size,0)>cap.totalBytes) fail('원문 용량 한도 초과');
+  async function prepareFiles(s,files,limits,selection=null){
+    if(!Array.isArray(files)||!files.length||files.length>(limits.files||1)) fail('파일 개수 한도 초과');
+    if(files.some(f=>!f.size||f.size>limits.fileBytes)||files.reduce((n,f)=>n+f.size,0)>limits.totalBytes) fail('원문 용량 한도 초과');
     const prepared=[]; let pages=0;
     for(let i=0;i<files.length;i++){
       const file=files[i]; matches(s);
       if(!['application/pdf','image/png','image/jpeg','image/webp'].includes(file.type)) fail('PDF 또는 지원 이미지 파일을 선택해 주세요');
-      const count=await renderer.count(file,cap); matches(s);
+      const count=await renderer.count(file,limits); matches(s);
       if(!Number.isSafeInteger(count)||count<1) fail('원문 쪽수 확인 실패');
-      if(!selection?.[i]&&count>cap.pages)fail('선택 쪽수 한도 초과');
+      if(count>500||(!selection?.[i]&&count>limits.pages))fail('선택 쪽수 한도 초과');
       const selected=selection?.[i]||Array.from({length:count},(_,n)=>n+1);
       if(!selected.length||new Set(selected).size!==selected.length||selected.some(n=>!Number.isSafeInteger(n)||n<1||n>count||n>500)) fail('쪽 범위 오류');
-      pages+=selected.length; if(pages>cap.pages) fail('선택 쪽수 한도 초과');
+      pages+=selected.length; if(pages>limits.pages) fail('선택 쪽수 한도 초과');
       prepared.push({id:id(),name:file.name||'원문',type:file.type,bytes:file.size,pageCount:count,
         hash:await hash(await file.arrayBuffer()),blob:file,selected,generation:1,state:'available',version:1});
+      matches(s);
     }
+    return prepared;
+  }
+  async function createJob(files,{selection=null,contract='fixture-v1'}={}){
+    if(!cap) fail('AI 작업 한도 설정 필요');
+    const s=context(),prepared=await prepareFiles(s,files,cap,selection);
     const jobId=id();
     await transact(s,r=>{
-      if(Object.values(r.sources).reduce((n,x)=>n+(x.blob?x.bytes:0),0)+prepared.reduce((n,x)=>n+x.bytes,0)>cap.totalBytes)fail('원문 보관 합계 용량 초과');
+      if(Object.values(r.sources).reduce((n,x)=>n+(x.blob?x.bytes:0),0)+prepared.reduce((n,x)=>n+x.bytes,0)>STORAGE_LIMITS.totalBytes)fail('원문 보관 합계 용량 초과');
       prepared.forEach(src=>{r.sources[src.id]=src;});
       r.jobs[jobId]={id:jobId,version:1,generation:1,state:'pending',contract,limits:cap,draftVersion:1,calls:0,
         sources:prepared.map(x=>x.id),pages:prepared.flatMap(x=>x.selected.map(pageNumber=>({
@@ -87,6 +94,32 @@ function create({session,library,renderer=browserRenderer(),transport=null,outbo
     });
     const storageState=await persistence();matches(s);
     return {jobId,persistence:storageState};
+  }
+  async function registerSource(file,setId){
+    if(!library) fail('라이브러리 연결 필요');
+    const s=context(),[prepared]=await prepareFiles(s,[file],STORAGE_LIMITS);
+    return library.exclusive(async()=>{
+      matches(s);
+      const view=library.snapshot();
+      if((view.writeUnknown??view.unknown)||library.canWriteSet?.(setId)===false
+        ||!view.sets.some(x=>x.id===setId&&!(view.deleted||[]).includes(setId))) fail('문제집 최신 상태 확인 필요');
+      const result=await transact(s,r=>{
+        const old=Object.values(r.sources).find(x=>x.blob&&['available','unlinked'].includes(x.state)
+          &&x.hash===prepared.hash&&x.bytes===prepared.bytes&&x.type===prepared.type);
+        const src=old||prepared;
+        if(!old){
+          const used=Object.values(r.sources).reduce((n,x)=>n+(x.blob?x.bytes:0),0);
+          if(used+src.bytes>STORAGE_LIMITS.totalBytes) fail('원문 보관 합계 용량 초과');
+          r.sources[src.id]=src;
+        }
+        const link=r.links[setId]||{sources:[],state:'active'};
+        if(!link.sources.includes(src.id))link.sources.push(src.id);
+        link.state='active';r.links[setId]=link;src.state='available';
+        return {sourceId:src.id,reused:!!old};
+      });
+      const storageState=await persistence();matches(s);
+      return {...result,persistence:storageState};
+    });
   }
   async function readJob(jobId){const s=context();return transact(s,r=>job(r,jobId),false);}
   async function recoverOutbox(jobId=null){
@@ -319,13 +352,39 @@ function create({session,library,renderer=browserRenderer(),transport=null,outbo
   }
   async function listSources(){if(library)await reconcile();const s=context();return transact(s,r=>Object.values(r.sources).map(({blob,...v})=>v),false);}
   async function readSource(sourceId){const s=context();return transact(s,r=>source(r,sourceId),false);}
+  const linkedState=src=>{
+    if(src?.state==='deleted'||src?.state==='deleting')return src.state;
+    return src?.blob&&['available','unlinked'].includes(src.state)?src.state:'missing';
+  };
+  // A set link is the local capability. Imported source IDs never grant it.
+  async function forSet(setId){
+    const s=context();return transact(s,r=>{
+      const link=r.links[setId];
+      if(!link||link.state!=='active')return {state:'missing'};
+      return {state:'linked',sources:link.sources.map(sourceId=>{
+        const src=r.sources[sourceId];
+        return {sourceId,name:src?.name||'',type:src?.type||'',bytes:src?.bytes||0,
+          pageCount:src?.pageCount||0,state:linkedState(src)};
+      })};
+    },false);
+  }
+  async function readLinked(setId,sourceId){
+    const s=context();return transact(s,r=>{
+      const link=r.links[setId];
+      if(!link||link.state!=='active'||!link.sources.includes(sourceId))return {state:'missing'};
+      const src=r.sources[sourceId],state=linkedState(src);
+      if(state!=='available'&&state!=='unlinked')return {state};
+      return {state,sourceId,name:src.name,type:src.type,bytes:src.bytes,
+        pageCount:src.pageCount,blob:src.blob};
+    },false);
+  }
   async function forProblem(setId,p){
     const s=context();return transact(s,r=>{
       const link=r.links[setId];
       if(!link||link.state!=='active') return {state:'missing',reason:'이 브라우저에 연결된 원본이 없습니다 · 다시 연결'};
       const ref=p.intake?.sources?.find(x=>link.sources.includes(x.sourceId));
       if(!ref) return {state:'missing'};
-      const src=r.sources[ref.sourceId];return src?.blob?{state:src.state,blob:src.blob,pages:ref.pages}: {state:src?.state||'missing'};
+      const src=r.sources[ref.sourceId];return src?.blob?{state:src.state,sourceId:src.id,blob:src.blob,pages:ref.pages}: {state:src?.state||'missing'};
     },false);
   }
   async function linkSource(sourceId,setId,pages=[]){
@@ -337,6 +396,34 @@ function create({session,library,renderer=browserRenderer(),transport=null,outbo
         if(!link.sources.includes(sourceId))link.sources.push(sourceId);link.state='active';r.links[setId]=link;src.state='available';
         return true;
       });
+    });
+  }
+  // Full replacement: callers adding a manual source to an AI problem must pass
+  // the existing intake.sources alongside the new mapping.
+  async function assignPages(setId,problemId,mappings){
+    const s=context();
+    if(!library) fail('라이브러리 연결 필요');
+    if(!Array.isArray(mappings)||mappings.length>100) fail('문항 출처 형식 오류');
+    return library.exclusive(async()=>{
+      matches(s);
+      const before=library.snapshot(),next=copy(before.sets);
+      if((before.writeUnknown??before.unknown)||library.canWriteSet?.(setId)===false
+        ||before.deleted?.includes(setId)) fail('문제집 최신 상태 확인 필요');
+      const set=next.find(x=>x.id===setId),p=set?.problems?.find(x=>x.id===problemId);
+      if(!p) fail('문항 없음');
+      if(p.intake)global.PedagogyNormalize.normIntake(p.intake);
+      const normalized=global.PedagogyNormalize.normIntake({...p.intake,version:1,sources:mappings});
+      await transact(s,r=>normalized.sources.forEach(({sourceId,pages})=>{
+        const src=source(r,sourceId);
+        if(!Array.isArray(pages)||pages.length>1000||pages.some(n=>!Number.isSafeInteger(n)||n<1||n>src.pageCount)) fail('쪽 범위 오류');
+        const link=r.links[setId]||{sources:[],state:'active'};
+        if(!link.sources.includes(sourceId))link.sources.push(sourceId);
+        link.state='active';r.links[setId]=link;src.state='available';
+      }));
+      p.intake=normalized;
+      matches(s);
+      if(!await library.commit(next,before)) fail('문항 출처 로컬 저장 실패');
+      return p.intake.sources;
     });
   }
   async function reconcile(){
@@ -392,12 +479,18 @@ function create({session,library,renderer=browserRenderer(),transport=null,outbo
       tx.onerror=tx.onabort=()=>reject(caught||tx.error||Error('원문 삭제 울타리 복구 실패'));
     });
   }
-  async function reconnect(sourceId,file){
-    const s=context(),digest=await hash(await file.arrayBuffer());matches(s);
+  async function reconnect(sourceId,file,{setId}={}){
+    const s=context(),old=await transact(s,r=>r.sources[sourceId]||null,false);
+    if(!old){
+      if(!setId) fail('로컬 기록 없음 · 새 원문 등록과 문제집 연결 필요');
+      return registerSource(file,setId);
+    }
+    const digest=await hash(await file.arrayBuffer());matches(s);
     return transact(s,r=>{
       const old=r.sources[sourceId];
       if(!old||old.state==='deleted'||old.state==='deleting'||old.hash!==digest||old.bytes!==file.size||old.type!==file.type)
         fail('다른 파일/삭제한 원문은 새 원문으로 명시 등록해야 합니다');
+      if(old.blob)return sourceId;
       old.blob=file;old.generation++;old.state='available';return sourceId;
     });
   }
@@ -433,7 +526,7 @@ function create({session,library,renderer=browserRenderer(),transport=null,outbo
       });
     });
   }
-  return Object.freeze({adoptionStatus,inheritLinks,detachSource,createJob,readJob,run,recoverOutbox,adopt,impact,deleteSource,listSources,readSource,forProblem,linkSource,reconcile,finishJob,stop,purge,purgeFence,recoverPurge,reconnect,persistence});
+  return Object.freeze({adoptionStatus,inheritLinks,detachSource,createJob,registerSource,assignPages,readJob,run,recoverOutbox,adopt,impact,deleteSource,listSources,readSource,forSet,readLinked,forProblem,linkSource,reconcile,finishJob,stop,purge,purgeFence,recoverPurge,reconnect,persistence});
 }
 function browserRenderer(){
   let pdfModule;
