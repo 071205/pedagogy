@@ -56,7 +56,7 @@
     "@firebase/rules-unit-testing": "^5.0.2",
     "firebase": "^12.18.0",
     "pdfjs-dist": "6.3.289",
-    "pixelmatch": "^7.2.0",
+    "pixelmatch": "^8.0.0",
     "playwright": "^1.62.1",
     "pngjs": "^7.0.0"
   }
