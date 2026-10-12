@@ -27,7 +27,7 @@
 **현재: B6·B7 운영 배포 완료(`686d9fb`·`4dd674f`). U1 1차 `11f1e12`(`HANDOFF-177`) · U1 2차 `a93e7e3`(`HANDOFF-180`, 후속 `b93c689` 로컬 재검토 결함 없음) 운영 배포 · U1 완료 대조 끝 → U1.5**.
 U0 개정 합의는 유지. D3/C1~C3·D1 연동·U1 시안/사용자 관찰은 별도 대기.
 순서·게이트는 [통합 레일](../docs/DEV-TOKEN-ROADMAP.md), 지시문은 [RAIL-ORDERS](../docs/RAIL-ORDERS.md).
-결제 기반 합의(`HANDOFF-185`) 유지. [서비스 준비 확장](../docs/SERVICE-READINESS-DESIGN.md) 검토 완료·출시 2단계 결정(`HANDOFF-186`): F3c·L4·D12/D13 통합. 다음 U1.5 유지.
+결제 기반 합의(`HANDOFF-185`) 유지. [서비스 준비 확장](../docs/SERVICE-READINESS-DESIGN.md) 검토 완료·출시 2단계 결정(`HANDOFF-186`): F3c·L4·D12/D13·[L1/L2 완료 계약](../docs/LEGAL-TAX-READINESS.md) 통합. 다음 U1.5 유지.
 **B3 운영 장애 `REV-2026-109` 해결**(운영 `e50636c` → 문구 정정 `6679676`, 편집·삭제·진짜 충돌 운영 검증).
 `REV-2026-111`은 **B4 운영 배포(`451e8ba`)·운영 확인으로 해결**(`HANDOFF-169`).
 **B3 3/3 완료**(엄격 Rules · Opus 5.5 검토 결함 없음 · 운영 거절 확인, `HANDOFF-170`).

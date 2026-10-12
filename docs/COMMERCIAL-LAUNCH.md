@@ -26,7 +26,9 @@
 1. **사업·결제**: 사업자 등록, 통신판매 관련 의무 적용 여부 확인, PG 계약, 세금·영수증·환불
    절차와 고객지원 SLA를 확정한다.
 2. **법무**: `legal.html`의 운영자명, 주소, 사업자 정보, 개인정보보호책임자, 문의 이메일,
-   수탁자 연락처·국가·이전 방법·보유 기간을 실제 계약과 콘솔 기준으로 채운 뒤 전문 검토를 받는다.
+   수탁자 연락처·국가·이전 방법·보유 기간을 실제 계약과 콘솔 기준으로 채운 뒤 L2 교차 검토와 문서/제품 일치 검증을 마친다.
+   [L1·L2 준비 계약](LEGAL-TAX-READINESS.md)에 등록·증빙·공식 근거·남은 질문의 확인 결과를 남긴다.
+   P1 초대 유료 베타도 법정 고지·동의·환불·개인정보 확인을 생략하지 않는다.
 3. **App Check**: `service-config.js`에 reCAPTCHA Enterprise site key를 넣고 Firebase Console에서
    Firestore·Storage의 검증 비율을 관찰한 뒤 enforcement를 켠다. Authentication은 Identity
    Platform 지원·비용을 확인한다. 자체 Worker의 토큰 전송·검증 코드는 준비됐지만
