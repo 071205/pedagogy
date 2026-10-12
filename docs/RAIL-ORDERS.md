@@ -20,6 +20,7 @@
 | 다음 | **U1.5 원본 대조 / Claude 구현 → Codex Sol medium 검토**(⑩-A2) — U1 완료: 2차(시작 두 길·불러오기 이름·쪽 축소판·글꼴 실패 표시)는 `b93c689` 로컬 재검토(결함 없음) 뒤 PR #11 로 운영 배포(`a93e7e3`, `HANDOFF-180`). U1 1차 `11f1e12`(`HANDOFF-177`), B7 `4dd674f`. 그 뒤 **REV-108 → U2**. Worker 재배포는 U2(실호출 연결) 때 |
 | 세션 | 클라우드/로컬 병렬 — 어느 세션에서 무엇을 하는지는 [DEV-TOKEN-ROADMAP '세션 분담'](DEV-TOKEN-ROADMAP.md#세션-분담--클라우드--로컬-2026-10-03--astra-high-판정)(2026-10-03 Astra high 판정). Codex 검토·배포·한글·로그인 확인은 로컬에만 있다 |
 | 유료화 갈래 | **F0 설계 합의**(`HANDOFF-185`·`186` 검토 결함 0). **출시 2단계(해리 결정 A)**: P1 초대 유료 베타 → P2 공개 판매. 지금 가능한 것: 결정 D7~D13 · L1 등록 준비 · L2 약관 초안(Claude↔Codex 교차) · F1/F2(별도 요청, Codex 빈 시간). 다음 U1.5 유지. 아래 ⑮ |
+| 외부 아이디어 | 2026-10-13 [융합 설계](EXTERNAL-IDEAS-FUSION-DESIGN.md) — REV-108 을 **B안(지문 독립 객체)** 으로, U2 뒤 **U2-F 그림 영역**(P1 포함 여부 D14), L2 **처리 명세 검사**, 옆길 **Q1 내용 보존 검사·Q2 kordoc 회고 실험** |
 | 결정·외부 대기 | D1 독립/연동 선택 완료. D2②·D4 답 반영·U0 개정 재검토 합의, D3 운영 숫자·D1 기본값/패널 시안 선택, C1 결제·새 호출 승인, R7 외부 환경. 구 탭은 사용자가 다른 기기 새로고침으로 정리하고 별도 안내 없이 엄격 Rules 적용을 결정 |
 
 기본 순서: **U0 → B3 실제 배포 → B4 → B5 → (U0 계약 개정) → B6 → B7 → U1 → U1.5 → REV-108 → U2 → R5~R10**.
@@ -53,6 +54,7 @@ B3 전환 Rules → 플래그 1 클라이언트 → 엄격 Rules가 순서대로
 | **U1.5 원본 대조** *(2026-09-26 추가)* | 화면: Claude **Sonnet 5** → Codex **GPT-6 Sol / medium** 검토. 저장 변경이 필요하면 그 부분만 Codex **GPT-6 Sol / high** → Claude 검토 | ⑩-A2 지시문 | U1 검토 + B6 의 공통 원문 보관 기반 검토 |
 | **REV-2026-108 지문 묶음 소속** *(2026-10-03 추가)* | Codex **GPT-6 Astra / high** 선행 판정 → Codex **GPT-6 Sol / high** 구현 → Claude **Opus** 검토 | ⑩-A3 지시문 | U1.5 검토·merge(선행 판정은 그 전에 로컬에서 미리 가능). U2 앞 |
 | **U2 AI 일괄 구성 UX** | Claude **Sonnet 5** → Codex **GPT-6 Sol / medium** 검토 | ⑩-B 지시문 | U1 및 B4~B7 검토 완료. 실제 Gemini 검증은 C1~C3와 호출 승인 필요 |
+| **U2-F 그림 영역** *(2026-10-13 추가)* | Codex **GPT-6 Sol / high** 계약 → Claude **Opus** 검토 → Claude 화면 → **Sol medium** 검토 | ⑩-B2 | U2 merge · D14(P1 포함이면 R5 앞) |
 | **R5 연결 게이트** | Claude **Opus 5**, 방향 공격이 비어 있을 때 Codex **GPT-6 Astra / high** | ⑪ 지시문, 두 번째 공격 검토는 방향이 아직 미검증일 때만 | R1·R4 저장/UX 묶음 검토 증거 준비 |
 | **R6 검사·도구** | Codex **GPT-6 Luna / medium** | ⑫ 기존 CI·secret·의존성 공백 대조 · **Dependabot PR #1~#7 포함** | R5 완료. 클라우드 Claude 는 CI 증거 수집만 보조 |
 | **R7 환경 전환 준비** | Codex **GPT-6 Sol / medium** | ⑬ 호스트·App Check·롤백 증거 준비 | R1·R5·R6. 실제 이전은 별도 사용자 승인 |
@@ -326,6 +328,9 @@ CLAUDE.md 'Codex 선행'(스키마) 조건이고, 삭제·복원·저장본 왕�
 > Undo·가져오기·클라우드 병합 뒤 지문 묶음 소속이 어떻게 유지돼야 하는지, `groupSpan` 위치 모델을 지키며
 > 고칠지 소속 표시를 새로 둘지, 기존 저장본·Rules `hasOnly` 호환을 정해. U2 의 묶음 유지가 상속할 계약까지.
 >
+> ⚠️ 2026-10-13 Astra 재판정으로 저장 모델은 **B안**(문제집 `passages[]` 독립 객체 + 문항 `passageId`)이다. 구현 전에
+> [융합 설계](EXTERNAL-IDEAS-FUSION-DESIGN.md) §① 의 지문 수명·복제 재매핑·스냅샷·이관 계약을 확정해.
+>
 > (Sol high · 구현) 판정대로 고치고 위 경로 각각을 재현 검사·깨보기로 닫아. U1.5·U2 범위는 건드리지 마.
 > 구현 뒤 Claude Opus 독립 검토와 인계로 멈춰.
 
@@ -340,6 +345,17 @@ CLAUDE.md 'Codex 선행'(스키마) 조건이고, 삭제·복원·저장본 왕�
 > 미확인 상태를 보존하고 실제 Undo·진행·로컬/클라우드 저장 상태를 구분해.
 > 저장/Worker 변경이 필요하면 Sol high 별도 구현→Opus 5 검토를 먼저 거쳐. 회귀·깨보기와
 > Sol medium UI 독립 검토 뒤 인계해. 이 단계 완료만으로 AI 운영 검증 완료라 쓰지 마.
+
+## ⑩-B2 U2-F 그림 영역 — **Astra high 판정 완료 → Sol high 계약 구현 → Claude Opus 검토 → Claude 화면 → Sol medium 검토** *(2026-10-13)*
+
+**선행: U2 merge · D14.** P1 에 넣으면 R5 앞, 아니면 P2 전.
+
+> (Sol high) U2-F 계약을 구현해줘. [융합 설계](EXTERNAL-IDEAS-FUSION-DESIGN.md) §⑤ 대로 AI 응답 v2 의 figure 블록(0~1000 정규화 좌표)과, 스키마를 통과한
+> 응답에서 명시적 unsupported 문항만 격리하는 새 계약, 출처(owner·sourceId·쪽·이미지 해시·삭제 세대·좌표 변환 정보) 묶기,
+> 자르기 시작·채택 직전 두 번의 출처 검사, 원본 재렌더 한도를 넣어. 잘린 JSON·전체 스키마 오류는 지금처럼 쪽 전체 실패야.
+> 깨보기 4종을 빨간불로 확인하고 Claude Opus 검토로 멈춰.
+>
+> (Claude 화면) 원본 위 상자 확인·수정·'그림 없음' 명시 확인·확인 무효화, 미검토면 출력 작업 자체 차단. Sol medium 검토.
 
 ## ⑩-C R1 독립 검토 — **완료 (2026-09-23 · Claude Opus 5)**
 
@@ -448,6 +464,8 @@ Claude(`Opus 5`)가 종합하고, **방향 자체를 아직 아무도 안 공격
 | **C1** 제미나이 staging | Codex · GPT-6 Sol medium | 결제 연결과 **새 호출 승인**이 해리 결정이다 |
 | C2 → C3 | GPT-6 Luna medium / Astra high | C1 이 풀려야 데이터가 생긴다 |
 | `subitems` · 이미지 자유 % | 보류 | 제품 범위 승인이 먼저다 |
+| **D14** 그림 문항 지원 시점 | 해리 | U2-F 를 P1 에 넣을지 P2 전으로 둘지. 수학은 그림 없는 쪽이 드물다 |
+| **Q1·Q2** 검사 보강 | Claude → Codex 검토 | 내용 보존 검사·kordoc 회고 실험. 주 순서 밖, 언제든 |
 | **D7~D13** 서비스 결정 | 해리 | 상품·AI·세무·권리·PG·이용 연령·보존/지원 목표. [서비스 설계](SERVICE-READINESS-DESIGN.md)와 레일의 결정 시점 참조 |
 | **L1~L4** 외부 준비 | 해리(약관·처리방침은 Claude↔Codex 교차 작성) | 등록 의무 판단·약관·PG·지원/복구 준비. 세무/통신판매 관할 구분·실제 증거로 완료 — [L1·L2 준비 계약](LEGAL-TAX-READINESS.md) |
 

@@ -87,6 +87,8 @@ U0→B6에서 정규화/복원·AI 계약을 함께 다룬다. Rules의 `hasOnly
 
 ## 최근 검토
 
+[HANDOFF-2026-187](handoffs/2026-10/2026-10-13-docs-external-ideas-fusion.md): **설계만 · Codex Astra 판정 3회.** 외부 스킬 10개 설치 0, 융합 다섯 — REV-108 B안·U2-F 그림 영역(D14)·L2 처리 명세 검사·Q1·Q2.
+
 [HANDOFF-2026-186](handoffs/2026-10/2026-10-08-docs-service-readiness-rail.md): **설계만 · Claude 검토 결함 0 · 해리 결정 A(P1 초대 베타 → P2 공개) 반영 · Codex 법령 대조.** 계정/보안/UI/운영/복구 요구와 F3c·L4·D12/D13을 기존 레일에 통합.
 
 [HANDOFF-2026-185](handoffs/2026-10/2026-10-08-billing-foundation-design.md): **설계만 · Claude 검토 2회 합의.** 상점 주도 갱신·전환 동의·무료 사용량. 레일 'R9 세부'로 통합.
@@ -96,9 +98,6 @@ Codex 2회 + 후속 `b93c689` 재검토 결함 없음. **운영 배포 `a93e7e3`
 
 [HANDOFF-2026-179](handoffs/2026-10/2026-10-03-index-b7-sw-outbox.md): B7 기기 내 응답 outbox(SW) — Codex 구현·Claude 검토 결함 없음,
 SonarCloud 출처 확인 반영. **운영 배포 `4dd674f`·로그인 확인(SW 미등록).**
-
-[HANDOFF-2026-178](handoffs/2026-10/2026-10-03-index-b6-delete-fences.md): B6 116·117 해소(Codex 구현·Claude 검토),
-로그인 복구 부작용은 Claude 수정·Codex 검토. **B6 112~117 전부 해소·병합 완료.**
 
 저장 구조 관련 HANDOFF-162 Q1/Q2는 레일 D1/U0에서 이어받으며 미결을 승인으로 바꾸지 않는다.
 
