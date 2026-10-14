@@ -1,6 +1,6 @@
 # 리뷰 현황
 
-마지막 정리: 2026-10-08
+마지막 정리: 2026-10-14
 
 **이 파일은 새 세션이 매번 읽는다.** 열린 이슈·현재 작업·최근 검토 다섯만 두고 과거는 `handoffs/`와 git에 보존한다. 기록 규칙은
 [`README.md`](README.md) 의 '기록의 수명' 절에 있다.
@@ -35,8 +35,11 @@ U0 개정 합의는 유지. D3/C1~C3·D1 연동·U1 시안/사용자 관찰은 �
 `REV-2026-110` 테스트 하네스 수정·고장 주입으로 해결. **Pages 원본은 다시 `main`**(2026-09-25 정리 ·
 `main` 푸시 = 운영 배포). R1 독립 검토 완료(결함 없음). C1 외부 대기.
 
-### A. 한글 조판 엔진 (Claude · 2026-09-17)
+### A. 한글 조판 엔진
 
+**2026-10-14 H1-a 구현·독립 검토 전**: [실험 결과](../docs/HWP-RESEARCH-RESULTS.md)·Mac 열기 8건, 정책/표본 green·red 통과. 다음 Claude 하네스 검토·기존 문서 보존·저장/PDF 시험. 제품 규칙 미채택. `HANDOFF-189`.
+
+기존 구현 기록(Claude · 2026-09-17):
 **머리말·꼬리말을 구현했다**(`b729a24`, `HANDOFF-2026-144`). 엔진의 남은 미구현 요소
 셋 중 첫째다. 그 과정에서 **어제 커밋의 결함 둘**을 재현해 고쳤다 —
 미리보기가 `pagebreak`·`footnote` 에서 **통째로 죽던 것**(`REV-2026-095` · P1)과
@@ -87,17 +90,15 @@ U0→B6에서 정규화/복원·AI 계약을 함께 다룬다. Rules의 `hasOnly
 
 ## 최근 검토
 
+[HANDOFF-2026-189](handoffs/2026-10/2026-10-14-tests-hwp-research-harness.md): **H1-a 구현·검토 전**. 시험 창 범위 제한·8개 패키지 표본·실물 열기 결과. 다음 Claude 독립 검토와 저장/PDF.
+
+[HANDOFF-2026-188](handoffs/2026-10/2026-10-14-docs-hwp-research-design.md): **H1 계획 검토 완료·Claude 3회 합의**. REA 함수 5개 정적 관찰·검사 공백·적용/검증 레일. 다음 H1-a 표본과 실물 시험.
+
 [HANDOFF-2026-187](handoffs/2026-10/2026-10-13-docs-external-ideas-fusion.md): **설계만 · Codex Astra 판정 3회.** 외부 스킬 10개 설치 0, 융합 다섯 — REV-108 B안·U2-F 그림 영역(D14)·L2 처리 명세 검사·Q1·Q2.
 
 [HANDOFF-2026-186](handoffs/2026-10/2026-10-08-docs-service-readiness-rail.md): **설계만 · Claude 검토 결함 0 · 해리 결정 A(P1 초대 베타 → P2 공개) 반영 · Codex 법령 대조.** 계정/보안/UI/운영/복구 요구와 F3c·L4·D12/D13을 기존 레일에 통합.
 
 [HANDOFF-2026-185](handoffs/2026-10/2026-10-08-billing-foundation-design.md): **설계만 · Claude 검토 2회 합의.** 상점 주도 갱신·전환 동의·무료 사용량. 레일 'R9 세부'로 통합.
-
-[HANDOFF-2026-180](handoffs/2026-10/2026-10-03-index-u1-start-thumbs.md): U1 2차 — 시작 두 길·불러오기 이름·쪽 축소판·글꼴 실패 표시.
-Codex 2회 + 후속 `b93c689` 재검토 결함 없음. **운영 배포 `a93e7e3`·로그인 확인 · U1 완료 기준 대조 끝.**
-
-[HANDOFF-2026-179](handoffs/2026-10/2026-10-03-index-b7-sw-outbox.md): B7 기기 내 응답 outbox(SW) — Codex 구현·Claude 검토 결함 없음,
-SonarCloud 출처 확인 반영. **운영 배포 `4dd674f`·로그인 확인(SW 미등록).**
 
 저장 구조 관련 HANDOFF-162 Q1/Q2는 레일 D1/U0에서 이어받으며 미결을 승인으로 바꾸지 않는다.
 
