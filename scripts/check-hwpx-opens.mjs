@@ -1,182 +1,117 @@
-/* 만든 .hwpx 를 **실물 한컴 한글로 실제로 열어 본다** — 베타
- *
- * 왜 이게 필요한가
- * ----------------
- * 한글은 문서에 문제가 있으면 **어디가 문제인지 말하지 않고** "파일을 읽거나 저장하는데
- * 오류가 있습니다" 라고만 한다. XML 문법이 완벽하고 우리 검증이 전부 초록불이어도
- * 한글이 거부할 수 있다. 실제로 그것 때문에 두 번 잘못 진단했다(`REV-2026-012`).
- * 규격서에도 "한글이 열어 주는가"는 적혀 있지 않다. **열어 보는 수밖에 없다.**
- *
- * 어떻게 판정하나
- * ----------------
- * 한컴 한글은 AppleScript 사전도 CLI 도 제공하지 않는다(확인함). 그래서 창 제목을
- * 읽어 판정한다 — 파일이 열리면 그 이름의 창이 생기고, 거부되면 생기지 않는다.
- *
- * ⚠️ 이 검사는 **손쉬운 사용(보조 접근) 권한**이 필요하다. 시스템 보안 설정이라
- *    사람이 직접 켜야 한다:
- *      시스템 설정 → 개인정보 보호 및 보안 → 손쉬운 사용 → 터미널(또는 실행 주체) 켜기
- *    권한이 없으면 **건너뛴다고 알리고 통과**한다(종료코드 2). 다만 그때는 이 검사가
- *    아무것도 보증하지 않는다는 뜻이므로, 출력에 그렇게 적는다.
- *
- * ⚠️ 맥과 한글이 있는 환경에서만 돈다. CI 에는 걸 수 없다.
- *
- *   node scripts/check-hwpx-opens.mjs                 # 기본 표본
- *   node scripts/check-hwpx-opens.mjs a.hwpx b.hwpx   # 지정한 파일
+/* Local Hancom open probe. Exit 0 = all opened, 1 = rejection/unknown, 2 = skip.
+ * Never close documents that were already open; use unique fixture filenames.
+ * Opening a file is not evidence of correct rendering. See HWP-RESEARCH-DESIGN.md.
  */
-import { spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { basename, dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { spawnSync } from 'node:child_process';
+import { existsSync, writeFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { probeFiles, resultExitCode } from './lib/hwpx-open-probe.mjs';
 
-const APP = "Hancom Office HWP";
-const root = dirname(dirname(fileURLToPath(import.meta.url)));
-const SKIP = 2;
-
+const APP = 'Hancom Office HWP';
+const ERROR_TEXT = '파일을 읽거나 저장하는데';
+const CORRUPT_TEXT = '파일이 손상되었습니다.';
+// JSON escaping is also valid for these AppleScript strings; controls are rejected below.
+const quote = (s) => {
+  if (/[\x00-\x1f\x7f]/.test(s)) throw new Error('제어 문자가 든 경로/창 제목은 지원하지 않습니다');
+  return JSON.stringify(s);
+};
 function osa(script) {
-  return spawnSync("osascript", ["-e", script], { encoding: "utf8", timeout: 30_000 });
+  const r = spawnSync('osascript', ['-e', script], { encoding: 'utf8', timeout: 30_000 });
+  if (r.status !== 0) throw new Error(r.error?.message || r.stderr.trim() || 'UI 접근 실패');
+  return r.stdout.trimEnd();
 }
-
-if (process.platform !== "darwin") {
-  console.log("맥이 아니라 건너뜁니다 — 한글로 여는 검사는 맥에서만 됩니다");
-  process.exit(SKIP);
-}
-if (!existsSync(`/Applications/${APP}.app`)) {
-  console.log(`한컴 한글이 설치돼 있지 않아 건너뜁니다 (/Applications/${APP}.app)`);
-  process.exit(SKIP);
-}
-
-// 보조 접근 권한이 없으면 창을 읽을 수 없다. 먼저 확인하고 사람에게 안내한다.
-const probe = osa('tell application "System Events" to get name of every process');
-if (probe.status !== 0) {
-  console.log("보조 접근(손쉬운 사용) 권한이 없어 건너뜁니다.");
-  console.log("  켜는 곳: 시스템 설정 → 개인정보 보호 및 보안 → 손쉬운 사용");
-  console.log("  ⚠️ 이 검사가 건너뛰면 '한글이 실제로 여는가'는 아무도 확인하지 않습니다.");
-  process.exit(SKIP);
-}
-
-const targets = process.argv.slice(2);
-if (!targets.length) {
-  console.error("열어 볼 .hwpx 파일을 인자로 주세요");
-  process.exit(1);
-}
-
-/** 한글에 열려 있는 문서 창 제목들. */
-function openWindows() {
-  const r = osa(`tell application "System Events" to tell process "${APP}" `
-    + "to get name of every window");
-  return r.status === 0
-    ? r.stdout.trim().split(",").map((s) => s.trim()).filter(Boolean)
-    : [];
-}
-
-/* 한글이 파일을 거부하면 이 글이 뜬다. **이것이 유일하게 믿을 수 있는 실패 신호다.**
- *
- * ⚠️ 창 개수가 늘었는지로 판정하면 안 된다 — 오류 대화상자도 창으로 세어져서
- *    **거부당한 파일을 '열렸다' 고 보고한다**(실제로 그렇게 거짓 통과를 냈다).
- *    거짓 통과는 검사가 없는 것보다 나쁘다. 그래서 개수 대신 이 글을 찾는다. */
-const ERROR_TEXT = "파일을 읽거나 저장하는데";
-
-function errorDialogShowing() {
-  const r = osa(`tell application "System Events" to tell process "${APP}" `
-    + "to get value of every static text of every window");
-  return r.status === 0 && r.stdout.includes(ERROR_TEXT);
-}
-
-function dismissError() {
-  /* ⚠️ 대화상자를 **확실히** 닫아야 한다. 닫히지 않으면 그 위에 다음 오류가 쌓이고,
-   *    그 뒤 파일은 전부 거짓 실패로 나온다(실제로 그렇게 결과가 오염됐다).
-   *    `keystroke return` 은 이 대화상자에 먹지 않는다 — 버튼을 직접 눌러야 한다. */
-  for (let i = 0; i < 5 && errorDialogShowing(); i++) {
-    osa(`tell application "System Events" to tell process "${APP}" `
-      + "to click button 1 of window 1");
-    spawnSync("sleep", ["1"]);
-  }
-  return !errorDialogShowing();
-}
-
-/* ⚠️ 파일마다 한글을 껐다 켜지 말 것.
- *
- *    처음에는 판정 사이에 `quit saving no` 로 앱을 껐다. 그런데 종료가 끝나기 전에
- *    다음 파일을 열게 되고, 몇 번 반복하면 **한글이 창을 아예 못 띄우는 상태**가 된다
- *    (실제로 그렇게 만들었다 — 그 뒤로는 멀쩡한 파일도 전부 ❌ 로 나왔다).
- *    `kill -9` 로 되살리려다 상태를 더 망가뜨렸다. 사람이 한글을 다시 켜야 했다.
- *
- *    그래서 앱은 **한 번만 띄우고 끝까지 살려 둔다.** 파일을 전부 연 뒤 창 목록을
- *    한 번에 읽어 판정하고, 문서는 ⌘W 로 닫는다(앱은 그대로 둔다).
- */
-function closeDocuments(stem) {
-  /* 앱을 끄지 않고 문서 창만 닫는다.
-   *
-   * ⚠️ `⌘W` 나 `⌘⌥W` 는 이 앱에 먹지 않는다(창이 그대로 남았다). **창의 닫기 단추를
-   *    직접 눌러야** 닫힌다. 이름을 주면 그 이름의 창만, 안 주면 전부 닫는다. */
-  const match = stem
-    ? `whose name contains ${JSON.stringify(stem)}`
-    : "";
-  for (let i = 0; i < 8; i++) {
-    const r = osa(`tell application "System Events" to tell process "${APP}"
-      set targets to (every window ${match})
-      if (count of targets) is 0 then return "done"
-      click (first button of item 1 of targets whose subrole is "AXCloseButton")
-      return "closed"
-    end tell`);
-    if (r.status !== 0 || r.stdout.includes("done")) break;
-    spawnSync("sleep", ["1"]);
-  }
-}
-
-let failed = 0;
-const results = [];
-for (const target of targets) {
-  const name = basename(target);
-  /* ⚠️ 같은 이름의 문서가 이미 열려 있으면 `open` 은 **다시 읽지 않고 그 창을 앞으로
-   *    가져올 뿐이다.** 그러면 고치기 전 내용을 보면서 ✅ 를 받는다(실제로 그랬다 —
-   *    수식이 원문으로 찍히는 버그를 고쳤는데 화면은 옛 내용을 계속 보여 줬다).
-   *    그래서 판정 전에 같은 이름의 창을 먼저 닫는다. */
-  const stemBefore = name.replace(/\.hwpx$/, "").normalize("NFC");
-  if (openWindows().some((w) => w.normalize("NFC").includes(stemBefore))) {
-    closeDocuments(stemBefore);
-    if (openWindows().some((w) => w.normalize("NFC").includes(stemBefore))) {
-      console.error(`  ⚠️ ${name} 이 이미 열려 있고 닫지 못했습니다. `
-        + "옛 내용을 보고 판정할 수 있어 건너뜁니다 — 한글에서 닫고 다시 실행하세요.");
-      failed++;
-      continue;
+// ⚠️ macOS 접근성은 한글이 **앞에 있지 않으면 창을 0개로** 보고한다(2026-10-14 실측 — 열린 문서가 그대로
+// 있는데 목록만 비었다). 빈 목록을 '아무것도 안 열림' 으로 믿으면 이미 열린 같은 이름 문서를 못 보고 다시
+// 열어 옛 내용으로 판정한 뒤 **사용자 문서를 닫는다.** 그래서 매번 앞으로 가져오고, 그래도 앞이 아니면 멈춘다.
+function snapshot() {
+  const raw = osa(`tell application "System Events"
+    if not (exists process "${APP}") then return ""
+  end tell
+  tell application "${APP}" to activate
+  delay 0.3
+  tell application "System Events"
+    tell process "${APP}"
+      if not frontmost then error "Hancom is not frontmost; window inventory would be unreliable"
+      set snapshotLines to ""
+      repeat with w in windows
+        set titleText to name of w
+        set bad to false
+        try
+          set dialogText to ((value of every static text of w) as text)
+          set bad to (dialogText contains "${ERROR_TEXT}") or (dialogText contains "${CORRUPT_TEXT}")
+        end try
+        set dialogFlag to false
+        try
+          set dialogFlag to ((subrole of w) is "AXDialog") or ((subrole of w) is "AXSystemDialog") or ((count of sheets of w) > 0)
+        end try
+        set snapshotLines to snapshotLines & titleText & tab & (bad as text) & tab & (dialogFlag as text) & linefeed
+      end repeat
+      return snapshotLines
+    end tell
+  end tell`);
+  if (!raw) return [];
+  return raw.split('\n').map((line) => {
+    const fields = line.split('\t');
+    if (fields.length !== 3 || !['true', 'false'].includes(fields[1]) || !['true', 'false'].includes(fields[2])) {
+      throw new Error('창 상태를 정확히 읽지 못했습니다');
     }
-  }
-  spawnSync("open", ["-a", APP, target]);
-  // 한글이 뜨고 문서를 읽을 때까지 기다린다. 오류 대화상자도 이 안에 뜬다.
-  spawnSync("sleep", ["8"]);
-  const windows = openWindows();
-  // ⚠️ 맥 파일 이름은 자모 분해(NFD)라 창 제목(NFC)과 글자가 달라 보인다. 정규화해 비교한다.
-  const stem = name.replace(/\.hwpx$/, "").normalize("NFC");
-  const titled = windows.some((w) => w.normalize("NFC").includes(stem));
-  const rejected = errorDialogShowing();
-  // 오류 글이 떠 있으면 무조건 실패다. 창 제목만으로 판단하지 않는다.
-  const opened = titled && !rejected;
-  if (!opened) failed++;
-  results.push({ name, opened, rejected, windows });
-  if (rejected && !dismissError()) {
-    // 못 닫으면 뒤 판정이 전부 오염된다. 여기서 멈추는 편이 거짓 결과보다 낫다.
-    console.error(`  ⚠️ ${name} 뒤 오류 대화상자를 닫지 못했습니다. `
-      + "남은 파일은 판정하지 않습니다 — 대화상자를 닫고 다시 실행하세요.");
-    break;
-  }
-  closeDocuments();
+    return { title: fields[0], error: fields[1] === 'true', modal: fields[2] === 'true' };
+  });
 }
-
-for (const { name, opened, rejected, windows } of results) {
-  console.log(`  ${opened ? "✅" : "❌"} ${name}`);
-  if (rejected) console.log("      한글: \"파일을 읽거나 저장하는데 오류가 있습니다.\"");
-  else if (!opened) console.log(`      열린 창: ${windows.join(" · ") || "(없음)"}`);
+const argv = process.argv.slice(2);
+let reportPath;
+const targets = [];
+for (let i = 0; i < argv.length; i++) {
+  if (argv[i] === '--report') {
+    if (reportPath || !argv[i + 1]) throw new Error('--report <새 결과.json>');
+    reportPath = resolve(argv[++i]);
+  } else if (argv[i].startsWith('--')) throw new Error(`알 수 없는 옵션: ${argv[i]}`);
+  else targets.push(resolve(argv[i]));
 }
-if (!results.some((r) => r.opened)) {
-  // 전부 실패면 파일이 아니라 한글 쪽이 이상한 경우가 많다. 그렇게 말해 준다.
-  console.error("\n⚠️ 하나도 열리지 않았습니다. 파일 문제가 아니라 한글이 이상한 상태일 수 "
-    + "있습니다 — 한글을 직접 껐다 켠 뒤 다시 돌려 보세요.");
+if (!targets.length) throw new Error('열어 볼 .hwpx 파일을 인자로 주세요');
+if (reportPath && existsSync(reportPath)) throw new Error('기존 보고서를 덮어쓰지 않습니다');
+for (const target of targets) {
+  quote(target);
+  if (!existsSync(target) || !/\.hwpx$/i.test(target)) throw new Error(`HWPX 파일이 없습니다: ${target}`);
 }
-
-if (failed) {
-  console.error(`한글이 열지 못한 파일 ${failed}건`);
-  process.exit(1);
+let results;
+if (process.platform !== 'darwin' || !existsSync(`/Applications/${APP}.app`)) {
+  results = targets.map((target) => ({ target, status: 'skip', reason: 'hancom-unavailable' }));
+} else {
+  results = probeFiles(targets, {
+    snapshot,
+    open(target) {
+      const r = spawnSync('open', ['-a', APP, target], { encoding: 'utf8', timeout: 30_000 });
+      if (r.status !== 0) throw new Error(r.error?.message || r.stderr || 'open 실패');
+    },
+    wait() { spawnSync('sleep', ['0.5']); },
+    close(window) {
+      osa(`tell application "System Events" to tell process "${APP}"
+        set targets to every window whose name is ${quote(window.title)}
+        if (count of targets) is not 1 then error "ambiguous close target"
+        click (first button of item 1 of targets whose subrole is "AXCloseButton")
+      end tell`);
+    },
+    dismissError(window) {
+      const buttons = osa(`tell application "System Events" to tell process "${APP}"
+        set targets to every window whose name is ${quote(window.title)}
+        if (count of targets) is not 1 then error "ambiguous error dialog"
+        set w to item 1 of targets
+        set dialogText to ((value of every static text of w) as text)
+        if not ((dialogText contains "${ERROR_TEXT}") or (dialogText contains "${CORRUPT_TEXT}")) then error "not the expected error"
+        set buttonNames to ""
+        repeat with b in buttons of w
+          set buttonNames to buttonNames & (name of b as text) & linefeed
+        end repeat
+        click button 1 of w
+        return buttonNames
+      end tell`);
+      spawnSync('sleep', ['0.5']);
+      return buttons.split('\n').filter(Boolean); // [0] is the one clicked.
+    },
+  });
 }
-console.log(`한글에서 ${targets.length}건 모두 열립니다`);
+const report = { schemaVersion: 1, checkedAt: new Date().toISOString(), results };
+if (reportPath) writeFileSync(reportPath, JSON.stringify(report, null, 2) + '\n', { flag: 'wx' });
+for (const r of results) console.log(`${r.status}: ${r.target} (${r.reason})${r.detail ? ` — ${r.detail}` : ''}`);
+process.exitCode = resultExitCode(results);

@@ -1,0 +1,179 @@
+{
+  "schemaVersion": 1,
+  "suite": "H1-package-01",
+  "sourceCommit": "fc3aecc8048de1532f4e222198f31b05ca3aeeed",
+  "generatorSha256": "c0432c6f0614ec772dc29b93238fc75085b82a7e3bcfce049611606c61d91344",
+  "templateSha256": "bc39062d00fa8a580bbf9791c41980fd62a5395ac99e13939bcc019f0093c3b3",
+  "engineSha256": "037e8d506d7158dd3b951ab4be610ee919cdeaa49d69a2f9a8d6f8cbd2381481",
+  "environment": {
+    "os": "macOS-26.7-arm64-arm-64bit",
+    "architecture": "arm64",
+    "python": "3.12.14",
+    "lxml": [
+      6,
+      1,
+      1,
+      0
+    ],
+    "hancomVersion": "12.30.0",
+    "hancomBuild": "6446"
+  },
+  "fonts": {
+    "status": "unmeasured",
+    "visualComparisonAllowed": false
+  },
+  "source": "repository blank template + self-authored marker; original historical failing skeleton not recovered",
+  "marker": "H1 패키지 실험: 가나다 ABC 123.",
+  "cases": [
+    {
+      "caseId": "control",
+      "file": "h1-control.hwpx",
+      "sha256": "91e94b7fd150e9ed7b10de7be66502ccd5231fc09f1147f9a7e5d5da3925a676",
+      "parent": null,
+      "mutation": "unchanged generated baseline",
+      "changedParts": [],
+      "renamedParts": {},
+      "expectedOpen": "pass",
+      "expectationBasis": "control/negative control",
+      "observedOpen": "pass",
+      "save": "unknown",
+      "pdf": "unknown",
+      "openReason": "opened"
+    },
+    {
+      "caseId": "metadata-removed",
+      "file": "h1-metadata-removed.hwpx",
+      "sha256": "76139c745650ca2e6da991aa645553a057c6e5572ed8f72098e5cec791203aea",
+      "parent": "control",
+      "mutation": "remove only opf:metadata",
+      "changedParts": [
+        "Contents/content.hpf"
+      ],
+      "renamedParts": {},
+      "expectedOpen": "unknown",
+      "expectationBasis": "unverified hypothesis",
+      "observedOpen": "pass",
+      "save": "unknown",
+      "pdf": "unknown",
+      "openReason": "opened"
+    },
+    {
+      "caseId": "section-path-renamed",
+      "file": "h1-section-path-renamed.hwpx",
+      "sha256": "817392b34ff095c74f6a65aa5e8df931b866c8cb397c53d0471bb06467129df2",
+      "parent": "control",
+      "mutation": "rename section part and manifest href; retain section0 ID",
+      "changedParts": [
+        "Contents/content.hpf",
+        "Contents/section0.xml"
+      ],
+      "renamedParts": {
+        "Contents/section0.xml": "Contents/research-body.xml"
+      },
+      "expectedOpen": "unknown",
+      "expectationBasis": "unverified hypothesis",
+      "observedOpen": "pass",
+      "save": "unknown",
+      "pdf": "unknown",
+      "openReason": "opened"
+    },
+    {
+      "caseId": "section-id-renamed",
+      "file": "h1-section-id-renamed.hwpx",
+      "sha256": "accc13800454f56b382fdb5d8d85820df933f19f0aee4a39f35151ff0068bf9e",
+      "parent": "control",
+      "mutation": "rename manifest section ID and matching spine idref; retain part path",
+      "changedParts": [
+        "Contents/content.hpf"
+      ],
+      "renamedParts": {},
+      "expectedOpen": "unknown",
+      "expectationBasis": "unverified hypothesis",
+      "observedOpen": "fail",
+      "save": "unknown",
+      "pdf": "unknown",
+      "openReason": "hancom-rejected"
+    },
+    {
+      "caseId": "section-spine-removed",
+      "file": "h1-section-spine-removed.hwpx",
+      "sha256": "4483478888d072f45c5e34b8dc18420842455840bfa178ddd640e658174de8a2",
+      "parent": "control",
+      "mutation": "remove only spine section0 itemref",
+      "changedParts": [
+        "Contents/content.hpf"
+      ],
+      "renamedParts": {},
+      "expectedOpen": "unknown",
+      "expectationBasis": "unverified hypothesis",
+      "observedOpen": "pass",
+      "save": "unknown",
+      "pdf": "unknown",
+      "openReason": "opened"
+    },
+    {
+      "caseId": "section-missing",
+      "file": "h1-section-missing.hwpx",
+      "sha256": "f6021b35c2ccb05bf44b45704e93f99cbdc46b035dc44782f6ada18839f901c3",
+      "parent": "control",
+      "mutation": "omit section0.xml; keep manifest reference",
+      "changedParts": [
+        "Contents/section0.xml"
+      ],
+      "renamedParts": {},
+      "expectedOpen": "fail",
+      "expectationBasis": "control/negative control",
+      "observedOpen": "fail",
+      "save": "unknown",
+      "pdf": "unknown",
+      "openReason": "hancom-rejected"
+    },
+    {
+      "caseId": "package-missing",
+      "file": "h1-package-missing.hwpx",
+      "sha256": "3c44cbfd5ec0dcbff3d7c0d36fabd3994b5cd7488c696e436b222c5303364ee9",
+      "parent": "control",
+      "mutation": "omit content.hpf",
+      "changedParts": [
+        "Contents/content.hpf"
+      ],
+      "renamedParts": {},
+      "expectedOpen": "fail",
+      "expectationBasis": "control/negative control",
+      "observedOpen": "fail",
+      "save": "unknown",
+      "pdf": "unknown",
+      "openReason": "hancom-rejected"
+    },
+    {
+      "caseId": "control-after",
+      "file": "h1-control-after.hwpx",
+      "sha256": "91e94b7fd150e9ed7b10de7be66502ccd5231fc09f1147f9a7e5d5da3925a676",
+      "parent": "control",
+      "mutation": "identical baseline after mutations",
+      "changedParts": [],
+      "renamedParts": {},
+      "expectedOpen": "pass",
+      "expectationBasis": "control/negative control",
+      "observedOpen": "pass",
+      "save": "unknown",
+      "pdf": "unknown",
+      "openReason": "opened"
+    }
+  ],
+  "observation": {
+    "checkedAt": "2026-10-14T10:53:21.898Z",
+    "runnerSha256": "2cf86fc6acae7151f0ebbff1b209944f19b2511986d6544c21ac31c4cf40001c",
+    "policySha256": "03b554ae748db1be90921ae1dd3d8cd824cfb8b1ff4b61a3606511e6adb7455a",
+    "method": "macOS accessibility document-window probe; no save, PDF or content/render verification",
+    "validControls": true,
+    "exitCode": 1,
+    "exitCodeMeaning": "includes expected negative-control rejection; all eight cases classified",
+    "limitations": [
+      "One Hancom Mac version and one section only; not a general format rule.",
+      "Initial empty untitled window was absent after suite; no claim of real user-document preservation.",
+      "Earlier adapter-error and unexpected-dialog runs are excluded from this complete cohort.",
+      "Generator was subsequently changed only to serialize lxml version as a list; generatorSha256 records the actual generation version."
+    ]
+  }
+}
