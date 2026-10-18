@@ -837,7 +837,8 @@
       const ids = new Set();
       for (const it of hpf.getElementsByTagNameNS(NS.opf, "item")) ids.add(it.getAttribute("id"));
       let value = preferred || "image"; let n = 2;
-      while (ids.has(value)) { value = preferred + "_" + n; n += 1; }
+      // Reserve future numeric section IDs as well as IDs already in this manifest.
+      while (ids.has(value) || /^section[0-9]+$/.test(value)) { value = preferred + "_" + n; n += 1; }
       return value;
     }
 
@@ -852,13 +853,90 @@
      *    어디가 문제인지 말하지 않는다. 그 진단을 우리가 대신 내는 것이 이 코드다.
      */
     _sectionPaths() {
-      return [...this.parts.keys()]
-        .filter((p) => p.startsWith("Contents/section") && p.endsWith(".xml"));
+      const catalog = new Set(this._sectionCatalogPaths());
+      return [...this.parts.keys()].filter((p) => this.part(p).xml &&
+        (catalog.has(p) || (p.startsWith("Contents/section") && p.endsWith(".xml"))));
+    }
+
+    _xmlRoot(path, prefix, name) {
+      const root = this.parts.get(path)?.xml?.documentElement;
+      return root && root.namespaceURI === NS[prefix] && root.localName === name ? root : null;
+    }
+
+    _sectionCatalogPaths() {
+      return [...this.parts.keys()].filter((path) => this._xmlRoot(path, "hs", "sec"));
+    }
+
+    /** Read-only diagnostics. Export is our canonical editing profile, not all valid HWPX. */
+    sectionPackageDiagnostics({ profile = "inspect" } = {}) {
+      if (!["inspect", "pedagogy-export"].includes(profile)) throw new Error("Unknown section profile: " + profile);
+      const diagnostics = [];
+      const policySeverity = profile === "pedagogy-export" ? "error" : "warning";
+      const add = (code, severity, kind, part, message) => {
+        const entry = { code, severity, kind, part, message };
+        if (!diagnostics.some((d) => Object.keys(entry).every((k) => d[k] === entry[k]))) diagnostics.push(entry);
+      };
+      const finish = () => diagnostics.sort((a, b) => {
+        for (const key of ["code", "part", "severity", "kind", "message"]) {
+          if (a[key] !== b[key]) return a[key] < b[key] ? -1 : 1;
+        }
+        return 0;
+      });
+      const roots = new Map();
+      for (const [path, prefix, name] of [["Contents/header.xml", "hh", "head"], ["Contents/content.hpf", "opf", "package"]]) {
+        const root = this._xmlRoot(path, prefix, name);
+        roots.set(path, root);
+        if (!this.parts.has(path)) add("section-required-part-missing", "error", "integrity", path, "구역 진단에 필요한 파트가 없습니다");
+        else if (!root) add("section-root-invalid", "error", "integrity", path, "구역 진단 파트의 XML 루트가 올바르지 않습니다");
+      }
+      const paths = this._sectionCatalogPaths();
+      const head = roots.get("Contents/header.xml");
+      if (head) {
+        const declared = head.getAttribute("secCnt") || "";
+        // No Number conversion or loop bounded by an untrusted declaration.
+        const valid = /^[ \t\r\n]*\+?[0-9]+[ \t\r\n]*$/.test(declared);
+        const normalized = valid ? declared.replace(/^[ \t\r\n]+|[ \t\r\n]+$/g, "").replace(/^\+/, "").replace(/^0+/, "") : "";
+        if (!normalized) add("section-count-invalid", "error", "integrity", "Contents/header.xml", "secCnt는 십진 양의 정수여야 합니다");
+        else if (normalized !== String(paths.length)) add("section-count-mismatch", policySeverity, "integrity", "Contents/header.xml", "secCnt와 물리 구역 후보 수가 다릅니다");
+      }
+      const hpf = roots.get("Contents/content.hpf");
+      if (!hpf) return finish();
+      const manifests = childrenOf(hpf, "opf", "manifest");
+      if (manifests.length !== 1) {
+        add(manifests.length ? "section-manifest-ambiguous" : "section-manifest-missing", "error", "integrity", "Contents/content.hpf", "직접 manifest가 하나여야 합니다");
+        return finish();
+      }
+      const items = childrenOf(manifests[0], "opf", "item").map((n) => [n.getAttribute("id") || "", n.getAttribute("href") || ""]);
+      const canonicalSlot = (href) => /^Contents\/section[0-9]+\.xml$/.test(href);
+      const sections = items.filter(([id, href]) => paths.includes(href) || canonicalSlot(href) || /^section[0-9]+$/.test(id));
+      const relevantIds = new Set(sections.map(([id]) => id));
+      const ids = new Map(), targets = new Map();
+      for (const [id] of items) if (relevantIds.has(id)) ids.set(id, (ids.get(id) || 0) + 1);
+      for (const [, href] of sections) {
+        if (paths.includes(href) || canonicalSlot(href)) targets.set(href, (targets.get(href) || 0) + 1);
+        if (!this.parts.has(href)) add("section-target-missing", "error", "integrity", href || "Contents/content.hpf", "구역 참조의 파트가 없습니다");
+        else if (!paths.includes(href)) {
+          if (canonicalSlot(href)) add("section-target-invalid", "error", "integrity", href, "구역 참조의 XML 루트가 hs:sec가 아닙니다");
+          else add("section-target-unsupported", policySeverity, "unsupported", href, "ID 이름만으로 구역임을 확정할 수 없습니다");
+        }
+      }
+      for (const [id, count] of ids) if (count > 1) add("section-id-duplicate", "error", "integrity", "Contents/content.hpf", "구역 ID가 중복됩니다: " + id);
+      for (const [href, count] of targets) if (count > 1) add("section-target-duplicate", "error", "integrity", href || "Contents/content.hpf", "구역 파트가 중복 배정됐습니다");
+      for (const path of paths) if (!targets.has(path)) add("section-unreferenced", policySeverity, "integrity", path, "manifest에서 참조하지 않는 구역 후보입니다");
+      const expected = new Set(paths.map((_, i) => "section" + i));
+      if (ids.size !== expected.size || [...ids.keys()].some((id) => !expected.has(id))) {
+        add("section-id-unsupported", policySeverity, "unsupported", "Contents/content.hpf", "현재 편집기는 연속된 section ID를 지원합니다");
+      }
+      for (const [id, href] of sections) if (paths.includes(href) && href !== "Contents/" + id + ".xml") {
+        add("section-mapping-unsupported", policySeverity, "unsupported", href, "현재 편집기는 canonical 구역 경로 배정을 지원합니다");
+      }
+      return finish();
     }
 
     /** 머리글의 참조 표에 실제로 있는 id 들. 표 자체가 없으면 null. */
     _headerIds(collection, item) {
-      const head = this.part("Contents/header.xml").xml.documentElement;
+      const head = this._xmlRoot("Contents/header.xml", "hh", "head");
+      if (!head) return null;
       const node = firstByLocal(head, "hh", collection);
       if (!node) return null;
       const ids = new Set();
@@ -870,6 +948,7 @@
     }
 
     validationErrors() {
+      // Required parts of our canonical editing/export profile.
       return REQUIRED_PARTS.filter((p) => !this.parts.has(p)).map((p) => "missing " + p);
     }
 
@@ -877,7 +956,8 @@
      *  ⚠️ 한글이 문서를 못 열던 진짜 원인이 이것이었다 — `<styles itemCnt="1"/>` 라고
      *     **선언만 하고 안이 비어** 있었다. XML 문법은 완벽해 파서로는 절대 안 잡힌다. */
     itemCountErrors() {
-      const head = this.part("Contents/header.xml").xml.documentElement;
+      const head = this._xmlRoot("Contents/header.xml", "hh", "head");
+      if (!head) return [];
       const errors = [];
       for (const [collection, item] of ITEM_COUNTS) {
         const node = firstByLocal(head, "hh", collection);
@@ -903,6 +983,7 @@
      *  ⚠️ 참조표가 **통째로 없는데** 가리키는 경우는 오류로 보지 않는다 — 그런 문서를
      *     한글이 멀쩡히 여는 것을 확인했다. 오류로 막으면 정상 문서를 거부하게 된다. */
     referenceWarnings() {
+      if (!this._xmlRoot("Contents/header.xml", "hh", "head")) return [];
       const warnings = new Set();
       for (const [scope, refs] of [["본문", SECTION_REFS], ["머리글", HEADER_REFS]]) {
         const roots = scope === "본문"
@@ -926,14 +1007,16 @@
 
     referenceValidationErrors() {
       const errors = [];
-      const hpf = this.part("Contents/content.hpf").xml.documentElement;
-      for (const node of Array.from(hpf.getElementsByTagNameNS(NS.opf, "item"))) {
-        const href = node.getAttribute("href");
-        if (href != null && !this.parts.has(href)) {
+      const hpf = this._xmlRoot("Contents/content.hpf", "opf", "package");
+      for (const node of hpf ? Array.from(hpf.getElementsByTagNameNS(NS.opf, "item")) : []) {
+        const href = node.getAttribute("href") || "";
+        if (!this.parts.has(href)) {
           errors.push("manifest references missing part: " + href);
         }
       }
       errors.push(...this.itemCountErrors());
+      const head = this._xmlRoot("Contents/header.xml", "hh", "head");
+      if (!head) return errors;
 
       const tables = new Map();
       for (const [, , collection, item] of [...SECTION_REFS, ...HEADER_REFS]) {
@@ -956,7 +1039,6 @@
       for (const path of this._sectionPaths()) {
         check("본문", this.part(path).xml.documentElement, SECTION_REFS);
       }
-      const head = this.part("Contents/header.xml").xml.documentElement;
       check("머리글", head, HEADER_REFS);
 
       /* 글꼴 참조는 위 규칙에 안 맞는다 — `<hh:fontRef hangul="0" latin="0" …/>` 처럼
@@ -975,6 +1057,7 @@
         }
         for (const ref of Array.from(head.getElementsByTagNameNS(NS.hh, "fontRef"))) {
           for (const attr of Array.from(ref.attributes)) {
+            if (attr.namespaceURI === "http://www.w3.org/2000/xmlns/") continue;
             const known = byLang.get(attr.name.toUpperCase());
             if (!known || !known.has(attr.value)) {
               errors.push('머리글의 <fontRef ' + attr.name + '="' + attr.value + '">가 '
@@ -988,7 +1071,16 @@
     }
 
     strictValidate() {
-      const errors = this.validationErrors().concat(this.referenceValidationErrors());
+      let errors = this.validationErrors().concat(this.referenceValidationErrors());
+      const diagnostics = this.sectionPackageDiagnostics({ profile: "pedagogy-export" });
+      for (const d of diagnostics) if (d.code === "section-target-missing") {
+        errors = errors.filter((e) => e !== "missing " + d.part && e !== "manifest references missing part: " + d.part);
+      }
+      for (const d of diagnostics) {
+        if (d.severity === "error" && !(d.code === "section-required-part-missing" && !this.parts.has(d.part))) {
+          errors.push("[" + d.code + "] " + d.part + ": " + d.message);
+        }
+      }
       if (errors.length) throw new Error(errors.join("; "));
     }
 

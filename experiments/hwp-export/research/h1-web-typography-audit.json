@@ -1,0 +1,121 @@
+{
+  "question": "H1-e measurement context",
+  "date": "2026-10-15",
+  "source": {
+    "path": "mock-exam-editor.html",
+    "sha256": "c3905ffa857dd0d087db642e1f1f9a821b039888c4b16aca3bd24f1fd1649f7a"
+  },
+  "browser": "151.0.7922.34",
+  "scope": "Self-authored plain-text choices, same controlled Arial family, current CSS and actual measureCh/layoutOf. No KaTeX/native/production fidelity claim.",
+  "observation": {
+    "hidden": {
+      "ratio": 0.9166518610642268,
+      "widths": [
+        20.6375,
+        20.6375,
+        20.6375,
+        20.6375,
+        20.6375
+      ],
+      "fits1": false,
+      "fits2": true
+    },
+    "selectedLayout": "2",
+    "renderedWidths": [
+      19.61223958333333,
+      19.61223958333333,
+      19.61223958333333,
+      19.61223958333333,
+      19.61223958333333
+    ],
+    "renderedFits1": true,
+    "styles": {
+      "hidden": {
+        "family": "Arial, sans-serif",
+        "size": "14.72px",
+        "tracking": "normal"
+      },
+      "rendered": {
+        "family": "Arial, sans-serif",
+        "size": "14.5467px",
+        "tracking": "-0.4364px"
+      }
+    }
+  },
+  "status": "confirmed-existing-defect",
+  "externalRequests": "all blocked",
+  "followup": "REV-2026-129; H1-f1 implementation pending. This is a defect reproduction, not a passing regression gate.",
+  "fontTiming": {
+    "question": "H1-e font timing in actual mock payload",
+    "date": "2026-10-15",
+    "source": {
+      "path": "mock-exam-editor.html",
+      "sha256": "c3905ffa857dd0d087db642e1f1f9a821b039888c4b16aca3bd24f1fd1649f7a"
+    },
+    "browser": "151.0.7922.34",
+    "font": {
+      "path": "vendor/pdfjs/standard_fonts/LiberationSans-Regular.ttf",
+      "sha256": "f8ace1f892b2bd9dc1792ba7f097fa7588f84fed48321480e04de5390828221f",
+      "use": "test only, existing bundled file"
+    },
+    "fixture": {
+      "text": "WWWWWWWWWWWWWWW iiiiiiiiiiiiiii ABCDEF1234567890",
+      "statementRepetitions": 7,
+      "choices": 5
+    },
+    "before": {
+      "heightMm": 98.96,
+      "layoutResolved": "v",
+      "bodySpanWidth": 397.96875,
+      "measureChoiceWidth": 124.61874999999999,
+      "bodyFonts": [
+        {
+          "familyName": "A053 SinMyungjo",
+          "glyphCount": 48,
+          "isCustomFont": false
+        }
+      ],
+      "measureFonts": [
+        {
+          "familyName": "AppleMyungjo",
+          "glyphCount": 50,
+          "isCustomFont": false
+        }
+      ]
+    },
+    "after": {
+      "heightMm": 92.61,
+      "layoutResolved": "v",
+      "bodySpanWidth": 358.921875,
+      "measureChoiceWidth": 124.61874999999999,
+      "bodyFonts": [
+        {
+          "familyName": "Liberation Sans",
+          "glyphCount": 48,
+          "isCustomFont": true
+        }
+      ],
+      "measureFonts": [
+        {
+          "familyName": "AppleMyungjo",
+          "glyphCount": 50,
+          "isCustomFont": false
+        }
+      ]
+    },
+    "localOnlyMissingFace": {
+      "loadRejected": true,
+      "status": "error",
+      "check": false,
+      "requestedFamily": "ResearchMissingLocal",
+      "requestedSource": "local(\"__pedagogy_absent_20261015__\")",
+      "condition": "Intentionally nonexistent local name. This Mac/Chromium observation does not generalize to all local faces; browser/privacy-specific access remains unmeasured."
+    },
+    "status": "confirmed-measurement-boundary-gap",
+    "scope": "Actual hwpxPayload/measureProblemHeights/renderProb in whole source. Own English/digit fixture, fresh storage, every other request aborted. No native/PDF/download/crop assertion."
+  },
+  "reproductionTools": [
+    "/private/tmp/hwp-web-2026-10-15/probe-measure-context.cjs",
+    "/private/tmp/hwp-web-2026-10-15/probe-font-timing.cjs"
+  ]
+}

@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "questionId": "H1-section-02",
+  "appVersion": "12.30.0",
+  "appBuild": "6544",
+  "originalSha256": "82413b6734bc25e339f5574758b9591c24d22e4f36d88435e8985396b48f1cd7",
+  "analysisSha256": "77ce5ae1d2421eda9325f43d32a4c7d08ad2c3264b9bb6e744a206fde95bbac3",
+  "architecture": "arm64",
+  "provider": "Ghidra 12.1.4",
+  "profileDigest": "20565088524a2d0359b9b96f46ac48e679d774c7b0092c56abc06de8fdbec11c",
+  "observations": [
+    {
+      "address": "0x777080",
+      "evidenceId": "ev_e28d2dfbb509e4b28c312b6a6f0b9dd1126f678b4bf0db127255a7011564098c",
+      "observation": "reads secCnt into header object field +0x48"
+    },
+    {
+      "address": "0x695654",
+      "evidenceId": "ev_abf35644e59806906c15148ee3cf1df46a822d64ed76af0c9a9173a0b4ee80ab",
+      "observation": "header parse result copies field at stack object +0x48 into reader context +0xc34"
+    },
+    {
+      "address": "0x695ad4",
+      "evidenceId": "ev_ae93b8c9c593bd96e0c73995b70236c2694f3a4bbe5e51e375c4ec26c26e4851",
+      "observation": "positive context count drives section%d lookup loop"
+    },
+    {
+      "address": "0x7a91a4",
+      "evidenceId": "ev_09b999449fb5cc945d771c437ce2097191dba05b1e9c54f6f37936ea42348abd",
+      "observation": "string-key lookup returns matching paired value"
+    },
+    {
+      "address": "0x6949d0",
+      "evidenceId": "ev_a2dca912a18c0546070190493dd879c0435306927f2e6eab0765110c18cce0b0",
+      "observation": "checks section reader result and raises file error on failure"
+    }
+  ],
+  "confidence": "static observations + inferred field linkage; corroborated by controlled real-app two-section tests",
+  "limitations": [
+    "no runtime hooking; indirect parser internals not traced",
+    "no provider-independent decompilation",
+    "rules scoped to this build and fixtures"
+  ],
+  "retention": {
+    "evidenceRecords": 11,
+    "evidenceBytes": 2280461,
+    "snapshotBytes": 4536899,
+    "close": "cleanup confirmation error; afterwards binary_session open=false and ps found no PID 13114"
+  }
+}

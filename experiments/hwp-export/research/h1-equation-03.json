@@ -1,0 +1,496 @@
+{
+  "schemaVersion": 1,
+  "suite": "H1-equation-03",
+  "question": "Does zero geometry trigger recalculation, and how does fixed geometry affect inline layout?",
+  "hypothesisSource": "https://forum.developer.hancom.com/t/hp-sz-width/1783/2",
+  "sourceCommit": "2547a1e524ab1b95d62f68c7c6d96579b9cdad07",
+  "generatorSha256": "0b58ca9f0b09eee4ffed5870dc800bbee9efdbf0ffcef8ef276ea7923a3d2a4a",
+  "engineSha256": "037e8d506d7158dd3b951ab4be610ee919cdeaa49d69a2f9a8d6f8cbd2381481",
+  "converterSha256": "92cb670112729b6817727ac6de441bc16c633ac4c2a92ef7e6d7a8519abe663e",
+  "templateSha256": "bc39062d00fa8a580bbf9791c41980fd62a5395ac99e13939bcc019f0093c3b3",
+  "environment": {
+    "os": "macOS-26.7-arm64-arm-64bit",
+    "architecture": "arm64",
+    "python": "3.12.14",
+    "lxml": [
+      6,
+      1,
+      1,
+      0
+    ],
+    "hancomVersion": "12.30.0",
+    "hancomBuild": "6544"
+  },
+  "source": "repository blank template + self-authored fraction, matrix and long inline sum",
+  "tex": [
+    "\\frac{x^2+1}{x^2-1}",
+    "\\begin{pmatrix}a&b\\\\c&d\\end{pmatrix}",
+    "a_{1} + a_{2} + a_{3} + a_{4} + a_{5} + a_{6} + a_{7} + a_{8} + a_{9} + a_{10} + a_{11} + a_{12} + a_{13} + a_{14} + a_{15} + a_{16} + a_{17} + a_{18} + a_{19} + a_{20}"
+  ],
+  "scripts": [
+    "{x^{2}+1} over {x^{2}-1}",
+    "pmatrix{ a & b # c & d }",
+    "a_{1} + a_{2} + a_{3} + a_{4} + a_{5} + a_{6} + a_{7} + a_{8} + a_{9} + a_{10} + a_{11} + a_{12} + a_{13} + a_{14} + a_{15} + a_{16} + a_{17} + a_{18} + a_{19} + a_{20}"
+  ],
+  "markers": [
+    "H1 E1 BEFORE. ",
+    " AFTER E1.",
+    "H1 E1 NEXT LINE.",
+    "H1 E2 BEFORE. ",
+    " AFTER E2.",
+    "H1 E2 NEXT LINE.",
+    "H1 E3 BEFORE. ",
+    " AFTER E3.",
+    "H1 E3 NEXT LINE."
+  ],
+  "fonts": {
+    "status": "unmeasured"
+  },
+  "cases": [
+    {
+      "caseId": "control",
+      "file": "h1e-control.hwpx",
+      "sha256": "eb9cf949e105b12ea60cedd1bcddf3a5a3bc16f3fb48de9201130e39f726cf1d",
+      "changes": {},
+      "changedParts": [],
+      "expectedOpen": "pass",
+      "observedOpen": "pass",
+      "content": "pass",
+      "save": "pass",
+      "pdf": "fail",
+      "openObservation": {
+        "status": "pass",
+        "reason": "opened",
+        "windowCountBefore": 0,
+        "windowCountObserved": 1,
+        "windowCountAfterCleanup": 0
+      },
+      "pdfObservation": {
+        "caseId": "control",
+        "pdfSha256": "47d74bdecc2e21df2d81d25834a8e14385ee0ce7c210d32f5a33ae5ac6a63fb6",
+        "pages": 1,
+        "pageImages": [
+          {
+            "file": "h1e-control-1.png",
+            "sha256": "179c6ee2a1fde0c3b911e4dcb84f82fb312fd2b6cbf061e107ec4c1836883cc8"
+          }
+        ],
+        "generation": "pass",
+        "layout": "fail",
+        "reason": "20-term inline sum exceeds the declared one-column body width; no page-edge clipping observed",
+        "comparison": "control-raster-identical",
+        "nextLineYMin": [
+          148.7028,
+          194.7828,
+          262.3428
+        ]
+      },
+      "saveObservation": {
+        "file": "h1e-saved-control.hwpx",
+        "sha256": "34fae018ca55235cd3dc799155e91d130a704b1bb3d2cb9815c1234571cfb9ea",
+        "reopened": "pass",
+        "equations": [
+          {
+            "baseLine": "64",
+            "width": "3249",
+            "height": "2956",
+            "affectLSpacing": "0",
+            "script": "{x^{2}+1} over {x^{2}-1}"
+          },
+          {
+            "baseLine": "66",
+            "width": "2020",
+            "height": "2415",
+            "affectLSpacing": "0",
+            "script": "pmatrix{ a & b # c & d }"
+          },
+          {
+            "baseLine": "71",
+            "width": "44906",
+            "height": "1350",
+            "affectLSpacing": "0",
+            "script": "a_{1} + a_{2} + a_{3} + a_{4} + a_{5} + a_{6} + a_{7} + a_{8} + a_{9} + a_{10} + a_{11} + a_{12} + a_{13} + a_{14} + a_{15} + a_{16} + a_{17} + a_{18} + a_{19} + a_{20}"
+          }
+        ],
+        "pdf": {
+          "caseId": "control",
+          "pdfSha256": "c44c48d5e0660e35d60aed44ff68525a079140cc5e43433725671c3baae3190b",
+          "pages": 1,
+          "pageImages": [
+            {
+              "file": "h1e-saved-control-1.png",
+              "sha256": "179c6ee2a1fde0c3b911e4dcb84f82fb312fd2b6cbf061e107ec4c1836883cc8"
+            }
+          ]
+        },
+        "sameRasterBeforeAfter": true
+      }
+    },
+    {
+      "caseId": "baseline-zero",
+      "file": "h1e-baseline-zero.hwpx",
+      "sha256": "e2377bdc0d69a0f140332a3c71b349e05fc3d34f8900ee13f23a50eb01c01230",
+      "changes": {
+        "baseLine": "0"
+      },
+      "changedParts": [
+        "Contents/section0.xml"
+      ],
+      "expectedOpen": "unknown",
+      "observedOpen": "pass",
+      "content": "pass",
+      "save": "unknown",
+      "pdf": "fail",
+      "openObservation": {
+        "status": "pass",
+        "reason": "opened",
+        "windowCountBefore": 0,
+        "windowCountObserved": 1,
+        "windowCountAfterCleanup": 0
+      },
+      "pdfObservation": {
+        "caseId": "baseline-zero",
+        "pdfSha256": "7152dadc3a88c219daccd22b77141151ca46f77e09ececf5d9e87f7b51b06e74",
+        "pages": 1,
+        "pageImages": [
+          {
+            "file": "h1e-baseline-zero-1.png",
+            "sha256": "179c6ee2a1fde0c3b911e4dcb84f82fb312fd2b6cbf061e107ec4c1836883cc8"
+          }
+        ],
+        "generation": "pass",
+        "layout": "fail",
+        "reason": "20-term inline sum exceeds the declared one-column body width; no page-edge clipping observed",
+        "comparison": "control-raster-identical",
+        "nextLineYMin": [
+          148.7028,
+          194.7828,
+          262.3428
+        ]
+      }
+    },
+    {
+      "caseId": "size-zero",
+      "file": "h1e-size-zero.hwpx",
+      "sha256": "d4e8ebda447fafbd83f360e7ef2b1b2da9fdaac82e560c8affb5b093b788bbbb",
+      "changes": {
+        "width": "0",
+        "height": "0"
+      },
+      "changedParts": [
+        "Contents/section0.xml"
+      ],
+      "expectedOpen": "unknown",
+      "observedOpen": "pass",
+      "content": "pass",
+      "save": "unknown",
+      "pdf": "fail",
+      "openObservation": {
+        "status": "pass",
+        "reason": "opened",
+        "windowCountBefore": 0,
+        "windowCountObserved": 1,
+        "windowCountAfterCleanup": 0
+      },
+      "pdfObservation": {
+        "caseId": "size-zero",
+        "pdfSha256": "fbbc718294a30a2e66d12a80bfabd112c38890ca216eea7982b609023e1e625e",
+        "pages": 1,
+        "pageImages": [
+          {
+            "file": "h1e-size-zero-1.png",
+            "sha256": "179c6ee2a1fde0c3b911e4dcb84f82fb312fd2b6cbf061e107ec4c1836883cc8"
+          }
+        ],
+        "generation": "pass",
+        "layout": "fail",
+        "reason": "20-term inline sum exceeds the declared one-column body width; no page-edge clipping observed",
+        "comparison": "control-raster-identical",
+        "nextLineYMin": [
+          148.7028,
+          194.7828,
+          262.3428
+        ]
+      }
+    },
+    {
+      "caseId": "all-zero",
+      "file": "h1e-all-zero.hwpx",
+      "sha256": "4daf7176393e88ddee9983b1d37f7fcbcafbcec3593dc09bde24b2e086ed41da",
+      "changes": {
+        "baseLine": "0",
+        "width": "0",
+        "height": "0"
+      },
+      "changedParts": [
+        "Contents/section0.xml"
+      ],
+      "expectedOpen": "unknown",
+      "observedOpen": "pass",
+      "content": "pass",
+      "save": "pass",
+      "pdf": "fail",
+      "openObservation": {
+        "status": "pass",
+        "reason": "opened",
+        "windowCountBefore": 0,
+        "windowCountObserved": 1,
+        "windowCountAfterCleanup": 0
+      },
+      "pdfObservation": {
+        "caseId": "all-zero",
+        "pdfSha256": "d9a6ae14afce818261f0017eeb4c269b4facc3c43dbf75e4b9df86cd23ca0471",
+        "pages": 1,
+        "pageImages": [
+          {
+            "file": "h1e-all-zero-1.png",
+            "sha256": "179c6ee2a1fde0c3b911e4dcb84f82fb312fd2b6cbf061e107ec4c1836883cc8"
+          }
+        ],
+        "generation": "pass",
+        "layout": "fail",
+        "reason": "20-term inline sum exceeds the declared one-column body width; no page-edge clipping observed",
+        "comparison": "control-raster-identical",
+        "nextLineYMin": [
+          148.7028,
+          194.7828,
+          262.3428
+        ]
+      },
+      "saveObservation": {
+        "file": "h1e-saved-all-zero.hwpx",
+        "sha256": "103c79c85d1364c0e25a87fde32ec4b6d162cab489d7f468a2b605b8af9f14b2",
+        "reopened": "pass",
+        "equations": [
+          {
+            "baseLine": "64",
+            "width": "3249",
+            "height": "2956",
+            "affectLSpacing": "0",
+            "script": "{x^{2}+1} over {x^{2}-1}"
+          },
+          {
+            "baseLine": "66",
+            "width": "2020",
+            "height": "2415",
+            "affectLSpacing": "0",
+            "script": "pmatrix{ a & b # c & d }"
+          },
+          {
+            "baseLine": "71",
+            "width": "44906",
+            "height": "1350",
+            "affectLSpacing": "0",
+            "script": "a_{1} + a_{2} + a_{3} + a_{4} + a_{5} + a_{6} + a_{7} + a_{8} + a_{9} + a_{10} + a_{11} + a_{12} + a_{13} + a_{14} + a_{15} + a_{16} + a_{17} + a_{18} + a_{19} + a_{20}"
+          }
+        ],
+        "pdf": {
+          "caseId": "all-zero",
+          "pdfSha256": "f939a44fc0fbdd1cb01c7c958adebac2d8cf805f6123cb870d3403ce23f68f17",
+          "pages": 1,
+          "pageImages": [
+            {
+              "file": "h1e-saved-all-zero-1.png",
+              "sha256": "179c6ee2a1fde0c3b911e4dcb84f82fb312fd2b6cbf061e107ec4c1836883cc8"
+            }
+          ]
+        },
+        "sameRasterBeforeAfter": true
+      }
+    },
+    {
+      "caseId": "size-double",
+      "file": "h1e-size-double.hwpx",
+      "sha256": "cf071d4697668265bc29a1af6508e9e670ed9f7665f01eb87c3525867a247e08",
+      "changes": {
+        "width": "9600",
+        "height": "4600"
+      },
+      "changedParts": [
+        "Contents/section0.xml"
+      ],
+      "expectedOpen": "unknown",
+      "observedOpen": "pass",
+      "content": "pass",
+      "save": "unknown",
+      "pdf": "fail",
+      "openObservation": {
+        "status": "pass",
+        "reason": "opened",
+        "windowCountBefore": 0,
+        "windowCountObserved": 1,
+        "windowCountAfterCleanup": 0
+      },
+      "pdfObservation": {
+        "caseId": "size-double",
+        "pdfSha256": "6aae0439aff60b2c1c0023f24a275989fe7b24e8fe437e77e7ad65ee47a21ec0",
+        "pages": 1,
+        "pageImages": [
+          {
+            "file": "h1e-size-double-1.png",
+            "sha256": "179c6ee2a1fde0c3b911e4dcb84f82fb312fd2b6cbf061e107ec4c1836883cc8"
+          }
+        ],
+        "generation": "pass",
+        "layout": "fail",
+        "reason": "20-term inline sum exceeds the declared one-column body width; no page-edge clipping observed",
+        "comparison": "control-raster-identical",
+        "nextLineYMin": [
+          148.7028,
+          194.7828,
+          262.3428
+        ]
+      }
+    },
+    {
+      "caseId": "line-spacing-on",
+      "file": "h1e-line-spacing-on.hwpx",
+      "sha256": "dbc8cb3ddce352ebe3e9e1498553973816ceec92c9915fe0832db785d9e9d037",
+      "changes": {
+        "affectLSpacing": "1"
+      },
+      "changedParts": [
+        "Contents/section0.xml"
+      ],
+      "expectedOpen": "unknown",
+      "observedOpen": "pass",
+      "content": "pass",
+      "save": "pass",
+      "pdf": "fail",
+      "openObservation": {
+        "status": "pass",
+        "reason": "opened",
+        "windowCountBefore": 0,
+        "windowCountObserved": 1,
+        "windowCountAfterCleanup": 0
+      },
+      "pdfObservation": {
+        "caseId": "line-spacing-on",
+        "pdfSha256": "9248214083ee679b0ecf5b58acc0dfb090553439f9b27880aea6263b15b80120",
+        "pages": 1,
+        "pageImages": [
+          {
+            "file": "h1e-line-spacing-on-1.png",
+            "sha256": "e2e82debd160c63064369837887d0c8da0f00fb1129a98dc5c1f84c92b760bec"
+          }
+        ],
+        "generation": "pass",
+        "layout": "fail",
+        "reason": "20-term inline sum exceeds the declared one-column body width; no page-edge clipping observed",
+        "comparison": "vertical-spacing-increased",
+        "nextLineYMin": [
+          160.3428,
+          214.9428,
+          284.5428
+        ]
+      },
+      "saveObservation": {
+        "file": "h1e-saved-line-spacing-on.hwpx",
+        "sha256": "b8d91344a52e51a80e08cb8ed872d633aee2993755993936704bc024a7ea1202",
+        "reopened": "pass",
+        "equations": [
+          {
+            "baseLine": "64",
+            "width": "3249",
+            "height": "2956",
+            "affectLSpacing": "1",
+            "script": "{x^{2}+1} over {x^{2}-1}"
+          },
+          {
+            "baseLine": "66",
+            "width": "2020",
+            "height": "2415",
+            "affectLSpacing": "1",
+            "script": "pmatrix{ a & b # c & d }"
+          },
+          {
+            "baseLine": "71",
+            "width": "44906",
+            "height": "1350",
+            "affectLSpacing": "1",
+            "script": "a_{1} + a_{2} + a_{3} + a_{4} + a_{5} + a_{6} + a_{7} + a_{8} + a_{9} + a_{10} + a_{11} + a_{12} + a_{13} + a_{14} + a_{15} + a_{16} + a_{17} + a_{18} + a_{19} + a_{20}"
+          }
+        ],
+        "pdf": {
+          "caseId": "line-spacing-on",
+          "pdfSha256": "922d7487c3147864e98400dd212d4345239d6dd01852479e40ac62fe37e89a8c",
+          "pages": 1,
+          "pageImages": [
+            {
+              "file": "h1e-saved-line-spacing-on-1.png",
+              "sha256": "e2e82debd160c63064369837887d0c8da0f00fb1129a98dc5c1f84c92b760bec"
+            }
+          ]
+        },
+        "sameRasterBeforeAfter": true
+      }
+    },
+    {
+      "caseId": "control-after",
+      "file": "h1e-control-after.hwpx",
+      "sha256": "eb9cf949e105b12ea60cedd1bcddf3a5a3bc16f3fb48de9201130e39f726cf1d",
+      "changes": {},
+      "changedParts": [],
+      "expectedOpen": "pass",
+      "observedOpen": "pass",
+      "content": "pass",
+      "save": "unknown",
+      "pdf": "fail",
+      "openObservation": {
+        "status": "pass",
+        "reason": "opened",
+        "windowCountBefore": 0,
+        "windowCountObserved": 1,
+        "windowCountAfterCleanup": 0
+      },
+      "pdfObservation": {
+        "caseId": "control-after",
+        "pdfSha256": "28e38a13ece89cb16401c5c4c709038f87a7896cc1c43487eb849a7f9cf802e7",
+        "pages": 1,
+        "pageImages": [
+          {
+            "file": "h1e-control-after-1.png",
+            "sha256": "179c6ee2a1fde0c3b911e4dcb84f82fb312fd2b6cbf061e107ec4c1836883cc8"
+          }
+        ],
+        "generation": "pass",
+        "layout": "fail",
+        "reason": "20-term inline sum exceeds the declared one-column body width; no page-edge clipping observed",
+        "comparison": "control-raster-identical",
+        "nextLineYMin": [
+          148.7028,
+          194.7828,
+          262.3428
+        ]
+      }
+    }
+  ],
+  "observationDate": "2026-10-15",
+  "observationScope": "Mac build6544; self-authored three equations; not Windows or product-default approval",
+  "visualReview": {
+    "directlyViewed": [
+      "control page1",
+      "line-spacing-on page1"
+    ],
+    "otherOriginalPages": "same raster SHA256 as control",
+    "savedPages": "same raster SHA256 as corresponding original",
+    "equationMeaning": "fraction numerator/denominator, 2x2 a/b/c/d matrix, sum a1 through a20 and BEFORE/equation/AFTER/NEXT locations checked against original input; PDF PUA text alone is not an oracle"
+  },
+  "bodyGeometry": {
+    "pageWidth": 59528,
+    "leftMargin": 8504,
+    "rightMargin": 8504,
+    "columns": 1,
+    "availableWidth": 42520,
+    "savedLongEquationWidth": 44906,
+    "overrun": 2386,
+    "unit": "HWPUNIT",
+    "pageEdgeClipObserved": false
+  },
+  "remaining": [
+    "why fixed and zero geometry recalculate identically on this Mac build; native equation path not traced",
+    "other scripts/fonts/baseUnit values; multi-column and display-equation cases",
+    "Windows and other Hancom builds",
+    "automatic wrapping/scaling/warning policy not implemented"
+  ]
+}

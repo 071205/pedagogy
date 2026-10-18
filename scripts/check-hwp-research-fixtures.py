@@ -15,13 +15,14 @@ expected_changes = {
     'control': [], 'control-after': [],
     'metadata-removed': [fixtures.HPF],
     'section-path-renamed': [fixtures.HPF, fixtures.SECTION],
+    'section-path-renamed-linked': [fixtures.HPF, fixtures.SECTION, 'META-INF/container.rdf'],
     'section-id-renamed': [fixtures.HPF], 'section-spine-removed': [fixtures.HPF],
     'section-missing': [fixtures.SECTION], 'package-missing': [fixtures.HPF],
 }
 with tempfile.TemporaryDirectory(prefix='h1-fixture-test-') as temp:
     output = Path(temp) / 'cases'
     manifest = fixtures.build(output)
-    assert len(manifest['cases']) == 8
+    assert len(manifest['cases']) == 9
     try:
         fixtures.build(output)
         raise AssertionError('OVERWRITE_NOT_BLOCKED')
@@ -39,15 +40,33 @@ with tempfile.TemporaryDirectory(prefix='h1-fixture-test-') as temp:
             parts = {n: z.read(n) for n in z.namelist()}
         if os.getenv('H1_FIXTURE_RED') == '1' and case['caseId'] == 'metadata-removed':
             parts['Contents/header.xml'] += b'\n'
+        if os.getenv('H1_REFERENCE_RED') == '1' and case['caseId'] == 'section-path-renamed-linked':
+            # Retain a byte-different RDF part while breaking a target reference.
+            parts['META-INF/container.rdf'] = parts['META-INF/container.rdf'].replace(
+                b'Contents/research-body.xml', b'Contents/section0.xml')
         changed = sorted(n for n in baseline if n not in parts or parts[n] != baseline[n])
         assert changed == expected_changes[case['caseId']], f"UNRELATED_PART_CHANGED: {case['caseId']}: {changed}"
         assert case['observedOpen'] == case['save'] == case['pdf'] == 'unknown'
         if case['caseId'] == 'metadata-removed':
             root = etree.fromstring(parts[fixtures.HPF])
             assert root.find(f'{{{fixtures.OPF}}}metadata') is None
-        if case['caseId'] == 'section-path-renamed':
+        if case['caseId'] in {'section-path-renamed', 'section-path-renamed-linked'}:
             assert parts['Contents/research-body.xml'] == baseline[fixtures.SECTION]
+            root = etree.fromstring(parts[fixtures.HPF])
+            assert root.find(f'.//{{{fixtures.OPF}}}item[@id="section0"]').get('href') == 'Contents/research-body.xml'
+        if case['caseId'] == 'section-path-renamed-linked':
+            root = etree.fromstring(parts['META-INF/container.rdf'])
+            targets = [value for node in root.iter() for value in node.attrib.values()]
+            assert fixtures.SECTION not in targets, 'PATH_REFERENCE_STALE'
+            assert targets.count('Contents/research-body.xml') == 2
+        if case['caseId'] == 'section-id-renamed':
+            root = etree.fromstring(parts[fixtures.HPF])
+            assert root.find(f'.//{{{fixtures.OPF}}}item[@id="research-body"]').get('href') == fixtures.SECTION
+            assert root.find(f'.//{{{fixtures.OPF}}}itemref[@idref="research-body"]') is not None
+        if case['caseId'] == 'section-spine-removed':
+            root = etree.fromstring(parts[fixtures.HPF])
+            assert root.find(f'.//{{{fixtures.OPF}}}itemref[@idref="section0"]') is None
         if case['caseId'] == 'control-after':
             assert data == (output / 'h1-control.hwpx').read_bytes()
     assert json.loads((output / 'manifest.json').read_text()) == manifest
-print('H1 fixture isolation/hash/no-overwrite/unknown-outcome: 8 cases PASS')
+print('H1 fixture isolation/hash/no-overwrite/unknown-outcome: 9 cases PASS')

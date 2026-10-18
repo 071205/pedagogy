@@ -1,0 +1,336 @@
+{
+  "schemaVersion": 1,
+  "suite": "H1-section-02",
+  "sourceCommit": "2547a1e524ab1b95d62f68c7c6d96579b9cdad07",
+  "generatorSha256": "c5457ac5583c83b5531ef83a18c33dbc8bf83bbe3a9b98bbac075f0a36a5aa8b",
+  "templateSha256": "bc39062d00fa8a580bbf9791c41980fd62a5395ac99e13939bcc019f0093c3b3",
+  "engineSha256": "037e8d506d7158dd3b951ab4be610ee919cdeaa49d69a2f9a8d6f8cbd2381481",
+  "source": "repository blank template + self-authored two-section derivation; control requires real-app validation",
+  "markers": [
+    "H1 구역 A 111.",
+    "H1 구역 B 222."
+  ],
+  "fonts": {
+    "status": "unmeasured"
+  },
+  "environment": {
+    "os": "macOS-26.7-arm64-arm-64bit",
+    "architecture": "arm64",
+    "python": "3.12.14",
+    "lxml": [
+      6,
+      1,
+      1,
+      0
+    ],
+    "hancomVersion": "12.30.0",
+    "hancomBuild": "6544"
+  },
+  "cases": [
+    {
+      "caseId": "control",
+      "file": "h1s-control.hwpx",
+      "sha256": "59250cb951b1e896f7d95fb871d4dcc5a214da6d87005c3bd11909927f30f151",
+      "parent": null,
+      "mutation": "derived two-section baseline",
+      "changedParts": [],
+      "expectedOpen": "pass",
+      "observedOpen": "pass",
+      "content": "pass",
+      "save": "pass",
+      "pdf": "observed",
+      "openReason": "opened",
+      "pdfEvidence": {
+        "sha256": "45d77ecd448fc2d8b246389fa92f64753daf77fd42a5560273daa3a478a07956",
+        "pages": 2,
+        "observedMarkerOrder": [
+          "H1 구역 A 111.",
+          "H1 구역 B 222."
+        ],
+        "pagePngSha256": [
+          "ec4c4bbb0cc0201c2224a644b55092500b2b38363ca822e70f65afe2c4a6d62b",
+          "77bc72da8328d00929548d9e586937478058330efd010ca8a6b9d683fc33b78c"
+        ],
+        "rasterMatchesControlPages": true
+      },
+      "roundTrip": {
+        "savedSha256": "589010cea0cc0c6734b66b382e1a456596069ecb6e0e405faf92f9f01134b0b0",
+        "reopened": "pass",
+        "observedSectionCount": 2,
+        "observedMarkerOrder": [
+          "H1 구역 A 111.",
+          "H1 구역 B 222."
+        ],
+        "pdf": {
+          "sha256": "1ffa9c26073ef86ba67ea3aa92adf09a4d0c0dcdae0cb3def99a717b44d9692c",
+          "pages": 2,
+          "pagePngSha256": [
+            "ec4c4bbb0cc0201c2224a644b55092500b2b38363ca822e70f65afe2c4a6d62b",
+            "77bc72da8328d00929548d9e586937478058330efd010ca8a6b9d683fc33b78c"
+          ],
+          "rasterMatchesBeforeSave": true
+        }
+      }
+    },
+    {
+      "caseId": "manifest-order-reversed",
+      "file": "h1s-manifest-order-reversed.hwpx",
+      "sha256": "394511016a766336ef456f354ea9a856f82648acd591586a0ef1d11ae4746116",
+      "parent": "control",
+      "mutation": "reverse section item positions; retain IDs and hrefs",
+      "changedParts": [
+        "Contents/content.hpf"
+      ],
+      "expectedOpen": "unknown",
+      "observedOpen": "pass",
+      "content": "pass",
+      "save": "unknown",
+      "pdf": "observed",
+      "openReason": "opened",
+      "pdfEvidence": {
+        "sha256": "5c1e99f6df5d3d1b6ad6e8a1e3df54a1fb765f548502666496586df776fa2717",
+        "pages": 2,
+        "observedMarkerOrder": [
+          "H1 구역 A 111.",
+          "H1 구역 B 222."
+        ],
+        "pagePngSha256": [
+          "ec4c4bbb0cc0201c2224a644b55092500b2b38363ca822e70f65afe2c4a6d62b",
+          "77bc72da8328d00929548d9e586937478058330efd010ca8a6b9d683fc33b78c"
+        ],
+        "rasterMatchesControlPages": true
+      }
+    },
+    {
+      "caseId": "spine-order-reversed",
+      "file": "h1s-spine-order-reversed.hwpx",
+      "sha256": "96a031d35023420f1b8e2e5e71c0a1e066abce1cc499b7d2fd34a0c90155fdf8",
+      "parent": "control",
+      "mutation": "reverse section itemref positions; retain manifest",
+      "changedParts": [
+        "Contents/content.hpf"
+      ],
+      "expectedOpen": "unknown",
+      "observedOpen": "pass",
+      "content": "pass",
+      "save": "unknown",
+      "pdf": "observed",
+      "openReason": "opened",
+      "pdfEvidence": {
+        "sha256": "7fb31e86496a243ca64bad3e31a8c423da6d67e6de4b2d2ed90deebfff95fe5b",
+        "pages": 2,
+        "observedMarkerOrder": [
+          "H1 구역 A 111.",
+          "H1 구역 B 222."
+        ],
+        "pagePngSha256": [
+          "ec4c4bbb0cc0201c2224a644b55092500b2b38363ca822e70f65afe2c4a6d62b",
+          "77bc72da8328d00929548d9e586937478058330efd010ca8a6b9d683fc33b78c"
+        ],
+        "rasterMatchesControlPages": true
+      }
+    },
+    {
+      "caseId": "spine-sections-removed",
+      "file": "h1s-spine-sections-removed.hwpx",
+      "sha256": "ff0b9906a6cf99ab9af9dfd42610ad41e76c294242a563c5497a178513a9b1b6",
+      "parent": "control",
+      "mutation": "remove only section itemrefs",
+      "changedParts": [
+        "Contents/content.hpf"
+      ],
+      "expectedOpen": "unknown",
+      "observedOpen": "pass",
+      "content": "pass",
+      "save": "unknown",
+      "pdf": "observed",
+      "openReason": "opened",
+      "pdfEvidence": {
+        "sha256": "21e7781bead2fa1ecf3a0ac6c431d462c85aed88b3fa85327aaea956f0ecaf88",
+        "pages": 2,
+        "observedMarkerOrder": [
+          "H1 구역 A 111.",
+          "H1 구역 B 222."
+        ],
+        "pagePngSha256": [
+          "ec4c4bbb0cc0201c2224a644b55092500b2b38363ca822e70f65afe2c4a6d62b",
+          "77bc72da8328d00929548d9e586937478058330efd010ca8a6b9d683fc33b78c"
+        ],
+        "rasterMatchesControlPages": true
+      }
+    },
+    {
+      "caseId": "header-count-one",
+      "file": "h1s-header-count-one.hwpx",
+      "sha256": "980bc1fbab013011815860ed5ce3cd29120792754351108ab304f78fb05b012b",
+      "parent": "control",
+      "mutation": "change only header secCnt 2 to 1",
+      "changedParts": [
+        "Contents/header.xml"
+      ],
+      "expectedOpen": "unknown",
+      "observedOpen": "pass",
+      "content": "missing-section",
+      "save": "pass",
+      "pdf": "observed",
+      "openReason": "opened",
+      "pdfEvidence": {
+        "sha256": "e6519a36f723551e83c72cb57f04f4de79392125d70990484223d95a8f3fbda8",
+        "pages": 1,
+        "observedMarkerOrder": [
+          "H1 구역 A 111."
+        ],
+        "pagePngSha256": [
+          "ec4c4bbb0cc0201c2224a644b55092500b2b38363ca822e70f65afe2c4a6d62b"
+        ],
+        "rasterMatchesControlPages": true
+      },
+      "roundTrip": {
+        "savedSha256": "de85371ca8e7f304a0043c38f6c21dc39e87d630f427536e140ce47b62817b42",
+        "reopened": "pass",
+        "observedSectionCount": 1,
+        "observedMarkerOrder": [
+          "H1 구역 A 111."
+        ],
+        "pdf": {
+          "sha256": "d7e3d1c95b755bcd2efea06517c9951e3c727f490ab98413e44fc66a208f245a",
+          "pages": 1,
+          "pagePngSha256": [
+            "ec4c4bbb0cc0201c2224a644b55092500b2b38363ca822e70f65afe2c4a6d62b"
+          ],
+          "rasterMatchesBeforeSave": true
+        }
+      }
+    },
+    {
+      "caseId": "header-count-zero",
+      "file": "h1s-header-count-zero.hwpx",
+      "sha256": "81ef44b127e40bb15c8f54a89f0c336602b486f2ea49f02be1b021220bc95630",
+      "parent": "control",
+      "mutation": "change only header secCnt 2 to 0",
+      "changedParts": [
+        "Contents/header.xml"
+      ],
+      "expectedOpen": "unknown",
+      "observedOpen": "fail",
+      "content": "unknown",
+      "save": "unknown",
+      "pdf": "unknown",
+      "openReason": "hancom-rejected"
+    },
+    {
+      "caseId": "header-count-three",
+      "file": "h1s-header-count-three.hwpx",
+      "sha256": "a1ab146314d18a8d859cc19da56db1500c08d9dff7e437a67d323ac40f8cad31",
+      "parent": "control",
+      "mutation": "change only header secCnt 2 to 3",
+      "changedParts": [
+        "Contents/header.xml"
+      ],
+      "expectedOpen": "unknown",
+      "observedOpen": "fail",
+      "content": "unknown",
+      "save": "unknown",
+      "pdf": "unknown",
+      "openReason": "hancom-rejected"
+    },
+    {
+      "caseId": "section1-id-renamed",
+      "file": "h1s-section1-id-renamed.hwpx",
+      "sha256": "bc8c30af4c05570ac4a61bb5fe190482585d622f2bea484c0909d33d5f243f35",
+      "parent": "control",
+      "mutation": "change section1 manifest ID and matching spine idref",
+      "changedParts": [
+        "Contents/content.hpf"
+      ],
+      "expectedOpen": "unknown",
+      "observedOpen": "fail",
+      "content": "unknown",
+      "save": "unknown",
+      "pdf": "unknown",
+      "openReason": "hancom-rejected"
+    },
+    {
+      "caseId": "section1-id-gap",
+      "file": "h1s-section1-id-gap.hwpx",
+      "sha256": "7534341944354bf5eda3f78e36bea6e6667a5ce99359600013a520c6a0741224",
+      "parent": "control",
+      "mutation": "change section1 manifest ID and spine idref to section2",
+      "changedParts": [
+        "Contents/content.hpf"
+      ],
+      "expectedOpen": "unknown",
+      "observedOpen": "fail",
+      "content": "unknown",
+      "save": "unknown",
+      "pdf": "unknown",
+      "openReason": "hancom-rejected"
+    },
+    {
+      "caseId": "id-assignment-swapped",
+      "file": "h1s-id-assignment-swapped.hwpx",
+      "sha256": "9f3588138ec8b08f0c0c004f825d032ee7298a70c5e3dfe7de88f387825a77e2",
+      "parent": "control",
+      "mutation": "swap section manifest IDs; retain physical paths and spine",
+      "changedParts": [
+        "Contents/content.hpf"
+      ],
+      "expectedOpen": "unknown",
+      "observedOpen": "pass",
+      "content": "changed-order",
+      "save": "unknown",
+      "pdf": "observed",
+      "openReason": "opened",
+      "pdfEvidence": {
+        "sha256": "ca7e13d7cc1524388472a8388dd20ed47eb17e25b24c59f617f53c4c151e3cd2",
+        "pages": 2,
+        "observedMarkerOrder": [
+          "H1 구역 B 222.",
+          "H1 구역 A 111."
+        ],
+        "pagePngSha256": [
+          "77bc72da8328d00929548d9e586937478058330efd010ca8a6b9d683fc33b78c",
+          "ec4c4bbb0cc0201c2224a644b55092500b2b38363ca822e70f65afe2c4a6d62b"
+        ],
+        "rasterMatchesControlPages": true
+      }
+    },
+    {
+      "caseId": "control-after",
+      "file": "h1s-control-after.hwpx",
+      "sha256": "59250cb951b1e896f7d95fb871d4dcc5a214da6d87005c3bd11909927f30f151",
+      "parent": "control",
+      "mutation": "byte-identical baseline after mutations",
+      "changedParts": [],
+      "expectedOpen": "pass",
+      "observedOpen": "pass",
+      "content": "pass",
+      "save": "unknown",
+      "pdf": "observed",
+      "openReason": "opened",
+      "pdfEvidence": {
+        "sha256": "f0eecd27001a541af49c58cbc413dc55eb3532a2209783996cd8ee607bf78e58",
+        "pages": 2,
+        "observedMarkerOrder": [
+          "H1 구역 A 111.",
+          "H1 구역 B 222."
+        ],
+        "pagePngSha256": [
+          "ec4c4bbb0cc0201c2224a644b55092500b2b38363ca822e70f65afe2c4a6d62b",
+          "77bc72da8328d00929548d9e586937478058330efd010ca8a6b9d683fc33b78c"
+        ],
+        "rasterMatchesControlPages": true
+      }
+    }
+  ],
+  "observation": {
+    "checkedAt": "2026-10-14T16:14:33.880Z",
+    "validOpenControls": true,
+    "validContentControls": true,
+    "limitations": [
+      "one current Mac build and self-authored two-section derivation; no Windows evidence",
+      "fonts unmeasured; identical rasters are only an intra-run comparison",
+      "no general HWPX validity claim"
+    ]
+  }
+}

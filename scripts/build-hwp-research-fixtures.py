@@ -37,6 +37,7 @@ def build(output):
         ('control', 'unchanged generated baseline', 'pass'),
         ('metadata-removed', 'remove only opf:metadata', 'unknown'),
         ('section-path-renamed', 'rename section part and manifest href; retain section0 ID', 'unknown'),
+        ('section-path-renamed-linked', 'rename section part, manifest href and RDF references; retain section0 ID', 'unknown'),
         ('section-id-renamed', 'rename manifest section ID and matching spine idref; retain part path', 'unknown'),
         ('section-spine-removed', 'remove only spine section0 itemref', 'unknown'),
         ('section-missing', 'omit section0.xml; keep manifest reference', 'fail'),
@@ -49,9 +50,16 @@ def build(output):
         hpf = etree.fromstring(parts[HPF])
         if case_id == 'metadata-removed':
             hpf.remove(hpf.find(f'{{{OPF}}}metadata'))
-        elif case_id == 'section-path-renamed':
+        elif case_id in {'section-path-renamed', 'section-path-renamed-linked'}:
             renamed[SECTION] = 'Contents/research-body.xml'
             hpf.find(f'.//{{{OPF}}}item[@id="section0"]').set('href', renamed[SECTION])
+            if case_id == 'section-path-renamed-linked':
+                rdf = etree.fromstring(parts['META-INF/container.rdf'])
+                for node in rdf.iter():
+                    for key, value in list(node.attrib.items()):
+                        if value == SECTION:
+                            node.set(key, renamed[SECTION])
+                parts['META-INF/container.rdf'] = etree.tostring(rdf, encoding='UTF-8', xml_declaration=True, standalone=True)
         elif case_id == 'section-id-renamed':
             hpf.find(f'.//{{{OPF}}}item[@id="section0"]').set('id', 'research-body')
             hpf.find(f'.//{{{OPF}}}itemref[@idref="section0"]').set('idref', 'research-body')
@@ -62,7 +70,7 @@ def build(output):
             del parts[SECTION]
         elif case_id == 'package-missing':
             del parts[HPF]
-        if case_id in {'metadata-removed', 'section-path-renamed', 'section-id-renamed', 'section-spine-removed'}:
+        if case_id in {'metadata-removed', 'section-path-renamed', 'section-path-renamed-linked', 'section-id-renamed', 'section-spine-removed'}:
             parts[HPF] = etree.tostring(hpf, encoding='UTF-8', xml_declaration=True, standalone=True)
         path = output / f'h1-{case_id}.hwpx'
         if case_id != 'control':

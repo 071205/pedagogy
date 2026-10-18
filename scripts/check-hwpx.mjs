@@ -103,6 +103,11 @@ const concurrency = spawnSync(python, [path.join(HERE, 'check-hwpx-concurrency.p
 console.log(concurrency.stdout.trim());
 if(concurrency.status!==0){failed++;console.error(concurrency.stderr);}
 
+const sections = spawnSync(python, [path.join(HERE, 'check-hwpx-section-package.py')],
+  { cwd: path.join(HERE, '..'), encoding: 'utf8' });
+console.log(sections.stdout.trim());
+if (sections.status !== 0) { failed++; console.error(sections.stderr); }
+
 if (failed) {
   console.error(`HWPX 검사 ${failed}건 실패`);
   process.exit(1);
