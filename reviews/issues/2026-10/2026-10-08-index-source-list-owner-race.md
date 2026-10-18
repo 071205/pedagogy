@@ -3,7 +3,7 @@
 - ID: `REV-2026-118`
 - 날짜: `2026-10-08`
 - 보고자: `Codex / GPT-6 Sol medium 독립 검토 · 부모 브라우저 재현`
-- 상태: `in-progress`
+- 상태: `resolved`
 - 심각도: `P1`
 - 영향 영역: `index | tests`
 - 관련 인계: `HANDOFF-2026-184`
@@ -84,3 +84,10 @@ const after = document.querySelector('#dmSourcesList').textContent;
   **검증** — `check-sheet-source.mjs` 에 **⑪-f** 를 더했다: 다 그린 뒤 전환하면 즉시 비움 · `persisted()` 를 붙잡은 채
   전환 후 놓기 · Codex 재현 그대로(전환 → 새 계정 목록 → 놓기) · 같은 계정에서 먼저 시작한 목록이 나중 목록을 덮지 않음(역순 완료).
   깨보기 2종(`live()` 검사 제거 · `onAuth` 의 비우기 제거) 모두 ⑪-f 빨간불. 전체 결과는 HANDOFF-2026-184 검토 기록 아래 '보완' 줄.
+
+- `2026-10-19` — Codex `gpt-5.6-sol` / medium 독립 재검토(`7229f62..b22c280`): **해결 확인**.
+  부모도 owner/epoch·목록 세대 검사와 인증 전환 시 즉시 비우기를 실제 코드로 대조했다.
+  `test:sheet-source` 정상 16/16(기존 재현 순서를 포함한 ⑪-f) 통과, 실패 주입 17/17 빨간불(exit 0).
+  특히 늦은 목록의 `live()` 검사 제거와 `onAuth` 비우기 제거는 각각 ⑪-f에서 실패했다.
+  `test:public`·`check:static` 통과. 지연 오류는 코드 확인, 실제 인증·Safari/iPad는 미검증이다.
+  같은 이슈를 `resolved`로 변경하고 INDEX 열린 이슈 표에서 제거했다. 상세 근거·로그·한계는 HANDOFF-2026-184의 이번 검토 기록에 있다.

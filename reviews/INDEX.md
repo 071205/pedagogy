@@ -1,6 +1,6 @@
 # 리뷰 현황
 
-마지막 정리: 2026-10-03
+마지막 정리: 2026-10-19
 
 **이 파일은 새 세션이 매번 읽는다.** 열린 이슈·현재 작업·최근 검토 다섯만 두고 과거는 `handoffs/`와 git에 보존한다. 기록 규칙은
 [`README.md`](README.md) 의 '기록의 수명' 절에 있다.
@@ -13,7 +13,6 @@
 | `REV-2026-075` | `P2` | AI 문서에 들어갔다 나오면 로그인이 안 된다(재현 절차 없음) | `issues/2026-09/2026-09-09-document-editor-login-after-return.md` |
 | `REV-2026-093` | `P2` | staging Gemini가 결제 전제 미충족(`FAILED_PRECONDITION`)으로 실패한다 | `issues/2026-09/2026-09-14-gemini-staging-provider-request-error.md` |
 | `REV-2026-108` | `P2` | 지문 묶음이 위치로만 정해져, 가운데 문항을 지우면 무관한 문항이 흡수된다 | `issues/2026-09/2026-09-23-index-passage-group-positional.md` |
-| `REV-2026-118` | `P1` | 설정 원문 목록의 늦은 응답이 다음 owner 화면에 표시된다 | `issues/2026-10/2026-10-08-index-source-list-owner-race.md` |
 
 ⚠️ 이 표는 `npm run check:review-hygiene` 가 **실제 이슈 파일의 상태와 양방향으로**
 대조한다. 지난 요약을 지워도 안전한 이유가 이 대조다 — 남은 한 곳이 정확해야
@@ -26,7 +25,7 @@
 [시안](../docs/mockups/u0-flow.html). 계약 주장 5건을 코드로 확인했고 `REV-2026-108`을 재현했다.
 **D1 사용자 결정: 문항을 다른 권에 넣을 때 독립 사본/수정 연동을 선택 가능하게 한다.**
 **현재: B6·B7 운영 배포 완료(`686d9fb`·`4dd674f`). U1 1차 `11f1e12`(`HANDOFF-177`) · U1 2차 `a93e7e3`(`HANDOFF-180`, 후속 `b93c689` 로컬 재검토 결함 없음) 운영 배포 · U1 완료 대조 끝 → U1.5**.
-U0 개정 합의는 유지. D3/C1~C3·D1 연동·U1 시안/사용자 관찰은 별도 대기.
+PR #14·#15 병합 완료. PR #16은 Sol medium 재검토 승인·REV-118 해결, 병합 뒤 REV-108 Sol high 구현. D3/C1~C3·D1 연동·사용자 관찰은 별도 대기.
 순서·게이트는 [통합 레일](../docs/DEV-TOKEN-ROADMAP.md), 지시문은 [RAIL-ORDERS](../docs/RAIL-ORDERS.md).
 **B3 운영 장애 `REV-2026-109` 해결**(운영 `e50636c` → 문구 정정 `6679676`, 편집·삭제·진짜 충돌 운영 검증).
 `REV-2026-111`은 **B4 운영 배포(`451e8ba`)·운영 확인으로 해결**(`HANDOFF-169`).
@@ -87,7 +86,7 @@ U0→B6에서 정규화/복원·AI 계약을 함께 다룬다. Rules의 `hasOnly
 
 ## 최근 검토
 
-[HANDOFF-2026-184](handoffs/2026-10/2026-10-04-index-u15-manual-link.md): U1.5 ⓑ Codex Sol medium 검토 **보완 필요**. REV-118 설정 목록 owner 경합 브라우저 재현.
+[HANDOFF-2026-184](handoffs/2026-10/2026-10-04-index-u15-manual-link.md): U1.5 ⓑ `gpt-5.6-sol` / medium 재검토 **승인**(2026-10-19). REV-118 해결 · 정상 16/16·RED 17/17 · PR #16 병합 대기.
 
 [HANDOFF-2026-180](handoffs/2026-10/2026-10-03-index-u1-start-thumbs.md): U1 2차 — 시작 두 길·불러오기 이름·쪽 축소판·글꼴 실패 표시.
 Codex 2회 + 후속 `b93c689` 재검토 결함 없음. **운영 배포 `a93e7e3`·로그인 확인 · U1 완료 기준 대조 끝.**

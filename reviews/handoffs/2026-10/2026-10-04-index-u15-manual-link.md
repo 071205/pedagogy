@@ -3,7 +3,7 @@
 - ID: `HANDOFF-2026-184`
 - 날짜: `2026-10-04`
 - 작성자: `Claude / Opus 5.5`
-- 상태: `ready-for-review` — **REV-2026-118 보완 완료 · Codex Sol medium 재검토 전 merge 금지** (#14·#15 는 2026-10-08 main 에 merge)
+- 상태: `reviewed` — **2026-10-19 Codex `gpt-5.6-sol` / medium 재검토 승인 · REV-2026-118 해결 확인** (#14·#15 병합 완료, PR #16 병합·운영 확인은 별도)
 - 영향 영역: `index | tests | docs`
 - 관련 이슈: `REV-2026-118` (REV-2026-108 선행 판정 기록을 같은 브랜치에 실었다)
 - 브랜치: `claude/u15-manual-link` (기준 `codex/u15-storage` = PR #15 `f29af93` · 그 아래 PR #14). **#14 → #15 → 이것** 순서로만 merge.
@@ -68,3 +68,18 @@ U1.5 의 마지막 묶음. 저장 묶음 API(`registerSource`·`assignPages`·`r
   · 재검토 범위: `7229f62..` 이 보완 커밋 — `index.html`(`renderDataSources`·`resetDataSources`·`onAuth` 한 줄·S2681 3곳)·
     `scripts/check-sheet-source.mjs`·`scripts/check-audit-safety.mjs`. 특히 `deleteSourceFromSettings()` 의 await 뒤 `toast` 는
     세션 검사를 하지 않는다(쓰기 클라이언트가 owner/epoch 로 거절하므로 남는 것은 안내 한 줄) — 이 판단이 맞는지.
+
+- `2026-10-19` · **독립 재검토: Codex `gpt-5.6-sol` / medium** · 판정: **REV-2026-118을 닫아도 됨**.
+  PR #16 전용 작업 트리에서 `git pull --ff-only`로 `7229f62` → `b22c280`을 받았고, 정확히
+  `7229f62..b22c280`의 5개 변경 파일과 필요한 호출부를 읽기 전용 래퍼로 검토했다.
+  실행 메타데이터의 `model: gpt-5.6-sol`·`reasoning effort: medium`을 확인했다.
+  근거: `dsGen`·owner·epoch가 오래된 목록/오류의 DOM 쓰기를 막고, `onAuth`가 첫 await 전에 기존 목록을 비운다.
+  삭제 호출의 안내는 저장 클라이언트 `transact()` 완료 시 owner/epoch 재검사와 대조했으며, 폐쇄를 막는 잔여 결함은 확인되지 않았다.
+  부모 독립 실행: `test:sheet-source` **16/16 통과 · 실패 주입 17/17 빨간불**(277초, exit 0).
+  새 ⑪-f의 계정 전환·지연 완료·같은 계정 역순 완료를 통과했고, `live()` 제거와 전환 시 비우기 제거는 각각 ⑪-f에서 실패했다.
+  `test:public` 통과(CSP 실패 주입 12/12 거절·공개 빌드), `check:static` 통과. 기록 갱신 뒤 리뷰 위생과 `git diff --check`도 통과했다.
+  로그: `/private/tmp/pr16-review-2026-10-19/`의 `sol-medium-answer.txt`·`sheet-source.log`·`public.log`·`static.log`·`review-hygiene.log`.
+  모델 검토 자체는 정적 확인이고 브라우저 실행은 부모가 담당했다. 지연 오류 경로는 코드 확인이며 별도 브라우저 오류 주입은 하지 않았다.
+  미실행: `check:fast` 전체·실제 Google 로그인·Safari/iPad. `regression-test.html`은 이 브랜치에 없어 실행 불가.
+  합의: 이번 결함 해소, 같은 이슈를 `resolved`로 닫음. 미합의: 없음. 다음 행동: **PR #16 병합 뒤 REV-108 Sol high 구현 → Claude Opus 검토**.
+  이 재검토는 기록만 갱신하며, PR 병합·배포·REV-108 구현을 완료한 것으로 표시하지 않는다.
