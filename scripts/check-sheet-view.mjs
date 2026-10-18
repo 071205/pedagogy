@@ -91,10 +91,28 @@ async function toSheet(p,{narrow=false}={}){
   await settled(p);
 }
 
-async function suite(html){
+// 이 변이는 넓은 화면 전환도 막는다. 관련 없는 조립 대기 대신 좁은 화면 경로 자체를 검사한다.
+async function checkNarrowTabs(html,check,ok){
+  for(const [name,vp] of [['768',{width:768,height:1024}],['375',{width:375,height:812}]]){
+    await check(`⑦-c 좁은 화면 ${name}: 지면 탭 ↔ 편집 탭 · 가로 넘침 없음`,async()=>{
+      const q=await open(html,{viewport:vp});
+      try{
+        await toSheet(q,{narrow:true});
+        const r=await q.evaluate(()=>({mode:editorMode,pane:getComputedStyle($("#sheetPane")).display,h:document.documentElement.scrollWidth>innerWidth,pages:$("#sheetStage").querySelectorAll('.page').length}));
+        ok(r.mode==='sheet'&&r.pane!=='none'&&!r.h&&r.pages>0,'지면 탭 '+JSON.stringify(r));
+        await q.click('.pane-tab[data-pane="edit"]');
+        ok(await q.evaluate(()=>editorMode==='edit'&&getComputedStyle($("#sheetPane")).display==='none'),'편집 탭 복귀 실패');
+        ok(!q.errs.length,'좁은 화면 페이지 오류: '+q.errs.join(' | '));
+      }finally{ await q.context().close(); }
+    });
+  }
+}
+
+async function suite(html,{narrowOnly=false}={}){
   const failures=[], checks=[];
   const check=async(name,fn)=>{checks.push(name);try{await fn();}catch(e){failures.push(name+': '+(e?.message||e).split('\n')[0]);}};
   const ok=(v,msg)=>{if(!v)throw new Error(msg);};
+  if(narrowOnly){ await checkNarrowTabs(html,check,ok); return {checks,failures}; }
   const p=await open(html);
   await check('① 지면 배치 = 인쇄 조립(쪽·칸·문항·보정 배율)',async()=>{
     await toSheet(p);
@@ -257,19 +275,7 @@ async function suite(html){
   if(p.errs.length) failures.push('페이지 오류: '+p.errs.join(' | '));
   await p.context().close();
 
-  for(const [name,vp] of [['768',{width:768,height:1024}],['375',{width:375,height:812}]]){
-    await check(`⑦-c 좁은 화면 ${name}: 지면 탭 ↔ 편집 탭 · 가로 넘침 없음`,async()=>{
-      const q=await open(html,{viewport:vp});
-      try{
-        await toSheet(q,{narrow:true});
-        const r=await q.evaluate(()=>({mode:editorMode,pane:getComputedStyle($("#sheetPane")).display,h:document.documentElement.scrollWidth>innerWidth,pages:$("#sheetStage").querySelectorAll('.page').length}));
-        ok(r.mode==='sheet'&&r.pane!=='none'&&!r.h&&r.pages>0,'지면 탭 '+JSON.stringify(r));
-        await q.click('.pane-tab[data-pane="edit"]');
-        ok(await q.evaluate(()=>editorMode==='edit'&&getComputedStyle($("#sheetPane")).display==='none'),'편집 탭 복귀 실패');
-        ok(!q.errs.length,'좁은 화면 페이지 오류: '+q.errs.join(' | '));
-      }finally{ await q.context().close(); }
-    });
-  }
+  await checkNarrowTabs(html,check,ok);
   await check('⑨-b 본문 글꼴을 못 받으면 지면이 그렇게 말한다',async()=>{
     const q=await open(html,{blockFonts:true});
     try{
@@ -359,7 +365,7 @@ try{
   await big.context().close();
 
   for(const b of BREAKS){
-    const r=await suite(mutate(b.pairs));
+    const r=await suite(mutate(b.pairs),{narrowOnly:b.target==='⑦-c'});
     const hit=r.failures.some(f=>f.startsWith(b.target));
     console.log(`${hit?'RED ':'MISS'} 깨보기 '${b.name}' → ${b.target} ${hit?'빨간불':'초록불(검사가 헛돈다)'}`);
     if(!hit) exit=1;

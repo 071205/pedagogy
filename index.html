@@ -25,7 +25,7 @@
      어렵다 — 새 로그인만 깨진다). 실제로 한 번 그랬으니 손대지 말 것. -->
 <meta http-equiv="Content-Security-Policy" content="
   default-src 'self';
-  script-src 'self' 'wasm-unsafe-eval' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-b1H12syMVKUW5UN4NtkBXVAvl0DfW/1kAMj7clQ7Gfc=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
+  script-src 'self' 'wasm-unsafe-eval' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-44d3d9IHbRzPx7ulLljzDyDeQpq14x6B5yIfsDMQ+Lk=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
   script-src-attr 'none';
   style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
   font-src 'self' data: https://cdn.jsdelivr.net;
@@ -2652,7 +2652,8 @@ const elHTML=(t,c,h)=>{const e=document.createElement(t); if(c) e.className=c;
 if(!window.PedagogyNormalize)
   throw new Error("pedagogy-normalize.js 를 불러오지 못했습니다 — 정규화 없이는 그릴 수 없습니다");
 const {uid, sanitize, safeUrl, str, normOrder,
-       normSubject, normSheetColor, normBlock, normProblem, normSet, normLibMeta,
+       normSubject, normSheetColor, normBlock, normProblem, normSet, normGroupProblems, groupDiagnostics,
+       setGroupSpan, removeGroupedProblem, detachedProblem, normLibMeta,
        resetNormDropped,
        BLOCK_TYPES, SUBJECTS, SUBJECT_DEFAULT, PASSAGE_KINDS, NOTICE_KINDS,
        CHOICE_LAYOUTS, PAIR_HEADS, pairedItemText, IMG_SIZES, SET_NAME_MAX, SHEET_COLORS, SHEET_COLOR_DEFAULT,
@@ -4813,7 +4814,7 @@ async function ensureConflictCopies(owner){
     if(intakeSetReadOnly(rec.snapshot)){intakeUpdateNotice();continue;}
     const cp=JSON.parse(JSON.stringify(rec.snapshot));
     cp.id=rec.copyId;
-    (cp.problems||[]).forEach(p=>{ p.id=uid(); });
+    cp.problems=normGroupProblems(cp.problems||[],{lossless:true});
     cp.name=(rec.snapshot.name||"문제집").slice(0,SET_NAME_MAX-7)+" (내 사본)";
     try{await inheritIntakeLinks(rec.setId,cp.id,cp);}
     catch(e){warnOnce("intake-copy-link","원문 연결을 보존하지 못해 충돌 사본 생성을 보류했어요 · 다시 시도해 주세요");continue;}
@@ -6390,9 +6391,7 @@ function renderLibrary(){
       bDup.disabled=true;
       const cp=JSON.parse(JSON.stringify(s));
       cp.id=uid();
-      // 문항 id 까지 새로 발급해야 원본과 복제본에 같은 id 가 공존하지 않는다
-      // (id 로 문항을 찾는 곳이 많아 중복되면 엉뚱한 문항이 선택된다)
-      (cp.problems||[]).forEach(p=>{ p.id=uid(); });
+      cp.problems=normGroupProblems(cp.problems||[],{lossless:true});
       cp.name=(s.name||"문제집").slice(0,SET_NAME_MAX-3)+" 복제";
       try{await inheritIntakeLinks(s.id,cp.id,cp);}
       catch(e){toast("원문 연결 저장 실패 · 복제하지 않았어요. 다시 시도해 주세요","error");bDup.disabled=false;return;}
@@ -7340,8 +7339,9 @@ function setOrderMode(on){
       handle:".drag-handle", animation:150,
       onEnd:e=>{
         const arr=activeProblems();
-        arr.splice(e.newIndex,0,arr.splice(e.oldIndex,1)[0]);
-        saveSets(); renderQList(); renderPreview();
+        historyStep(()=>{ arr.splice(e.newIndex,0,arr.splice(e.oldIndex,1)[0]); saveSets(); });
+        renderQList(); renderPreview();
+        if(groupDiagnostics(arr).length) toast(groupIssueText(arr), "error");
       }
     }, "문항 목록");
   }else if(sortableQ){ sortableQ.destroy(); sortableQ=null; }
@@ -7479,20 +7479,30 @@ function renderQList(){
       }
       const dup=el("button","iconbtn",""); dup.title="이 문항 복제"; dup.append(el("span","icon icon-copy",""));
       dup.onclick=(e)=>{e.stopPropagation(); const fi=arr.findIndex(x=>x.id===q.id); if(fi<0) return;
-        const cp=JSON.parse(JSON.stringify(q)); cp.id=uid(); setPair(cp,false);
+        const cp=detachedProblem(q);
+        if(!cp){ toast("공유 지문 구성원은 대표와 함께 복제해야 해요 · 묶음을 풀거나 권을 복제해 주세요","error"); return; }
+        setPair(cp,false);
         // 복제본을 원본 바로 뒤에 삽입. 원본이 묶여있었다면 경계가 깨지지 않게 독립 처리
-        if(arr[fi].paired) setPair(arr[fi],false);
-        arr.splice(fi+1,0,cp); currentQId=cp.id;
-        saveSets(); renderQList(); renderEditor(); renderPreview(); syncPairedChk();
-        toast("문항을 복제했어요","success");};
+        historyStep(()=>{
+          if(arr[fi].paired) setPair(arr[fi],false);
+          arr.splice(fi+1,0,cp); currentQId=cp.id; saveSets();
+        });
+        renderQList(); renderEditor(); renderPreview(); syncPairedChk();
+        if(groupDiagnostics(arr).length) toast(groupIssueText(arr),"error");
+        else toast("문항을 복제했어요","success");};
       acts.append(dup);
       const del=el("button","iconbtn",""); del.title="삭제"; del.append(el("span","icon icon-trash",""));
       del.onclick=(e)=>{e.stopPropagation(); const fi=arr.findIndex(x=>x.id===q.id); if(fi<0) return;
         if(!confirm("문항을 삭제할까요?")) return;
-        if(fi>0 && arr[fi-1].paired) setPair(arr[fi-1],false);
         const goneQ=arr[fi];
-        arr.splice(fi,1); if(!arr.length) arr.push(newProblem()); currentQId=arr[0].id;
-        saveSets(); renderQList(); renderPreview(); syncPairedChk();
+        if(goneQ.groupOf===goneQ.id && arr.some((p,i)=>i!==fi&&p.groupOf===goneQ.id)){
+          toast("대표 문항은 구성원과 함께 정리하거나 묶음을 먼저 풀어 주세요","error"); return;
+        }
+        historyStep(()=>{
+          if(fi>0 && arr[fi-1].paired) setPair(arr[fi-1],false);
+          removeGroupedProblem(arr,fi); if(!arr.length) arr.push(newProblem()); currentQId=arr[0].id; saveSets();
+        });
+        renderQList(); renderEditor(); renderPreview(); syncPairedChk();
         releaseProblemImages(goneQ);   // 문항이 품고 있던 이미지도 함께 정리
         };
       acts.append(del);
@@ -7705,19 +7715,33 @@ function renderEditor(){
     }
   }
   const syncGroupUI=()=>{
-    const span=groupSpanOf(q);
+    const span=q.groupOf===q.id ? q.groupSpan : groupSpanOf(q);
+    const member=!!q.groupOf&&q.groupOf!==q.id
+      &&activeProblems().some(p=>p.id===q.groupOf&&p.groupOf===p.id);
+    const orphan=!!q.groupOf&&q.groupOf!==q.id&&!member;
+    gsSel.disabled=member;
+    gsSel.querySelector("[value=review]")?.remove();
+    if(orphan||(!member&&q.groupReview)){
+      const o=el("option",null,orphan?"소속 오류 · 다시 선택":"검토 필요 · 다시 선택");
+      o.value="review"; gsSel.prepend(o); gsSel.value="review";
+    }
     const hasPsg=(q.blocks||[]).some(b=>b&&b.type==="passage");
     const leadIn=$("#qGroupLead");
     leadIn.style.display=(span>1 && !hasPsg)?"":"none";
-    $("#groupHint").textContent = span<=1
+    $("#groupHint").textContent = orphan ? "대표 문항을 찾지 못했어요. 이 문항만 또는 새 묶음으로 명시 재구성해 주세요."
+      : !member&&q.groupReview ? "묶음 관계를 검토한 뒤 문항 수를 다시 선택해 주세요. 같은 수를 선택해도 명시 확인됩니다."
+      : member ? "이 문항은 앞 문항의 지문 묶음 구성원입니다. 대표 문항에서 소속을 바꿔 주세요." : span<=1
       ? "여러 문항이 지문이나 안내를 함께 쓸 때 묶습니다."
       : hasPsg
         ? "지문 안내 앞에 번호 범위가 붙습니다 — 안내 글은 지문 블록의 '안내' 칸에 씁니다."
         : "지문이 없는 묶음입니다 — 오른쪽에 안내 글을 적으면 '[번호 범위] 안내' 한 줄이 그려집니다.";
   };
-  gsSel.value=String(groupSpanOf(q));
-  gsSel.onchange=e=>{ q.groupSpan=Math.max(1,Math.min(10,parseInt(e.target.value,10)||1));
-    syncGroupUI(); renderQList(); renderPreview(); saveSets(); };
+  gsSel.value=String(q.groupOf===q.id ? q.groupSpan : groupSpanOf(q));
+  gsSel.onchange=e=>{
+    const arr=activeProblems(), n=parseInt(e.target.value,10)||1;
+    if(!setGroupSpan(arr,q.id,n)){ toast("다른 묶음과 겹치거나 남은 문항보다 길어요 · 소속을 확인해 주세요","error"); syncGroupUI(); return; }
+    syncGroupUI(); renderQList(); renderPreview(); saveSets();
+  };
   $("#qGroupLead").value=q.groupLead||"";
   $("#qGroupLead").oninput=e=>{ q.groupLead=e.target.value; renderPreview(); saveSets(); };
   syncGroupUI();
@@ -8609,6 +8633,17 @@ async function aiGenerateFromImage(file){
   }
 }
 
+function groupIssueText(arr){
+  const issues=groupDiagnostics(arr);
+  return issues.length ? "지문 묶음 확인 필요 · "+issues.slice(0,3)
+    .map(x=>`${x.index+1}번 ${x.reason}`).join(" · ")+(issues.length>3?" 외":"") : "";
+}
+function groupIssueBanner(arr){
+  const issues=groupDiagnostics(arr);
+  return issues.length ? `<div role="alert" style="padding:8px;color:#9b1c1c;background:#fff1f1;font-size:13px">
+    지문 묶음 확인 필요 · ${issues.map(x=>`${x.index+1}번 ${sanitize(x.reason)}`).join(" · ")}
+    · 관계를 확인하기 전에는 인쇄할 수 없습니다.</div>` : "";
+}
 function renderPreview(){
   if(typeof scheduleSheet==="function"&&editorMode==="sheet") scheduleSheet();
   const q=activeQ(); if(!q) return;
@@ -8623,7 +8658,7 @@ function renderPreview(){
   const ansHtml=(q.answer||q.answerImg)?`<div style="margin-top:10px;font-size:12px;color:#444;border-top:1px solid #ddd;padding-top:6px">${q.answer?`<span>정답: ${sanitize(q.answer)}</span>`:""}${safeUrl(q.answerImg)?`<img src="${safeUrl(q.answerImg)}" style="max-height:40px;display:block;margin-top:4px">`:"" }</div>`:"";
   const pvRange=nums.find(n=>n.q===q)?.range||"";
   const subject=normSubject(activeSet()&&activeSet().subject);
-  const html=`${groupHeadHTML(q,pvRange)}${q.blocks.map(b=>blockHTML(b,{range:pvRange,subject})).join("")}${ansHtml}`;
+  const html=`${groupIssueBanner(activeProblems())}${groupHeadHTML(q,pvRange)}${q.blocks.map(b=>blockHTML(b,{range:pvRange,subject})).join("")}${ansHtml}`;
   $("#pvContent").innerHTML = html;
   try{
     renderMathInElement($("#pvContent"),{
@@ -8764,6 +8799,7 @@ $("#headerInput").oninput=(e)=>{ const s=activeSet(); if(!s) return; s.header=e.
    쓰려고 연 자리다. 별도 미리보기 조판기를 만들지 않는다(제품 UX §4). 기본은 `#printDoc`. */
 function buildPrintDoc(hideAnswers, wrap=$("#printDoc")){
   const s=activeSet(); if(!s||!wrap) return;
+  if(groupDiagnostics(s.problems).length){ wrap.replaceChildren(); throw Error(groupIssueText(s.problems)); }
   s.header=$("#headerInput").value||s.header||"";
 
   const qs=s.problems.slice();
@@ -9032,14 +9068,16 @@ $("#loadInput").onchange=e=>{ const f=e.target.files?.[0]; if(!f) return;
   const incoming=(Array.isArray(data)?data:[data]).slice(0,MAX_IMPORT_SETS);
   // 불러온 모든 문제집의 문제를 한 줄로 모음 (한 번에 들일 문항 수도 제한)
   const newProbs=[];
-  incoming.forEach(s=>{ if(s&&Array.isArray(s.problems)) s.problems.forEach(p=>newProbs.push(p)); });
+  incoming.forEach(s=>{ if(s&&Array.isArray(s.problems))
+    newProbs.push(...normGroupProblems(s.problems.slice(0,500)));
+  });
   newProbs.splice(2000);
   if(!newProbs.length){ toast("불러올 문항이 없어요","error"); return; }
   const s=activeSet();
   if(!s){ toast("먼저 문제집을 열어주세요","error"); return; }
   // 화이트리스트 정규화 (id 재발급 포함) — 남이 만든 파일을 그대로 신뢰하지 않는다
   resetNormDropped();
-  const cloned=newProbs.map(p=>normProblem(p)).filter(Boolean);
+  const cloned=newProbs;
   if(!cloned.length){ toast("불러올 문항이 없어요","error"); return; }
   // 삽입된 묶음이 기존과 잘못 이어지지 않도록, 첫 문제 직전 경계 정리: 마지막 삽입 문제는 독립
   if(cloned.length) setPair(cloned[cloned.length-1],false);
@@ -9049,11 +9087,13 @@ $("#loadInput").onchange=e=>{ const f=e.target.files?.[0]; if(!f) return;
   at = at<0 ? arr.length : at+1;
   // 삽입 지점 직전 문제가 paired면, 경계가 깨지지 않게 그대로 두되
   // 삽입으로 인해 직전 문제의 짝이 바뀌는 것을 막기 위해 직전 문제 독립 처리
-  if(at>0 && at<=arr.length && arr[at-1] && arr[at-1].paired) setPair(arr[at-1],false);
-  arr.splice(at, 0, ...cloned);
-  currentQId=cloned[0].id;
-  saveSets(); renderQList(); renderEditor(); renderPreview(); syncPairedChk();
-  toast(`문항 ${cloned.length}개를 추가했어요`,"success");
+  historyStep(()=>{
+    if(at>0 && at<=arr.length && arr[at-1] && arr[at-1].paired) setPair(arr[at-1],false);
+    arr.splice(at, 0, ...cloned); currentQId=cloned[0].id; saveSets();
+  });
+  renderQList(); renderEditor(); renderPreview(); syncPairedChk();
+  toast(groupDiagnostics(arr).length ? groupIssueText(arr) : `문항 ${cloned.length}개를 추가했어요`,
+    groupDiagnostics(arr).length ? "error" : "success");
   reportNormDropped();
 }catch{ toast("JSON을 읽을 수 없어요","error"); } }; r.readAsText(f); e.target.value=""; };
 
@@ -9182,6 +9222,7 @@ function warmPrintFonts(){
 let printing=false;
 
 async function doPrint(hideAnswers){
+  if(groupDiagnostics(activeProblems()).length){ toast(groupIssueText(activeProblems())+" · 인쇄를 멈췄어요","error"); return false; }
   if(printing){ toast("인쇄를 준비하는 중이에요"); return; }
   closeModal(modal);
   /* 수식 엔진이 없으면 수식이 전부 원문으로 인쇄된다. 종이가 아깝기도 하고,
@@ -9260,6 +9301,7 @@ async function doPrint(hideAnswers){
        대화상자 종료 시점이 다른 환경이 있다). */
     prog.set(1, "인쇄 준비 완료 · 인쇄 창을 여는 중");
     await painted();
+    if(groupDiagnostics(activeProblems()).length) throw Error(groupIssueText(activeProblems()));
     window.print();
   }catch(e){
     console.error("인쇄 준비 실패", e);
@@ -9443,6 +9485,7 @@ async function renderSheet(){
   try{
     await painted(); if(!live()) return;
     build.classList.add("building");
+    if(groupDiagnostics(activeProblems()).length) throw Error(groupIssueText(activeProblems()));
     buildPrintDoc(!$("#sheetShowAns").checked, build);
     await warmPrintFonts(); if(!live()) return;
     if(document.fonts&&document.fonts.ready){ try{ await document.fonts.ready; }catch{} }
@@ -9472,6 +9515,12 @@ async function renderSheet(){
     if(gen!==sheetGen) return;
     console.error("지면 조립 실패",e);
     sheetBusy=false;
+    if(groupDiagnostics(activeProblems()).length){
+      $("#sheetStage").replaceChildren();
+      $("#sheetThumbs").replaceChildren();
+      $("#sheetPageSel").replaceChildren();
+      sheetShownKey=null;
+    }
     setSheetState("fail","지면을 그리지 못했어요 · "+((e&&e.message)||e));
   }finally{
     if(gen===sheetGen){ build.classList.remove("building"); sheetBusy=false; sheetBuildingKey=null; }

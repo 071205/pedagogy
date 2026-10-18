@@ -329,6 +329,8 @@ function normProblem(p, opts={}){
          36~37·38~39 처럼 범위 안내 한 줄만 있고 문항마다 따로 서는 형식.
        가져온 파일이 이상한 값을 줘도 1~10 으로 묶는다. */
     groupSpan:Math.max(1,Math.min(10,Math.round(Number(p.groupSpan))||1)),
+    ...(typeof p.groupOf==="string"&&p.groupOf?{groupOf:p.groupOf.slice(0,128)}:{}),
+    ...(["legacy","invalid","intake"].includes(p.groupReview)?{groupReview:p.groupReview}:{}),
     /* 지문 없는 묶음의 안내 글([16~17] **다음을 듣고, 물음에 답하시오.**).
        지문이 있으면 그 글은 지문 블록의 lead 에 있다 — 여기는 쓰지 않는다. */
     groupLead:text(p.groupLead,200),
@@ -359,14 +361,174 @@ function normSheetColor(v){
   return SHEET_COLORS.some(c=>c.v===v) ? v : SHEET_COLOR_DEFAULT;
 }
 
+/* 지문 소속은 권 전체에서만 검증한다. 한 문항의 정규화에서 ID를 바꾸면
+   참조가 끊기므로 먼저 원본 ID의 유일성을 세고, 모든 ID 발급 뒤에 옮긴다. */
+function normGroupProblems(raw, opts={}){
+  const keepId=opts.keepId===true, lossless=opts.lossless===true;
+  const source=raw.filter(p=>p&&typeof p==="object");
+  const counts=new Map();
+  for(const p of source) if(typeof p.id==="string"&&p.id)
+    counts.set(p.id,(counts.get(p.id)||0)+1);
+  const used=new Set(), idMap=new Map();
+  const problems=source.map(p=>{
+    const q=normProblem(p,{keepId,lossless});
+    while(used.has(q.id)) q.id=uid();
+    used.add(q.id);
+    if(typeof p.id==="string"&&p.id&&counts.get(p.id)===1) idMap.set(p.id,q.id);
+    if(typeof p.id==="string"&&p.id&&counts.get(p.id)>1) q.groupReview="invalid";
+    if(Object.hasOwn(p,"groupOf") && (typeof p.groupOf!=="string"||!p.groupOf)) q.groupReview="invalid";
+    return q;
+  });
+  problems.forEach((q,i)=>{
+    const old=source[i];
+    if(typeof old.groupOf==="string"&&old.groupOf){
+      if(idMap.has(old.groupOf)) q.groupOf=idMap.get(old.groupOf);
+      else { q.groupOf=old.groupOf.slice(0,128); q.groupReview="invalid"; }
+    }
+  });
+  /* 옛 groupSpan에는 소속 증거가 없다. 위치상 후보를 표시하되 검토 전 출력 금지.
+     이미 명시 소속이 있거나 잘린 범위는 자동 수선하지 않는다. */
+  problems.forEach((lead,i)=>{
+    const old=source[i];
+    const span=lead.groupSpan;
+    const active=lead.blocks.some(b=>b.type==="passage")||!!lead.groupLead.trim();
+    if(Object.hasOwn(old,"groupOf")) return;
+    if(lead.groupOf){ if(span>1&&active) lead.groupReview="invalid"; return; }
+    if(span<=1||!active) { lead.groupSpan=1; return; }
+    lead.groupOf=lead.id;
+    lead.groupReview="legacy";
+    if(i+span>problems.length) lead.groupReview="invalid";
+    for(let j=i+1;j<Math.min(i+span,problems.length);j++){
+      if(problems[j].groupOf){ lead.groupReview="invalid"; continue; }
+      problems[j].groupOf=lead.id;
+    }
+  });
+  const countsByLead=new Map();
+  for(const q of problems) if(q.groupOf) countsByLead.set(q.groupOf,(countsByLead.get(q.groupOf)||0)+1);
+  problems.forEach((q,i)=>{
+    if(typeof source[i].groupOf==="string"&&source[i].groupOf && q.groupOf===q.id
+      && Number(q.groupSpan)!==countsByLead.get(q.id)) q.groupReview="invalid";
+  });
+  syncGroupSpans(problems);
+  return problems;
+}
+function groupDiagnostics(arr){
+  const issues=[], seen=new Map(), leads=new Map();
+  const report=(i,reason)=>issues.push({index:i,id:arr[i]?.id||"",reason});
+  arr.forEach((q,i)=>{
+    if(!q||typeof q.id!=="string"||!q.id){report(i,"문항 ID 누락");return;}
+    if(seen.has(q.id)){report(i,"중복 문항 ID");report(seen.get(q.id),"중복 문항 ID");}
+    else seen.set(q.id,i);
+    if(q.groupReview==="legacy") report(i,"옛 묶음 소속 검토 필요");
+    if(q.groupReview==="invalid") report(i,"묶음 ID 대응 또는 범위 검토 필요");
+    if(q.groupReview==="intake") report(i,"AI 공통지문 내용·소속 검토 필요");
+  });
+  arr.forEach((q,i)=>{
+    if(!q) return;
+    if(!q.groupOf){
+      if(q.groupSpan>1 && (q.blocks||[]).some(b=>b?.type==="passage") || !q.groupOf&&q.groupSpan>1&&String(q.groupLead||"").trim())
+        report(i,"소속 없는 옛 묶음");
+      return;
+    }
+    const leader=seen.get(q.groupOf);
+    if(leader===undefined){report(i,"대표 문항 없음");return;}
+    if(arr[leader]?.groupOf!==arr[leader]?.id){report(i,"대표 소속 오류");return;}
+    if(leader>i) report(i,"대표가 구성원 뒤에 있음");
+    if(!leads.has(q.groupOf)) leads.set(q.groupOf,[]);
+    leads.get(q.groupOf).push(i);
+  });
+  for(const [id,indexes] of leads){
+    const first=seen.get(id), lead=arr[first];
+    if(first===undefined) continue;
+    if(!(lead.blocks||[]).some(b=>b?.type==="passage")&&!String(lead.groupLead||"").trim())
+      report(first,"대표 지문·안내 없음");
+    if(indexes.length>10) report(first,"묶음 10문항 초과");
+    if(indexes[0]!==first||indexes.some((v,k)=>v!==first+k))
+      report(first,"묶음 구성원이 연속하지 않음");
+    if(Number(lead.groupSpan)!==indexes.length) report(first,"묶음 수 불일치");
+  }
+  return [...new Map(issues.map(x=>[x.index+":"+x.reason,x])).values()];
+}
+function validGroups(arr){
+  const issues=groupDiagnostics(arr), bad=new Set(issues.map(x=>x.index));
+  const groups=new Map();
+  arr.forEach((q,i)=>{
+    if(!q?.groupOf) return;
+    if(!groups.has(q.groupOf)) groups.set(q.groupOf,[]);
+    groups.get(q.groupOf).push(i);
+  });
+  for(const [id,indexes] of groups)
+    if(indexes.some(i=>bad.has(i))||bad.has(indexes[0])) groups.delete(id);
+  return {issues,groups};
+}
+function syncGroupSpans(arr){
+  const groups=new Map();
+  arr.forEach(q=>{if(q?.groupOf) groups.set(q.groupOf,(groups.get(q.groupOf)||0)+1);});
+  arr.forEach(q=>{
+    if(!q) return;
+    q.groupSpan=q.groupOf===q.id ? Math.min(10,groups.get(q.id)||1) : 1;
+  });
+}
+function setGroupSpan(arr,leaderId,count){
+  const i=arr.findIndex(q=>q?.id===leaderId), n=Math.floor(Number(count));
+  if(i<0||!Number.isFinite(n)||n<1||n>10||i+n>arr.length) return false;
+  const lead=arr[i];
+  const oldLeader=arr.find(q=>q?.id===lead.groupOf&&q.groupOf===q.id);
+  if(lead.groupOf&&lead.groupOf!==leaderId&&oldLeader) return false;
+  for(let j=i+1;j<i+n;j++)
+    if(arr[j].groupOf&&arr[j].groupOf!==leaderId) return false;
+  arr.forEach(q=>{if(q?.groupOf===leaderId){delete q.groupOf;delete q.groupReview;}});
+  if(lead.groupOf&&lead.groupOf!==leaderId) delete lead.groupOf;
+  if(n>1){
+    for(let j=i;j<i+n;j++) arr[j].groupOf=leaderId;
+  }
+  delete lead.groupReview;
+  syncGroupSpans(arr);
+  return true;
+}
+function removeGroupedProblem(arr,index){
+  const q=arr[index]; if(!q) return null;
+  if(q.groupOf===q.id&&arr.some((p,i)=>i!==index&&p.groupOf===q.id)) return null;
+  arr.splice(index,1);
+  syncGroupSpans(arr);
+  return q;
+}
+/* 같은 권의 연속 구성원 전부만 다른 권으로 옮긴다. 대표가 아닌 ID로
+   부분 이동을 요청하면 거절한다. 호출자는 권 저장·원문 링크를 따로 확정해야 한다. */
+function moveWholeGroup(source,target,leaderId,at=target.length){
+  if(source===target||groupDiagnostics(source).length||groupDiagnostics(target).length) return null;
+  const i=source.findIndex(q=>q?.id===leaderId);
+  if(i<0||source[i].groupOf&&source[i].groupOf!==leaderId
+    ||!Number.isInteger(at)||at<0||at>target.length) return null;
+  if(at>0&&at<target.length&&target[at-1]?.groupOf
+    &&target[at-1].groupOf===target[at]?.groupOf) return null;
+  const indexes=validGroups(source).groups.get(leaderId)||[i];
+  if(indexes[0]!==i) return null;
+  let copies;
+  for(let n=0;n<10;n++){
+    copies=normGroupProblems(indexes.map(j=>source[j]),{lossless:true});
+    if(!copies.some(q=>target.some(p=>p.id===q.id))) break;
+    copies=null;
+  }
+  if(!copies||groupDiagnostics(copies).length) return null;
+  for(const j of [...indexes].reverse()) source.splice(j,1);
+  target.splice(at,0,...copies);
+  return copies;
+}
+function detachedProblem(q,newId=uid()){
+  if(q?.groupOf&&q.groupOf!==q.id) return null;
+  const copy=JSON.parse(JSON.stringify(q));
+  copy.id=newId;copy.groupSpan=1;
+  delete copy.groupOf;delete copy.groupReview;
+  return copy;
+}
 function normSet(s, opts){
   if(!s||typeof s!=="object"||!Array.isArray(s.problems)) return null;
   const keepId=opts?.keepId===true, lossless=opts?.lossless===true;
   const requested=Number(opts?.maxProblems);
   const max=opts?.maxProblems===Infinity ? Infinity
     : Number.isFinite(requested) ? Math.max(0,Math.floor(requested)) : 500;
-  const problems=s.problems.slice(0,lossless?undefined:max)
-    .map(p=>normProblem(p,{keepId,lossless})).filter(Boolean);
+  const problems=normGroupProblems(s.problems.slice(0,lossless?undefined:max),{keepId,lossless});
   return { id:(keepId&&typeof s.id==="string"&&s.id)?s.id:uid(),
            /* ⚠️ **이름 상한은 `firestore.rules` 와 같아야 한다.** 앱이 200자까지 받는데
               규칙이 160에서 끊고 있어, 161~200자 제목은 저장이 통째로 '권한 오류' 로
@@ -420,7 +582,8 @@ const normOrder = v => Math.max(0, Math.floor(Number(v)||0));
 /* 밖에서 쓰는 것만 내놓는다. `IMG_HOSTS` 와 `normDropped` 는 여기서만 쓰이므로 뺀다. */
 global.PedagogyNormalize = Object.freeze({
   uid, sanitize, safeUrl, str, normOrder,
-  normSubject, normSheetColor, normBlock, normProblem, normSet, normLibMeta, normIntake, preserveIntake, intakeNeedsUpdate,
+  normSubject, normSheetColor, normBlock, normProblem, normSet, normGroupProblems, groupDiagnostics, validGroups,
+  syncGroupSpans, setGroupSpan, removeGroupedProblem, moveWholeGroup, detachedProblem, normLibMeta, normIntake, preserveIntake, intakeNeedsUpdate,
   resetNormDropped,
   /* 진단 집계는 값이 아니라 함수로 낸다 — 숫자를 내보내면 호출한 쪽이 그 시점의
      사본을 들고 있게 되어 `resetNormDropped()` 뒤에도 옛 값을 본다. */

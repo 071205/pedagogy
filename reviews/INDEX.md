@@ -12,7 +12,7 @@
 | `REV-2026-074` | `P2` | macOS 폴더 아이콘 파일이 새 Git 폴더에서 재발해 refs를 오염시킨다 | `issues/2026-09/2026-09-09-rules-macos-icon-files-corrupt-git-refs.md` |
 | `REV-2026-075` | `P2` | AI 문서에 들어갔다 나오면 로그인이 안 된다(재현 절차 없음) | `issues/2026-09/2026-09-09-document-editor-login-after-return.md` |
 | `REV-2026-093` | `P2` | staging Gemini가 결제 전제 미충족(`FAILED_PRECONDITION`)으로 실패한다 | `issues/2026-09/2026-09-14-gemini-staging-provider-request-error.md` |
-| `REV-2026-108` | `P2` | 지문 묶음이 위치로만 정해져, 가운데 문항을 지우면 무관한 문항이 흡수된다 | `issues/2026-09/2026-09-23-index-passage-group-positional.md` |
+| `REV-2026-108` | `P2` | 명시 소속 ① 검토 대기 · ② 구형 클라이언트 쓰기 차단 미구현 | `issues/2026-09/2026-09-23-index-passage-group-positional.md` |
 
 ⚠️ 이 표는 `npm run check:review-hygiene` 가 **실제 이슈 파일의 상태와 양방향으로**
 대조한다. 지난 요약을 지워도 안전한 이유가 이 대조다 — 남은 한 곳이 정확해야
@@ -24,8 +24,8 @@
 [계약](../docs/PRODUCT-UX-U0-CONTRACT.md) · [과제·결정표](../docs/PRODUCT-UX-U0-SCENARIOS.md) ·
 [시안](../docs/mockups/u0-flow.html). 계약 주장 5건을 코드로 확인했고 `REV-2026-108`을 재현했다.
 **D1 사용자 결정: 문항을 다른 권에 넣을 때 독립 사본/수정 연동을 선택 가능하게 한다.**
-**현재: B6·B7 운영 배포 완료(`686d9fb`·`4dd674f`). U1 1차 `11f1e12`(`HANDOFF-177`) · U1 2차 `a93e7e3`(`HANDOFF-180`, 후속 `b93c689` 로컬 재검토 결함 없음) 운영 배포 · U1 완료 대조 끝 → U1.5**.
-PR #14·#15 병합 완료. PR #16은 Sol medium 재검토 승인·REV-118 해결, 병합 뒤 REV-108 Sol high 구현. D3/C1~C3·D1 연동·사용자 관찰은 별도 대기.
+**현재: B6·B7 운영 배포 완료(`686d9fb`·`4dd674f`). U1 1차 `11f1e12`(`HANDOFF-177`) · U1 2차 `a93e7e3`(`HANDOFF-180`, 후속 `b93c689` 로컬 재검토 결함 없음) 운영 배포 · U1.5 세 PR 병합 → REV-108 ① 검토 대기**.
+U1.5 main `877a8e7`·운영 파일 225개 일치. HANDOFF-194 Claude Opus 검토 → ② Rules 게이트. 로그인 UI·D3/C1~C3·D1 연동·사용자 관찰은 대기.
 순서·게이트는 [통합 레일](../docs/DEV-TOKEN-ROADMAP.md), 지시문은 [RAIL-ORDERS](../docs/RAIL-ORDERS.md).
 **B3 운영 장애 `REV-2026-109` 해결**(운영 `e50636c` → 문구 정정 `6679676`, 편집·삭제·진짜 충돌 운영 검증).
 `REV-2026-111`은 **B4 운영 배포(`451e8ba`)·운영 확인으로 해결**(`HANDOFF-169`).
@@ -86,7 +86,9 @@ U0→B6에서 정규화/복원·AI 계약을 함께 다룬다. Rules의 `hasOnly
 
 ## 최근 검토
 
-[HANDOFF-2026-184](handoffs/2026-10/2026-10-04-index-u15-manual-link.md): U1.5 ⓑ `gpt-5.6-sol` / medium 재검토 **승인**(2026-10-19). REV-118 해결 · 정상 16/16·RED 17/17 · PR #16 병합 대기.
+[HANDOFF-2026-194](handoffs/2026-10/2026-10-19-index-passage-membership.md): REV-108 ① Sol high 구현·부모 검증, Claude Opus 검토 대기. ② 전 main 병합 보류.
+
+[HANDOFF-2026-184](handoffs/2026-10/2026-10-04-index-u15-manual-link.md): U1.5 ⓑ `gpt-5.6-sol` / medium 재검토 **승인**(2026-10-19). REV-118 해결 · 정상 16/16·RED 17/17 · PR #16 병합 `877a8e7`·파일 대조 완료.
 
 [HANDOFF-2026-180](handoffs/2026-10/2026-10-03-index-u1-start-thumbs.md): U1 2차 — 시작 두 길·불러오기 이름·쪽 축소판·글꼴 실패 표시.
 Codex 2회 + 후속 `b93c689` 재검토 결함 없음. **운영 배포 `a93e7e3`·로그인 확인 · U1 완료 기준 대조 끝.**
@@ -97,7 +99,6 @@ SonarCloud 출처 확인 반영. **운영 배포 `4dd674f`·로그인 확인(SW 
 [HANDOFF-2026-178](handoffs/2026-10/2026-10-03-index-b6-delete-fences.md): B6 116·117 해소(Codex 구현·Claude 검토),
 로그인 복구 부작용은 Claude 수정·Codex 검토. **B6 112~117 전부 해소·병합 완료.**
 
-[HANDOFF-2026-177](handoffs/2026-10/2026-10-03-index-u1-sheet-layout.md): U1 1차 · Codex 검토 2회·운영 배포 `11f1e12`.
 
 
 저장 구조 관련 HANDOFF-162 Q1/Q2는 레일 D1/U0에서 이어받으며 미결을 승인으로 바꾸지 않는다.

@@ -3,7 +3,7 @@
 - ID: `REV-2026-108`
 - 날짜: `2026-09-23`
 - 보고자: `Claude / Opus 5`
-- 상태: `open`
+- 상태: `in-progress`
 - 심각도: `P2`
 - 영향 영역: `index`
 - 관련 인계: `HANDOFF-2026-167`
@@ -123,3 +123,9 @@ if(span>1){
   문서·시안 범위이고 기능 구현이 금지돼 있다.
 - `2026-10-04` — `Codex / GPT-6 Astra high`(선행 판정 · 읽기 전용): 위 '선행 판정' 절. Claude 가 근거(정규화 화이트리스트·Rules 의 배열 미검사)를
   CLAUDE.md 기록과 대조해 확인. 상태는 `open` 그대로 — 구현(Sol high)·Rules 게이트 단계·Claude 검토가 남았다.
+
+- `2026-10-19` — Codex GPT-6 Sol / high 구현, 부모 Codex 통합 검증: **① 명시 소속·정규화·관계 변경·출력 방어 구현, Claude Opus 검토 대기**.
+  공통 API·옛/손상/AI 자료 검토 표식·실제 삭제/Undo/붙여넣기·권/충돌 사본 ID 재매핑을 반영했다.
+  `877a8e7` 원결함 RED(`[01~03]`)와 새 방어 제거 RED, 현재 실제 UI의 `[01~02]` 및 Q4 비소속을 확인했다.
+  상세 계약은 [REV108-PASSAGE-GROUPS](../../../docs/REV108-PASSAGE-GROUPS.md), 검사/미검증은 HANDOFF-2026-194에 있다.
+  **② 버전 표식·Rules 게이트는 미구현/미배포**이므로 상태는 `in-progress`이며 전체 해결로 닫지 않는다.
