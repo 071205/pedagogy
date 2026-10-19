@@ -3,7 +3,7 @@
 - ID: `HANDOFF-2026-194`
 - 날짜: `2026-10-19`
 - 작성자: `Codex GPT-6 Sol / high 구현 · 부모 Codex 통합 검증/인계`
-- 상태: `needs-follow-up` — Codex 대체 독립 검토에서 REV-131·132 재현, 승인 보류
+- 상태: `ready-for-review` — REV-131~133·D-a/b 구현자 검증 완료, Claude Opus 변경분 재검토 대기
 - 영향 영역: `index | tests | docs`
 - 관련 이슈: `REV-2026-108` (`in-progress`, ② 출시 게이트 미완료)
 - 브랜치: `codex/rev108-explicit-groups`
@@ -83,13 +83,39 @@ Rules·Worker·Pages 배포, 실제 AI 공급자 호출, 비밀정보 변경은 
 
 ## 다음 검토자에게
 
-REV-131·132 보완 후 같은 diff의 변경 경로와 원 재현을 독립 재검토한다. 사용자 요청에 따라 이번 검토는
-Claude 사용량 한도 대신 새로운 Codex 에이전트 2명이 수행했다. Claude Opus가 검토한 것으로 표시하지 않는다.
+REV-131~133·D-a/b 보완 변경분(`1a0fc50..PR #23 최신 head`)을 클라우드 Claude Opus가 독립 재검토한다. 최초 Codex 대체 검토의 131·132와
+Claude Opus 클라우드 1회차 검토의 133을 구분한다. 후속 수정은 아직 Claude가 승인하지 않았다.
 ① 승인과 ② 출시 게이트 완료를 구분하며 이 PR을 운영 완료로 병합하지 않는다.
+
+## 후속 구현과 검증 (2026-10-19 · Codex GPT-6 Sol / high)
+
+- `pedagogy-normalize.js`·`index.html`: 로컬 disk/B3 pending의 옛 관계를 원본 비교값·ID·본문/메타데이터를 보존하며 이관한다.
+  raw 관계 변경만으로 `legacy` 경고가 사라지지 않는다. 검증된 묶음의 복제·JSON 삽입은 끝 뒤로 옮긴다.
+- `pedagogy-render.js`·`index.html`: 정상 묶음 2→1 뒤 안내를 범위 없이 출력·편집한다.
+  미리보기 경고에서 구조가 유효한 `legacy`만 일괄 확인한다(목록·항목 빼기·취소·한 단계 Undo·owner/epoch/권/자료 stale 차단).
+  AI 공통지문에 구체적인 지문 블록 이동/묶음 풀기 안내와 한 단계 Undo 단추를 추가했다. 내용 자동 분리는 없다.
+- 각 정상 실제 DOM 6경로, 방어 제거 RED 6개, 원본 `1a0fc50` RED 6개가 `npm run test:rev108`에서 exit 0.
+  RED 변이를 건너뛰면 `target stayed green`으로 exit 1인 제어 검사를 확인했다.
+  기존 지면 회귀는 대표 복제로 손상을 만들던 부분을 명시 손상 주입으로 갱신해 방어 제거 RED를 유지했다.
+  로그: `/private/tmp/rev108-followup-2026-10-19/rev108-full-final.log`, `red-control.log`.
+- `regression-test.html` 175/175와 JSON/클라우드 경계, `test:intake` 전체 B6/B7 정상·RED,
+  `test:u15-storage`, `test:sets-cloud`, `test:set-revision`, `test:public` 통과.
+  부모의 로컬 보존 VM probe는 pending 우선·원본 disk 기준·opaque intake·무관한 metadata·601문항/장문 보존을 확인했다.
+  부모의 bulk UI probe 5건은 Escape/포커스 복귀·빼기/Undo·자료/epoch/owner stale 거부를 확인했다.
+  로그: 같은 폴더의 `parent-audit-final.log`, `parent-intake-final.log`, `parent-u15-storage.log`,
+  `parent-sets-cloud.log`, `parent-set-revision.log`, `parent-public.log`, `parent-local-preserve.log`, `parent-bulk-boundaries.log`.
+- 최종 `check:static`(접근성 35개 포함)·`check:review-hygiene`(열림 4·INDEX 118/120·최근 5/5)·`git diff --check` 통과.
+  로그: `parent-static.log`, `parent-hygiene.log`(같은 폴더).
+- CSP 인라인 SHA-256 재계산 후 `check-source-csp` 실패 주입 12/12 통과. 이슈 131·132·133은 구현자 재현 검사로
+  `resolved`; Claude 변경분 재검토는 대기다. **② 권 버전/Firestore Rules 게이트는 미구현·미배포**이며
+  병합/배포·실제 AI 호출·비밀 변경은 하지 않았다.
+
+미검증: 실제 Google 계정/Firestore 종단 왕복, Safari/iPad, ② Rules 에뮬레이터/운영 배포.
+`check:fast` 전체는 이번 후속 범위에서 실행하지 않았다. 선택한 연관 검사의 증거만 위에 기록한다.
 
 ## 검토 기록
 
-- `2026-10-19` · 구현/통합 검증 완료, 독립 검토 대기. Claude Opus 판정은 아직 없음.
+- `2026-10-19` · 최초 구현/통합 검증 시점: 독립 검토 대기(아래 후속 검토 기록 전).
 
 - `2026-10-19` · **Codex 독립 에이전트 2명 대체 검토**(사용자 승인, Claude 한도 대체) · 판정: **보완 필요**.
   정확 범위 `877a8e7..cd24e61`, 구현 불참 검토자가 저장/ID와 편집/출력을 나누어 읽기 전용 검토했다.
@@ -104,3 +130,8 @@ Claude 사용량 한도 대신 새로운 Codex 에이전트 2명이 수행했다
   합의: 신규 확정 2건, 승인 보류. 미합의: 없음. 다음 행동: 131·132 수정/회귀·RED → 독립 재검토; ② 게이트는 별도.
   재현/검토 로그: `/private/tmp/rev108-review-2026-10-19/`의 `parent-legacy.log`, `parent-print.log`, `issue-repro-check.log`, `results.md`.
   이번 후속 변경은 이슈/인계/레일 기록이며 기능 수정·병합·배포는 하지 않았다.
+
+- `2026-10-19` · **Claude Opus 클라우드 1회차 검토** · 판정: 보완 필요.
+  PR #23 댓글 `6257002399`에서 REV-131·132를 재확인하고 새 REV-133을 실제 UI에서 재현했다.
+  해리 결정 댓글 `6257030716`이 D-a·D-b를 같은 PR 범위로 추가했다. Codex는 위 후속 구현/검증을 완료했으며,
+  Claude Opus의 **변경분 재검토 판정은 아직 없다**. ②·병합/배포는 보류한다.

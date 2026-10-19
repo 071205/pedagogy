@@ -3,7 +3,7 @@
 - ID: `REV-2026-131`
 - 날짜: `2026-10-19`
 - 보고자: `Codex 독립 데이터 검토 에이전트 · 부모 재현 확인`
-- 상태: `confirmed`
+- 상태: `resolved`
 - 심각도: `P2`
 - 영향 영역: `index | tests`
 - 관련 인계: `HANDOFF-2026-194`
@@ -62,3 +62,11 @@ NODE
 
 - `2026-10-19` — 독립 Codex 검토자가 순수 함수와 실제 Chromium 부팅/삭제 단추로 재현.
   부모가 동일 head의 실제 UI probe를 재실행해 확인. 기능 수정 없음, PR 승인 보류.
+- `2026-10-19` — Codex GPT-6 Sol / high: `readLocalSets()`의 disk와 B3 pending 양쪽에서
+  옛 관계를 메모리 이관하고, 원본 disk 비교값·고유 ID·본문·권/문항의 무관한 필드를 보존했다.
+  `syncGroupSpans()`는 raw 옛 활성 범위를 무관한 관계 변경만으로 지우지 않는다.
+  실제 DOM에서 로컬 로드→P2 삭제 뒤 `legacy`·진단·인쇄 차단과 무관한 Q4 변경을 확인했다.
+  `test:rev108` 정상/해당 RED 및 원본 `1a0fc50` RED가 모두 통과했고 부모의
+  disk/pending·opaque intake·장문/601문항 보존 VM 검사도 통과
+  (`/private/tmp/rev108-followup-2026-10-19/parent-local-preserve.log`).
+  B6/B7 `test:intake` 전체와 U1.5 저장 회귀·B3 크기/CAS 회귀도 통과했다. Claude 독립 재검토는 아직이다.

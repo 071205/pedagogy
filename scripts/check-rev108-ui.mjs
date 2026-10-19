@@ -121,7 +121,11 @@ try{
   });
   await page.waitForFunction(()=>document.querySelector('#sheetState')?.dataset.s==='ok',{timeout:15000});
   phase='sheet';
-  await click('a','이 문항 복제');
+  await page.evaluate(()=>{
+    const arr=activeProblems();
+    arr.splice(1,0,detachedProblem(arr[0]));
+    saveSets();renderPreview();
+  });
   await page.waitForFunction(()=>document.querySelector('#sheetState')?.dataset.s==='fail',{timeout:15000});
   const stale=await page.evaluate(()=>({pages:document.querySelectorAll('#sheetStage .page').length,
     thumbs:document.querySelectorAll('#sheetThumbs .sheet-thumb').length,

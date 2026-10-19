@@ -345,10 +345,10 @@ function tableHTML(data, cls){
    ⚠️ 겉모습은 psg-head 를 그대로 쓴다. 따로 만들면 같은 문서 안에서 두 안내 줄이
       다르게 보이고, 나중에 한쪽만 고쳐 갈라진다. */
 function groupHeadHTML(q, range){
-  if(!range) return "";
   if((q&&q.blocks||[]).some(b=>b&&b.type==="passage")) return "";
   const lead=str(q&&q.groupLead,200);
-  return `<div class="grp-head psg-head">[${sanitize(range)}] ${sanitize(lead)}</div>`;
+  if(!lead.trim()) return "";
+  return `<div class="grp-head psg-head">${range?`[${sanitize(range)}] `:""}${sanitize(lead)}</div>`;
 }
 
 function blockHTML(blk, ctx){

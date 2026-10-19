@@ -3,7 +3,7 @@
 - ID: `REV-2026-132`
 - 날짜: `2026-10-19`
 - 보고자: `Codex 독립 편집·출력 검토 에이전트 · 부모 재현 확인`
-- 상태: `confirmed`
+- 상태: `resolved`
 - 심각도: `P2`
 - 영향 영역: `index | tests`
 - 관련 인계: `HANDOFF-2026-194`
@@ -58,3 +58,10 @@ NODE
 
 - `2026-10-19` — 독립 Codex 검토자가 실제 Chromium 삭제 단추로 재현.
   부모가 동일 head에서 probe를 재실행해 미리보기/실제 조판의 안내 누락과 진단 부재를 확인. 기능 수정 없음, PR 승인 보류.
+- `2026-10-19` — Codex GPT-6 Sol / high: 범위가 없는 1문항에서도 비어 있지 않은
+  `groupLead`를 `groupHeadHTML()`이 표시하고, 편집 칸도 유지한다. 지문 블록이 있으면 안내를
+  중복 렌더하지 않는다. 실제 DOM에서 정상 2→1 삭제와 명시적 1문항 전환 뒤
+  미리보기·`buildPrintDoc()` 출력·편집 가능성을 확인했다. `test:rev108` 정상,
+  안내 렌더 방어 제거 RED 및 `1a0fc50` 원본 RED가 통과했다. 기존 `regression-test.html`
+  기대를 1문항 안내 계약으로 갱신했고 부모 재실행 175/175 통과
+  (`/private/tmp/rev108-followup-2026-10-19/parent-audit-final.log`). Claude 독립 재검토는 아직이다.

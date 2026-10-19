@@ -25,7 +25,7 @@
      어렵다 — 새 로그인만 깨진다). 실제로 한 번 그랬으니 손대지 말 것. -->
 <meta http-equiv="Content-Security-Policy" content="
   default-src 'self';
-  script-src 'self' 'wasm-unsafe-eval' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-44d3d9IHbRzPx7ulLljzDyDeQpq14x6B5yIfsDMQ+Lk=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
+  script-src 'self' 'wasm-unsafe-eval' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-8dW0HtxWAiXqhL5EXe25x4Zr4YeVgvrrsh4wFJtzFgM=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
   script-src-attr 'none';
   style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
   font-src 'self' data: https://cdn.jsdelivr.net;
@@ -2250,6 +2250,7 @@ function setEditorActions(on){
                  placeholder="지문이 없을 때 쓸 안내 — 예) 다음을 듣고, 물음에 답하시오.">
         </div>
         <div id="groupHint" style="font-size:11.5px;color:var(--text-tertiary);margin-top:5px"></div>
+        <button id="groupUnlinkBtn" type="button" class="btn" hidden>묶음 풀기</button>
       </div>
       <!-- 지면 배치 — 이 문항이 인쇄물에서 차지하는 크기 -->
       <div>
@@ -2609,6 +2610,16 @@ function setEditorActions(on){
   </form>
 </dialog>
 <dialog id="conflictDialog" class="library-dialog conflict-dialog" aria-labelledby="conflictTitle"></dialog>
+<dialog id="legacyReviewDialog" class="library-dialog conflict-dialog" aria-labelledby="legacyReviewTitle">
+  <h3 id="legacyReviewTitle">옛 묶음 확인</h3>
+  <p>범위와 지문을 확인하고, 이번에 확정하지 않을 묶음은 빼세요.</p>
+  <div id="legacyReviewList"></div>
+  <p id="legacyReviewStatus" role="status" aria-live="polite"></p>
+  <div class="library-dialog-actions">
+    <button id="legacyReviewCancel" type="button">취소</button>
+    <button id="legacyReviewConfirm" type="button" class="btn-accent">모두 이대로 확정</button>
+  </div>
+</dialog>
 <dialog id="folderMoveDialog" class="library-dialog" aria-labelledby="folderMoveTitle">
   <form id="folderMoveForm">
     <h3 id="folderMoveTitle">폴더로 이동</h3>
@@ -2653,7 +2664,7 @@ if(!window.PedagogyNormalize)
   throw new Error("pedagogy-normalize.js 를 불러오지 못했습니다 — 정규화 없이는 그릴 수 없습니다");
 const {uid, sanitize, safeUrl, str, normOrder,
        normSubject, normSheetColor, normBlock, normProblem, normSet, normGroupProblems, groupDiagnostics,
-       setGroupSpan, removeGroupedProblem, detachedProblem, normLibMeta,
+       setGroupSpan, removeGroupedProblem, detachedProblem, insertionIndexAfterGroup, confirmableLegacyGroups, normLibMeta,
        resetNormDropped,
        BLOCK_TYPES, SUBJECTS, SUBJECT_DEFAULT, PASSAGE_KINDS, NOTICE_KINDS,
        CHOICE_LAYOUTS, PAIR_HEADS, pairedItemText, IMG_SIZES, SET_NAME_MAX, SHEET_COLORS, SHEET_COLOR_DEFAULT,
@@ -3385,7 +3396,20 @@ function readLocalSets(){
     const raw=pending || disk;
     const v=raw?JSON.parse(raw):[];
     clearWarn("readLocal");
-    return v;
+    /* Local disk and the B3 pending copy are both raw JSON. Restore relationship
+       evidence in memory without normalizing away unrelated or future fields. */
+    return Array.isArray(v)?v.map(s=>{
+      if(!s||!Array.isArray(s.problems)||s.problems.some(p=>!p||typeof p!=="object"))return s;
+      const grouped=normGroupProblems(s.problems,{keepId:true,lossless:true});
+      return {...s,problems:s.problems.map((p,i)=>{
+        const q=grouped[i];if(!q||!p||typeof p!=="object")return p;
+        const out={...p,id:q.id};
+        if(Object.hasOwn(p,"groupSpan")||q.groupOf||q.groupReview)out.groupSpan=q.groupSpan;
+        if(q.groupOf)out.groupOf=q.groupOf;else delete out.groupOf;
+        if(q.groupReview)out.groupReview=q.groupReview;else delete out.groupReview;
+        return out;
+      })};
+    }):v;
   }catch(e){
     console.error("로컬 데이터를 읽지 못했습니다", e);
     /* 여기서 빈 배열을 돌려주면 화면엔 '아직 문제집이 없어요' 가 뜬다. 실제로는
@@ -7482,10 +7506,10 @@ function renderQList(){
         const cp=detachedProblem(q);
         if(!cp){ toast("공유 지문 구성원은 대표와 함께 복제해야 해요 · 묶음을 풀거나 권을 복제해 주세요","error"); return; }
         setPair(cp,false);
-        // 복제본을 원본 바로 뒤에 삽입. 원본이 묶여있었다면 경계가 깨지지 않게 독립 처리
+        // 검증된 묶음 안쪽이라면 복제본은 마지막 구성원 뒤에 둔다.
         historyStep(()=>{
           if(arr[fi].paired) setPair(arr[fi],false);
-          arr.splice(fi+1,0,cp); currentQId=cp.id; saveSets();
+          arr.splice(insertionIndexAfterGroup(arr,fi+1),0,cp); currentQId=cp.id; saveSets();
         });
         renderQList(); renderEditor(); renderPreview(); syncPairedChk();
         if(groupDiagnostics(arr).length) toast(groupIssueText(arr),"error");
@@ -7727,8 +7751,12 @@ function renderEditor(){
     }
     const hasPsg=(q.blocks||[]).some(b=>b&&b.type==="passage");
     const leadIn=$("#qGroupLead");
-    leadIn.style.display=(span>1 && !hasPsg)?"":"none";
+    leadIn.style.display=(!hasPsg && (span>1||!!q.groupLead))?"":"none";
+    const missingLead=groupDiagnostics(activeProblems()).some(x=>x.id===q.id&&x.reason==="대표 지문·안내 없음");
+    const intakeMissing=!member&&!hasPsg&&!String(q.groupLead||"").trim()&&(q.groupReview==="intake"||missingLead);
+    $("#groupUnlinkBtn").hidden=!intakeMissing;
     $("#groupHint").textContent = orphan ? "대표 문항을 찾지 못했어요. 이 문항만 또는 새 묶음으로 명시 재구성해 주세요."
+      : intakeMissing ? "AI가 지문을 첫 문항 본문에 넣었어요. 지문 부분을 '지문' 블록으로 옮긴 뒤 문항 수를 다시 고르거나, 묶음을 풀면(1) 바로 인쇄할 수 있어요."
       : !member&&q.groupReview ? "묶음 관계를 검토한 뒤 문항 수를 다시 선택해 주세요. 같은 수를 선택해도 명시 확인됩니다."
       : member ? "이 문항은 앞 문항의 지문 묶음 구성원입니다. 대표 문항에서 소속을 바꿔 주세요." : span<=1
       ? "여러 문항이 지문이나 안내를 함께 쓸 때 묶습니다."
@@ -7741,6 +7769,14 @@ function renderEditor(){
     const arr=activeProblems(), n=parseInt(e.target.value,10)||1;
     if(!setGroupSpan(arr,q.id,n)){ toast("다른 묶음과 겹치거나 남은 문항보다 길어요 · 소속을 확인해 주세요","error"); syncGroupUI(); return; }
     syncGroupUI(); renderQList(); renderPreview(); saveSets();
+  };
+  const groupEditSession=sessionContext(),groupEditSet=activeSet();
+  $("#groupUnlinkBtn").onclick=()=>{
+    if(!sessionMatches(groupEditSession)||activeSet()!==groupEditSet||activeQ()!==q
+      ||intakeSetReadOnly(groupEditSet)||!intakeWriteAllowed())return;
+    const arr=groupEditSet.problems;
+    historyStep(()=>{if(setGroupSpan(arr,q.id,1))saveSets();});
+    renderEditor();renderQList();renderPreview();
   };
   $("#qGroupLead").value=q.groupLead||"";
   $("#qGroupLead").oninput=e=>{ q.groupLead=e.target.value; renderPreview(); saveSets(); };
@@ -8640,9 +8676,56 @@ function groupIssueText(arr){
 }
 function groupIssueBanner(arr){
   const issues=groupDiagnostics(arr);
+  const legacyCount=confirmableLegacyGroups(arr).length;
   return issues.length ? `<div role="alert" style="padding:8px;color:#9b1c1c;background:#fff1f1;font-size:13px">
     지문 묶음 확인 필요 · ${issues.map(x=>`${x.index+1}번 ${sanitize(x.reason)}`).join(" · ")}
-    · 관계를 확인하기 전에는 인쇄할 수 없습니다.</div>` : "";
+    · 관계를 확인하기 전에는 인쇄할 수 없습니다.
+    ${legacyCount?`<button id="legacyBulkReview" type="button">옛 묶음 ${legacyCount}개 확인하기</button>`:""}</div>` : "";
+}
+function openLegacyReview(){
+  const s=activeSet(),arr=s?.problems;
+  if(!arr||intakeSetReadOnly(s))return;
+  const groups=confirmableLegacyGroups(arr);
+  if(!groups.length)return;
+  const session=sessionContext(), owner=intakeOwner(), setId=s.id, source=JSON.stringify(s);
+  const dialog=$("#legacyReviewDialog"),list=$("#legacyReviewList"),status=$("#legacyReviewStatus");
+  list.replaceChildren();status.textContent="";
+  const selected=new Set(groups.map(g=>g.leaderId));
+  for(const g of groups){
+    const q=arr[g.indexes[0]],start=g.indexes[0],end=g.indexes.at(-1);
+    const nums=computeNums(arr);
+    const range=`[${nums[start].num}${start===end?"":"~"+nums[end].num}]`;
+    const passage=(q.blocks||[]).find(b=>b.type==="passage");
+    const first=String(passage?.data?.parts?.[0]?.text||q.groupLead||"").split(/\r?\n/)[0].slice(0,30);
+    const row=el("div","conflict-choice");
+    const summary=el("span",null,`${range} ${first} · ${g.indexes.length}문항`);
+    const toggle=el("button",null,"빼기");toggle.type="button";
+    toggle.setAttribute("aria-pressed","false");
+    toggle.onclick=()=>{
+      if(selected.delete(g.leaderId)){toggle.textContent="다시 넣기";toggle.setAttribute("aria-pressed","true");}
+      else{selected.add(g.leaderId);toggle.textContent="빼기";toggle.setAttribute("aria-pressed","false");}
+      $("#legacyReviewConfirm").disabled=!selected.size;
+    };
+    row.append(summary,toggle);list.append(row);
+  }
+  $("#legacyReviewConfirm").disabled=false;
+  $("#legacyReviewCancel").onclick=()=>dialog.close();
+  $("#legacyReviewConfirm").onclick=()=>{
+    if(!sessionMatches(session)||intakeOwner()!==owner||currentSetId!==setId||activeSet()!==s
+      ||JSON.stringify(s)!==source||intakeSetReadOnly(s)||!intakeWriteAllowed()){
+      status.textContent="자료 또는 계정이 바뀌었어요. 창을 닫고 다시 확인해 주세요.";return;
+    }
+    const copy=structuredClone(s.problems);
+    for(const g of groups.filter(x=>selected.has(x.leaderId)))
+      if(!setGroupSpan(copy,g.leaderId,g.indexes.length)){
+        status.textContent="묶음 관계가 달라졌어요. 다시 확인해 주세요.";return;
+      }
+    const remaining=confirmableLegacyGroups(copy).filter(x=>selected.has(x.leaderId));
+    if(remaining.length){status.textContent="묶음을 확정하지 못했어요. 다시 확인해 주세요.";return;}
+    historyStep(()=>{s.problems=copy;saveSets(setId);});
+    dialog.close();renderQList();renderEditor();renderPreview();
+  };
+  dialog.showModal();
 }
 function renderPreview(){
   if(typeof scheduleSheet==="function"&&editorMode==="sheet") scheduleSheet();
@@ -8660,6 +8743,7 @@ function renderPreview(){
   const subject=normSubject(activeSet()&&activeSet().subject);
   const html=`${groupIssueBanner(activeProblems())}${groupHeadHTML(q,pvRange)}${q.blocks.map(b=>blockHTML(b,{range:pvRange,subject})).join("")}${ansHtml}`;
   $("#pvContent").innerHTML = html;
+  $("#legacyBulkReview")?.addEventListener("click",openLegacyReview);
   try{
     renderMathInElement($("#pvContent"),{
       delimiters:[{left:"$$",right:"$$",display:true},{left:"\\[",right:"\\]",display:true},{left:"$",right:"$",display:true}],
@@ -9084,7 +9168,7 @@ $("#loadInput").onchange=e=>{ const f=e.target.files?.[0]; if(!f) return;
   // 현재 선택 문제 바로 뒤에 삽입 (없으면 맨 끝)
   const arr=s.problems;
   let at=arr.findIndex(x=>x.id===currentQId);
-  at = at<0 ? arr.length : at+1;
+  at = at<0 ? arr.length : insertionIndexAfterGroup(arr,at+1);
   // 삽입 지점 직전 문제가 paired면, 경계가 깨지지 않게 그대로 두되
   // 삽입으로 인해 직전 문제의 짝이 바뀌는 것을 막기 위해 직전 문제 독립 처리
   historyStep(()=>{

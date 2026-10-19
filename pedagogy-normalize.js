@@ -466,7 +466,10 @@ function syncGroupSpans(arr){
   arr.forEach(q=>{if(q?.groupOf) groups.set(q.groupOf,(groups.get(q.groupOf)||0)+1);});
   arr.forEach(q=>{
     if(!q) return;
-    q.groupSpan=q.groupOf===q.id ? Math.min(10,groups.get(q.id)||1) : 1;
+    if(q.groupOf) q.groupSpan=q.groupOf===q.id ? Math.min(10,groups.get(q.id)||1) : 1;
+    else if(q.groupSpan>1 && ((q.blocks||[]).some(b=>b?.type==="passage")||String(q.groupLead||"").trim()))
+      q.groupReview=q.groupReview||"legacy";
+    else q.groupSpan=1;
   });
 }
 function setGroupSpan(arr,leaderId,count){
@@ -477,12 +480,13 @@ function setGroupSpan(arr,leaderId,count){
   if(lead.groupOf&&lead.groupOf!==leaderId&&oldLeader) return false;
   for(let j=i+1;j<i+n;j++)
     if(arr[j].groupOf&&arr[j].groupOf!==leaderId) return false;
-  arr.forEach(q=>{if(q?.groupOf===leaderId){delete q.groupOf;delete q.groupReview;}});
+  arr.forEach(q=>{if(q?.groupOf===leaderId){delete q.groupOf;delete q.groupReview;q.groupSpan=1;}});
   if(lead.groupOf&&lead.groupOf!==leaderId) delete lead.groupOf;
   if(n>1){
     for(let j=i;j<i+n;j++) arr[j].groupOf=leaderId;
   }
   delete lead.groupReview;
+  lead.groupSpan=1;
   syncGroupSpans(arr);
   return true;
 }
@@ -521,6 +525,27 @@ function detachedProblem(q,newId=uid()){
   copy.id=newId;copy.groupSpan=1;
   delete copy.groupOf;delete copy.groupReview;
   return copy;
+}
+/* An insertion requested after a problem must not split a verified group. Invalid
+   and legacy relations remain untouched so their diagnostic evidence is retained. */
+function insertionIndexAfterGroup(arr,afterIndex){
+  const at=Math.max(0,Math.min(arr.length,Math.floor(Number(afterIndex))||0));
+  if(at===0||at===arr.length)return at;
+  const left=arr[at-1],right=arr[at];
+  if(!left?.groupOf||left.groupOf!==right?.groupOf)return at;
+  const indexes=validGroups(arr).groups.get(left.groupOf);
+  return indexes?.includes(at-1)&&indexes.includes(at) ? indexes[indexes.length-1]+1 : at;
+}
+/* A legacy review flag alone may be cleared in bulk. Structural faults and AI
+   intake reviews must stay visible until the user repairs them individually. */
+function confirmableLegacyGroups(arr){
+  const candidates=arr.filter(q=>q?.groupReview==="legacy"&&q.groupOf===q.id);
+  const withoutLegacy=arr.map(q=>q?.groupReview==="legacy"?{...q,groupReview:undefined}:q);
+  const {groups}=validGroups(withoutLegacy);
+  return candidates.flatMap(q=>{
+    const indexes=groups.get(q.id);
+    return indexes&&indexes[0]===arr.indexOf(q)?[{leaderId:q.id,indexes}]:[];
+  });
 }
 function normSet(s, opts){
   if(!s||typeof s!=="object"||!Array.isArray(s.problems)) return null;
@@ -583,7 +608,7 @@ const normOrder = v => Math.max(0, Math.floor(Number(v)||0));
 global.PedagogyNormalize = Object.freeze({
   uid, sanitize, safeUrl, str, normOrder,
   normSubject, normSheetColor, normBlock, normProblem, normSet, normGroupProblems, groupDiagnostics, validGroups,
-  syncGroupSpans, setGroupSpan, removeGroupedProblem, moveWholeGroup, detachedProblem, normLibMeta, normIntake, preserveIntake, intakeNeedsUpdate,
+  syncGroupSpans, setGroupSpan, removeGroupedProblem, moveWholeGroup, detachedProblem, insertionIndexAfterGroup, confirmableLegacyGroups, normLibMeta, normIntake, preserveIntake, intakeNeedsUpdate,
   resetNormDropped,
   /* 진단 집계는 값이 아니라 함수로 낸다 — 숫자를 내보내면 호출한 쪽이 그 시점의
      사본을 들고 있게 되어 `resetNormDropped()` 뒤에도 옛 값을 본다. */
