@@ -1,7 +1,8 @@
 # REV-108 ① — 지문 묶음의 명시 소속
 
 기준: `877a8e7`, 선행 판정: `0cc9945`와 [REV-108](../reviews/issues/2026-09/2026-09-23-index-passage-group-positional.md).
-구현은 [HANDOFF-194](../reviews/handoffs/2026-10/2026-10-19-index-passage-membership.md)에서 Claude Opus 독립 검토를 기다린다.
+[HANDOFF-194](../reviews/handoffs/2026-10/2026-10-19-index-passage-membership.md)는 Codex 대체 독립 검토에서 **보완 필요** 판정이다.
+아래 계약 중 옛 로컬 자료의 검토 상태 보존(REV-131)과 2→1문항 안내 출력 보존(REV-132)은 현재 충족하지 못한다.
 
 ## 저장과 진단
 
