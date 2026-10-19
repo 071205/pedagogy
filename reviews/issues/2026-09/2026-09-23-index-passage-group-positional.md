@@ -138,3 +138,7 @@ if(span>1){
   Codex GPT-6 Sol / high가 다섯 항목을 구현하고 각 실제 DOM 정상·RED 및 `1a0fc50` 원본 RED를 확인했다.
   131~133은 각각 이슈 파일에서 `resolved` 처리했으나 **① Claude 변경분 재검토와 ② 권 버전/Rules 게이트가 남아**
   REV-108 전체 상태는 `in-progress`다. 병합·배포하지 않는다. HANDOFF-194 참조.
+- `2026-10-19` — Claude Opus 2회차(`1a0fc50..c2dba2b`)가 131·132·정상 묶음 133·D-a/b를 확인하고,
+  REV-133의 옛 `legacy` 묶음 삽입 누락과 새 REV-134(P3, 독립 문항의 숨은 안내 출력)를 재현했다.
+  Codex가 두 결함을 수정해 실제 UI 정상·방어 제거 RED·`c2dba2b` 기준 RED를 확인했다.
+  이 두 변경분의 Claude 독립 재검토와 ② 권 버전/Rules 게이트가 남아 `in-progress`를 유지한다.

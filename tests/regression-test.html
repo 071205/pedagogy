@@ -1261,8 +1261,8 @@ async function runIndexTests(){
     host.innerHTML = `<div class="content">`
       + win.blockHTML(win.normBlock(dlg), {subject:"korean"})
       + win.blockHTML(win.normBlock(dlg), {subject:"english"})
-      + win.groupHeadHTML(win.normProblem({groupSpan:2, groupLead:"안내",
-          blocks:[{type:"choices", data:{items:["a"]}}]}, false), "01~02")
+      + win.groupHeadHTML(win.normProblem({id:"font-guide",groupOf:"font-guide",groupSpan:2, groupLead:"안내",
+          blocks:[{type:"choices", data:{items:["a"]}}]}, {keepId:true}), "01~02")
       + `</div>`;
     doc.body.appendChild(host);
     try{
@@ -1291,17 +1291,18 @@ async function runIndexTests(){
        (16~17 듣기 · 31~34 빈칸 · 36~37 순서 · 38~39 삽입).
        국어에는 없다 — 실물의 모든 안내 뒤에 지문이 온다. 그래서 과목을 가르지 않았다.
        ⚠️ 지문이 있으면 지문 블록이 이미 psg-head 로 그린다. 여기서 또 그리면 두 번 나온다. */
-    const noPsg = win.normProblem({groupSpan:2, groupLead:"다음을 듣고, 물음에 답하시오.",
-      blocks:[{type:"choices", data:{items:["a"]}}]}, false);
-    const withPsg = win.normProblem({groupSpan:2, groupLead:"이것은 무시되어야 한다",
-      blocks:[{type:"passage", data:{parts:[{text:"x"}]}}]}, false);
+    const noPsg = win.normProblem({id:"guide",groupOf:"guide",groupSpan:2, groupLead:"다음을 듣고, 물음에 답하시오.",
+      blocks:[{type:"choices", data:{items:["a"]}}]}, {keepId:true});
+    const withPsg = win.normProblem({id:"passage",groupOf:"passage",groupSpan:2, groupLead:"이것은 무시되어야 한다",
+      blocks:[{type:"passage", data:{parts:[{text:"x"}]}}]}, {keepId:true});
     const a = win.groupHeadHTML(noPsg, "16~17");
     const b = win.groupHeadHTML(withPsg, "36~37");
-    /* 2→1 삭제 뒤에도 남은 문항의 안내는 범위 없이 표시한다. */
+    /* 2→1 삭제 뒤 남은 대표의 안내는 범위 없이 표시한다. */
     const singleton = win.groupHeadHTML(noPsg, "");
+    const inactive = win.groupHeadHTML(win.normProblem({id:"old",groupLead:"옛 안내"}, false), "");
     return { pass: a.includes("grp-head") && a.includes("[16~17]") && a.includes("다음을 듣고")
                    && b==="" && singleton.includes("grp-head")
-                   && singleton.includes("다음을 듣고") && !singleton.includes("["),
+                   && singleton.includes("다음을 듣고") && !singleton.includes("[") && inactive==="",
              note: b==="" ? undefined : "지문이 있는데도 안내를 또 그림" };
   });
 
@@ -1320,8 +1321,9 @@ async function runIndexTests(){
   });
 
   await check(G, "묶음 안내가 정규화를 통과해 보존되고 태그는 이스케이프된다", () => {
-    const p = win.normProblem({groupSpan:2, groupLead:'<img src=x onerror=alert(1)> 안내',
-      blocks:[{type:"choices", data:{items:["a"]}}]}, false);
+    const p = win.normProblem({id:"safe-guide",groupOf:"safe-guide",groupSpan:2,
+      groupLead:'<img src=x onerror=alert(1)> 안내',
+      blocks:[{type:"choices", data:{items:["a"]}}]}, {keepId:true});
     const html = win.groupHeadHTML(p, "01~02");
     /* 묶음 안내만 적어 둔 문항도 '내용 있음' 이어야 한다 — 아니면 병합에서 빠져 사라진다. */
     const counted = win.setHasContent({name:"새 문제집", problems:[

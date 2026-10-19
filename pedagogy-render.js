@@ -347,7 +347,7 @@ function tableHTML(data, cls){
 function groupHeadHTML(q, range){
   if((q&&q.blocks||[]).some(b=>b&&b.type==="passage")) return "";
   const lead=str(q&&q.groupLead,200);
-  if(!lead.trim()) return "";
+  if(!q?.groupOf||q.groupOf!==q.id||!lead.trim()) return "";
   return `<div class="grp-head psg-head">${range?`[${sanitize(range)}] `:""}${sanitize(lead)}</div>`;
 }
 

@@ -526,14 +526,16 @@ function detachedProblem(q,newId=uid()){
   delete copy.groupOf;delete copy.groupReview;
   return copy;
 }
-/* An insertion requested after a problem must not split a verified group. Invalid
-   and legacy relations remain untouched so their diagnostic evidence is retained. */
+/* Keep a structurally valid explicit or legacy group contiguous when the app
+   chooses an insertion point. The new problem stays independent, while legacy
+   review evidence remains. Invalid and intake groups keep their diagnostic state. */
 function insertionIndexAfterGroup(arr,afterIndex){
   const at=Math.max(0,Math.min(arr.length,Math.floor(Number(afterIndex))||0));
   if(at===0||at===arr.length)return at;
   const left=arr[at-1],right=arr[at];
   if(!left?.groupOf||left.groupOf!==right?.groupOf)return at;
-  const indexes=validGroups(arr).groups.get(left.groupOf);
+  const indexes=validGroups(arr).groups.get(left.groupOf)
+    ||confirmableLegacyGroups(arr).find(g=>g.leaderId===left.groupOf)?.indexes;
   return indexes?.includes(at-1)&&indexes.includes(at) ? indexes[indexes.length-1]+1 : at;
 }
 /* A legacy review flag alone may be cleared in bulk. Structural faults and AI

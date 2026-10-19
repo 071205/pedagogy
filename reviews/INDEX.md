@@ -12,7 +12,7 @@
 | `REV-2026-074` | `P2` | macOS 폴더 아이콘 파일이 새 Git 폴더에서 재발해 refs를 오염시킨다 | `issues/2026-09/2026-09-09-rules-macos-icon-files-corrupt-git-refs.md` |
 | `REV-2026-075` | `P2` | AI 문서에 들어갔다 나오면 로그인이 안 된다(재현 절차 없음) | `issues/2026-09/2026-09-09-document-editor-login-after-return.md` |
 | `REV-2026-093` | `P2` | staging Gemini가 결제 전제 미충족(`FAILED_PRECONDITION`)으로 실패한다 | `issues/2026-09/2026-09-14-gemini-staging-provider-request-error.md` |
-| `REV-2026-108` | `P2` | 명시 소속 ① 131~133·D-a/b 수정 후 Claude 재검토 대기 · ② 쓰기 게이트 미구현 | `issues/2026-09/2026-09-23-index-passage-group-positional.md` |
+| `REV-2026-108` | `P2` | ① 2회차 지적 133·134 수정 후 Claude 좁은 재검토 대기 · ② 쓰기 게이트 미구현 | `issues/2026-09/2026-09-23-index-passage-group-positional.md` |
 
 ⚠️ 이 표는 `npm run check:review-hygiene` 가 **실제 이슈 파일의 상태와 양방향으로**
 대조한다. 지난 요약을 지워도 안전한 이유가 이 대조다 — 남은 한 곳이 정확해야
@@ -24,7 +24,7 @@
 [계약](../docs/PRODUCT-UX-U0-CONTRACT.md) · [과제·결정표](../docs/PRODUCT-UX-U0-SCENARIOS.md) ·
 [시안](../docs/mockups/u0-flow.html). 계약 주장 5건을 코드로 확인했고 `REV-2026-108`을 재현했다.
 **D1 사용자 결정: 문항을 다른 권에 넣을 때 독립 사본/수정 연동을 선택 가능하게 한다.**
-**현재: B6·B7·U1 운영 배포, U1.5 세 PR 병합. REV-108 ① 후속 131~133·D-a/b 구현/검증, Claude Opus 변경분 재검토 대기.**
+**현재: B6·B7·U1 운영 배포, U1.5 세 PR 병합. REV-108 ① Claude Opus 2회차 지적 133·134 수정/검증, 좁은 변경분 재검토 대기.**
 U1.5 main `877a8e7`·운영 파일 225개 일치. ② 권 버전/Rules 게이트는 미구현·미배포. PR #23 병합/배포 보류. 로그인 UI·D3/C1~C3·D1 연동·사용자 관찰은 대기.
 순서·게이트는 [통합 레일](../docs/DEV-TOKEN-ROADMAP.md), 지시문은 [RAIL-ORDERS](../docs/RAIL-ORDERS.md).
 **B3 운영 장애 `REV-2026-109` 해결**(운영 `e50636c` → 문구 정정 `6679676`, 편집·삭제·진짜 충돌 운영 검증).
@@ -86,7 +86,7 @@ U0→B6에서 정규화/복원·AI 계약을 함께 다룬다. Rules의 `hasOnly
 
 ## 최근 검토
 
-[HANDOFF-2026-194](handoffs/2026-10/2026-10-19-index-passage-membership.md): Codex 검토 131·132 및 Claude Opus 133 확인 후 다섯 항목 수정·회귀/RED. Claude 변경분 재검토·② 전 main 병합 보류.
+[HANDOFF-2026-194](handoffs/2026-10/2026-10-19-index-passage-membership.md): Claude Opus 2회차 131·132·정상 133·D-a/b 확인, 옛 묶음 133·134 재현. 두 건 수정·회귀/RED, 좁은 재검토·② 전 main 병합 보류.
 
 [HANDOFF-2026-184](handoffs/2026-10/2026-10-04-index-u15-manual-link.md): U1.5 ⓑ `gpt-5.6-sol` / medium 재검토 **승인**(2026-10-19). REV-118 해결 · 정상 16/16·RED 17/17 · PR #16 병합 `877a8e7`·파일 대조 완료.
 

@@ -3,7 +3,7 @@
 - ID: `HANDOFF-2026-194`
 - 날짜: `2026-10-19`
 - 작성자: `Codex GPT-6 Sol / high 구현 · 부모 Codex 통합 검증/인계`
-- 상태: `ready-for-review` — REV-131~133·D-a/b 구현자 검증 완료, Claude Opus 변경분 재검토 대기
+- 상태: `ready-for-review` — REV-131~134·D-a/b 구현자 검증 완료, Claude Opus 2회차 지적 변경분 재검토 대기
 - 영향 영역: `index | tests | docs`
 - 관련 이슈: `REV-2026-108` (`in-progress`, ② 출시 게이트 미완료)
 - 브랜치: `codex/rev108-explicit-groups`
@@ -83,8 +83,9 @@ Rules·Worker·Pages 배포, 실제 AI 공급자 호출, 비밀정보 변경은 
 
 ## 다음 검토자에게
 
-REV-131~133·D-a/b 보완 변경분(`1a0fc50..PR #23 최신 head`)을 클라우드 Claude Opus가 독립 재검토한다. 최초 Codex 대체 검토의 131·132와
-Claude Opus 클라우드 1회차 검토의 133을 구분한다. 후속 수정은 아직 Claude가 승인하지 않았다.
+Claude Opus 2회차 지적의 **REV-133 옛 묶음 보완·REV-134 옛 안내 숨김**만
+`c2dba2b..PR #23 새 head`로 좁혀 독립 재검토한다. 2회차는 131·132·정상 묶음 133·D-a/b를 확인했지만,
+이번 후속 수정은 아직 Claude가 승인하지 않았다.
 ① 승인과 ② 출시 게이트 완료를 구분하며 이 PR을 운영 완료로 병합하지 않는다.
 
 ## 후속 구현과 검증 (2026-10-19 · Codex GPT-6 Sol / high)
@@ -113,6 +114,27 @@ Claude Opus 클라우드 1회차 검토의 133을 구분한다. 후속 수정은
 미검증: 실제 Google 계정/Firestore 종단 왕복, Safari/iPad, ② Rules 에뮬레이터/운영 배포.
 `check:fast` 전체는 이번 후속 범위에서 실행하지 않았다. 선택한 연관 검사의 증거만 위에 기록한다.
 
+## 2회차 지적 후속 보완 (2026-10-19 · Codex GPT-6 Sol / high)
+
+- Claude Opus 클라우드 댓글 `6257247920`은 `1a0fc50..c2dba2b`에서 131·132·정상 묶음 133·D-a/b를
+  확인하고, 옛 `legacy` 묶음의 앱 삽입 위치(A)와 독립 문항의 숨은 안내 출력(B)을 새로 재현했다.
+  Codex가 기준 `c2dba2b`에서 두 현상을 독립 재현했다. A는 REV-133 처리 기록을 재개했고 B는 REV-134(P3)로 등록했다.
+- `pedagogy-normalize.js`: 정상 명시 묶음과 **구조가 유효한 `legacy` 후보**의 중간 삽입을 모두 마지막 구성원 뒤로 보정한다.
+  옛 표식과 인쇄 차단은 유지하며 `invalid`·`intake`를 합법화하지 않는다.
+- `pedagogy-render.js`: 자기 참조 대표(`groupOf===id`)만 `groupLead`를 출력한다. 구성원 삭제로 2→1이 된 대표는
+  안내를 유지한다. 명시 `이 문항만`과 D-b `묶음 풀기`는 소속을 제거하므로 남은 안내 원문을 편집기에 보존하고 출력은 숨긴다.
+- `npm run test:rev108` exit 0: 기존 경로와 새 실제 DOM 3경로(옛 묶음 대표 복제·구성원 뒤 JSON·독립 안내),
+  각각 방어 제거 RED와 `c2dba2b` 기준 RED 3종. 새 RED 변이 생략 제어는 `target stayed green`으로 예상 exit 1.
+  로그: `/private/tmp/rev108-review2-2026-10-19/rev108-second-full.log`, `red-control.log`.
+  부모 독립 VM 7경계(정상/옛 후보·invalid/intake·singleton·명시 풀기) exit 0(`parent-boundaries.log`).
+- 부모 `regression-test.html` 175/175와 클라우드/JSON 경계(`parent-audit.log`), 공개 CSP 12/12(`parent-public.log`) exit 0.
+  최종 `check:static`·`check:review-hygiene`·`git diff --check`도 통과했다(`parent-static.log`, `parent-hygiene.log`).
+  이전 head `c2dba2b`의 GitHub verify·cross-platform·hwpx·Sonar 검사는 모두 통과한 것을 확인했다. 새 head의 CI 결과와는 구분한다.
+  현재 `index.html` 인라인은 바뀌지 않아 기존 CSP 해시를 유지한다. 이번 2회차 변경은 ① 검토용이며
+  **② 권 버전·Rules 게이트 미구현/미배포, PR 병합/운영 적용 보류**다.
+
+미검증: 실제 로그인/Firestore 왕복, Safari/iPad, ② Rules 에뮬레이터/배포. Claude의 3회차 변경분 재검토는 아직 시작됐다고 기록하지 않는다.
+
 ## 검토 기록
 
 - `2026-10-19` · 최초 구현/통합 검증 시점: 독립 검토 대기(아래 후속 검토 기록 전).
@@ -135,3 +157,8 @@ Claude Opus 클라우드 1회차 검토의 133을 구분한다. 후속 수정은
   PR #23 댓글 `6257002399`에서 REV-131·132를 재확인하고 새 REV-133을 실제 UI에서 재현했다.
   해리 결정 댓글 `6257030716`이 D-a·D-b를 같은 PR 범위로 추가했다. Codex는 위 후속 구현/검증을 완료했으며,
   Claude Opus의 **변경분 재검토 판정은 아직 없다**. ②·병합/배포는 보류한다.
+
+- `2026-10-19` · **Claude Opus 클라우드 2회차 검토** · 판정: 작은 2건 보완 필요.
+  PR #23 댓글 `6257247920`, 범위 `1a0fc50..c2dba2b`. 131·132·정상 133·D-a/b는 확인,
+  REV-133 옛 묶음 삽입 누락과 REV-134 독립 문항 안내 부활을 재현했다.
+  Codex가 위 두 건을 수정/검증했다. 다음 Claude 검토는 이번 좁은 변경분이며 아직 판정이 없다.

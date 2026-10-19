@@ -7,29 +7,38 @@ import {chromium} from 'playwright';
 
 const red=process.env.REV108_FOLLOWUP_RED||'';
 const baseline=process.env.REV108_FOLLOWUP_BASELINE||'';
+const reviewBaseline=process.env.REV108_FOLLOWUP_REVIEW_BASELINE||'';
 const only=process.env.REV108_FOLLOWUP_ONLY||'';
 const skip=process.env.REV108_FOLLOWUP_SKIP_MUTATION==='1';
-const phases=['legacy','singleton','duplicate','paste','bulk','intake'];
+const phases=['legacy','singleton','duplicate','paste','bulk','intake',
+  'legacyDuplicate','legacyPaste','hiddenLead'];
 assert.ok(!red||phases.includes(red));
 assert.ok(!baseline||phases.includes(baseline));
+assert.ok(!reviewBaseline||phases.includes(reviewBaseline));
 assert.ok(!only||phases.includes(only));
-assert.ok(!(red&&baseline));
+assert.ok([red,baseline,reviewBaseline].filter(Boolean).length<=1);
 const mutations={
   legacy:{file:'index.html',from:'const grouped=normGroupProblems(s.problems,{keepId:true,lossless:true});',to:'const grouped=s.problems;'},
-  singleton:{file:'pedagogy-render.js',from:'if(!lead.trim()) return "";',to:'if(!range||!lead.trim()) return "";'},
+  singleton:{file:'pedagogy-render.js',from:'if(!q?.groupOf||q.groupOf!==q.id||!lead.trim()) return "";',to:'if(!range||!q?.groupOf||q.groupOf!==q.id||!lead.trim()) return "";'},
   duplicate:{file:'index.html',from:'arr.splice(insertionIndexAfterGroup(arr,fi+1),0,cp);',to:'arr.splice(fi+1,0,cp);'},
   paste:{file:'index.html',from:'at = at<0 ? arr.length : insertionIndexAfterGroup(arr,at+1);',to:'at = at<0 ? arr.length : at+1;'},
   bulk:{file:'pedagogy-normalize.js',
     from:'const candidates=arr.filter(q=>q?.groupReview==="legacy"&&q.groupOf===q.id);\n  const withoutLegacy=arr.map(q=>q?.groupReview==="legacy"?{...q,groupReview:undefined}:q);\n  const {groups}=validGroups(withoutLegacy);',
     to:'const candidates=arr.filter(q=>["legacy","invalid"].includes(q?.groupReview)&&q.groupOf===q.id);\n  const groups=new Map(candidates.map(q=>[q.id,arr.flatMap((p,i)=>p?.groupOf===q.id?[i]:[])]));'},
   intake:{file:'index.html',from:'historyStep(()=>{if(setGroupSpan(arr,q.id,1))saveSets();});',to:'historyStep(()=>{saveSets();});'},
+  legacyDuplicate:{file:'pedagogy-normalize.js',from:'  const indexes=validGroups(arr).groups.get(left.groupOf)\n    ||confirmableLegacyGroups(arr).find(g=>g.leaderId===left.groupOf)?.indexes;',
+    to:'  const indexes=validGroups(arr).groups.get(left.groupOf);'},
+  legacyPaste:{file:'pedagogy-normalize.js',from:'  const indexes=validGroups(arr).groups.get(left.groupOf)\n    ||confirmableLegacyGroups(arr).find(g=>g.leaderId===left.groupOf)?.indexes;',
+    to:'  const indexes=validGroups(arr).groups.get(left.groupOf);'},
+  hiddenLead:{file:'pedagogy-render.js',from:'if(!q?.groupOf||q.groupOf!==q.id||!lead.trim()) return "";',to:'if(!lead.trim()) return "";'},
 };
 const port=await new Promise(resolve=>{const s=createServer();s.listen(0,'127.0.0.1',()=>{const p=s.address().port;s.close(()=>resolve(p));});});
 const base=`http://127.0.0.1:${port}`;
 const server=spawn('python3',['serve.py','--port',String(port)],{stdio:'ignore'});
 let browser;
 function source(file){
-  if(baseline)return execFileSync('git',['show',`1a0fc50:${file}`],{encoding:'utf8'});
+  if(baseline||reviewBaseline)
+    return execFileSync('git',['show',`${reviewBaseline?'c2dba2b':'1a0fc50'}:${file}`],{encoding:'utf8'});
   let body=readFileSync(file,'utf8');
   if(red&&!skip&&mutations[red].file===file){
     const {from,to}=mutations[red];
@@ -54,7 +63,7 @@ async function pageFor(){
     const url=new URL(route.request().url());
     if(url.origin!==base)return route.abort();
     const file=url.pathname.slice(1);
-    if((baseline&&['index.html','pedagogy-normalize.js','pedagogy-render.js','pedagogy-print.js'].includes(file))
+    if(((baseline||reviewBaseline)&&['index.html','pedagogy-normalize.js','pedagogy-render.js','pedagogy-print.js'].includes(file))
       ||(red&&!skip&&mutations[red].file===file))
       return route.fulfill({contentType:file.endsWith('.html')?'text/html':'application/javascript',body:source(file)});
     return route.continue();
@@ -134,8 +143,8 @@ async function checkSingleton(page){
   assert.equal(after.before.span,1);assert.equal(after.before.issues,0);
   assert.equal(after.before.editable,true);assert.match(after.before.preview,/다음을 듣고 답하시오/);
   assert.match(after.before.print,/다음을 듣고 답하시오/);
-  assert.equal(after.explicit.editable,true);assert.match(after.explicit.preview,/다음을 듣고 답하시오/);
-  assert.match(after.explicit.print,/다음을 듣고 답하시오/);
+  assert.equal(after.explicit.editable,true);assert.doesNotMatch(after.explicit.preview,/다음을 듣고 답하시오/);
+  assert.doesNotMatch(after.explicit.print,/다음을 듣고 답하시오/);
 }
 async function checkDuplicate(page){
   await setup(page,[{id:'p1',groupLead:'대표 안내'},{id:'p2'},{id:'p3'},{id:'q4'}],'dup');
@@ -168,6 +177,68 @@ async function checkPaste(page){
   assert.deepEqual(after.groups.slice(0,3),['p1','p1','p1']);
   assert.equal(after.groups[3],'');assert.equal(after.issues,0);assert.equal(after.blocked,false);
   assert.match(after.printed,/붙여넣은 본문/);
+}
+async function checkLegacyDuplicate(page){
+  await setup(page,[{id:'p1',groupSpan:3,groupLead:'옛 대표 안내'},
+    {id:'p2'},{id:'p3'},{id:'q4'}],'legacy-duplicate');
+  assert.equal(await page.evaluate(()=>PedagogyNormalize.confirmableLegacyGroups(activeProblems()).length),1);
+  await clickProblem(page,'p1','이 문항 복제');
+  const after=await page.evaluate(()=>{
+    const arr=activeProblems();
+    return {ids:arr.map(q=>q.id),groups:arr.map(q=>q.groupOf||''),
+      candidate:PedagogyNormalize.confirmableLegacyGroups(arr).length,
+      reasons:groupDiagnostics(arr).map(x=>x.reason),bulk:$('#legacyBulkReview')?.textContent||''};
+  });
+  assert.deepEqual(after.ids.slice(0,3),['p1','p2','p3']);assert.equal(after.ids[4],'q4');
+  assert.deepEqual(after.groups.slice(0,3),['p1','p1','p1']);assert.equal(after.groups[3],'');
+  assert.equal(after.candidate,1);assert.match(after.bulk,/옛 묶음 1개/);
+  assert.ok(after.reasons.includes('옛 묶음 소속 검토 필요'));
+  assert.ok(!after.reasons.includes('묶음 구성원이 연속하지 않음'));
+}
+async function checkLegacyPaste(page){
+  await setup(page,[{id:'p1',groupSpan:3,groupLead:'옛 대표 안내'},
+    {id:'p2'},{id:'p3'},{id:'q4'}],'legacy-paste');
+  await page.evaluate(()=>{currentQId='p2';renderEditor();renderPreview();});
+  assert.equal(await page.evaluate(()=>PedagogyNormalize.confirmableLegacyGroups(activeProblems()).length),1);
+  const input={problems:[{id:'new',blocks:[{type:'statement',data:{text:'붙여넣은 본문'}}]}]};
+  await page.locator('#loadInput').setInputFiles({name:'legacy-insert.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(input))});
+  await page.waitForFunction(()=>activeProblems().length===5);
+  const after=await page.evaluate(()=>{
+    const arr=activeProblems();
+    return {ids:arr.map(q=>q.id),groups:arr.map(q=>q.groupOf||''),
+      candidate:PedagogyNormalize.confirmableLegacyGroups(arr).length,
+      reasons:groupDiagnostics(arr).map(x=>x.reason),bulk:$('#legacyBulkReview')?.textContent||''};
+  });
+  assert.deepEqual(after.ids.slice(0,3),['p1','p2','p3']);assert.equal(after.ids[4],'q4');
+  assert.deepEqual(after.groups.slice(0,3),['p1','p1','p1']);assert.equal(after.groups[3],'');
+  assert.equal(after.candidate,1);assert.match(after.bulk,/옛 묶음 1개/);
+  assert.ok(after.reasons.includes('옛 묶음 소속 검토 필요'));
+  assert.ok(!after.reasons.includes('묶음 구성원이 연속하지 않음'));
+}
+async function checkHiddenLead(page){
+  await setup(page,[{id:'a',groupLead:'옛 숨은 안내',blocks:[{type:'statement',data:{text:'원래 본문'}}]}],
+    'hidden-lead');
+  const inactive=await page.evaluate(()=>{
+    const wrap=document.createElement('div');buildPrintDoc(false,wrap);
+    return {preview:$('#pvContent').textContent,print:wrap.textContent,
+      editable:$('#qGroupLead').style.display!=='none',value:$('#qGroupLead').value,
+      groupOf:activeProblems()[0].groupOf||''};
+  });
+  assert.equal(inactive.groupOf,'');assert.equal(inactive.editable,true);
+  assert.equal(inactive.value,'옛 숨은 안내');
+  assert.doesNotMatch(inactive.preview,/옛 숨은 안내/);
+  assert.doesNotMatch(inactive.print,/옛 숨은 안내/);
+  await setup(page,[{id:'a',groupLead:'활성 대표 안내'},{id:'b'}],'active-singleton');
+  await page.evaluate(()=>{setGroupSpan(activeProblems(),'a',2);renderQList();renderEditor();renderPreview();});
+  await clickProblem(page,'b','삭제');
+  const active=await page.evaluate(()=>{
+    currentQId='a';renderEditor();renderPreview();
+    const wrap=document.createElement('div');buildPrintDoc(false,wrap);
+    return {groupOf:activeProblems()[0].groupOf,preview:$('#pvContent').textContent,
+      print:wrap.textContent,editable:$('#qGroupLead').style.display!=='none'};
+  });
+  assert.equal(active.groupOf,'a');assert.equal(active.editable,true);
+  assert.match(active.preview,/활성 대표 안내/);assert.match(active.print,/활성 대표 안내/);
 }
 async function checkBulk(page){
   const raw=[];
@@ -241,22 +312,26 @@ async function checkIntake(page){
 }
 
 const checks={legacy:checkLegacy,singleton:checkSingleton,duplicate:checkDuplicate,
-  paste:checkPaste,bulk:checkBulk,intake:checkIntake};
+  paste:checkPaste,bulk:checkBulk,intake:checkIntake,
+  legacyDuplicate:checkLegacyDuplicate,legacyPaste:checkLegacyPaste,hiddenLead:checkHiddenLead};
 let failed=false;
 try{
   for(let i=0;i<80;i++){try{if((await fetch(base+'/health')).ok)break;}catch{}await new Promise(r=>setTimeout(r,100));}
   browser=await chromium.launch();
   for(const phase of phases){
-    if((red&&red!==phase)||(baseline&&baseline!==phase)||(only&&only!==phase))continue;
+    if((red&&red!==phase)||(baseline&&baseline!==phase)
+      ||(reviewBaseline&&reviewBaseline!==phase)||(only&&only!==phase))continue;
     const {page,context}=await pageFor();
     try{
       await checks[phase](page);
       console.log('PASS',phase);
     }catch(error){
-      if(!red&&!baseline)throw error;
+      if(!red&&!baseline&&!reviewBaseline)throw error;
       failed=true;
-      console.log(baseline?'BASELINE RED':'RED',phase,error.message.split('\n').slice(0,3).join(' | '));
+      console.log(baseline?'BASELINE RED':reviewBaseline?'REVIEW BASELINE RED':'RED',
+        phase,error.message.split('\n').slice(0,3).join(' | '));
     }finally{await context.close();}
   }
-  if(red||baseline)assert.equal(failed,true,`${red||baseline}: target stayed green`);
+  if(red||baseline||reviewBaseline)
+    assert.equal(failed,true,`${red||baseline||reviewBaseline}: target stayed green`);
 }finally{await browser?.close();server.kill();}
