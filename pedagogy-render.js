@@ -21,6 +21,7 @@ const circled=n=>"①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳".
 // 한 문제집이 "실제 작업물"인지 판단: 이름이 기본값이 아니거나, 내용 있는 문제가 하나라도 있으면 true
 function setHasContent(s){
   if(!s) return false;
+  if(Object.hasOwn(s,"setSchemaVersion")&&s.setSchemaVersion!==1) return true;
   if(s.name && s.name!=="새 문제집") return true;
   return (s.problems||[]).some(q=>{
     /* groupLead 는 '지문 없는 묶음' 의 안내 글이다 — 이것만 적어 둔 문항도 내용이 있다. */

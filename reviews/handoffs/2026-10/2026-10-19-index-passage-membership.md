@@ -1,15 +1,15 @@
-# 변경 인계 — REV-108 ① 지문 묶음 명시 소속과 출력 방어
+# 변경 인계 — REV-108 ① 명시 소속과 ② 권 버전 쓰기 게이트
 
 - ID: `HANDOFF-2026-194`
-- 날짜: `2026-10-19`
+- 날짜: `2026-10-19`(①) · `2026-10-20~21`(②)
 - 작성자: `Codex GPT-6 Sol / high 구현 · 부모 Codex 통합 검증/인계`
-- 상태: `reviewed` — ① Claude Opus 3회차 결함 없음(REV-131~134·D-a/b) · **② 권 버전·Rules 게이트 미구현, 병합 보류**
-- 영향 영역: `index | tests | docs`
+- 상태: `ready-for-review` — ① Claude Opus 3회차 결함 없음(REV-131~134·D-a/b) · **② 정상/RED·Claude 전반 정적 검토 뒤 135·136 보완. 후속 Claude 시간 초과·Codex 독립 확인 결함 미발견, 운영 미배포·병합 보류**
+- 영향 영역: `index | normalize | render | firestore.rules | tests | docs`
 - 관련 이슈: `REV-2026-108` (`in-progress`, ② 출시 게이트 미완료)
 - 브랜치: `codex/rev108-explicit-groups`
 - 기준: `main 877a8e7` (PR #16 병합), 선행 판정 `0cc9945`
 
-## 변경 내용
+## ① 최초 인계 (2026-10-19 · 아래는 당시 상태)
 
 위치로 지문 묶음을 추론하면 구성원 삭제 때 무관한 다음 문항을 흡수했다. `groupOf`로 대표 ID를 저장하고
 권 전체에서 ID를 재매핑·검증한다. `groupSpan`은 파생값이다. API·자료 이관·동작 정책의 영구 기록은
@@ -168,3 +168,44 @@ Claude Opus 2회차 지적의 **REV-133 옛 묶음 보완·REV-134 옛 안내 �
   2→1 자기 참조 대표 안내 출력 유지(REV-132) · 명시 묶음 풀기는 출력만 숨기고 값 보존 · 옛 안내 전용 묶음은 범위 머리와 함께 보임.
   `npm run test:rev108` exit 0(PASS 40 · RED/BASELINE 19 기대 실패) · `check:static` 통과. 실제 로그인·Safari/iPad·`check:fast` 전체는 미실행.
   합의: ① 결함 없음. 미합의: 없음. 다음: **② 권 버전 표식 + Rules 쓰기 게이트(Codex Sol high) → 검토 → Rules 배포(로컬) → 병합**. ①만으로 병합하지 않는다.
+
+## ② 권 버전·Rules 쓰기 게이트 인계 (2026-10-20 · Codex GPT-6 Sol / high)
+
+**범위와 상태.** 기준 head `ad5fe91` 이후의 ② 구현이다. ①에 대한 Claude Opus 3회차 승인과 구분한다. 이번 ②는 `ready-for-review`다. Claude 전반 정적 검토 후 135·136을 추가 수정했고, 후속 Claude 호출은 시간 초과로 미완료다. 추가 수정은 Codex 독립 확인에서 결함 미발견이며 실제 Google 계정 왕복·Rules/Pages 운영 배포·main 병합은 아직 없다. 영구 계약은 [REV108-PASSAGE-GROUPS](../../../docs/REV108-PASSAGE-GROUPS.md)의 ② 절이다.
+
+- `firestore.rules`: 모든 새 권/다음 revision/tombstone에 정수 `setSchemaVersion:1`을 요구하고, 기존 미래·손상 표식 문서를 지원 버전으로 덮어쓰지 못하게 한다. 무표식 옛 문서의 **지원 버전 다음 revision**은 허용한다. Rules는 권 최상위만 검증하며 문항 배열 속 소속을 재귀 검사하지 않는다. owner, CAS, 크기, 계정 영구 삭제 경계는 유지한다.
+- `index.html`·`pedagogy-normalize.js`·`pedagogy-render.js`: 새 권·복제·충돌 사본·삭제 표식에 v1을 붙인다. 무표식 옛 문서는 원래 ID·본문·무관한 필드·`legacy` 검토를 보존하고 다음 revision에서 승격한다. 동등 본문 ACK가 승격을 생략하지 않으며, ACK 후 로컬 표식·영속 CAS 기준을 맞춰 재예약하지 않는다. `setJSON`은 표식이 실제 있을 때만 포함해 이전 지문을 유지한다. 미래·손상 버전은 알 수 없는 필드와 비배열 `problems`도 원형 보존하고 목록/백업/내보내기에서 읽기 전용이다. 로컬 초안과 미래 서버 자료가 충돌하면 자동 최신본 채택·서버 기준 선택·tombstone을 막되 다른 정상 권은 계속 저장한다. JSON 두 가져오기 경로는 자료 변경 전에 미래 버전을 거절한다. 옛 `users/{uid}.sets` 일괄 이관은 첫 쓰기 전에 모든 권의 버전을 검사한다. B6 문서 크기 예측은 다음 revision과 표식까지 포함한다.
+- `scripts/check-set-schema.mjs`와 `scripts/verify-set-schema-rules.mjs`를 `test:set-schema`/`check:rules`에 연결하고 새 검사도 `check:fast`에 연결했다. 기존 B3 Rules 유효 fixture, B6 114 ACK fixture, `regression-test.html` 클라우드 표식 기대값, CAS/900KiB fixture를 표식 의미에 맞춰 갱신했다. 기존 보안·owner·epoch·intake 쓰기 보류와 ① 출력 계약은 변경하지 않았다.
+- **후속 재현 수정:** 최종 읽기 검토 시작 직후 미래 권의 `problems:{}`를 로컬에 다시 쓸 때 `writeLocalNow()`가 `false`를 반환하는 점을 실제 브라우저 검사에서 재현했다. 알 수 없는 스키마의 문항 배열을 순회하지 않고 원형 JSON을 저장하도록 최소 수정했다. `index.html`의 이 추가 diff는 검토 시작 뒤 작성됐으므로 초기 Claude 읽기 범위의 승인으로 간주하지 않는다. 검사: 로컬 미래 권 읽기 전용·저장·원형 왕복 정상 9/9, 부모 독립 VM의 미래 권 저장/반복 저장·동일 배열 정상 intake 편집 판정 2건 통과(`parent-local-opaque.log`).
+
+**실행 근거.** 로그 기준 `/private/tmp/rev108-schema-2026-10-20/`.
+
+| 검사 | 결과 |
+| --- | --- |
+| `npm run test:set-schema` | 정상 Chromium 9/9 exit 0(`schema-browser-final.log`). 표식 생성·옛 무표식 동일 본문 승격·미래 서버 update/tombstone/충돌 선택 차단·불투명 권 로컬/백업/JSON 보존·ACK 영속 CAS·미래 snapshot 보류·JSON 가져오기 사전 거절·900KiB 예측. 표식 제거 변이 RED 3개, 원본 `ad5fe91` RED 4개 표적 실패 후 suite exit 0. `SET_SCHEMA_SKIP_MUTATION=1`은 `target stayed green`으로 예상 exit 1. |
+| OpenJDK 21 + `npm run check:rules` | Firestore/Storage 실제 emulator에서 기존 Rules·B3 11경계와 새 v1/무표식·미래/손상 행렬 exit 0(`check-rules-final.log`). 새 기존-resource guard 제거 RED는 미래 문서가 실제 v1 revision 8로 다운그레이드됨을 읽어서 증명. `ad5fe91` Rules RED는 무표식 정상 create/next revision/tombstone 3건이 실제 허용됨을 증명. 변이 생략 제어는 서버 `PERMISSION_DENIED`, 예상 exit 1로 별도 확인. |
+| ①·저장·기존 경계 | `test:rev108` 정상·RED exit 0, `test:set-revision` CAS 35+기준 RED exit 0, `test:sets-cloud` 정상·RED exit 0. 부모 `test:intake` B6/B7 정상·RED 전체 exit 0, U1.5 저장 정상·RED exit 0(`parent-intake-final.log`, `parent-u15-final.log`, `parent-cas-final.log`, `parent-size-final.log`). 초기 intake114의 ACK 뒤 표식 추가에 따른 기대값 3건만 실패했고 fixture 수정 뒤 정상 11/11+기존 RED 표적 7건 exit 0으로 재검증했다. |
+| 브라우저·공개 CSP | `test:audit-browser` 175/175 + 잘못된 JSON 12개 거절 exit 0. 초기 2건은 기존 probe/허용 필드 기대 목록의 v1 표식 누락이어서 갱신 뒤 재실행했다. `check-source-csp` 인라인/법적 스타일 해시 및 실패 주입 12/12 exit 0. 부모 `test:public`·U1.5 저장 전체 exit 0(`parent-public-final.log`, `parent-u15-final.log`). |
+
+**설계 검토 경계.** 부모가 `ask-claude-readonly.mjs`로 받은 설계 점검은 ② 최종 승인 **아니다**(`/private/tmp/rev108-schema-2026-10-20/design-review.md`). 제한된 읽기 도구 때문에 고정된 `ad5fe91` 소스 대신 당시 작업 트리를 읽었다. 제기된 ACK 반복 예약/영속 CAS, 미래 권 전체 삭제, 900KiB 실제 문서 크기, 비배열 미래 권은 구현과 위 검사로 대조했다. 제안된 Rules→Pages→soak→strict의 별도 4단계 운영 순서는 기존 레일의 병합 보류 판정과 다르므로 채택하지 않았다. 엄격 Rules를 먼저 적용하면 구형 Pages 쓰기가 차단되고, Pages를 먼저 적용하면 구형 탭 무표식 쓰기가 남는다. `service-config.js`의 `setRevisionSchema:1`을 확인했고, 독립 변경분 승인 뒤 운영자가 쓰기 중단 창과 배포 순서를 확정해야 한다. 계정 전체 영구 삭제는 명시적 개인정보 삭제 경로로 남기고, 일반 묶음 삭제는 미래 권을 사전 차단한다.
+
+**다음 행동/미검증.** 아래 후속 기록대로 추가 수정의 독립 Codex 확인과 Claude 재검토 결과를 남긴다. PR #23의 ① 승인과 섞지 않는다. 실제 Google 로그인/Firestore 종단 왕복, 구형 배포 클라이언트의 실제 거절, Safari/iPad, 운영 Rules·Pages 및 쓰기 중단 창, Worker와 AI 실호출은 미실행이다. 코드/Rules/Pages/Worker 배포, 비밀 변경, main 병합도 하지 않았다. 검토·운영 전환 증거가 모일 때까지 REV-108은 `in-progress`다.
+
+### ② 추가 보완·회귀 (2026-10-21 · Codex 확인 완료, Claude 후속 미완료)
+
+- 부모의 실제 VM 재현으로 [REV-135](../../issues/2026-10/2026-10-20-index-future-set-selected-export.md): 미래 권 선택 내보내기에서 `folderId` 원문이 빠짐, [REV-136](../../issues/2026-10/2026-10-20-index-future-set-intake-shape-crash.md): 미래 권의 비배열 `problems`를 intake `.some()`에 넘겨 저장 상태/transaction이 예외로 중단됨을 확인했다. 두 이슈는 재현·수정·정상/RED 근거를 같은 파일에 기록해 `resolved`로 닫았다. **② 전체 승인/배포와는 별개**다.
+- `index.html`: 미지원 권만 선택 내보내기에서 원형 복제해 `folderId`를 보존한다(정상 권은 기존 폴더 제외). `intakeNeedsUpdate()` 래퍼는 미지원 권을 배열 검사에 넘기지 않고 별도 schema guard에 맡긴다. 지원 v1/무표식 권의 미래 intake 보류는 유지한다. 최종 인라인 CSP를 다시 동기화했다.
+- 실제 Chromium `test:set-schema`는 **14/14 정상**, 기존 표식 변이·새 `bulk-local`/`bulk-remote`/`account`/`export`/`future-intake` 변이·`ad5fe91` 기준 원본 RED 모두 exit 0(`/private/tmp/rev108-schema-2026-10-20/schema-browser-14-final.log`). 새 변이마다 대상 함수에서 실패하고, 변이를 생략한 5개 제어 실행은 정상 14/14 뒤 `target stayed green` 예상 exit 1이다. 일괄 삭제는 로컬 미래 권을 백업/원문 변경 전에 중단하고, 원격 미래 권이 뒤에 있어도 첫 정상 tombstone 전에 preflight하여 서버/로컬을 보존한다. 실제 `deleteAccountEverything()`은 본인 확인 모형 뒤 `cloudSetDocIds()`→`wipeCloudSets(realDelete:true)`의 하드 삭제까지 도달하며, 검사는 그 직후 의도적으로 중단해 Auth 삭제를 실행하지 않는다. 선택 버튼 Blob JSON을 읽었고, 로컬 미래 비배열 권을 둔 `idleSaveStatus()`·원격 transaction·정상 형제 권 저장을 확인했다.
+- 실제 Firestore/Storage emulator의 확장 `check:rules` exit 0(`/private/tmp/rev108-schema-2026-10-20/check-rules-extended.log`): marker `0`/`1.5`/`true` 거절, 미래 서버 권의 타인 하드 삭제 거절·owner 하드 삭제 성공 확인. 신규 request-guard 제거 RED는 marker `0` 문서가 실제 서버에 저장됨을 다시 읽어 증명하고, 기존 resource-guard 제거 RED·`ad5fe91` 원본 RED도 통과했다. request 변이 생략은 서버 `PERMISSION_DENIED`로 예상 exit 1(`/private/tmp/rev108-schema-2026-10-20/request-red-control.log`).
+- 부모는 최종 runtime 뒤 `test:audit-browser` 175/175+JSON12, `test:public` CSP12/빌드, `check:static`, B6 REV-114 정상11을 exit 0으로 확인했다. 로그는 같은 tmp 폴더의 `parent-audit-after-followup.log`, `parent-public-after-followup.log`, `parent-static-after-followup.log`, `parent-intake114-after-followup.log`를 대조한다. 이전 B6/B7/U1.5/CAS/size/① 검사는 영향 없는 범위를 반복하지 않고 앞선 통과 증거를 유지한다.
+- ② 첫 좁은 Claude 호출은 timeout exit 124, 최종 답변/진행 내용이 비어 있어 **승인이 아니다**. 부모가 새 3파일 범위로 다시 요청했으나 이 호출도 timeout 124였고, 아래 Codex 독립 확인과 구분한다. 이 절의 구현자 검사는 독립 검토 판정을 대신하지 않는다.
+
+### ② 독립 검토 상태 (2026-10-21 · 부모 Codex 기록)
+
+- Claude Opus/high 래퍼 전반 정적 검토는 2026-10-20에 최종 답변을 받았다(`final-review.md`, exit 0). 무표식 승격/ACK·영속 CAS·Rules·미래 권 격리를 확인해 재현 결함 미발견으로 판정했다. `writeLocalNow()` 후행 수정도 최종 답변에서 구체적으로 읽었음을 확인했다. Claude에게 Bash가 없어 브라우저·에뮬레이터를 직접 실행한 승인은 아니다.
+- 이 답변 뒤 부모가 선택 내보내기 폴더 손실(Claude가 일관성 사각으로 언급한 항목을 원형 보존 계약과 대조)과 intake 비배열 예외를 직접 재현해 REV-135·136으로 확정했다. 앞선 전반 판정을 이 후속 수정의 승인으로 재사용하지 않는다.
+- 3파일(index·브라우저 schema 검사·Rules schema 검사) 후속 호출 두 번은 각각 **600초 timeout exit 124**였고, 진행 로그가 비어 있으며 최종 답변도 없다(`followup-review-progress.log`, `followup-review-retry-progress.log`). 로그인은 정상이나 호출 지연의 원인은 확인되지 않았다. 최초 호출 중 Codex 사용량 종료도 겹쳤으므로 단정하지 않는다. 두 호출 모두 비용 집계에 포함하며 **Claude 승인으로 기록하지 않는다**. 새 근거 없이 같은 호출을 반복하지 않고, 추가 수정은 구현에 참여하지 않은 Codex 에이전트에게 독립 확인을 요청했다.
+- 소스 3파일은 후속 요청 전 해시를 고정했고(`followup-review-source.sha256`) 추가 변경이 없음을 대조했다. 부모가 신규 정상/RED·변이 생략 로그와 실제 emulator의 문서 재읽기 증거를 판독했으며, `check:review-hygiene`(열림 4, INDEX 118/120, 자기검사 6/6)·`git diff --check`도 통과했다.
+
+- **Codex 독립 후속 검토(2026-10-21, `/root/rev108_data_review`, 구현 미참여): 추가 재현 결함 미발견.** 지정한 3파일의 135·136 수정·일반 전체삭제 사전 보류/계정 영구삭제를 확인했다. 실제 함수 VM으로 미래 권 선택 내보내기의 전체 필드/원본 불변, `writeLocalNow()`의 미래 권 보존과 지원 권의 B6 내용 검토 초기화를 확인했고, 정적 검토에서 owner·CAS 경계와 RED 실제 결과 단정을 확인했다. 전체 브라우저/에뮬레이터를 재실행하거나 운영을 확인한 판정은 아니다.
+- **합의:** ① 기존 Claude 승인 유지. ② 전반 Claude 정적 검토 후 부모가 재현한 135·136은 코드·14/14 및 표적 RED·독립 Codex 확인으로 닫았다. **미합의:** 재현 결함은 없으나 후속 Claude 최종 답변은 없다. **다음 행동:** 후속 Claude가 추가 수정과 PR 최종 head를 확인한 뒤, 레일 ⑩-A3의 로컬/사용자 확인으로 Rules·Pages 쓰기 중단 창/전환 순서를 확정한다. 실제 계정·구형 운영 탭 거절·Safari/iPad는 남는다. PR은 draft, HANDOFF는 `ready-for-review`, REV-108은 `in-progress`를 유지한다.

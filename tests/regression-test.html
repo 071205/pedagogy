@@ -1633,8 +1633,8 @@ async function runIndexTests(){
     const keysAt = v => withSchema(v, () =>
       Object.keys(installHooks(win, ["setToDoc"]).setToDoc(base, 0)).sort().join(","));
     const A = keysAt(0), B = keysAt(1);
-    const wantA = ['deleted','header','id','lineColor','name','order','problems','subject','updatedAt'].join(",");
-    const wantB = ['deleted','folderId','header','id','lineColor','name','order','problems','subject','updatedAt'].join(",");
+    const wantA = ['deleted','header','id','lineColor','name','order','problems','setSchemaVersion','subject','updatedAt'].join(",");
+    const wantB = ['deleted','folderId','header','id','lineColor','name','order','problems','setSchemaVersion','subject','updatedAt'].join(",");
     return { pass: A === wantA && B === wantB, note: `A=${A} · B=${B}` };
   });
 

@@ -191,7 +191,9 @@ try{
     assert.equal(r.available,true);assert.equal(r.ok,true);assert.equal(r.synced,true);
     assert.equal(r.requeues,0);assert.equal(r.revision,1);
     assert.deepEqual(r.flat,['a','b'],'활성 두 칸의 순서로 전송해야 한다');
-    assert.equal(r.before,r.after,'동기화 비교 정규화가 로컬 원본을 바꾸면 안 된다');
+    assert.equal(r.before,JSON.stringify((({setSchemaVersion,...rest})=>rest)(JSON.parse(r.after))),
+      '동기화 비교 정규화가 버전 표식 외의 로컬 원본을 바꾸면 안 된다');
+    assert.equal(JSON.parse(r.after).setSchemaVersion,1,'ACK한 권에 지원 버전을 기록해야 한다');
   });
 
   await check('정규화 동등 서버의 no-write ACK는 다음 수정의 유효한 CAS 기준이 된다',async p=>{

@@ -91,7 +91,7 @@ window.__REGRESSION_ACTIONS__ = {
   syncProbe() {
     const keep = cloudSynced;
     try {
-      const item = { id: "__sync_probe__", name: "x", header: "", problems: [], lineColor: "indigo", subject: "math" };
+      const item = { id: "__sync_probe__", name: "x", header: "", problems: [], lineColor: "indigo", subject: "math", setSchemaVersion: 1 };
       cloudSynced = new Map([[item.id, cloudSyncEntry(item, 0)]]);
       return { same: isCloudSynced(item, 0), orderDirty: !isCloudSynced(item, 1) };
     } finally { cloudSynced = keep; }

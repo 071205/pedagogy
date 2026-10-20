@@ -79,6 +79,8 @@ try{
     local:sets,disk:JSON.parse(localStorage.getItem(setsKey())),
     conflicts:[...readSetConflicts(currentUser.uid).keys()],original:__original,future:window.__future
   }));
+  const afterAcknowledgedWrites=r=>r.original.map(set=>
+    red||!r.writes.includes(set.id)?set:{...set,setSchemaVersion:1});
   const checks=[],failures=[];
   async function check(name,run){
     checks.push(name);
@@ -94,7 +96,7 @@ try{
   await check('114 empty-server control saves X and Y across three passes',async()=>{
     await fixture();await saveThree();const r=await result();
     assert.deepEqual(r.remote.map(([id])=>id),['x','y']);assert.equal(r.status.at(-1),'');
-    assert.equal(r.requeues,0);assert.deepEqual(r.local,r.original);
+    assert.equal(r.requeues,0);assert.deepEqual(r.local,afterAcknowledgedWrites(r));
   });
   for(const order of [['x','y'],['y','x']]){
     const position=order[0]==='x'?'first':'last';
@@ -102,7 +104,8 @@ try{
       await fixture({order,future:true});await saveThree();const r=await result();
       assert.ok(r.remote.some(([id])=>id==='y'),'Y must be saved');
       assert.deepEqual(r.remote.find(([id])=>id==='x')[1],r.future);
-      assert.deepEqual(r.local,r.original);assert.deepEqual(r.disk,r.original);
+      assert.deepEqual(r.local,afterAcknowledgedWrites(r));
+      assert.deepEqual(r.disk,afterAcknowledgedWrites(r));
       assert.deepEqual(r.conflicts,[]);assert.deepEqual(r.writes,['y']);
       assert.equal(r.requeues,0,'blocked X must not automatically requeue');
       assert.ok(r.status.at(-1).includes('업데이트 필요')&&r.status.at(-1).includes('계정 저장 보류'),'specific update hold required');
@@ -114,7 +117,7 @@ try{
         return {confirms,local:sets};
       });
       assert.equal(deletion.confirms,0,'read-only X must be excluded from bulk deletion');
-      assert.deepEqual(deletion.local,r.original);
+      assert.deepEqual(deletion.local,afterAcknowledgedWrites(r));
     });
   }
   await check('114 malformed remote intake also isolates its document',async()=>{

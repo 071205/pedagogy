@@ -6,7 +6,7 @@ rules_version = '2';
 //
 //   users/{uid}                → { migratedAt }  · 예전 { sets:[...] } 문서도 남아 있음
 //   users/{uid}/sets/{setId}   → { id, name, header, problems:[...], order,
-//                                  deleted, updatedAt, revision }
+//                                  deleted, updatedAt, revision, setSchemaVersion }
 //   users/{uid}/mocks/{mockId} → { id, name, round, elective, problems:[...],
 //                                  deleted, createdAt, updatedAt }
 //   users/{uid}/prefs/consent  → { version, agreedAt, items, locale }  (동의 증적)
@@ -54,7 +54,8 @@ service cloud.firestore {
         function hasSetShape() {
           return request.resource.data.keys().hasOnly(
                    ['id','name','header','problems','order',
-                    'deleted','updatedAt','lineColor','subject','folderId','revision'])
+                    'deleted','updatedAt','lineColor','subject','folderId','revision',
+                    'setSchemaVersion'])
               && request.resource.data.id == setId
               && request.resource.data.name is string
               && request.resource.data.name.size() <= 160
@@ -78,6 +79,11 @@ service cloud.firestore {
               && ('revision' in request.resource.data)
               && request.resource.data.revision is int
               && request.resource.data.revision > 0
+              // REV-108: old editors discard groupOf; every new write, copy and
+              // tombstone must identify the explicit-membership schema.
+              && ('setSchemaVersion' in request.resource.data)
+              && request.resource.data.setSchemaVersion is int
+              && request.resource.data.setSchemaVersion == 1
               // 폴더 소속. 이름은 여기 넣지 않는다 — 이름 하나 바꿀 때 문제집을
               // 전부 다시 써야 하기 때문이다(300문항짜리가 여럿이면 수 MB).
               // 이름 목록은 prefs/library 문서 하나에 둔다.
@@ -108,6 +114,11 @@ service cloud.firestore {
                       && request.resource.data.revision == 1;
         allow update: if isOwner()
                       && validSetBody()
+                      // Unmarked legacy documents may be upgraded. A future or
+                      // malformed server version cannot be silently downgraded.
+                      && (!('setSchemaVersion' in resource.data)
+                          || (resource.data.setSchemaVersion is int
+                              && resource.data.setSchemaVersion == 1))
                       && (
                         (!('revision' in resource.data)
                           && request.resource.data.revision == 1)

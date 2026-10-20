@@ -550,7 +550,12 @@ function confirmableLegacyGroups(arr){
   });
 }
 function normSet(s, opts){
-  if(!s||typeof s!=="object"||!Array.isArray(s.problems)) return null;
+  if(!s||typeof s!=="object") return null;
+  /* A newer set schema is opaque. Backup, conflict and cloud recovery must not
+     turn its unknown fields into a seemingly valid older document. */
+  if(Object.hasOwn(s,"setSchemaVersion")&&s.setSchemaVersion!==1)
+    return opts?.keepId===true&&opts?.lossless===true?JSON.parse(JSON.stringify(s)):null;
+  if(!Array.isArray(s.problems)) return null;
   const keepId=opts?.keepId===true, lossless=opts?.lossless===true;
   const requested=Number(opts?.maxProblems);
   const max=opts?.maxProblems===Infinity ? Infinity
@@ -563,6 +568,7 @@ function normSet(s, opts){
               숫자를 대조한다 — 한쪽만 고치면 빨간불이 난다. */
            name:str(s.name,lossless?Infinity:SET_NAME_MAX)||"제목 없음",
            header:str(s.header,lossless?Infinity:200),
+           ...(Object.hasOwn(s,"setSchemaVersion")?{setSchemaVersion:s.setSchemaVersion}:{}),
            lineColor:normSheetColor(s.lineColor), subject:normSubject(s.subject),
            /* ⚠️ **가져온 파일(`keepId` 없음)의 folderId 는 버린다** — 남의 기기에서 만든
               폴더 id 는 여기서 뜻이 없고, 두면 '알 수 없는 폴더' 만 늘어난다.
