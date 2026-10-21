@@ -17,7 +17,7 @@
 |---|---|
 | 끝난 것 | R2·R3 계약 · R4/B1·B2 · **B3 코드·독립 검토** · **R4.5 두 묶음 승인** · **⑥ 제품 UX 레일 통합(문서만)** |
 | 후속 완료 | R1 독립 검토 완료. **B3 3/3 완료**(`HANDOFF-170` 검토). **B5 검토·운영 배포 완료**(`HANDOFF-171`) |
-| 다음 | **REV-108 ① Claude Opus 3회차 승인 → ② Claude 검토·CI·로컬 Rules 정상/RED·엄격 Rules 운영 배포 완료, Claude 병합/Pages → 로컬 로그인 왕복 대기**(`HANDOFF-194`, `codex/rev108-explicit-groups`). U1.5 PR #14·#15·#16 병합(main `877a8e7`)·Pages 파일 225개 일치, 로그인 원본 패널은 미검증. **사용자 승인으로 엄격 Rules 배포 완료, 다음 PR 병합/Pages는 Claude 담당**. 실제 로그인 왕복 확인 뒤 U2. Worker 재배포는 U2(실호출 연결) 때 |
+| 다음 | **REV-108 해결 확인**(HANDOFF-194): Rules·PR #23/Pages·CI·운영 저장/재진입·PDF 범위·무표식 쓰기 거절 완료. **별도 REV-137 출력 링크 노출을 UI 담당이 좁게 수정·검토한 뒤 U2(Claude Sonnet 5 → Codex Sol medium)**. U1.5 원본 패널·실제 Safari/iPad 미검증, 전체 충돌 보류 5 보존. Worker 실호출은 별도 게이트 |
 | 세션 | 클라우드/로컬 병렬 — 어느 세션에서 무엇을 하는지는 [DEV-TOKEN-ROADMAP '세션 분담'](DEV-TOKEN-ROADMAP.md#세션-분담--클라우드--로컬-2026-10-03--astra-high-판정)(2026-10-03 Astra high 판정). Codex 검토·배포·한글·로그인 확인은 로컬에만 있다 |
 | 결정·외부 대기 | D1 독립/연동 선택 완료. D2②·D4 답 반영·U0 개정 재검토 합의, D3 운영 숫자·D1 기본값/패널 시안 선택, C1 결제·새 호출 승인, R7 외부 환경. 구 탭은 사용자가 다른 기기 새로고침으로 정리하고 별도 안내 없이 엄격 Rules 적용을 결정 |
 
@@ -32,7 +32,7 @@ B3 전환 Rules → 플래그 1 클라이언트 → 엄격 Rules가 순서대로
 
 ## 바로 진행할 작업과 전체 모델 순서
 
-**B3·B4·B5와 B6 운영 배포 완료. B7 fixture outbox 운영 배포 완료(`4dd674f`). U1 1차 지면 배치 보기는 운영 배포 `11f1e12`(`HANDOFF-2026-177`), U1 2차(라이브러리 시작·쪽 축소판·글꼴 실패 표시)는 운영 배포 `a93e7e3`(`HANDOFF-2026-180`)로 U1 이 끝났다. U1.5 세 PR 병합·파일 대조를 마쳤다. REV-108 ①은 Claude Opus 3회차 승인, ②는 구현·정상/RED·Claude 전반 정적 검토 뒤 REV-135·136을 보완했다. 이전 두 래퍼 호출은 시간 초과였으나 이후 Claude 클라우드 후속 판정은 135·136 포함 결함 없음이다. `3335d15` CI·로컬 Rules 정상/RED 통과 뒤 사용자 승인으로 엄격 Firestore Rules를 운영 배포했다. 다음은 Claude PR 병합/Pages → 로컬 로그인 왕복이다(로그인 원본 패널 미검증).**
+**B3~B7·U1 운영 배포 및 U1.5 병합/파일 대조 완료. REV-108은 독립 검토·Rules/Pages·운영 테스트 권 저장/재진입·PDF 범위·무표식 쓰기 거절을 확인해 resolved. 다음은 별도 REV-137 출력 링크 노출 수정/검토 → U2다. 실제 Safari/iPad·U1.5 원본 패널은 미검증이고 전체 충돌 보류 5는 별도 보존한다.**
 [U0 계약](PRODUCT-UX-U0-CONTRACT.md)·[시안](PRODUCT-UX-U0-SCENARIOS.md)은 검토됐고 D1은 독립/연동 선택으로 답했다. D2/D4는 반영했고 2026-10-01 보완 diff 재검토에 합의했다. B6 112~117 해소는 모두 재검토로 확인됐다(`HANDOFF-174`~`178`), 이후 `main d4762f6`에 포함됐다. 다음 단계는 아래 표와 해당
 번호의 세부 지시문을 따르면 된다. 작업 결과마다 내가 다음 단계를 골라 달라고 다시 물을 필요 없이
 완료/검토 상태와 선행 조건을 이 표와 DEV-TOKEN-ROADMAP에서 이어 간다.
@@ -337,7 +337,7 @@ CLAUDE.md 'Codex 선행'(스키마) 조건이고, 삭제·복원·저장본 왕�
 새 소속의 안전한 왕복을 완료로 선언하지 않는다. 완료 증거 표 10줄은 이슈 파일에 있다.
 
 **① 승인·② 구현 인계(2026-10-19~20)**: [HANDOFF-194](../reviews/handoffs/2026-10/2026-10-19-index-passage-membership.md),
-[API·이관·저장 계약](REV108-PASSAGE-GROUPS.md). Claude Opus 3회차가 ①의 `c2dba2b..5f3e65e`를 결함 없음으로 승인했다. ②는 `setSchemaVersion:1`과 Rules 쓰기 게이트, 무표식 승격·미래 권 보존을 구현하고 브라우저/에뮬레이터 정상·RED를 확인했다. **REV-135·136 포함 Claude Opus 클라우드 후속 판정은 코드·Rules 결함 없음**(댓글 `6295889465`, `570604d`). 이전 래퍼 두 번의 timeout은 승인과 구분한다. `3335d15` CI와 로컬 Rules 정상/RED를 확인했다. 엄격 Rules를 먼저 적용하면 구형 Pages 쓰기가 새 Pages 도착까지 차단되고, Pages를 먼저 적용하면 기존 Rules의 `hasOnly`가 새 표식을 거절한다. 사용자가 이 채팅에서 댓글 `6305398698`의 바로 전환 결정을 직접 확인하고 승인했다. 엄격 Rules를 `pedagogy-huryul`에 배포해 컴파일·릴리스 exit 0을 확인했다(SHA-256 `9b16c418…`, HANDOFF-194). 다음은 Claude의 최신 head/CI 확인·ready·병합/Pages → 로컬 로그인 왕복이다. 현재 PR은 draft이며 로컬에서 main/Pages는 바꾸지 않았다.
+[API·이관·저장 계약](REV108-PASSAGE-GROUPS.md). Claude Opus 3회차가 ①의 `c2dba2b..5f3e65e`를 결함 없음으로 승인했다. ②는 `setSchemaVersion:1`과 Rules 쓰기 게이트, 무표식 승격·미래 권 보존을 구현하고 브라우저/에뮬레이터 정상·RED를 확인했다. **REV-135·136 포함 Claude Opus 클라우드 후속 판정은 코드·Rules 결함 없음**(댓글 `6295889465`, `570604d`). 이전 래퍼 두 번의 timeout은 승인과 구분한다. `3335d15` CI와 로컬 Rules 정상/RED를 확인했다. 엄격 Rules를 먼저 적용하면 구형 Pages 쓰기가 새 Pages 도착까지 차단되고, Pages를 먼저 적용하면 기존 Rules의 `hasOnly`가 새 표식을 거절한다. 사용자가 이 채팅에서 댓글 `6305398698`의 바로 전환 결정을 직접 확인하고 승인했다. 엄격 Rules를 `pedagogy-huryul`에 배포해 컴파일·릴리스 exit 0을 확인했다(SHA-256 `9b16c418…`, HANDOFF-194). PR #23이 `625e19c`로 병합·Pages built이며 병합 CI도 통과했다. 운영 Chrome에서 테스트 권의 schema 1·revision 3 저장/ACK·새로고침 유지, 옛 묶음 확정 후 revision 4·첫 3문항 동일 대표/4번 무소속·정규화 일치/ACK·재진입 유지를 확인했다. 실제 PDF 2쪽의 `[01~03]`과 독립 4번도 확인했다. 인증 SDK에서 무표식 다음 revision 덮어쓰기·신규 사본·tombstone이 모두 `permission-denied`였고 서버 원본은 불변이다. 구형 바이너리 탭 자체를 실행한 검증과는 구분한다. REV-108을 resolved로 닫는다(HANDOFF-194). 출력 링크 노출 REV-137은 별도 수정/검토 후 U2로 잇는다. 실제 Safari/iPad·U1.5 원본 패널은 미검증이다. 계정 전체 충돌 보류 5는 원인 미분리 상태로 보존하며 전체 계정 정상 저장으로 확대하지 않는다.
 ②가 운영에 적용되기 전에는 REV-108 전체 완료·안전한 운영 클라우드 왕복·main 병합 가능으로 표시하지 않는다.
 
 ## ⑩-B U2 AI 일괄 구성 UX — **Claude Sonnet 5 → Codex GPT-6 Sol medium 검토**
