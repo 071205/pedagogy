@@ -1,17 +1,17 @@
 # PEDAGOGY 통합 실행 레일 — 보안·저장·출시·비용
 
-개정: 2026-10-21 · B6·B7·U1 운영 배포, U1.5 세 PR 병합·파일 대조 완료(로그인 UI 미검증). REV-108 ① Claude Opus 3회차 승인. ② 권 버전·Rules 구현/정상·RED, Claude 전반 정적 검토 완료. REV-135·136 후속 수정의 Claude 재검토는 두 번 시간 초과로 미완료, 운영 배포 대기.
+개정: 2026-10-21 · B6·B7·U1 운영 배포, U1.5 세 PR 병합·파일 대조 완료(로그인 UI 미검증). REV-108 ① Claude Opus 3회차 승인. ② 권 버전·Rules 구현/정상·RED, Claude 전반 정적 검토 완료. REV-135·136 포함 Claude 클라우드 후속 검토 결함 없음, `3335d15` CI·로컬 Rules 정상/RED 통과. 사용자 승인으로 엄격 Firestore Rules 운영 배포 완료, Claude PR 병합/Pages와 로컬 로그인 왕복 대기.
 사용자 요청: 기존 비용 레일과 Sonar·안티그래비티 검증 제안을 합쳐, 모델을 직접 바꿔 실행한다.
 **실행 순서·현재 단계는 이 문서 한 곳에서만 관리한다.**
 [이전 레일](DEV-TOKEN-ROADMAP-ARCHIVE-2026-09-20.md)은 완료 증거·계약 보관본이다.
 
-## 현재 위치 — U1.5 세 PR 병합·파일 대조 → REV-108 ① 승인 · ② 후속 검토/운영 전환 → U2
+## 현재 위치 — U1.5 세 PR 병합·파일 대조 → REV-108 ① 승인 · ② 엄격 Rules 배포 완료·Pages/로그인 왕복 → U2
 
 - **U1.5 (2026-10-19)**: PR #14·#15·#16 모두 병합, main `877a8e7`, Pages `built`.
   공개 대상 225개 파일이 운영 사이트와 바이트/SHA-256 일치. 로그인한 Chrome의 원본 패널 확인은 자동화 제한으로 미검증이다.
 - **REV-108 ①**: `codex/rev108-explicit-groups`, Codex GPT-6 Sol / high 구현·부모 검증. Claude Opus 3회차가 `c2dba2b..5f3e65e`의 133·134 후속 수정에 결함 없음으로 판정해 **① 승인**했다(PR #23 댓글 `6269128583`).
-- **REV-108 ②**: 권 최상위 `setSchemaVersion:1`, Firestore Rules 쓰기 게이트, 옛 무표식 승격·미래 권 읽기 전용/원형 보존·CAS/900KiB/삭제 경계를 구현했다. 실제 브라우저·Rules 에뮬레이터와 `ad5fe91` 기준 표적 RED를 확인했고 [저장 계약](REV108-PASSAGE-GROUPS.md)·HANDOFF-194에 기록한다. **Claude 전반 정적 검토 뒤 재현한 REV-135·136도 수정·정상/RED로 확인했다. 후속 Claude 호출 두 번은 각각 600초 시간 초과로 답변을 받지 못했으며, 추가 수정은 독립 Codex 검토에서 결함 미발견으로 확인됐다. 후속 Claude 재검토와 실제 Rules/Pages 배포는 대기**다. 구형 클라이언트의 쓰기 중단을 포함한 운영 전환 순서는 검토·운영자 판정 뒤 확정한다.
-  이 PR을 main에 병합/배포하거나 안전한 운영 왕복·REV-108 전체 완료로 표시하지 않는다.
+- **REV-108 ②**: 권 최상위 `setSchemaVersion:1`, Firestore Rules 쓰기 게이트, 옛 무표식 승격·미래 권 읽기 전용/원형 보존·CAS/900KiB/삭제 경계를 구현했다. 실제 브라우저·Rules 에뮬레이터와 `ad5fe91` 기준 표적 RED를 확인했고 [저장 계약](REV108-PASSAGE-GROUPS.md)·HANDOFF-194에 기록한다. **REV-135·136을 포함한 Claude Opus 클라우드 후속 검토가 코드·Rules 결함 없음으로 완료됐다**(댓글 `6295889465`, 기록 `570604d`). 이전 래퍼 두 번의 timeout은 승인과 구분한다. `3335d15`는 검사 샌드박스 대역 누락을 고쳤고 최신 CI의 verify/check:fast·cross-platform·hwpx·SonarCloud가 통과했다. 로컬 Rules도 JDK 21로 정상/RED 통과했다(HANDOFF-194). 이 채팅에서 사용자가 댓글 `6305398698`의 바로 전환 결정을 직접 확인하고 배포를 승인했다. **엄격 Firestore Rules를 `pedagogy-huryul`에 배포해 컴파일·릴리스 exit 0**을 확인했다(SHA-256 `9b16c418…`). 전환 Rules 단계는 두지 않는다. 다음은 Claude가 PR 최신 head/CI 확인 → ready·병합/Pages 빌드 → 로컬이 실제 로그인 왕복을 확인하는 순서다. 현재 PR은 draft이며 로컬에서 main·Pages는 바꾸지 않았다.
+  승인된 다음 병합/Pages는 Claude 분담이며, 실제 계정 왕복 전에는 안전한 운영 왕복·REV-108 전체 완료로 표시하지 않는다.
 - **요금제 초안(2026-10-04, 해리 결정 전)**: 개인 9,900 · 교습소 14,900 · 학원 문의 구성을 원가·시장과 대조했다 — Gemini Flash-Lite 급이면 성립,
   운영 중인 Haiku 4.5 그대로면 교습소가 원가 76% 로 성립하지 않는다. 한도 단위는 '월 쪽 수', 교습소 좌석 기능은 아직 없다. 결정되면 D7 로 적는다(R9·C1~C3 입력).
 

@@ -3,7 +3,7 @@
 - ID: `HANDOFF-2026-194`
 - 날짜: `2026-10-19`(①) · `2026-10-20~21`(②)
 - 작성자: `Codex GPT-6 Sol / high 구현 · 부모 Codex 통합 검증/인계`
-- 상태: `ready-for-review` — ① Claude Opus 3회차 결함 없음(REV-131~134·D-a/b) · **② 정상/RED·Claude 전반 정적 검토 뒤 135·136 보완. 후속 Claude 시간 초과·Codex 독립 확인 결함 미발견, 운영 미배포·병합 보류**
+- 상태: `reviewed` — ①·② Claude Opus 독립 검토 결함 없음(135·136 포함). `3335d15` CI·로컬 Rules 정상/RED 통과. **사용자 승인으로 엄격 Firestore Rules 운영 배포 완료. 다음: Claude의 PR 병합·Pages 배포 → 로컬 로그인 왕복. REV-108은 `in-progress`**
 - 영향 영역: `index | normalize | render | firestore.rules | tests | docs`
 - 관련 이슈: `REV-2026-108` (`in-progress`, ② 출시 게이트 미완료)
 - 브랜치: `codex/rev108-explicit-groups`
@@ -217,3 +217,32 @@ Claude Opus 2회차 지적의 **REV-133 옛 묶음 보완·REV-134 옛 안내 �
   **표식이 있는 문서는 표식을 유지해야만 갱신·tombstone 가능**(`!('setSchemaVersion' in resource.data) || request…==resource…`).
   새 클라이언트는 항상 표식을 쓰므로 무표식 문서에는 `groupOf` 가 없다 → 구형 탭의 무표식 쓰기는 잃을 것이 없고, 표식 문서는 구형 탭에서 보호된다.
   순서: 전환 Rules → Pages(이 PR) → 구형 탭 소멸 관찰 → 지금의 엄격 Rules. 실제 로그인·구형 운영 탭 거절·Safari/iPad 는 미실행.
+
+
+### ② 후속 검토·CI 확인과 운영 전환 준비 (2026-10-21 · 로컬 Codex · 배포 전 기록)
+
+- **최신 판정:** [Claude Opus 후속 최종 답변](https://github.com/071205/pedagogy/pull/23#issuecomment-6295889465)은 `ad5fe91..8dc7225`의 코드·Rules 결함 미발견이다. REV-135·136을 포함한 `test:set-schema`·Rules emulator 및 미래 권 주입 문자열 부팅 검사를 실행했다고 보고했고, `570604d`에 같은 검토 기록이 있다. 이전 두 래퍼 timeout은 계속 미완료로 기록하며, 이 별도 클라우드 최종 답변과 구분한다. 같은 질문으로 Claude를 재호출하지 않았다.
+- **현재 head:** 실제 worktree `/Users/huryul/개발/pedagogy-작업사본/pedagogy-u15b`를 깨끗한 `8dc7225`에서 `3335d15e9e5209bb40958a3ac81b96d658407b0c`로 fast-forward했다. 추가 변경은 검토 문서와 `check-audit-safety.mjs`의 VM 외부 경계 대역뿐이며 제품·Rules 소스는 같다.
+- **CI:** `8dc7225`의 verify 실패는 새 schema 함수·상수 및 `writeLocalNow` 대역 누락이다. 로컬에서 당시 검사 파일을 임시 경로에 저장하고 현 제품 함수에 실행해 exit 1·11개 중 4개 실패(`ReferenceError` 포함)를 재현했다. `3335d15` 검사 파일은 exit 0·11/11 통과다. [최신 Verify 실행](https://github.com/071205/pedagogy/actions/runs/39458566478)은 verify·cross-platform·hwpx 모두 성공이며 check:fast·Rules·시각 회귀 단계도 성공이다. SonarCloud도 성공이다. 전체 check:fast의 **로컬 일괄 실행**은 하지 않았고 같은 head의 원격 결과를 재사용한다.
+- **배포 전 로컬 검사:** `npm run check:rules` 최초 실행은 기본 Java 8 때문에 emulator 시작 전에 exit 1이었다. 설치된 JDK 21을 아래처럼 이번 프로세스에만 지정한 실행은 exit 0이며, Firestore/Storage·B3·schema 정상과 request/resource/`ad5fe91` RED를 모두 확인했다.
+  ```bash
+  env JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home PATH="/opt/homebrew/opt/openjdk@21/bin:$PATH" npm run check:rules
+  ```
+  배포 후보 `firestore.rules` SHA-256: `9b16c418fa782139f6040b299e575717aa6654e559e566cb9dd3285c33ea0277`.
+- **운영 순서 확인:** [새 댓글](https://github.com/071205/pedagogy/pull/23#issuecomment-6305398698)은 해리의 “지금 쓰는 사람이 없으니” 결정을 전하며 엄격 Rules → PR 병합/Pages → 로그인 왕복 순서를 적었다. 현재 채팅의 직접 지시는 사용자 확인 전 draft·배포/병합 보류이므로 댓글만으로 배포하지 않고 최신 결정인지 확인을 요청했다. 답변 전에는 배포·ready 전환·main 병합을 하지 않는다. 엄격 Rules를 먼저 올리면 구형 운영 Pages의 쓰기는 새 Pages 도착까지 거절된다. 반대로 Pages를 먼저 올리면 기존 Rules의 `hasOnly`가 새 표식을 거절한다.
+- **합의:** ①·② 코드/Rules 독립 검토 완료, CI와 로컬 준비 검사 통과. **미합의:** 재현 결함 없음; 이 채팅의 배포 승인 확인 대기. **다음 행동:** 확인되면 위 SHA의 Firestore Rules만 `pedagogy-huryul`에 배포하고 결과·해시를 이 인계에 추가한다. Pages/병합은 별도 승인된 분담을 따른다. 실제 Google 로그인 저장·새로고침 유지·옛 묶음 확인/인쇄, 구형 운영 탭의 거절, Safari/iPad는 미검증이며 REV-108은 `in-progress`다.
+- 세션 로그: `/private/tmp/rev108-resume-2026-10-21/`의 `pr.json`, `ci-latest.json`, `audit-safety-before.log`, `audit-safety.log`, `check-rules.log`(Java 8 시작 실패), `check-rules-java21.log`(정상/RED 통과). 임시 로그 유실 시 위 명령과 고정 커밋으로 재현한다. `transcript.txt`는 읽거나 수정하지 않았다.
+
+
+### ② 엄격 Firestore Rules 운영 배포 완료 (2026-10-21 14:44 KST · 로컬 Codex)
+
+- **사용자 승인:** 이 채팅에서 “최신 결정이 맞음 — 검증 후 Rules 배포 승인”으로 댓글 `6305398698`의 바로 전환 결정을 직접 확인했다. 전환 Rules 단계 없이 **엄격 Rules → Claude PR 병합/Pages → 로컬 로그인 왕복** 순서를 확정했다. 구형 운영 Pages의 쓰기가 새 Pages 도착까지 거절되는 창을 수용한 승인이다.
+- **배포 대상/명령:** 검증한 `3335d15`의 `firestore.rules`만 `firebase deploy --only firestore:rules --project pedagogy-huryul --non-interactive`로 배포했다. 원 프로세스 **exit 0**. Firebase 출력:
+  ```text
+  cloud.firestore: rules file firestore.rules compiled successfully
+  firestore: released rules firestore.rules to cloud.firestore
+  Deploy complete!
+  ```
+  배포 전/후 SHA-256 모두 `9b16c418fa782139f6040b299e575717aa6654e559e566cb9dd3285c33ea0277`. 배포 로그는 `/private/tmp/rev108-resume-2026-10-21/deploy-firestore-rules.log`다. Storage·Worker·Pages는 배포하지 않았다.
+- **검증 재사용:** 위 JDK 21 `check:rules` 정상/RED exit 0 뒤 Rules·제품 코드는 바뀌지 않았다. `3335d15` 원격 CI 성공과 로컬 검사 샌드박스 11/11을 재사용한다. 이 배포는 운영 서버 컴파일·릴리스 완료 증거이며, 실제 인증된 데이터 쓰기/거절의 실행 증거를 대신하지 않는다.
+- **다음 담당/범위:** Claude가 PR #23의 최신 head와 CI를 확인하고 ready 전환·병합하여 Pages 빌드를 확인한다. 로컬 Codex는 이 단계에서 PR 상태·main·Pages를 바꾸지 않았다. Pages 반영 뒤 로그인 → 검증용 권 저장 `✓ 저장됨` → 새로고침 유지 → 옛 묶음 일괄 확인 → 인쇄를 확인한다. 구형 운영 탭의 실제 거절·Safari/iPad도 미검증이다. 안전한 운영 왕복/전체 완료로 선언하지 않으며 REV-108은 `in-progress`다.
