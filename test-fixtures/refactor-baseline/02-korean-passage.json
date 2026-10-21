@@ -54,7 +54,9 @@
             ]
           }
         }
-      ]
+      ],
+      "id": "fixture-korean-1",
+      "groupOf": "fixture-korean-1"
     },
     {
       "title": "대화·표",
@@ -110,7 +112,9 @@
             ]
           }
         }
-      ]
+      ],
+      "id": "fixture-korean-2",
+      "groupOf": "fixture-korean-1"
     }
   ]
 }

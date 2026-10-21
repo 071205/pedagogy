@@ -94,7 +94,9 @@
         }
       ],
       "groupSpan": 2,
-      "groupLead": "다음을 듣고, 물음에 답하시오."
+      "groupLead": "다음을 듣고, 물음에 답하시오.",
+      "id": "fixture-english-listen-1",
+      "groupOf": "fixture-english-listen-1"
     },
     {
       "title": "듣기 2",
@@ -115,7 +117,9 @@
             ]
           }
         }
-      ]
+      ],
+      "id": "fixture-english-listen-2",
+      "groupOf": "fixture-english-listen-1"
     }
   ]
 }

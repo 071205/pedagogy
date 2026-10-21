@@ -21,6 +21,7 @@ const circled=n=>"①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳".
 // 한 문제집이 "실제 작업물"인지 판단: 이름이 기본값이 아니거나, 내용 있는 문제가 하나라도 있으면 true
 function setHasContent(s){
   if(!s) return false;
+  if(Object.hasOwn(s,"setSchemaVersion")&&s.setSchemaVersion!==1) return true;
   if(s.name && s.name!=="새 문제집") return true;
   return (s.problems||[]).some(q=>{
     /* groupLead 는 '지문 없는 묶음' 의 안내 글이다 — 이것만 적어 둔 문항도 내용이 있다. */
@@ -345,10 +346,10 @@ function tableHTML(data, cls){
    ⚠️ 겉모습은 psg-head 를 그대로 쓴다. 따로 만들면 같은 문서 안에서 두 안내 줄이
       다르게 보이고, 나중에 한쪽만 고쳐 갈라진다. */
 function groupHeadHTML(q, range){
-  if(!range) return "";
   if((q&&q.blocks||[]).some(b=>b&&b.type==="passage")) return "";
   const lead=str(q&&q.groupLead,200);
-  return `<div class="grp-head psg-head">[${sanitize(range)}] ${sanitize(lead)}</div>`;
+  if(!q?.groupOf||q.groupOf!==q.id||!lead.trim()) return "";
+  return `<div class="grp-head psg-head">${range?`[${sanitize(range)}] `:""}${sanitize(lead)}</div>`;
 }
 
 function blockHTML(blk, ctx){

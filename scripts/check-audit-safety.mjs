@@ -12,7 +12,7 @@ function fn(name){let start=src.indexOf('function '+name+'(');assert.ok(start>=0
   return src.slice(start,src.indexOf('\n}',start)+2);}
 const productSession=`let authEpoch=0;\n${fn('sessionContext')}\n${fn('sessionMatches')}`;
 function context(code){const c=vm.createContext({URL,console:{log(){},warn(){},error(){}},setTimeout:()=>0,clearTimeout(){}});
-  vm.runInContext(`const intakeWriteAllowed=()=>true,intakeHoldWrite=()=>{},intakeNeedsUpdate=()=>false,intakeSetReadOnly=()=>false,intakeClients=new Set(),intakeLocalBase=new Map(),intakeCloudFailures=new Map(),intakeRemoteBlocked=new Map();let intakeCloudReady=false,intakeAdopting=false;`+code+'\n'+productSession,c);return c;}
+  vm.runInContext(`const intakeWriteAllowed=()=>true,intakeHoldWrite=()=>{},intakeNeedsUpdate=()=>false,intakeSetReadOnly=()=>false,intakeClients=new Set(),intakeLocalBase=new Map(),intakeCloudFailures=new Map(),intakeRemoteBlocked=new Map(),SET_SCHEMA_VERSION=1,setSchemaUnsupported=()=>false,setSchemaRemoteBlocked=new Map();let intakeCloudReady=false,intakeAdopting=false;`+code+'\n'+productSession,c);return c;}
 class Storage {
   data=new Map();alarm=null;
   async get(k){return structuredClone(this.data.get(k));}
@@ -68,7 +68,7 @@ for(const aba of [false,true]) test('032: stale load discarded '+(aba?'A-B-A':'A
 test('033: ack uses sent snapshot and schedules unsent revision',async()=>{
   const c=context(`let currentUser={uid:'A'},sets=[{id:'s',name:'v1',problems:[]}],cloudSynced=new Map(),setWriteBase=new Map(),wiping=false;
     let sent=[],release,retries=0;const gate=new Promise(r=>release=r);
-    const flushLocal=()=>true,setSaveStatus=()=>{},idleSaveStatus=()=>{},toast=()=>{};
+    const flushLocal=()=>true,writeLocalNow=()=>true,setSaveStatus=()=>{},idleSaveStatus=()=>{},toast=()=>{};
     const cloudSyncEntry=s=>({json:JSON.stringify(s)}),isCloudSynced=s=>cloudSynced.get(s.id)?.json===JSON.stringify(s);
     const setToDoc=s=>JSON.parse(JSON.stringify(s)),SETS_COL=()=>({doc:id=>id});
     const rememberSetSyncMeta=()=>true,setSyncMetaEntry=()=>({}),setWriteBaseEntryFromDoc=()=>({}),setRevisionEnabled=()=>false,heldSetIds=()=>new Set();

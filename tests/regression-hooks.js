@@ -42,6 +42,21 @@ Object.defineProperty(window.__REGRESSION_HOOKS__, "libMeta", {
 });
 
 window.__REGRESSION_ACTIONS__ = {
+  async groupPrintProbe(set) {
+    const beforeSets=sets,beforeSetId=currentSetId,beforeQId=currentQId;
+    const originalPrint=window.print;
+    let printCalls=0,blocked=false;
+    try{
+      sets=[set];currentSetId=set.id;currentQId=set.problems[0].id;
+      window.print=()=>{printCalls++;};
+      try{buildPrintDoc(false);}catch{blocked=true;}
+      await doPrint(false);
+      return {blocked,printCalls};
+    }finally{
+      sets=beforeSets;currentSetId=beforeSetId;currentQId=beforeQId;
+      window.print=originalPrint;
+    }
+  },
   menuLayerProbe() {
     const keep = sets;
     try {
@@ -76,7 +91,7 @@ window.__REGRESSION_ACTIONS__ = {
   syncProbe() {
     const keep = cloudSynced;
     try {
-      const item = { id: "__sync_probe__", name: "x", header: "", problems: [], lineColor: "indigo", subject: "math" };
+      const item = { id: "__sync_probe__", name: "x", header: "", problems: [], lineColor: "indigo", subject: "math", setSchemaVersion: 1 };
       cloudSynced = new Map([[item.id, cloudSyncEntry(item, 0)]]);
       return { same: isCloudSynced(item, 0), orderDirty: !isCloudSynced(item, 1) };
     } finally { cloudSynced = keep; }

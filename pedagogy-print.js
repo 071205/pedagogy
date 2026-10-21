@@ -24,7 +24,7 @@
 (function(global){
 
 /* 정규화 모듈의 문자열 상한 도우미. 고전 스크립트 순서가 이것을 보장한다. */
-const {str} = global.PedagogyNormalize;
+const {str, validGroups} = global.PedagogyNormalize;
 
 /* 문항이 지면에서 차지하는 크기. 예전 데이터의 paired 도 그대로 읽는다. */
 /* paired 와 span 을 함께 맞춘다. 두 값이 어긋나면 spanOf 가 엉뚱한 배치를 준다.
@@ -85,24 +85,15 @@ function groupSpanOf(q){
 }
 
 function computeNums(arr){
-  const res=[]; let main=0;
-  arr.forEach(q=>{
-    main++;
-    res.push({q, num: q.numLabel||String(main).padStart(2,'0')});
-  });
-  /* 지문 세트의 번호 범위([01~03]). 지문 블록을 렌더할 때 머리에 붙인다.
-     끝 번호는 배열 밖으로 나가지 않게 자른다 — 마지막 문항에 span 을 크게
-     잡아 두고 뒤 문항을 지우면 범위가 없는 번호를 가리킬 수 있다. */
-  res.forEach((r,i)=>{
-    const span=groupSpanOf(r.q);
-    if(span>1){
-      const last=res[Math.min(i+span-1, res.length-1)];
-      if(last && last!==r) r.range=r.num+"~"+last.num;
-    }
-  });
+  const res=arr.map((q,i)=>({q,num:q.numLabel||String(i+1).padStart(2,'0')}));
+  const {groups}=validGroups(arr);
+  for(const [id,indexes] of groups){
+    if(indexes.length<=1) continue;
+    const first=indexes[0],last=indexes[indexes.length-1];
+    if(arr[first]?.id===id) res[first].range=res[first].num+"~"+res[last].num;
+  }
   return res;
 }
-
 
 /* 지금 문항부터 끝까지 `n` 개씩 묶는다(`n<=1` 이면 모두 푼다).
    ⚠️ 시작점이 **기존 묶음의 가운데면 그 묶음 시작부터** 적용한다 — 안 그러면 범위 앞의

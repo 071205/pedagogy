@@ -291,7 +291,15 @@ function create({session,library,renderer=browserRenderer(),transport=null,outbo
         if(before.deleted.includes(result.setId)){result.state='deleted';continue;}
         if(result.state==='local'||result.state==='deleted'||result.state==='check'){result.state='check';continue;}
         const problems=result.items.map(item=>problemFromDraft(ledger.drafts.find(d=>d.id===item.draftId),item.problemId));
-        for(const g of ledger.groups) result.items.forEach((item,i)=>{if(item.draftId===g.members[0])problems[i].groupSpan=g.members.length;});
+        for(const g of ledger.groups) result.items.forEach((item,i)=>{
+          if(item.draftId===g.members[0]){
+            if(!global.PedagogyNormalize.setGroupSpan(problems,problems[i].id,g.members.length))
+              fail("공통지문 소속 확인 필요");
+            // AI 계약은 지문을 첫 statement에 넣는다. 문제 본문과 지문을
+            // 안정적으로 가를 수 없으므로 사람이 확인하기 전 출력하지 않는다.
+            problems[i].groupReview="intake";
+          }
+        });
         next.push({id:result.setId,name:result.name,header:'',subject:'math',lineColor:'indigo',problems});included.push(result.setId);
       }
       let saved=false,error=null;

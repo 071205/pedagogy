@@ -151,6 +151,12 @@ try{
       const a=await grouped.adopt(setup.jobId,{draftVersion:job.draftVersion,destinations:[{id:'a',name:'A',items:duplicates}]});
       const adopted=disk.find(s=>s.id===a.results[0].setId).problems;eq(adopted.map(p=>p.groupSpan),[2,1,2,1,1]);
       ok(new Set(adopted.map(p=>p.id)).size===5);
+      eq(adopted.map(p=>p.groupOf||''),[adopted[0].id,adopted[0].id,adopted[2].id,adopted[2].id,'']);
+      eq([adopted[0].groupReview,adopted[2].groupReview],['intake','intake']);
+      ok(PedagogyNormalize.groupDiagnostics(adopted).length>0,'AI statement 묶음은 검토 전 출력 금지');
+      ok(!computeNums(adopted)[0].range,'검토 전 번호 범위 금지');
+      const round=PedagogyNormalize.normSet({problems:adopted},{keepId:true,lossless:true}).problems;
+      eq([round[0].groupReview,round[2].groupReview],['intake','intake']);
     });
     await check('실패 쪽만 명시 재시도/순차 호출·부분 성공 채택',async()=>{
       let n=0,active=0,max=0;

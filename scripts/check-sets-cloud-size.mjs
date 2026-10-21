@@ -237,7 +237,9 @@ try{
     assert.equal(r.hasCells,false);
     assert.deepEqual(r.flat,['A|B','둘','셋','','\u03b1','\u03b2','넷','다섯','여섯','']);
     assert.deepEqual(r.loadedCells,[["A|B","둘"],["셋",""],["\u03b1","\u03b2"],["넷","다섯"],["여섯",""]]);
-    assert.equal(r.before,r.after,'전송 변환이 화면 원본을 바꾸면 안 된다');
+    assert.equal(r.before,JSON.stringify((({setSchemaVersion,...rest})=>rest)(JSON.parse(r.after))),
+      '전송 변환이 버전 표식 외의 화면 원본을 바꾸면 안 된다');
+    assert.equal(JSON.parse(r.after).setSchemaVersion,1,'ACK한 권에는 지원 버전이 남아야 한다');
     assert.equal(r.ok,true); assert.deepEqual(r.batched,['paired']);
     assert.ok(Array.isArray(r.batchDocs[0].problems[0].blocks[0].data.cellsFlat),'실제 batch 문서도 평탄해야 한다');
   });

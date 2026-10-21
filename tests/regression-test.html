@@ -533,7 +533,7 @@ async function runIndexTests(){
     const b = s.problems[0].blocks.find(x=>x.type==="passage");
     const pt = b && b.data.parts && b.data.parts[0];
     return { pass: !!pt && pt.text==="긴 지문" && pt.source==="장석남" && pt.notes==="주석"
-                   && s.problems[0].groupSpan===3,
+                   && s.problems[0].groupReview==="invalid" && s.problems[0].groupSpan===1,
              note: pt ? undefined : "지문 조각이 버려짐" };
   });
 
@@ -1261,8 +1261,8 @@ async function runIndexTests(){
     host.innerHTML = `<div class="content">`
       + win.blockHTML(win.normBlock(dlg), {subject:"korean"})
       + win.blockHTML(win.normBlock(dlg), {subject:"english"})
-      + win.groupHeadHTML(win.normProblem({groupSpan:2, groupLead:"안내",
-          blocks:[{type:"choices", data:{items:["a"]}}]}, false), "01~02")
+      + win.groupHeadHTML(win.normProblem({id:"font-guide",groupOf:"font-guide",groupSpan:2, groupLead:"안내",
+          blocks:[{type:"choices", data:{items:["a"]}}]}, {keepId:true}), "01~02")
       + `</div>`;
     doc.body.appendChild(host);
     try{
@@ -1291,16 +1291,18 @@ async function runIndexTests(){
        (16~17 듣기 · 31~34 빈칸 · 36~37 순서 · 38~39 삽입).
        국어에는 없다 — 실물의 모든 안내 뒤에 지문이 온다. 그래서 과목을 가르지 않았다.
        ⚠️ 지문이 있으면 지문 블록이 이미 psg-head 로 그린다. 여기서 또 그리면 두 번 나온다. */
-    const noPsg = win.normProblem({groupSpan:2, groupLead:"다음을 듣고, 물음에 답하시오.",
-      blocks:[{type:"choices", data:{items:["a"]}}]}, false);
-    const withPsg = win.normProblem({groupSpan:2, groupLead:"이것은 무시되어야 한다",
-      blocks:[{type:"passage", data:{parts:[{text:"x"}]}}]}, false);
+    const noPsg = win.normProblem({id:"guide",groupOf:"guide",groupSpan:2, groupLead:"다음을 듣고, 물음에 답하시오.",
+      blocks:[{type:"choices", data:{items:["a"]}}]}, {keepId:true});
+    const withPsg = win.normProblem({id:"passage",groupOf:"passage",groupSpan:2, groupLead:"이것은 무시되어야 한다",
+      blocks:[{type:"passage", data:{parts:[{text:"x"}]}}]}, {keepId:true});
     const a = win.groupHeadHTML(noPsg, "16~17");
     const b = win.groupHeadHTML(withPsg, "36~37");
-    /* 범위가 없으면(묶음이 아니면) 아무것도 그리지 않는다. */
-    const none = win.groupHeadHTML(noPsg, "");
+    /* 2→1 삭제 뒤 남은 대표의 안내는 범위 없이 표시한다. */
+    const singleton = win.groupHeadHTML(noPsg, "");
+    const inactive = win.groupHeadHTML(win.normProblem({id:"old",groupLead:"옛 안내"}, false), "");
     return { pass: a.includes("grp-head") && a.includes("[16~17]") && a.includes("다음을 듣고")
-                   && b==="" && none==="",
+                   && b==="" && singleton.includes("grp-head")
+                   && singleton.includes("다음을 듣고") && !singleton.includes("[") && inactive==="",
              note: b==="" ? undefined : "지문이 있는데도 안내를 또 그림" };
   });
 
@@ -1319,8 +1321,9 @@ async function runIndexTests(){
   });
 
   await check(G, "묶음 안내가 정규화를 통과해 보존되고 태그는 이스케이프된다", () => {
-    const p = win.normProblem({groupSpan:2, groupLead:'<img src=x onerror=alert(1)> 안내',
-      blocks:[{type:"choices", data:{items:["a"]}}]}, false);
+    const p = win.normProblem({id:"safe-guide",groupOf:"safe-guide",groupSpan:2,
+      groupLead:'<img src=x onerror=alert(1)> 안내',
+      blocks:[{type:"choices", data:{items:["a"]}}]}, {keepId:true});
     const html = win.groupHeadHTML(p, "01~02");
     /* 묶음 안내만 적어 둔 문항도 '내용 있음' 이어야 한다 — 아니면 병합에서 빠져 사라진다. */
     const counted = win.setHasContent({name:"새 문제집", problems:[
@@ -1339,15 +1342,112 @@ async function runIndexTests(){
              note: doc.querySelector("#qGroupSpan") ? undefined : "문항 편집기에 묶음 칸이 없음" };
   });
 
-  await check(G, "묶음 수가 번호 범위로 계산된다", () => {
-    const arr = [
-      {id:"a", groupSpan:3, blocks:[{type:"passage", data:{parts:[{text:"x"}]}}]},
-      {id:"b", blocks:[{type:"statement", data:{text:""}}]},
-      {id:"c", blocks:[{type:"statement", data:{text:""}}]},
-    ];
-    const n = win.computeNums(arr);
-    return { pass: n[0].range==="01~03" && !n[1].range,
-             note: n[0].range ? undefined : "범위가 안 붙음" };
+  await check(G, "검증된 소속만 번호 범위로 계산한다", () => {
+    const raw = {problems:[
+      {id:"a",groupSpan:3,blocks:[{type:"passage",data:{parts:[{text:"x"}]}}]},
+      {id:"b"},{id:"c"},{id:"d"}]};
+    const N=win.PedagogyNormalize;
+    const old=N.normSet(raw,{keepId:true}).problems;
+    const held=!win.computeNums(old)[0].range && old[0].groupReview==="legacy";
+    N.setGroupSpan(old,"a",3);
+    return held && win.computeNums(old)[0].range==="01~03";
+  });
+
+  await check(G, "REV-108 가운데 삭제 뒤 무관한 문항을 범위에 넣지 않는다", () => {
+    const N=win.PedagogyNormalize;
+    const arr=N.normSet({problems:[
+      {id:"p1",blocks:[{type:"passage",data:{parts:[{text:"지문"}]}}]},
+      {id:"p2"},{id:"p3"},{id:"q4"}]},{keepId:true}).problems;
+    N.setGroupSpan(arr,"p1",3);
+    const removed=N.removeGroupedProblem(arr,1);
+    return removed.id==="p2" && arr[0].groupSpan===2
+      && win.computeNums(arr)[0].range==="01~02" && !arr[2].groupOf;
+  });
+
+  await check(G, "REV-108 대표 삭제는 차단하고 구성원 끝 삭제는 축소한다", () => {
+    const N=win.PedagogyNormalize;
+    const arr=N.normSet({problems:[
+      {id:"a",groupLead:"안내"},{id:"b"},{id:"c"},{id:"d"}]},{keepId:true}).problems;
+    N.setGroupSpan(arr,"a",3);
+    const blocked=N.removeGroupedProblem(arr,0)===null && arr.length===4;
+    const removed=N.removeGroupedProblem(arr,2);
+    return blocked&&removed.id==="c"&&arr[0].groupSpan===2
+      &&win.computeNums(arr)[0].range==="01~02"&&!arr[2].groupOf;
+  });
+
+  await check(G, "REV-108 삽입·재정렬은 자동 가입시키지 않고 범위를 감춘다", () => {
+    const N=win.PedagogyNormalize;
+    const arr=N.normSet({problems:[
+      {id:"a",groupLead:"안내"},{id:"b"},{id:"c"}]},{keepId:true}).problems;
+    N.setGroupSpan(arr,"a",2);
+    const independent=N.detachedProblem(arr[2]);
+    arr.splice(1,0,independent);
+    const inserted=!independent.groupOf&&!win.computeNums(arr)[0].range
+      &&N.groupDiagnostics(arr).some(x=>x.reason.includes("연속"));
+    arr.splice(1,1);
+    arr.splice(1,0,arr.splice(2,1)[0]);
+    return inserted&&!win.computeNums(arr)[0].range;
+  });
+
+  await check(G, "REV-108 구성원 복제 차단·권 복제 ID 참조 재매핑", () => {
+    const N=win.PedagogyNormalize;
+    const original=N.normSet({problems:[
+      {id:"a",groupLead:"안내"},{id:"b"},{id:"c"}]},{keepId:true});
+    N.setGroupSpan(original.problems,"a",2);
+    const blocked=N.detachedProblem(original.problems[1])===null;
+    const copied=N.normSet(original);
+    return blocked && copied.problems[0].id!==original.problems[0].id
+      && copied.problems[1].groupOf===copied.problems[0].id
+      && N.groupDiagnostics(copied.problems).length===0;
+  });
+
+  await check(G, "REV-108 중복·고아·깨진 명시 소속은 자동 수선하지 않는다", () => {
+    const N=win.PedagogyNormalize;
+    const duplicate=N.normSet({problems:[
+      {id:"x",groupOf:"x",groupSpan:2,groupLead:"안내"},
+      {id:"x",groupOf:"x"}]},{keepId:true}).problems;
+    const malformed=N.normSet({problems:[
+      {id:"a",groupOf:{bad:true},groupSpan:2,groupLead:"안내"},{id:"b"}]},{keepId:true}).problems;
+    const orphan=N.normSet({problems:[{id:"q",groupOf:"elsewhere"}]},{keepId:true}).problems;
+    return duplicate.some(q=>q.groupReview==="invalid")
+      && N.groupDiagnostics(duplicate).length>0
+      && malformed[0].groupReview==="invalid"
+      && !win.computeNums(malformed)[0].range
+      && N.groupDiagnostics(orphan).some(x=>x.reason.includes("대표 문항 없음"));
+  });
+
+  await check(G, "REV-108 명시 소속 수 불일치는 파생 수가 고쳐져도 차단된다", () => {
+    const N=win.PedagogyNormalize;
+    const arr=N.normSet({problems:[
+      {id:"a",groupOf:"a",groupSpan:3,groupLead:"안내"},
+      {id:"b",groupOf:"a"}]},{keepId:true}).problems;
+    const restored=N.normSet({problems:JSON.parse(JSON.stringify(arr))},{keepId:true}).problems;
+    return arr[0].groupSpan===2&&arr[0].groupReview==="invalid"
+      &&N.groupDiagnostics(restored).length>0&&!win.computeNums(restored)[0].range;
+  });
+
+  await check(G, "REV-108 권간 대표만·꼬리만 이동은 차단하고 전체 이동은 재매핑한다", () => {
+    const N=win.PedagogyNormalize;
+    const source=N.normSet({problems:[
+      {id:"a",groupLead:"안내"},{id:"b"},{id:"c"}]},{keepId:true}).problems;
+    N.setGroupSpan(source,"a",2);
+    const target=N.normSet({problems:[{id:"z"}]},{keepId:true}).problems;
+    const partial=N.moveWholeGroup(source,target,"b")===null&&source.length===3;
+    const moved=N.moveWholeGroup(source,target,"a");
+    return partial&&moved?.length===2&&source.length===1
+      &&moved[0].id!=="a"&&moved[1].groupOf===moved[0].id
+      &&N.groupDiagnostics(target).length===0&&win.computeNums(target)[1].range==="02~03";
+  });
+
+  await check(G, "REV-108 옛 묶음은 검토 전 인쇄를 막고 실제 조판도 거절한다", async () => {
+    const N=win.PedagogyNormalize;
+    const old=N.normSet({id:"rev108",name:"옛 권",problems:[
+      {id:"a",groupSpan:3,groupLead:"안내"},{id:"b"},{id:"c"},{id:"d"}]},{keepId:true});
+    const action=win.__REGRESSION_ACTIONS__.groupPrintProbe;
+    const held=await action(old);
+    N.setGroupSpan(old.problems,"a",3);
+    return held.blocked&&held.printCalls===0
+      &&win.computeNums(old.problems)[0].range==="01~03";
   });
 
   await check(G, "묶음 수는 1~10 밖 값을 받지 않는다", () => {
@@ -1533,8 +1633,8 @@ async function runIndexTests(){
     const keysAt = v => withSchema(v, () =>
       Object.keys(installHooks(win, ["setToDoc"]).setToDoc(base, 0)).sort().join(","));
     const A = keysAt(0), B = keysAt(1);
-    const wantA = ['deleted','header','id','lineColor','name','order','problems','subject','updatedAt'].join(",");
-    const wantB = ['deleted','folderId','header','id','lineColor','name','order','problems','subject','updatedAt'].join(",");
+    const wantA = ['deleted','header','id','lineColor','name','order','problems','setSchemaVersion','subject','updatedAt'].join(",");
+    const wantB = ['deleted','folderId','header','id','lineColor','name','order','problems','setSchemaVersion','subject','updatedAt'].join(",");
     return { pass: A === wantA && B === wantB, note: `A=${A} · B=${B}` };
   });
 

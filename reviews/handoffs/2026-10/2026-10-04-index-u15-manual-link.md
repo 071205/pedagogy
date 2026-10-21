@@ -3,7 +3,7 @@
 - ID: `HANDOFF-2026-184`
 - 날짜: `2026-10-04`
 - 작성자: `Claude / Opus 5.5`
-- 상태: `reviewed` — **2026-10-19 Codex `gpt-5.6-sol` / medium 재검토 승인 · REV-2026-118 해결 확인** (#14·#15 병합 완료, PR #16 병합·운영 확인은 별도)
+- 상태: `reviewed` — **2026-10-19 Codex `gpt-5.6-sol` / medium 재검토 승인 · REV-2026-118 해결 확인** (#14·#15·#16 병합 완료, main `877a8e7`·공개 파일 225개 대조 완료, 로그인 UI 미검증)
 - 영향 영역: `index | tests | docs`
 - 관련 이슈: `REV-2026-118` (REV-2026-108 선행 판정 기록을 같은 브랜치에 실었다)
 - 브랜치: `claude/u15-manual-link` (기준 `codex/u15-storage` = PR #15 `f29af93` · 그 아래 PR #14). **#14 → #15 → 이것** 순서로만 merge.
@@ -83,3 +83,9 @@ U1.5 의 마지막 묶음. 저장 묶음 API(`registerSource`·`assignPages`·`r
   미실행: `check:fast` 전체·실제 Google 로그인·Safari/iPad. `regression-test.html`은 이 브랜치에 없어 실행 불가.
   합의: 이번 결함 해소, 같은 이슈를 `resolved`로 닫음. 미합의: 없음. 다음 행동: **PR #16 병합 뒤 REV-108 Sol high 구현 → Claude Opus 검토**.
   이 재검토는 기록만 갱신하며, PR 병합·배포·REV-108 구현을 완료한 것으로 표시하지 않는다.
+
+- `2026-10-19` · 부모 Codex 운영 대조: PR #16 병합 `877a8e7`·Pages `built`, 공개 입력/자산 **225/225 바이트 일치**.
+  로그인 Chrome 원본 패널은 CUA 초기화 오류/Chrome Apple Events JavaScript 비활성으로 미검증.
+  **이전 검토 기록 정정**: 루트에 `regression-test.html`이 없지만 `serve.py`는 `/regression-test.html`을
+  `tests/regression-test.html`에 매핑한다. 이전 ‘브랜치에 없어 실행 불가’는 경로 확인 오류이며 당시 실행한 것으로 소급하지 않는다.
+  이번 REV-108에서 실제 회귀 실행 결과는 HANDOFF-194에 기록한다.

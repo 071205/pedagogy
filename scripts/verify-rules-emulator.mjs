@@ -49,6 +49,7 @@ const validSet = (id, overrides = {}) => ({
   subject: "math",
   folderId: "",
   revision: 1,
+  setSchemaVersion: 1,
   ...overrides,
 });
 const png = (size = 32) => new Blob([new Uint8Array(size)], { type: "image/png" });

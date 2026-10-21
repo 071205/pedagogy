@@ -16,7 +16,8 @@ const testEnv = await initializeTestEnvironment({
 });
 const set = (id, extra={}) => ({
   id, name:'B3 strict', header:'', problems:[], order:0,
-  deleted:false, updatedAt:1, lineColor:'indigo', subject:'math', folderId:'', ...extra,
+  deleted:false, updatedAt:1, lineColor:'indigo', subject:'math', folderId:'',
+  setSchemaVersion:1, ...extra,
 });
 try {
   const alice=testEnv.authenticatedContext('alice').firestore();
