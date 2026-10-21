@@ -11,7 +11,7 @@ import {rehashInlineScripts} from './lib/csp-rehash.mjs';
 /* SET_REVISION_BASE 로 다른 기준 커밋(예: B4 직전)을 깨보기 대상으로 삼을 수 있다. */
 const BASE_COMMIT=process.env.SET_REVISION_BASE||'4ea6fa7';
 const base='http://127.0.0.1:18886';
-const EXPECTED_CHECKS=39;
+const EXPECTED_CHECKS=40;
 const CHOICE_CHECK='B4 다른 충돌 사본이 순서를 밀어도 서버본 선택 뒤 재진입에 재충돌하지 않는다';
 const choiceRed=process.env.SET_REVISION_CHOICE_RED==='1';
 let choiceSource;
@@ -717,6 +717,28 @@ try{
     assert.equal(r.remoteSame,true);assert.equal(r.held,true);
   });
 
+  await check('B4 서버본 순서 ACK 대기 중 목록이 바뀌어도 다른 권과 사본을 덮지 않는다',async p=>{
+    await stub(p);const available=await heldStale(p);
+    const r=await p.evaluate(async()=>{
+      if(typeof chooseServerVersion!=='function')return {};
+      const shown=structuredClone(window.__remote.get('set-a'));
+      sets.unshift(normSet({id:'prefix',name:'원격 삭제될 앞 권',problems:[{id:'prefix-q'}]},{keepId:true}));
+      const tx=fbDb.runTransaction;
+      let afterConcurrentChange;
+      fbDb.runTransaction=async run=>{
+        const result=await tx(run);
+        // 서버 ACK를 기다리는 동안 listener가 앞 권의 삭제를 반영한 상황.
+        sets.shift();afterConcurrentChange=JSON.stringify(sets);
+        return result;
+      };
+      const result=await chooseServerVersion(currentUser.uid,'set-a',{exists:true,data:shown});
+      return {result,unchanged:JSON.stringify(sets)===afterConcurrentChange,
+        held:heldSetIds(currentUser.uid).has('set-a'),copies:sets.filter(s=>/내 사본/.test(s.name)).length};
+    });
+    assert.equal(available,true);assert.equal(r.result?.ok,false);assert.equal(r.result?.changed,true);
+    assert.equal(r.unchanged,true);assert.equal(r.held,true);assert.equal(r.copies,1);
+  });
+
   await check('B4 미지원 intake 서버본의 읽기 전용 채택은 순서 쓰기를 하지 않는다',async p=>{
     await stub(p);const available=await heldStale(p);
     const r=await p.evaluate(async()=>{
@@ -948,7 +970,7 @@ finally{if(browser)await browser.close();server.kill();}
 if(harnessFailure)process.exit(1);
 if(choiceRed){
   if(checksRun!==EXPECTED_CHECKS||!failures.includes(CHOICE_CHECK)){
-    console.error('REV-138 깨보기 실패 — 39건 완료 및 재진입 표적 실패가 필요하다.');process.exit(1);
+    console.error(`REV-138 깨보기 실패 — ${EXPECTED_CHECKS}건 완료 및 재진입 표적 실패가 필요하다.`);process.exit(1);
   }
   console.log('REV-138 깨보기 OK — 순서 CAS 방어 제거 시 재진입 충돌을 검출했다.');process.exit(0);
 }

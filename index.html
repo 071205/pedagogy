@@ -25,7 +25,7 @@
      어렵다 — 새 로그인만 깨진다). 실제로 한 번 그랬으니 손대지 말 것. -->
 <meta http-equiv="Content-Security-Policy" content="
   default-src 'self';
-  script-src 'self' 'wasm-unsafe-eval' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-JOpP8NBSgGicK/rRk1Y64P7z8OcEdGw6a4KQmIdCOGY=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
+  script-src 'self' 'wasm-unsafe-eval' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-mPSfNAW+qyz+bQGNcoLHDtVIO0Bxxg/ORUDO+TUBsyM=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
   script-src-attr 'none';
   style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
   font-src 'self' data: https://cdn.jsdelivr.net;
@@ -5053,6 +5053,9 @@ function chooseServerVersion(owner,setId,server){
         const result=await writeSetDocRevision(owner,target,session,
           {explicitBase:serverChoiceBase(server)});
         if(!sessionMatches(session)||currentUser?.uid!==owner) return {ok:false,msg:"계정이 바뀌어 멈췄어요"};
+        /* listener가 대기 중 앞 권을 삭제/삽입했다면 옛 index로 다른 권을 덮지 않는다. */
+        if(sets.findIndex(s=>String(s.id)===id)!==i)
+          return {ok:false,changed:true,msg:"그사이 목록 순서가 바뀌었어요 · 계정 저장본을 다시 확인하고 골라 주세요"};
         d=result.doc; incoming=docToSet(d);
       }catch(e){
         if(e?.code==="set-revision-conflict")

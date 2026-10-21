@@ -34,4 +34,4 @@
 ## 처리 기록
 
 - `2026-10-22 · Codex`: 등록·구현. 지원 서버본의 order가 다르면 화면에서 확인한 정확한 snapshot을 `explicitBase`로 사용해 해당 권의 순서만 transaction으로 확정한 뒤 실제 ACK로 영속 기준을 남긴다. 서버 본문은 재정규화하지 않고 그대로 전송하며 order/updatedAt/revision/무표식 승격 표식만 달라진다. 원격 변경·실패는 초안/보류를 유지하고 미지원 intake는 쓰지 않는다.
-- 로컬 정상 39/39, 기존 B3 전 기준 RED 및 순서 CAS 제거 표적 RED 통과. 변이 생략 제어는 의도한 exit 1. 원격 변경/쓰기 실패 보존·미지원 intake 읽기 전용 경계 포함. 독립 Claude Opus 검토와 운영 배포/재진입 확인은 미완료이므로 `in-progress` 유지.
+- 로컬 정상 40/40, 기존 B3 전 기준 RED 및 순서 CAS 제거 표적 RED 통과. 변이 생략 제어는 의도한 exit 1. 원격 변경/쓰기 실패 보존·ACK 대기 중 index 변경 중단·미지원 intake 읽기 전용 경계 포함. 독립 Claude Opus 검토와 운영 배포/재진입 확인은 미완료이므로 `in-progress` 유지.
