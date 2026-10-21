@@ -6,12 +6,25 @@ import {chromium} from 'playwright';
 import {spawn,execFileSync} from 'node:child_process';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
+import {rehashInlineScripts} from './lib/csp-rehash.mjs';
 
 /* SET_REVISION_BASE 로 다른 기준 커밋(예: B4 직전)을 깨보기 대상으로 삼을 수 있다. */
 const BASE_COMMIT=process.env.SET_REVISION_BASE||'4ea6fa7';
 const base='http://127.0.0.1:18886';
+const EXPECTED_CHECKS=39;
+const CHOICE_CHECK='B4 다른 충돌 사본이 순서를 밀어도 서버본 선택 뒤 재진입에 재충돌하지 않는다';
+const choiceRed=process.env.SET_REVISION_CHOICE_RED==='1';
+let choiceSource;
+if(choiceRed){
+  choiceSource=readFileSync('index.html','utf8');
+  if(process.env.SET_REVISION_CHOICE_SKIP_MUTATION!=='1'){
+    const start=choiceSource.indexOf('    if(alive&&!intakeNeedsUpdate(d)&&chosenOrder!==normOrder(d.order)){');
+    const end=choiceSource.indexOf('    const before=sets.slice();',start);
+    assert.ok(start>=0&&end>start,'REV-138 방어 제거 위치를 찾지 못했다');
+    choiceSource=rehashInlineScripts(choiceSource.slice(0,start)+choiceSource.slice(end));
+  }
+}
 const server=spawn('python3',['serve.py','--port','18886'],{stdio:'ignore'});
-const EXPECTED_CHECKS=35;
 let browser, harnessFailure=null, checksRun=0;
 const failures=[];
 
@@ -20,6 +33,8 @@ async function open(){
   p.setDefaultTimeout(8000);
   await p.route('**/*',r=>{
     const u=new URL(r.request().url());
+    if(choiceRed&&u.pathname==='/index.html')
+      return r.fulfill({contentType:'text/html',body:choiceSource});
     if(process.env.SET_REVISION_RED==='1'&&u.pathname==='/index.html')
       return r.fulfill({contentType:'text/html',body:process.env.SET_REVISION_INDEX
         ?readFileSync(process.env.SET_REVISION_INDEX)       // 깨보기용 변이본(CSP 해시를 다시 맞춘 사본)
@@ -621,6 +636,103 @@ try{
     assert.equal(r.after.revision,4);assert.equal(r.after.name,'돌아간 뒤 편집');
   });
 
+  await check(CHOICE_CHECK,async p=>{
+    await stub(p);
+    const r=await p.evaluate(async()=>{
+      if(typeof chooseServerVersion!=='function')return {available:false};
+      const make=(id,name)=>normSet({id,name,problems:[{id:id+'-q',blocks:[{type:'statement',data:{text:name}}]}]},{keepId:true});
+      sets=[make('front','앞 권'),make('target','선택 권')];
+      const front=setToDoc(sets[0],0,{revision:1}),old=setToDoc(sets[1],1,{revision:2});
+      window.__remote.set('front',front);window.__remote.set('target',{...old,name:'계정 최신본',revision:3});
+      cloudSynced.set('front',cloudSyncEntry(docToSet(front),0));setWriteBase.set('front',setWriteBaseEntryFromDoc(front));
+      cloudSynced.set('target',cloudSyncEntry(docToSet(old),1));setWriteBase.set('target',setWriteBaseEntryFromDoc(old));
+      sets[1].name='선택 권 초안';await writeCloudSnapshot(currentUser.uid,sessionContext());
+      sets[0].name='앞 권 초안';window.__remote.set('front',{...front,name:'앞 권 원격 변경',revision:2});
+      await writeCloudSnapshot(currentUser.uid,sessionContext());
+      // 운영 UI처럼 사본 모두가 계정에 ACK된 뒤 선택한다.
+      await writeCloudSnapshot(currentUser.uid,sessionContext());
+      const rec=readSetConflicts(currentUser.uid).get('target');
+      const copyRows=sets.filter(x=>/내 사본/.test(x.name));
+      const copiesAcked=copyRows.every(x=>isCloudSynced(x,sets.indexOf(x)));
+      const beforeCopies=copyRows.map(x=>x.id);
+      const atChoice=sets.findIndex(x=>x.id==='target'),shown=structuredClone(window.__remote.get('target'));
+      const chosen=await chooseServerVersion(currentUser.uid,'target',{exists:true,data:shown});
+      const acknowledged=window.__remote.get('target');
+      const expectedAck={...shown,order:atChoice,updatedAt:acknowledged.updatedAt,
+        setSchemaVersion:SET_SCHEMA_VERSION,revision:shown.revision+1};
+      const serverBodyPreserved=JSON.stringify(acknowledged)===JSON.stringify(expectedAck);
+      loadSetsLocal();loadSetSyncMeta(currentUser.uid);cloudSynced.clear();
+      const entries=[...window.__remote.values()];
+      sets=mergeSetsWithRevision(entries,localSetsWorthMerging(readLocalSets()));
+      reconcileSetSyncMeta(currentUser.uid,entries,sets);
+      await writeCloudSnapshot(currentUser.uid,sessionContext());
+      return {available:true,ok:chosen.ok,copiesAcked,serverBodyPreserved,wasShifted:atChoice!==shown.order,
+        held:heldSetIds(currentUser.uid).has('target'),frontHeld:heldSetIds(currentUser.uid).has('front'),
+        targetName:sets.find(x=>x.id==='target')?.name,
+        keptCopies:beforeCopies.every(id=>sets.some(x=>x.id===id)),
+        copies:sets.filter(x=>/내 사본/.test(x.name)).length,oldCopies:beforeCopies.length,
+        draftPreserved:sets.find(x=>x.id===rec.copyId)?.name==='선택 권 초안 (내 사본)',
+        frontRemote:window.__remote.get('front').name};
+    });
+    assert.equal(r.available,true);assert.equal(r.copiesAcked,true);assert.equal(r.wasShifted,true);assert.equal(r.ok,true);
+    assert.equal(r.held,false,'서버본을 골랐는데 재진입 뒤 다시 보류됐다');
+    assert.equal(r.serverBodyPreserved,true,'서버 본문과 폴더·스타일을 그대로 보존해야 한다');
+    assert.equal(r.frontHeld,true);assert.equal(r.targetName,'계정 최신본');
+    assert.equal(r.keptCopies,true);assert.equal(r.copies,r.oldCopies,'재진입에서 사본이 중복 생성됐다');
+    assert.equal(r.draftPreserved,true);assert.equal(r.frontRemote,'앞 권 원격 변경');
+  });
+
+  await check('B4 서버본 선택의 순서 확정 중 원격이 바뀌면 양쪽을 보존하고 다시 묻는다',async p=>{
+    await stub(p);const available=await heldStale(p);
+    const r=await p.evaluate(async()=>{
+      if(typeof chooseServerVersion!=='function')return {};
+      const shown=structuredClone(window.__remote.get('set-a'));
+      sets.unshift(normSet({id:'prefix',name:'앞 사본',problems:[{id:'prefix-q'}]},{keepId:true}));
+      const localBefore=JSON.stringify(sets),copies=sets.filter(s=>/내 사본/.test(s.name)).length;
+      const newer={...shown,name:'확인 뒤 새 원격',revision:shown.revision+1};window.__remote.set('set-a',newer);
+      const txBefore=window.__txSets;
+      const result=await chooseServerVersion(currentUser.uid,'set-a',{exists:true,data:shown});
+      return {result,localSame:JSON.stringify(sets)===localBefore,held:heldSetIds(currentUser.uid).has('set-a'),
+        writes:window.__txSets-txBefore,remote:window.__remote.get('set-a').name,
+        copiesSame:sets.filter(s=>/내 사본/.test(s.name)).length===copies};
+    });
+    assert.equal(available,true);assert.equal(r.result?.ok,false);assert.equal(r.result?.changed,true);
+    assert.equal(r.localSame,true);assert.equal(r.held,true);assert.equal(r.writes,0);
+    assert.equal(r.remote,'확인 뒤 새 원격');assert.equal(r.copiesSame,true);
+  });
+
+  await check('B4 서버본 선택의 순서 저장이 실패하면 보류와 초안을 유지한다',async p=>{
+    await stub(p);const available=await heldStale(p);
+    const r=await p.evaluate(async()=>{
+      if(typeof chooseServerVersion!=='function')return {};
+      const shown=structuredClone(window.__remote.get('set-a'));
+      sets.unshift(normSet({id:'prefix',name:'앞 사본',problems:[{id:'prefix-q'}]},{keepId:true}));
+      const localBefore=JSON.stringify(sets),remoteBefore=JSON.stringify([...window.__remote]);
+      fbDb.runTransaction=async()=>{throw new Error('injected transaction failure');};
+      const result=await chooseServerVersion(currentUser.uid,'set-a',{exists:true,data:shown});
+      return {ok:result.ok,localSame:JSON.stringify(sets)===localBefore,
+        remoteSame:JSON.stringify([...window.__remote])===remoteBefore,held:heldSetIds(currentUser.uid).has('set-a')};
+    });
+    assert.equal(available,true);assert.equal(r.ok,false);assert.equal(r.localSame,true);
+    assert.equal(r.remoteSame,true);assert.equal(r.held,true);
+  });
+
+  await check('B4 미지원 intake 서버본의 읽기 전용 채택은 순서 쓰기를 하지 않는다',async p=>{
+    await stub(p);const available=await heldStale(p);
+    const r=await p.evaluate(async()=>{
+      if(typeof chooseServerVersion!=='function')return {};
+      sets.unshift(normSet({id:'prefix',name:'앞 사본',problems:[{id:'prefix-q'}]},{keepId:true}));
+      const shown={...window.__remote.get('set-a'),problems:[{id:'future-q',intake:{v:999}}]};
+      window.__remote.set('set-a',shown);const before=window.__txCalls;
+      const result=await chooseServerVersion(currentUser.uid,'set-a',{exists:true,data:shown});
+      const current=sets.find(s=>s.id==='set-a');
+      return {ok:result.ok,held:heldSetIds(currentUser.uid).has('set-a'),tx:window.__txCalls-before,
+        readOnly:intakeNeedsUpdate(current),future:current?.problems[0]?.intake?.v};
+    });
+    assert.equal(available,true);assert.equal(r.ok,true);assert.equal(r.held,false);assert.equal(r.tx,0);
+    assert.equal(r.readOnly,true);assert.equal(r.future,999);
+  });
+
   await check('B4 내 초안으로 교체는 확인한 서버본 위에만 명시 CAS로 쓴다',async p=>{
     await stub(p);
     const available=await heldStale(p);
@@ -834,6 +946,12 @@ try{
 finally{if(browser)await browser.close();server.kill();}
 
 if(harnessFailure)process.exit(1);
+if(choiceRed){
+  if(checksRun!==EXPECTED_CHECKS||!failures.includes(CHOICE_CHECK)){
+    console.error('REV-138 깨보기 실패 — 39건 완료 및 재진입 표적 실패가 필요하다.');process.exit(1);
+  }
+  console.log('REV-138 깨보기 OK — 순서 CAS 방어 제거 시 재진입 충돌을 검출했다.');process.exit(0);
+}
 if(process.env.SET_REVISION_RED==='1'){
   if(checksRun!==EXPECTED_CHECKS){console.error(`깨보기 실패 — ${EXPECTED_CHECKS}건 중 ${checksRun}건만 실행됐다.`);process.exit(1);}
   if(failures.length){console.log(`깨보기 OK — B3 전 ${BASE_COMMIT}에서 ${failures.length}건 실패`);process.exit(0);}

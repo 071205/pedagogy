@@ -25,7 +25,7 @@
      어렵다 — 새 로그인만 깨진다). 실제로 한 번 그랬으니 손대지 말 것. -->
 <meta http-equiv="Content-Security-Policy" content="
   default-src 'self';
-  script-src 'self' 'wasm-unsafe-eval' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-mGWmbt0vHUtuDGT8B4reAUtPntR+7sU0mgtRVzscb2c=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
+  script-src 'self' 'wasm-unsafe-eval' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-JOpP8NBSgGicK/rRk1Y64P7z8OcEdGw6a4KQmIdCOGY=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
   script-src-attr 'none';
   style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
   font-src 'self' data: https://cdn.jsdelivr.net;
@@ -5032,15 +5032,36 @@ function serverChoiceBase(server){
 }
 function chooseServerVersion(owner,setId,server){
   const session=sessionContext();
-  const task=cloudSaveQueue.catch(()=>{}).then(()=>{
+  const task=cloudSaveQueue.catch(()=>{}).then(async()=>{
     if(!sessionMatches(session)||currentUser?.uid!==owner) return {ok:false,msg:"계정이 바뀌어 멈췄어요"};
     const id=String(setId), rec=readSetConflicts(owner).get(id);
     if(!rec) return {ok:false,msg:"이미 정리된 충돌이에요"};
     if(!serverChoiceBase(server)) return {ok:false,msg:"계정 저장본의 저장 번호가 올바르지 않아 고를 수 없어요 · 내보내기로 보존해 주세요"};
-    const d=server.exists?server.data:null, alive=!!d&&!d.deleted;
-    const incoming=alive?docToSet(d):null;
+    let d=server.exists?server.data:null;
+    const alive=!!d&&!d.deleted;
+    let incoming=alive?docToSet(d):null;
     if(alive&&!incoming) return {ok:false,msg:"계정 저장본을 읽을 수 없어요"};
-    const before=sets.slice(), i=sets.findIndex(s=>String(s.id)===id);
+    const i=sets.findIndex(s=>String(s.id)===id);
+    const chosenOrder=i>=0?i:Math.min(normOrder(d?.order),sets.length);
+    /* 충돌 사본이 앞에 끼면 로컬 index와 서버 order가 달라진다(REV-138).
+       이 상태로 기준을 지우고 성공 처리하면 재진입 때 no-base 충돌/새 사본이 반복된다.
+       확인한 서버본 위에 순서만 CAS로 확정한 뒤 실제 ACK를 영속 기준으로 쓴다.
+       미지원 intake는 읽기 전용 채택을 유지하며 이 순서 쓰기를 시도하지 않는다. */
+    if(alive&&!intakeNeedsUpdate(d)&&chosenOrder!==normOrder(d.order)){
+      try{
+        const target={...d,order:chosenOrder,updatedAt:Date.now(),setSchemaVersion:SET_SCHEMA_VERSION};
+        const result=await writeSetDocRevision(owner,target,session,
+          {explicitBase:serverChoiceBase(server)});
+        if(!sessionMatches(session)||currentUser?.uid!==owner) return {ok:false,msg:"계정이 바뀌어 멈췄어요"};
+        d=result.doc; incoming=docToSet(d);
+      }catch(e){
+        if(e?.code==="set-revision-conflict")
+          return {ok:false,changed:true,msg:"그사이 계정 저장본이 바뀌었어요 · 새 내용을 확인하고 다시 골라 주세요"};
+        console.error("계정 저장본 순서 맞춤 실패:",e);
+        return {ok:false,msg:"계정 저장본에 맞추지 못했어요 · 충돌 당시 초안과 사본은 그대로예요"};
+      }
+    }
+    const before=sets.slice();
     if(alive){ if(i>=0) sets[i]=incoming; else sets.splice(Math.min(normOrder(d.order),sets.length),0,incoming); }
     else if(i>=0) sets.splice(i,1);
     if(!sets.length) sets=[{id:uid(),name:"새 문제집",header:"",problems:[newProblem()]}];

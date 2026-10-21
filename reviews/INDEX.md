@@ -12,6 +12,7 @@
 | `REV-2026-074` | `P2` | macOS 폴더 아이콘 파일이 새 Git 폴더에서 재발해 refs를 오염시킨다 | `issues/2026-09/2026-09-09-rules-macos-icon-files-corrupt-git-refs.md` |
 | `REV-2026-075` | `P2` | AI 문서에 들어갔다 나오면 로그인이 안 된다(재현 절차 없음) | `issues/2026-09/2026-09-09-document-editor-login-after-return.md` |
 | `REV-2026-093` | `P2` | staging Gemini가 결제 전제 미충족(`FAILED_PRECONDITION`)으로 실패한다 | `issues/2026-09/2026-09-14-gemini-staging-provider-request-error.md` |
+| `REV-2026-138` | `P1` | 서버본 선택 뒤 재진입 보류·사본 중복, 로컬 수정/정상·RED 완료·검토 대기 | `issues/2026-10/2026-10-22-index-conflict-server-choice-reentry.md` |
 | `REV-2026-137` | `P2` | 인쇄 탐색 링크 수정·정상/RED 완료, Claude 한도에 따른 독립 검토/배포 대기 | `issues/2026-10/2026-10-22-index-skip-link-printed.md` |
 
 ⚠️ 이 표는 `npm run check:review-hygiene` 가 **실제 이슈 파일의 상태와 양방향으로**
@@ -24,8 +25,8 @@
 [계약](../docs/PRODUCT-UX-U0-CONTRACT.md) · [과제·결정표](../docs/PRODUCT-UX-U0-SCENARIOS.md) ·
 [시안](../docs/mockups/u0-flow.html). 계약 주장 5건을 코드로 확인했고 `REV-2026-108`을 재현했다.
 **D1 사용자 결정: 문항을 다른 권에 넣을 때 독립 사본/수정 연동을 선택 가능하게 한다.**
-**현재: REV-108 해결 확인. REV-137 출력 수정·로컬 정상/RED 완료, Claude 주간 한도로 독립 검토/배포 대기(HANDOFF-195). 이후 U2.**
-U1.5 main `877a8e7`·파일 225개 일치. 실제 Safari/iPad·원본 패널·D3/C1~C3·D1 연동 대기. 운영 충돌은 JSON/계정 사본 보존 뒤 2건 정리·3건 보류.
+**현재: REV-108 해결. REV-138 저장 재진입·REV-137 출력 수정 로컬 정상/RED 완료, Claude 한도로 독립 검토/배포 대기(HANDOFF-196). 이후 U2.**
+U1.5 main `877a8e7`·파일 225개 일치. 실제 Safari/iPad·원본 패널·D3/C1~C3·D1 연동 대기. 운영 3건은 서버본 선택 후 재발. 26권/사본 8개(새 3개는 기기 보존), 원래 JSON/계정 사본 유지.
 순서·게이트는 [통합 레일](../docs/DEV-TOKEN-ROADMAP.md), 지시문은 [RAIL-ORDERS](../docs/RAIL-ORDERS.md).
 **B3 운영 장애 `REV-2026-109` 해결**(운영 `e50636c` → 문구 정정 `6679676`, 편집·삭제·진짜 충돌 운영 검증).
 `REV-2026-111`은 **B4 운영 배포(`451e8ba`)·운영 확인으로 해결**(`HANDOFF-169`).
@@ -86,15 +87,15 @@ U0→B6에서 정규화/복원·AI 계약을 함께 다룬다. Rules의 `hasOnly
 
 ## 최근 검토
 
-[HANDOFF-2026-195](handoffs/2026-10/2026-10-22-index-print-ui-followup.md): REV-137 인쇄 CSS·실제 PDF/키보드·정상/RED·175/175 통과. Claude 주간 한도/배포 대기. 충돌 5건 백업·사본 보존, 2건 정리·3건 보류.
+[HANDOFF-2026-196](handoffs/2026-10/2026-10-22-index-conflict-server-choice-reentry.md): REV-138 운영 재진입 재발·로컬 수정/39건·표적 RED. PR #24 draft, Opus 검토/배포 대기.
+
+[HANDOFF-2026-195](handoffs/2026-10/2026-10-22-index-print-ui-followup.md): REV-137 인쇄 CSS·실제 PDF/키보드·정상/RED·175/175 통과. Claude 주간 한도/배포 대기. 최신 운영 재발 상태는 HANDOFF-196 참조.
 
 [HANDOFF-2026-194](handoffs/2026-10/2026-10-19-index-passage-membership.md): REV-108 운영 revision 3→4·ACK·재진입·PDF 범위·무표식 쓰기 3종 거절 확인으로 resolved. 별도 REV-137 출력 링크 노출 등록, 전체 충돌 보류 5 보존.
 
 [HANDOFF-2026-184](handoffs/2026-10/2026-10-04-index-u15-manual-link.md): U1.5 ⓑ `gpt-5.6-sol` / medium 재검토 **승인**(2026-10-19). REV-118 해결 · 정상 16/16·RED 17/17 · PR #16 병합 `877a8e7`·파일 대조 완료.
 
 [HANDOFF-2026-180](handoffs/2026-10/2026-10-03-index-u1-start-thumbs.md): U1 2차 — 시작 두 길·불러오기 이름·쪽 축소판·글꼴 실패 표시.
-
-[HANDOFF-2026-179](handoffs/2026-10/2026-10-03-index-b7-sw-outbox.md): B7 기기 내 응답 outbox(SW) — Codex 구현·Claude 검토 결함 없음,
 
 저장 구조의 기존 미결과 상세는 각 인계를 따른다.
 
