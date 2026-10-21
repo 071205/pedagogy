@@ -3,7 +3,7 @@
 - ID: `HANDOFF-2026-194`
 - 날짜: `2026-10-19`(①) · `2026-10-20~21`(②)
 - 작성자: `Codex GPT-6 Sol / high 구현 · 부모 Codex 통합 검증/인계`
-- 상태: `reviewed` — ①·② Claude Opus 독립 검토 결함 없음(135·136 포함). `3335d15` CI·로컬 Rules 정상/RED 통과. **Rules·PR #23 병합/Pages·main CI 완료. 실제 Chrome 테스트 권 저장/재진입·명시 소속·PDF·운영 무표식 쓰기 거절 확인. REV-108은 `resolved`; 별도 출력 결함 REV-137은 `open`**
+- 상태: `reviewed` — ①·② Claude Opus 독립 검토 결함 없음(135·136 포함). `3335d15` CI·로컬 Rules 정상/RED 통과. **Rules·PR #23 병합/Pages·main CI 완료. 실제 Chrome 테스트 권 저장/재진입·명시 소속·PDF·운영 무표식 쓰기 거절 확인. REV-108은 `resolved`; 별도 출력 결함 REV-137은 `in-progress`(HANDOFF-195)**
 - 영향 영역: `index | normalize | render | firestore.rules | tests | docs`
 - 관련 이슈: `REV-2026-108` (`resolved`, 2026-10-22 운영 확인)
 - 브랜치: `codex/rev108-explicit-groups`
@@ -261,3 +261,7 @@ Claude Opus 2회차 지적의 **REV-133 옛 묶음 보완·REV-134 옛 안내 �
 - **완료와 남은 한계:** 구현·독립 검토·정상/RED·Rules/Pages 배포·테스트 권 실제 왕복 및 운영 쓰기 차단 근거를 모아 REV-108을 `resolved`로 바꾼다. 실제 Safari/iPad·U1.5 원본 패널은 미검증이다. 계정 전체 충돌 보류 5는 원인 미분리 상태로 보존하며 전체 계정 정상 저장으로 확대하지 않는다. 실제 구형 탭 UI의 거절 안내는 미검증이다. 화면용 링크 출력 REV-137은 별도 결함이며 다음 UI 구현자가 수정/출력 회귀·깨보기를 확인한다. 그 뒤 기존 레일의 U2(Claude Sonnet 5 구현 → Codex Sol medium 검토)로 잇는다.
 - **재현 자료:** 민감값 없는 관찰 `/private/tmp/rev108-operational-2026-10-22/observations.json`, PDF·`print-extracted.txt`·`print-page-1.png`·`print-page-2.png`. 임시 파일은 정리될 수 있으므로 위 fixture 구성/SDK 방식/판정을 영구 증거로 삼는다. 제품/Rules가 바뀌지 않아 기존 브라우저 175/175·Rules 정상/RED·병합 CI를 재사용했고 기록 변경에 review-hygiene·diff 검사를 실행한다.
 - 작업 사본은 `/Users/huryul/개발/pedagogy-작업사본/pedagogy-u15b`, 브랜치 `codex/rev108-operational-checks`(`origin/main 625e19c` 기준)다. 기본 폴더의 예전 `claude/u15-source-panel` 브랜치·`transcript.txt`는 변경하지 않았다. 제품·Rules 변경/배포나 유료 AI 호출은 하지 않았다.
+
+### 2026-10-22 종료 상태 보정
+
+사용자가 발견 문제 해결과 사용량 종료 전 정리를 요청했다. 후속 출력 수정·검증 및 운영 충돌 정리의 최신 상태는 [HANDOFF-195](2026-10-22-index-print-ui-followup.md)를 따른다. REV-137은 구현/로컬 정상·RED 완료, Claude 주간 한도 때문에 독립 검토 미완료·운영 미배포다. 위 운영 확인 시점의 충돌 5건은 초안 JSON/계정 사본 보존 후 2건 정리돼 3건이 남았다. REV-108 해결과 출력/전체 계정 정리 완료를 혼동하지 않는다.
