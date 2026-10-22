@@ -68,3 +68,5 @@
 최종 `npm run test:set-revision`: **43/43**, B3 전 기준 RED·REV-138 순서 방어 RED·REV-139 검토 보존 RED 통과. 브라우저 175/175·JSON12·인쇄 정상/RED·공개/CSP·B6 `test:intake-review`·schema 정상14/14와 모든 표적/기준 RED 통과. 로그 `refactor-final-{cas,audit,public,intake,schema}.log`, `refactor-microtask-red.log`.
 
 - `2026-10-22 · 독립 Codex 에이전트`: 함수 분리의 의미 비교와 최종 브라우저 재실행 완료. depth1~3은 보류/사본 보존 후 재확인, depth4~8은 안전 채택 후 사본 유지. 로컬 저장 실패 복구·계정 전환·미래 schema 차단·REV-139 review/실제 ACK 일치 정상. 추가 결함 없음. 최종 index SHA-256 **`d61e3c101c7b8a745539d9c18dcee3eaf7342d2f0f401ec589691cbac4908f6a`**. 이전 해시는 그 전 검토 시점이고 이 해시가 최신 판정 대상이다. 근거 `refactor-final.log`.
+
+- `65616a0` Sonar 성공·cross-platform/hwpx 성공, verify의 `check-audit-safety.mjs` 038 VM만 실패했다. 원인은 함수 분리 후 실제 제품 helper 두 개를 VM에 함께 올리지 않아 localStorage 호출 전에 ReferenceError가 catch된 하네스 누락이다. 기대값을 낮추거나 제품을 stub하지 않고 `invalidateEditedSetReview`/`invalidateLocalReview`의 실제 소스를 함께 로드한다. 이 변경은 제품 index 해시/독립 승인 범위를 바꾸지 않는다. U2 WIP는 명시 경로 stash로 보존한 뒤 별도 브랜치에서 이어간다.
