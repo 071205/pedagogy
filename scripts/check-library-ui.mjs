@@ -64,8 +64,9 @@ try{
       getComputedStyle(el,'::backdrop').webkitBackdropFilter||'');
     assert.match(backdrop,/blur\(/,'설정 배경에 맥락을 남기는 블러가 없다');
     const fields=await p.locator('#stPanScreen .settings-choice').evaluateAll(xs=>xs.map(x=>x.getBoundingClientRect()));
-    assert.equal(fields.length,2);
+    assert.equal(fields.length,3);
     assert.ok(fields[1].top-fields[0].bottom>=12,'테마와 언어 선택 영역이 붙어 있다');
+    assert.ok(fields[2].top-fields[1].bottom>=12,'구성 후 이동 설정 영역이 붙어 있다');
     await p.keyboard.press('Escape');
     assert.equal(await dialog.evaluate(el=>el.open),false);
     assert.equal(await p.evaluate(()=>document.activeElement?.id),'settingsBtn');
@@ -298,9 +299,9 @@ try{
   });
 
   /* U1 '라이브러리 → 시작' — 새 문제집은 '직접 / 자료로 · AI' 두 길이고, 빈 라이브러리도 같은 두 길을 보인다.
-     PDF 일괄은 U2 몫이라 자리만 있고 누를 수 없다. AI 는 로그인 없이 빈 문제집을 만들지 않는다.
+     U2 기존 권/초안 구성은 활성화하고 유료 추출 게이트는 별도로 유지한다. AI 는 로그인 없이 빈 문제집을 만들지 않는다.
      ⚠️ AI 응답은 가짜다(Worker 주소를 이 페이지에서 가로챈다) — 실제 AI·로그인을 부르지 않는다. */
-  await check('새 문제집은 두 길을 고르고 빈 라이브러리도 같은 두 길을 보인다',async p=>{
+  await check('새 문제집 세 길과 빈 라이브러리의 구성이 일치한다',async p=>{
     await p.setViewportSize({width:1194,height:834});
     p.on('request',r=>{if(/workers\.dev/.test(r.url()))console.log('  (AI 요청 가로챔)');});
     const btn=p.locator('#newSetBtn');
@@ -310,13 +311,15 @@ try{
     assert.equal(await items.count(),3);
     assert.match(await items.nth(0).textContent(),/직접 만들기/);
     assert.match(await items.nth(1).textContent(),/자료로 만들기 · AI/);
-    assert.equal(await items.nth(2).isDisabled(),true,'PDF 일괄(U2)이 눌린다');
-    assert.match(await items.nth(2).textContent(),/준비 중/);
+    assert.equal(await items.nth(2).isDisabled(),false,'U2 구성을 열 수 없다');
+    assert.match(await items.nth(2).textContent(),/여러 권으로 새로 구성/);
     assert.equal(await p.evaluate(()=>document.activeElement?.textContent),await items.nth(0).textContent(),'메뉴를 열면 첫 항목에 포커스');
     await p.keyboard.press('ArrowDown');
     assert.match(await p.evaluate(()=>document.activeElement?.textContent),/자료로 만들기/);
     await p.keyboard.press('ArrowDown');
-    assert.match(await p.evaluate(()=>document.activeElement?.textContent),/직접 만들기/,'준비 중 항목을 건너뛰어야 한다');
+    assert.match(await p.evaluate(()=>document.activeElement?.textContent),/여러 권으로 새로 구성/,'U2 구성 항목에 키보드로 갈 수 없다');
+    await p.keyboard.press('ArrowDown');
+    assert.match(await p.evaluate(()=>document.activeElement?.textContent),/직접 만들기/);
     await p.keyboard.press('Escape');
     assert.equal(await btn.getAttribute('aria-expanded'),'false');
     assert.equal(await p.evaluate(()=>document.activeElement?.id),'newSetBtn');
@@ -333,7 +336,7 @@ try{
     // 빈 라이브러리: 같은 두 길(준비 중 제외)
     await p.evaluate(()=>{sets=[];libFolderFilter='';renderLibrary();});
     const start=p.locator('.empty-state .es-start button');
-    assert.equal(await start.count(),2);
+    assert.equal(await start.count(),3);
     assert.match(await start.nth(0).textContent(),/직접 만들기/);
     assert.match(await start.nth(1).textContent(),/자료로 만들기/);
     await start.nth(0).click();

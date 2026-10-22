@@ -9,6 +9,7 @@
      (코드 주석 안의 '평가원' 은 조판 규격 설명이라 그대로 둔다) -->
 <meta name="description" content="수학 문제집과 수능 모의고사 형식 시험지를 만들고 LaTeX 수식과 함께 A4로 인쇄·PDF 저장하는 편집기.">
 <meta name="color-scheme" content="dark light">
+<link rel="stylesheet" href="pedagogy-composition.css">
 
 <!-- ══ 콘텐츠 보안 정책 ══
      인라인 스크립트 블록은 아래 SHA-256으로 정확한 바이트만 허용한다.
@@ -25,7 +26,7 @@
      어렵다 — 새 로그인만 깨진다). 실제로 한 번 그랬으니 손대지 말 것. -->
 <meta http-equiv="Content-Security-Policy" content="
   default-src 'self';
-  script-src 'self' 'wasm-unsafe-eval' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-Pt3r9TsQ8VyCoRcg0/SenfLmwDN2cyG6Mm/zmaoF8Vc=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
+  script-src 'self' 'wasm-unsafe-eval' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-jpmvr9aO1g0rnAjUxZ2zows6XRLWxdWQW15z+mIPNE8=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
   script-src-attr 'none';
   style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
   font-src 'self' data: https://cdn.jsdelivr.net;
@@ -1972,6 +1973,7 @@ input:focus-visible,textarea:focus-visible{outline:none}
     <span id="selectCount" aria-live="polite">0개 선택</span>
     <div class="select-actions">
       <button id="selAllBtn" class="btn-ghost">모두 선택</button>
+      <button id="selComposeBtn" class="btn-ghost">여러 권으로 구성</button>
       <button id="selMoveBtn" class="btn-ghost">폴더로 이동</button>
       <button id="selExportBtn" class="btn-ghost">내보내기</button>
       <button id="selDeleteBtn" class="btn-ghost danger-text">삭제</button>
@@ -2412,6 +2414,11 @@ function setEditorActions(on){
                 <span class="settings-choice-desc">편집 화면에 표시할 언어를 고릅니다</span></span>
               <select id="setLang"></select>
             </label>
+            <label class="settings-choice">
+            <span class="settings-choice-copy"><span class="settings-choice-title">구성 후 이동</span>
+              <span class="settings-choice-desc">여러 권이나 확인이 필요한 결과는 목록에서 확인합니다</span></span>
+            <input id="setDirectEditor" type="checkbox" aria-label="문제집 한 권을 만들면 바로 편집기 열기">
+            </label>
           </div>
           <p class="dm-note">언어는 <b>화면 글</b>만 바꿉니다 — 문제집 내용과 인쇄물은 그대로예요.</p>
         </section>
@@ -2638,6 +2645,8 @@ function setEditorActions(on){
 <script src="mock-library-store.js"></script>
 <script src="pedagogy-ai-image.js"></script>
 <script src="pedagogy-intake-contract.js"></script>
+<script src="pedagogy-composition.js"></script>
+<script src="pedagogy-composition-ui.js"></script>
 <script src="pedagogy-intake.js"></script>
 <script src="pedagogy-intake-outbox.js"></script>
 <script>
@@ -6122,6 +6131,9 @@ function openSettings(){
     try{ localStorage.setItem(langKey(),uiLangPref); }catch(e){ console.warn("언어 설정 저장 실패", e); }
     applyUiLang(); renderLibrary();
   };
+  const direct=$("#setDirectEditor");
+  direct.checked=readIntakePrefs();
+  direct.onchange=()=>{if(!writeIntakePrefs(direct.checked)){direct.checked=readIntakePrefs();toast("이 브라우저에 설정을 저장하지 못했어요","error");}};
   prepDataPane();
 }
 $("#settingsBtn").onclick=()=>showSettings("screen");
@@ -6370,7 +6382,7 @@ function renderSelectBar(){
   bar.hidden=!libPicking;
   const n=libPicked.size;
   const c=$("#selectCount"); if(c) c.textContent=t("lib.selected","{n}개 선택").replace("{n}",n);
-  ["selMoveBtn","selExportBtn","selDeleteBtn"].forEach(id=>{ const b=$("#"+id); if(b) b.disabled=!n; });
+  ["selComposeBtn","selMoveBtn","selExportBtn","selDeleteBtn"].forEach(id=>{ const b=$("#"+id); if(b) b.disabled=!n; });
   const visible=libVisibleSets();
   const hiddenCount=n-visible.filter(s=>libPicked.has(s.id)).length;
   if(c && hiddenCount>0) c.textContent+=` · 화면 밖 ${hiddenCount}개`;
@@ -6687,6 +6699,7 @@ if(_setSearchEl){ _setSearchEl.oninput=(e)=>{ setSearchTerm=e.target.value||""; 
    메뉴와 빈 라이브러리가 **같은 함수**를 부른다(베끼면 갈라진다). */
 function startNewSet(kind){
   closeNewSetMenu();
+  if(kind==="batch"){ compositionUI.open(); return; }
   /* AI 는 로그인해야 쓸 수 있다 — 빈 문제집부터 만들고 나서 막히면 쓸모없는 문제집만 남는다. */
   if(kind==="ai" && !currentUser){ toast("AI 변환은 로그인 후 사용할 수 있어요","error"); return; }
   const ns={id:uid(), name:"새 문제집", header:"", problems:[newProblem()]};sets.push(ns);
@@ -6699,7 +6712,7 @@ function startNewSet(kind){
 const NEW_SET_PATHS=[
   {kind:"blank", name:"직접 만들기", sub:"빈 문제집에서 문항을 하나씩 쓴다"},
   {kind:"ai", name:"자료로 만들기 · AI", sub:"문제 사진을 넣으면 AI 가 문항으로 옮긴다"},
-  {kind:"batch", name:"PDF 여러 개로 한꺼번에", sub:"준비 중 — 다음 단계(U2)에서 열린다", disabled:true}
+  {kind:"batch", name:"여러 권으로 새로 구성", sub:"기존 문제집과 남은 초안을 나눠 새 권으로 만든다"}
 ];
 function newSetPathButton(o, cls){
   const b=el("button",cls);
@@ -10285,6 +10298,14 @@ function resetDataSources(){
   $("#dmSourcesList").replaceChildren();
   $("#dmSourcesInfo").textContent="계정이 바뀌었어요 · 설정을 다시 열면 이 계정의 원본을 보여 드려요";
 }
+async function sourcePersistenceText(){
+  if(typeof navigator.storage?.persisted!=="function")return "영속 저장 미지원 · 브라우저 회수 가능";
+  try{
+    return await navigator.storage.persisted()
+      ?"영속 저장 활성화됨 · 영구 보관·백업 보장은 아님"
+      :"영속 저장이 활성화되지 않음 · 브라우저 회수 가능";
+  }catch{return "영속 저장 상태 확인 실패 · 브라우저 회수 가능";}
+}
 async function renderDataSources(){
   const info=$("#dmSourcesInfo"), list=$("#dmSourcesList");
   const gen=++dsGen, session={owner:intakeOwner(),epoch:authEpoch};
@@ -10298,10 +10319,9 @@ async function renderDataSources(){
     return;
   }
   const used=rows.filter(x=>SRC_OK(x.state)).reduce((n,x)=>n+(x.bytes||0),0);
-  let keep="";
-  try{ if(navigator.storage?.persisted) keep=(await navigator.storage.persisted())?" · 브라우저 보관 보장 받음":" · 브라우저가 공간이 부족하면 지울 수 있음"; }catch{}
+  const keep=" · "+await sourcePersistenceText();
   if(!live()) return;
-  info.textContent=rows.length?`원본 ${rows.length}개 · ${fmtBytes(used)} / 1GB${keep}`:"보관한 원본이 없어요. 지면 배치의 '원본' 에서 PDF·사진을 연결할 수 있어요.";
+  info.textContent=rows.length?`원본 ${rows.length}개 · ${fmtBytes(used)} / 1GB${keep}`:"보관한 원본이 없어요. 지면 배치의 '원본' 에서 PDF·사진을 연결할 수 있어요."+keep;
   list.replaceChildren(...rows.map(x=>{
     const li=document.createElement("li");
     const meta=el("span","meta"); meta.append(el("span","name",x.name||"원본"),
@@ -10670,6 +10690,7 @@ const onAuth=async (user)=>{
   // 계정이 바뀌는 순간 예약된 저장을 취소한다 — 이전 계정의 내용이 뒤늦게
   // 새 계정 문서로 넘어가지 않도록.
   if(!authInitialized || (currentUser?.uid||null)!==(user?.uid||null)){
+    compositionUI.close(true);
     // iframe 디바운스도 기존 소유자일 때 확정한다. 실패본은 owner별 메모리에 남긴다.
     flushOpenMock();
     // 반드시 기존 owner인 동안 확정한다. 실패한 원본은 메모리에서 계정별 보존.
@@ -10770,6 +10791,16 @@ function startApp(){
     toast("오프라인 모드 · 이 기기에만 저장됩니다","error");
   }
 }
+const compositionUI=PedagogyCompositionUI.create({
+  session:()=>intakeOwner()+":"+authEpoch,
+  client:confirmed=>createIntakeStorageClient({editorsConfirmed:confirmed}),
+  sets:()=>sets,
+  signedIn:()=>!!currentUser,
+  route:intakeResultRoute,readPrefs:readIntakePrefs,writePrefs:writeIntakePrefs,
+  editor:showEditor,source:blob=>openSourceView(blob),
+  math:element=>{if(typeof renderMathInElement==="function")renderMathInElement(element,{delimiters:[{left:"$$",right:"$$",display:true},{left:"$",right:"$",display:false}],throwOnError:false});}
+});
+$("#selComposeBtn").onclick=()=>compositionUI.open([...libPicked]);
 if(document.readyState==="loading") document.addEventListener("DOMContentLoaded", startApp);
 else startApp();          // 이미 파싱이 끝난 경우(캐시 등)
 

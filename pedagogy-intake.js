@@ -121,6 +121,182 @@ function create({session,library,renderer=browserRenderer(),transport=null,outbo
       return {...result,persistence:storageState};
     });
   }
+  function compositionRules(){
+    if(!global.PedagogyComposition)fail('구성 화면을 새로고침해 주세요');
+    return global.PedagogyComposition;
+  }
+  function initialComposition(j){
+    return {destinations:[],excluded:[],unassigned:compositionRules().atoms(j).flat(),
+      settings:{preset:'books',count:1,size:20,request:''}};
+  }
+  function hasJobAdoption(root,jobId){return Object.values(root.adoptions).some(a=>a.jobId===jobId);}
+  function mutableComposition(root,j,draftVersion){
+    if(j.state==='finished'||j.draftVersion!==draftVersion)fail('초안이 바뀌었어요 · 다시 읽고 구성해 주세요');
+    if(hasJobAdoption(root,j.id))
+      fail('이미 만들기를 시작한 구성입니다 · 결과에서 같은 작업을 이어가 주세요');
+  }
+  function selectedCompositionSets(view,setIds){
+    if(!Array.isArray(setIds)||!setIds.length||new Set(setIds).size!==setIds.length)
+      fail('새로 구성할 문제집을 선택해 주세요');
+    if(view.writeUnknown||view.cloudReady===false)fail('현재 저장 상태를 확인한 뒤 다시 구성해 주세요');
+    return setIds.map(setId=>{
+      const set=view.sets.find(x=>x.id===setId);
+      if(!set||!Array.isArray(set.problems)||!set.problems.length)fail('문항이 있는 문제집을 선택해 주세요');
+      if(Object.hasOwn(set,'setSchemaVersion')&&set.setSchemaVersion!==1)fail('업데이트가 필요한 문제집은 재구성할 수 없어요');
+      if(library.canWriteSet&&!library.canWriteSet(setId))fail('업데이트가 필요한 문제집은 재구성할 수 없어요');
+      if(view.conflicts?.some(x=>x.id===setId))fail('저장이 보류된 문제집은 먼저 어느 쪽을 쓸지 골라 주세요');
+      if(global.PedagogyNormalize.groupDiagnostics(set.problems).length)
+        fail('공통지문 내용과 소속을 원래 문제집에서 먼저 확인해 주세요');
+      return set;
+    });
+  }
+  function snapshotComposition(root,selected){
+    const drafts=[],groups=[];
+    for(const set of selected){
+      const ids=new Map(set.problems.map(p=>[p.id,id()]));
+      for(const [ordinal,p] of set.problems.entries()){
+        const allowed=new Set(root.links[set.id]?.sources||[]);
+        const sourceIds=(p.intake?.sources||[]).map(x=>x.sourceId)
+          .filter(sourceId=>allowed.has(sourceId)&&root.sources[sourceId]);
+        drafts.push({id:ids.get(p.id),problem:copy(p),sourceIds,
+          originalSetName:set.name,subject:global.PedagogyNormalize.normSubject(set.subject),ordinal:ordinal+1});
+        if(p.groupOf===p.id)groups.push({id:id(),members:set.problems.filter(q=>q.groupOf===p.id).map(q=>ids.get(q.id))});
+      }
+    }
+    return {drafts,groups};
+  }
+  async function createComposition(setIds){
+    compositionRules();if(!library)fail('라이브러리 연결 필요');
+    const s=context();
+    return locked(s,'composition',()=>library.exclusive(async()=>{
+      matches(s);const selected=selectedCompositionSets(library.snapshot(),setIds);
+      return transact(s,root=>{
+        const data=snapshotComposition(root,selected),jobId=id();
+        const j={id:jobId,version:1,generation:1,state:'success',kind:'composition',contract:'composition-v1',
+          limits:{problemsPerSet:500},draftVersion:1,calls:0,pages:[],...data,
+          sources:[...new Set(data.drafts.flatMap(d=>d.sourceIds))],createdAt:Date.now(),
+          name:selected.map(x=>x.name||'제목 없음').join(' · ').slice(0,200)};
+        j.composition=initialComposition(j);root.jobs[jobId]=j;return {jobId};
+      });
+    }));
+  }
+  async function listJobs(){
+    const s=context();return transact(s,root=>Object.values(root.jobs)
+      .filter(j=>!['discarded','finished'].includes(j.state)).map(j=>({
+        id:j.id,name:j.name||'자료로 구성 중',kind:j.kind||'extraction',state:j.state,
+        count:j.drafts.length,draftVersion:j.draftVersion,createdAt:j.createdAt||0,
+        adoptionId:Object.values(root.adoptions).find(a=>a.jobId===j.id)?.id||null
+      })),false);
+  }
+  function compositionDraftViews(j){
+    const views=new Map(j.drafts.map(d=>{
+      const problem=problemFromDraft(d,d.id);delete problem.groupOf;problem.groupSpan=1;
+      return [d.id,{...d,problem}];
+    }));
+    for(const group of j.groups){
+      for(const id of group.members)views.get(id).problem.groupOf=group.members[0];
+      const leader=views.get(group.members[0]).problem;leader.groupSpan=group.members.length;
+      if(j.kind!=='composition')leader.groupReview='intake';
+    }
+    return compositionRules().atoms(j).flatMap(members=>members.map(id=>views.get(id)));
+  }
+  async function readComposition(jobId){
+    compositionRules();const j=await readJob(jobId);
+    const {compositionHistory,compositionRedo,...view}=j;
+    return {...view,canUndo:!!compositionHistory?.length,canRedo:!!compositionRedo?.length,
+      composition:j.composition||initialComposition(j),drafts:compositionDraftViews(j)};
+  }
+  function unadoptedDrafts(root,j,draftIds){
+    if(!Array.isArray(draftIds)||!draftIds.length||new Set(draftIds).size!==draftIds.length)
+      fail('새 구성으로 넘길 문항을 선택해 주세요');
+    const taken=new Set(Object.values(root.adoptions).filter(a=>a.jobId===j.id)
+      .flatMap(a=>a.results.flatMap(r=>r.items.map(item=>item.draftId))));
+    const requested=new Set(draftIds),known=new Set(j.drafts.map(d=>d.id));
+    if(draftIds.some(id=>!known.has(id)||taken.has(id)))fail('이미 채택한 문항은 결과 문제집에서 편집해 주세요');
+    for(const group of j.groups){
+      if(group.members.some(id=>requested.has(id))&&!group.members.every(id=>requested.has(id)))
+        fail('공통지문 문항을 모두 선택해 주세요');
+    }
+    return j.drafts.filter(d=>requested.has(d.id));
+  }
+  async function forkComposition(jobId,{draftVersion,draftIds}={}){
+    compositionRules();const s=context();
+    return transact(s,root=>{
+      const j=job(root,jobId);
+      if(j.state==='finished'||j.draftVersion!==draftVersion)fail('초안이 바뀌었어요 · 다시 읽고 선택해 주세요');
+      const remaining=unadoptedDrafts(root,j,draftIds),ids=new Map(remaining.map(d=>[d.id,id()]));
+      const drafts=remaining.map(d=>({...copy(d),id:ids.get(d.id)}));
+      const groups=j.groups.filter(g=>ids.has(g.members[0])).map(g=>({id:id(),members:g.members.map(member=>ids.get(member))}));
+      const nextId=id(),next={id:nextId,version:1,generation:1,state:'success',kind:j.kind||'extraction',
+        contract:j.contract,limits:copy(j.limits||cap||{problemsPerSet:500}),draftVersion:1,calls:0,pages:[],drafts,groups,
+        sources:[...new Set(drafts.flatMap(draftSourceIds))],createdAt:Date.now(),
+        name:'남은 문항 새 구성',parentJobId:j.id};
+      next.composition=initialComposition(next);root.jobs[nextId]=next;return {jobId:nextId};
+    });
+  }
+  function applyDraftClassification(next,changes){
+    const keys=['units','difficulty','points','pointsState'];
+    if(!keys.some(key=>Object.hasOwn(changes,key)))return;
+    next.intake=copy(next.intake||{version:1,sources:[],units:[],difficulty:null,points:null,
+      pointsState:'absent',contentReview:'unknown',classificationReview:'unknown'});
+    if(Object.hasOwn(changes,'units'))next.intake.units=changes.units.map(value=>({value,origin:'user'}));
+    if(Object.hasOwn(changes,'difficulty'))next.intake.difficulty=changes.difficulty===null?null:{value:changes.difficulty,origin:'user'};
+    for(const key of ['points','pointsState'])if(Object.hasOwn(changes,key))next.intake[key]=changes[key];
+    if(Object.hasOwn(changes,'points')||Object.hasOwn(changes,'pointsState')){
+      const {points,pointsState}=next.intake;
+      if((points!==null&&(!Number.isFinite(points)||points<0))
+        ||!['read','absent','unreadable'].includes(pointsState)||(pointsState==='read')!==(points!==null))
+        fail('배점은 0 이상의 숫자로 입력하거나 비워 주세요');
+    }
+  }
+  function patchDraftProblem(d,changes){
+    const N=global.PedagogyNormalize,base=problemFromDraft(d,d.id),next=copy(base);
+    const bodyKeys=['title','desc','answer','answerImg','blocks'];
+    for(const key of bodyKeys)if(Object.hasOwn(changes,key))next[key]=copy(changes[key]);
+    applyDraftClassification(next,changes);
+    const normalized=N.normProblem(next,{keepId:true,lossless:true});
+    if(N.intakeNeedsUpdate({problems:[normalized]}))fail('분류 정보를 확인해 주세요');
+    if(normalized.intake){
+      if(bodyKeys.some(key=>JSON.stringify(base[key])!==JSON.stringify(normalized[key])))normalized.intake.contentReview='unreviewed';
+      const tags=p=>JSON.stringify([p.intake?.units,p.intake?.difficulty,p.intake?.points,p.intake?.pointsState]);
+      if(tags(base)!==tags(normalized))normalized.intake.classificationReview='unreviewed';
+    }
+    return normalized;
+  }
+  function compositionSnapshot(j){return {drafts:copy(j.drafts),composition:copy(j.composition||initialComposition(j))};}
+  function pushCompositionHistory(stack,snapshot){
+    stack.push(snapshot);
+    while(stack.length>20||stack.length>1&&JSON.stringify(stack).length>12*1024*1024)stack.shift();
+  }
+  function newCompositionDrafts(j,drafts){
+    if(j.composition)j.composition.unassigned.push(...compositionRules().atoms({drafts,groups:j.groups}).flat());
+    j.compositionHistory=[];j.compositionRedo=[];
+  }
+  async function undoComposition(jobId,{draftVersion,redo=false}={}){
+    const s=context();return transact(s,root=>{
+      const j=job(root,jobId);mutableComposition(root,j,draftVersion);
+      const from=redo?(j.compositionRedo||=[]):(j.compositionHistory||=[]);
+      if(!from.length)fail('되돌릴 구성이 없어요');
+      const to=redo?(j.compositionHistory||=[]):(j.compositionRedo||=[]);
+      pushCompositionHistory(to,compositionSnapshot(j));
+      const previous=from.pop();j.drafts=previous.drafts;j.composition=previous.composition;
+      j.draftVersion++;return j.draftVersion;
+    });
+  }
+  async function saveComposition(jobId,{draftVersion,plan,patches=[]}={}){
+    const rules=compositionRules(),s=context();
+    return transact(s,root=>{
+      const j=job(root,jobId);mutableComposition(root,j,draftVersion);
+      if(!Array.isArray(patches)||new Set(patches.map(x=>x.id)).size!==patches.length)fail('편집 문항을 확인해 주세요');
+      pushCompositionHistory(j.compositionHistory||=[],compositionSnapshot(j));j.compositionRedo=[];
+      for(const patch of patches){
+        const draft=j.drafts.find(d=>d.id===patch.id);if(!draft)fail('초안 문항이 바뀌었어요');
+        draft.problem=patchDraftProblem(draft,patch.changes||{});
+      }
+      j.composition=rules.validate(j,plan||j.composition||initialComposition(j));
+      j.draftVersion++;return j.draftVersion;
+    });
+  }
   async function readJob(jobId){const s=context();return transact(s,r=>job(r,jobId),false);}
   async function recoverOutbox(jobId=null){
     const s=context();
@@ -148,7 +324,7 @@ function create({session,library,renderer=browserRenderer(),transport=null,outbo
             if(members.length<2||members.length>10) fail('공통지문 구성원 확인 필요');
             j.groups.push({id:id(),members});
           }
-          j.drafts.push(...drafts);j.draftVersion++;
+          j.drafts.push(...drafts);newCompositionDrafts(j,drafts);j.draftVersion++;
           Object.assign(p,{state:'success',checksum:item.checksum,
             receipt:item.reply.usage?{used:item.reply.usage.used,limit:item.reply.usage.limit}:null,error:null});
           recovered.push({jobId:item.jobId,pageIndex:item.pageIndex});
@@ -167,6 +343,8 @@ function create({session,library,renderer=browserRenderer(),transport=null,outbo
       await recoverOutbox(jobId);
       let j=await readJob(jobId);
       if(['finished','discarded'].includes(j.state))fail('종료한 작업은 재개 확인 필요');
+      const frozen=await transact(s,root=>hasJobAdoption(root,jobId),false);
+      if(frozen&&j.pages.some(p=>p.state!=='success'))fail('이미 만들기를 시작했어요 · 남은 쪽은 새 작업에서 처리해 주세요');
       if(retryPages.length&&!confirmCharge) fail('재시도는 추가 차감 안내 확인이 필요합니다');
       for(let i=0;i<j.pages.length;i++){
         j=await readJob(jobId); const p=j.pages[i];
@@ -198,11 +376,14 @@ function create({session,library,renderer=browserRenderer(),transport=null,outbo
         if(new TextEncoder().encode(JSON.stringify(request)).length>cap.requestBytes){
           await transact(s,r=>{const q=job(r,jobId,j.generation).pages[i];q.state='failed';q.error='요청 용량 초과';});continue;
         }
-        await transact(s,r=>{
+        const mayCall=await transact(s,r=>{
           source(r,p.sourceId,p.sourceGeneration);const live=job(r,jobId,j.generation),q=live.pages[i];
+          if(hasJobAdoption(r,jobId)){live.state='partial';return false;}
           if(q.state!==p.state) fail('다른 탭에서 이 쪽 상태가 바뀌었어요');
           q.state='processing';q.attemptId=attemptId;if(retry)q.retries++;live.calls++;live.state='processing';
+          return true;
         });
+        if(!mayCall)fail('이미 만들기를 시작했어요 · 남은 쪽은 새 작업에서 처리해 주세요');
         const controller=new AbortController(); controllers.set(controller,p.sourceId);
         try{
           const reply=outbox
@@ -225,7 +406,7 @@ function create({session,library,renderer=browserRenderer(),transport=null,outbo
               if(members.length<2||members.length>10) fail('공통지문 구성원 확인 필요');
               live.groups.push({id:id(),members});
             }
-            live.drafts.push(...drafts); live.draftVersion++;
+            live.drafts.push(...drafts);newCompositionDrafts(live,drafts); live.draftVersion++;
             Object.assign(live.pages[i],{state:'success',checksum,receipt:reply.usage?{used:reply.usage.used,limit:reply.usage.limit}:null,error:null});
           });
         }catch(e){
@@ -236,7 +417,9 @@ function create({session,library,renderer=browserRenderer(),transport=null,outbo
       return transact(s,r=>{const live=job(r,jobId,j.generation);live.state=live.pages.every(p=>p.state==='success')?'success':'partial';return live;});
     });
   }
+  function draftSourceIds(draft){return draft.sourceIds||(draft.sourceId?[draft.sourceId]:[]);}
   function problemFromDraft(d,problemId){
+    if(d.problem)return global.PedagogyNormalize.normProblem({...copy(d.problem),id:problemId},{keepId:true,lossless:true});
     const raw=d.raw;
     const blocks=raw.blocks.map(b=>({type:b.type,data:['statement','boxed'].includes(b.type)?{text:b.text}:{items:copy(b.items)}}));
     return global.PedagogyNormalize.normProblem({id:problemId,title:raw.title,answer:raw.answer,blocks,
@@ -250,7 +433,7 @@ function create({session,library,renderer=browserRenderer(),transport=null,outbo
     const known=new Set(j.drafts.map(d=>d.id));
     for(const d of destinations){
       if(typeof d.id!=='string'||!d.id||d.id.length>100||typeof d.name!=='string'||!d.name.trim()||d.name.length>100||!Array.isArray(d.items)||!d.items.length
-        ||d.items.length>cap.problemsPerSet||d.items.some(x=>!known.has(x.draftId)||typeof x.placementId!=='string'||!x.placementId||x.placementId.length>100)
+        ||d.items.length>(j.limits?.problemsPerSet||cap?.problemsPerSet||500)||d.items.some(x=>!known.has(x.draftId)||typeof x.placementId!=='string'||!x.placementId||x.placementId.length>100)
         ||new Set(d.items.map(x=>x.placementId)).size!==d.items.length) fail('목적지 문항/500문항 한도 오류');
       for(const g of j.groups){
         const positions=d.items.map((x,i)=>g.members.includes(x.draftId)?i:-1).filter(i=>i>=0);
@@ -264,6 +447,12 @@ function create({session,library,renderer=browserRenderer(),transport=null,outbo
       }
     }
   }
+  function resultSubject(ledger,result){
+    if(!ledger.localComposition)return 'math';
+    const byId=new Map(ledger.drafts.map(d=>[d.id,d]));
+    const subjects=new Set(result.items.map(item=>byId.get(item.draftId).subject||'math'));
+    return subjects.size===1?[...subjects][0]:'all';
+  }
   async function adopt(jobId,{destinations,draftVersion,partial=false,adoptionId=null,mode='independent'}={}){
     const s=context();if(!library) fail('라이브러리 연결 필요');
     if(mode!=='independent') fail('수정 연동 저장은 별도 Rules·호환 검토 전 사용할 수 없습니다');
@@ -276,12 +465,17 @@ function create({session,library,renderer=browserRenderer(),transport=null,outbo
         if(existing){if(existing.generation!==j.generation)fail('작업 세대 변경 · 채택 확인 필요');if(adoptionId&&adoptionId!==existing.id) fail('기존 채택 기록 확인 필요');return existing;}
         if(adoptionId) fail('채택 기록 없음 · 라이브러리 확인 필요');
         if(draftVersion!==j.draftVersion) fail('초안 버전이 바뀌었어요');
+        if(j.composition){
+          const confirmed=compositionRules().validate(j,j.composition,{complete:true});
+          if(JSON.stringify(destinations)!==JSON.stringify(confirmed.destinations.filter(d=>d.items.length)))
+            fail('저장한 구성과 달라요 · 변경 확인 후 적용해 주세요');
+        }
         validatePlan(j,destinations,partial);
-        const a={id:id(),version:1,jobId,draftVersion,generation:j.generation,partial,
+        const a={id:id(),version:1,jobId,draftVersion,generation:j.generation,partial,localComposition:j.kind==='composition',
           results:destinations.map(d=>({destinationId:d.id,setId:id(),name:d.name,state:'mapped',
             items:d.items.map(x=>({...x,problemId:id()}))})),drafts:copy(j.drafts),groups:copy(j.groups)};
         r.adoptions[a.id]=a;
-        for(const result of a.results) r.links[result.setId]={sources:[...new Set(result.items.map(x=>j.drafts.find(p=>p.id===x.draftId).sourceId))],state:'pending'};
+        for(const result of a.results) r.links[result.setId]={sources:[...new Set(result.items.flatMap(x=>draftSourceIds(j.drafts.find(p=>p.id===x.draftId))))],state:'pending'};
         return a;
       });
       const before=library.snapshot();matches(s);
@@ -291,16 +485,17 @@ function create({session,library,renderer=browserRenderer(),transport=null,outbo
         if(before.deleted.includes(result.setId)){result.state='deleted';continue;}
         if(result.state==='local'||result.state==='deleted'||result.state==='check'){result.state='check';continue;}
         const problems=result.items.map(item=>problemFromDraft(ledger.drafts.find(d=>d.id===item.draftId),item.problemId));
+        if(ledger.localComposition)for(const problem of problems){delete problem.groupOf;problem.groupSpan=1;}
         for(const g of ledger.groups) result.items.forEach((item,i)=>{
           if(item.draftId===g.members[0]){
             if(!global.PedagogyNormalize.setGroupSpan(problems,problems[i].id,g.members.length))
               fail("공통지문 소속 확인 필요");
             // AI 계약은 지문을 첫 statement에 넣는다. 문제 본문과 지문을
             // 안정적으로 가를 수 없으므로 사람이 확인하기 전 출력하지 않는다.
-            problems[i].groupReview="intake";
+            if(!ledger.localComposition)problems[i].groupReview="intake";
           }
         });
-        next.push({id:result.setId,name:result.name,header:'',subject:'math',lineColor:'indigo',problems});included.push(result.setId);
+        next.push({id:result.setId,name:result.name,header:'',subject:resultSubject(ledger,result),lineColor:'indigo',problems});included.push(result.setId);
       }
       let saved=false,error=null;
       try{saved=await library.commit(next,before);matches(s);if(!saved)error='로컬 저장 실패';}
@@ -534,7 +729,7 @@ function create({session,library,renderer=browserRenderer(),transport=null,outbo
       });
     });
   }
-  return Object.freeze({adoptionStatus,inheritLinks,detachSource,createJob,registerSource,assignPages,readJob,run,recoverOutbox,adopt,impact,deleteSource,listSources,readSource,forSet,readLinked,forProblem,linkSource,reconcile,finishJob,stop,purge,purgeFence,recoverPurge,reconnect,persistence});
+  return Object.freeze({createComposition,forkComposition,listJobs,readComposition,saveComposition,undoComposition,adoptionStatus,inheritLinks,detachSource,createJob,registerSource,assignPages,readJob,run,recoverOutbox,adopt,impact,deleteSource,listSources,readSource,forSet,readLinked,forProblem,linkSource,reconcile,finishJob,stop,purge,purgeFence,recoverPurge,reconnect,persistence});
 }
 function browserRenderer(){
   let pdfModule;
