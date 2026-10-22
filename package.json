@@ -58,7 +58,7 @@
     "test:composition-ui": "node scripts/check-composition-ui.mjs && COMPOSITION_UI_RED=count node scripts/check-composition-ui.mjs && COMPOSITION_UI_RED=dirty node scripts/check-composition-ui.mjs && COMPOSITION_UI_RED=source node scripts/check-composition-ui.mjs && COMPOSITION_UI_RED=owner node scripts/check-composition-ui.mjs && COMPOSITION_UI_RED=selection node scripts/check-composition-ui.mjs && COMPOSITION_UI_RED=points node scripts/check-composition-ui.mjs && COMPOSITION_UI_RED=pref node scripts/check-composition-ui.mjs && COMPOSITION_UI_RED=order node scripts/check-composition-ui.mjs && COMPOSITION_UI_RED=persistence node scripts/check-composition-ui.mjs"
   },
   "devDependencies": {
-    "@firebase/rules-unit-testing": "^5.0.2",
+    "@firebase/rules-unit-testing": "^6.0.0",
     "firebase": "^12.18.0",
     "pdfjs-dist": "6.3.289",
     "pixelmatch": "^7.2.0",
