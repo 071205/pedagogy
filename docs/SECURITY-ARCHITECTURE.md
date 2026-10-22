@@ -230,10 +230,19 @@ Dependabot npm/Actions 설정은 유지한다. 이번에는 모든 checkout의 c
 PR 코드를 실행하거나 임의 artifact를 privileged workflow에서 실행하지 않는다.
 [GitHub Actions 보안](https://docs.github.com/en/actions/reference/security/secure-use)
 
-남은 재현성 과제는 `check:rules`의 가변 `npx --yes firebase-tools`, 배포 wrangler CLI,
-Python requirements 전이 의존성이다. 지원 버전·해시를 잠근 뒤 emulator/배포 드라이런으로
-검증한다. 브라우저 CDN 의존성은 npm Dependabot만으로 갱신되지 않는다. SDK·CSS 하위 font와
-동적 reCAPTCHA까지 별도 목록으로 관리하고 SRI·라이선스를 검증한다.
+`check:rules`는 package-lock에 고정된 Firebase CLI를 사용하고 Wrangler도 개발 의존성으로
+정확한 버전을 고정한다. HWPX 변환기의 유일한 외부 Python 의존성인 lxml도 정확한 버전을
+고정한다. 각 변경은 로컬 emulator·staging dry-run과 HWPX 검사로 확인한다. 브라우저 CDN
+의존성은 npm Dependabot만으로 갱신되지 않는다. 직접 script/link 태그 대부분은 버전과 SRI를
+고정했으며, mock의 CSS import·외부 글꼴 및 CSS 하위 글꼴에는 SRI가 없다. 동적 Firebase
+하위 파일과 reCAPTCHA도 정적 태그 검증 범위 밖이다. 구체적인 예외와 글꼴 권리 확인 공백은
+[HANDOFF-198](../reviews/handoffs/2026-10/2026-10-23-security-r6-verification-tools.md)에 기록한다.
+
+2026-10-23 R6에서 `firebase-tools@15.34.0`, `wrangler@4.151.1`, `lxml==6.1.3`을 고정했다.
+`npm audit`은 최종 lockfile에서 8 high·4 moderate(critical 0)를 보고한다. 잔여 항목은
+개발/검사 도구인 Firebase CLI 및 Rules test SDK의 전이 의존성이고, 제안된 자동 수정은 도구나
+SDK의 메이저 하향이다. 패키지 호환 범위를 벗어나는 강제 override는 적용하지 않았다. 릴리스와
+권고 범위, 현재 실제 사용 경로 및 재검토 조건은 [R6 인계](../reviews/handoffs/2026-10/2026-10-23-security-r6-verification-tools.md)에 기록한다.
 
 출시 판정은 코드 검사 + 동일 산출물 해시 + staging 동작 + 운영 콘솔 증적을 모두 요구한다.
 `check:launch`는 현재 8개 차단 사유를 내지만 App Check 운영 배포·호스팅·ruleset 전부를 검사하는

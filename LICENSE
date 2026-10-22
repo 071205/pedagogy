@@ -23,6 +23,7 @@ Copyright (c) 2026 허율 (071205). All rights reserved.
 
    - KaTeX (MIT License) — https://katex.org
    - Firebase JavaScript SDK (Apache License 2.0) — https://firebase.google.com
+   - SortableJS (MIT License) — https://github.com/SortableJS/Sortable
    - Pretendard (SIL Open Font License 1.1) — https://github.com/orioncactus/pretendard
    - KoPub 바탕 (KoPub License, 상업 이용 가능) — https://www.kopus.org
    - Playwright (Apache License 2.0) — https://playwright.dev

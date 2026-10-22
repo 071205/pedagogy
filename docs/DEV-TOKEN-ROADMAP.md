@@ -1,13 +1,15 @@
 # PEDAGOGY 통합 실행 레일 — 보안·저장·출시·비용
 
-개정: 2026-10-23 · REV-108/PR23·REV-137/138/139/PR24 해결·운영 확인 완료. U2/PR25 독립 Codex 검토·CI·병합/Pages·로그인 운영 확인 완료(유료 일괄 AI 비활성). R5도 사용자 승인으로 새 독립 Codex 종합 판정 통과. 현재 R6(Luna medium) 검사·의존성·도구 정리. 모델 대체는 사용자 직접 승인에 따른다.
+개정: 2026-10-23 · REV-108/PR23·REV-137/138/139/PR24 해결·운영 확인 완료. U2/PR25 독립 Codex 검토·CI·병합/Pages·로그인 운영 확인 완료(유료 일괄 AI 비활성). R5도 사용자 승인으로 새 독립 Codex 종합 판정 통과. R6 구현과 REV-148 scanner 독립 재검증 완료; HANDOFF-198 최종 독립 검토 통과·새 head CI 대기. 모델 대체는 사용자 직접 승인에 따른다.
 사용자 요청: 기존 비용 레일과 Sonar·안티그래비티 검증 제안을 합쳐, 모델을 직접 바꿔 실행한다.
 **실행 순서·현재 단계는 이 문서 한 곳에서만 관리한다.**
 [이전 레일](DEV-TOKEN-ROADMAP-ARCHIVE-2026-09-20.md)은 완료 증거·계약 보관본이다.
 
-## 현재 위치 — R5 독립 종합 판정 통과 → R6 검사·의존성·도구
+## 현재 위치 — R5 통과 → R6 구현·독립 검토 통과·새 head CI 대기
 
 **2026-10-22 U2 운영 확인 완료:** PR #25 검토 head `580a7fa` CI와 main merge `7c6386e` CI 모두 성공, Pages built·공개 5파일 SHA 일치. 독립 Codex 검토·저장20/RED7·UI15/RED9 완료. 로그인 Chrome에서 자체 검증 4문항을 3+1의 새 두 권으로 만들고 양쪽 계정 ACK·새로고침/작업 재진입·고정 ID·국어/지문 묶음·기존 원본 JSON 바이트 불변을 확인했다. 라이브러리 26→28권은 테스트 결과 두 권 추가다. **이후 2026-10-23 사용자 승인으로 새 독립 Codex가 R5 종합 판정 통과·R6 진입 가능으로 판정**([HANDOFF-197](../reviews/handoffs/2026-10/2026-10-22-index-u2-composition.md)). 사용자는 이번 작업 구현·검토·검증·병합·배포를 계속하도록 승인했다. 실제 유료 AI/D3/C1~C3·Safari/iPad·D1 연동·사용자 과제 관찰은 별도 게이트다.
+
+**R6 구현은 HANDOFF-198에 ready-for-review로 기록했다.** Gitleaks 경계 13종이 독립 재검증됐고 REV-148을 해결했다. 5개 GitHub Actions를 Node24 지원 SHA로 갱신했으며 static, review hygiene, YAML, diff 검사를 통과했다. npm audit에는 dev/emulator 도구 트리 8 high·4 moderate가 남아 자동 메이저 하향/비호환 override는 적용하지 않았다. CDN 하위 SRI 및 HCR 글꼴 권리 확인은 출시 체크리스트에 남겼다. REV-147은 과거 세션 IPC 토큰 로그 노출의 P2 잔여 이력으로 추적한다. 최종 독립 Codex 검토는 통과했다. 변경 head CI 성공 전 R6 완료나 R7 진입으로 표시하지 않는다.
 
 **2026-10-22 일시 중단:** 사용자 직접 승인 후 PR #24가 `20881c2`로 병합·Pages built이며 공개 index가 검토 SHA `d61e3c10…`와 일치한다. 운영 보류 3권/ACK·PDF 확인은 아직 남아 REV-137/138/139를 닫지 않았다. U2 저장 엔진은 Codex 구현·독립 Codex 검토·정상19/RED7·B6 전체 회귀를 완료했고 `codex/u2-composition`에 커밋 보존한다. U2 화면은 미구현/PR 없음. 사용자 요청으로 잠시 중단, 재개는 [HANDOFF-197](../reviews/handoffs/2026-10/2026-10-22-index-u2-composition.md)의 현재 상태·다음 행동을 따른다. 아래 이전 시점 기록보다 이 상태가 최신이다.
 
