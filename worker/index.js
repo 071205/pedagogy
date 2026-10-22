@@ -14,9 +14,8 @@
  *   · 허용된 출처에서 온 요청만 받는다
  *
  * ── 배포 ──
- *   cd worker
- *   npx wrangler secret put ANTHROPIC_KEY   # AI 공급자 키
- *   npx wrangler deploy
+ *   npm exec --offline -- wrangler secret put ANTHROPIC_KEY --config worker/wrangler.toml
+ *   npm exec --offline -- wrangler deploy --config worker/wrangler.toml
  *
  * ── 환경 변수(wrangler.toml / Secret) ──
  *   FIREBASE_PROJECT_ID  예: pedagogy-huryul

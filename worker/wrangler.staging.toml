@@ -1,6 +1,6 @@
 # 승인된 합성 검증 전용 Worker. production `wrangler.toml`과 함께 쓰지 않는다.
 # 배포 명령은 반드시 이 파일을 명시한다:
-#   npx wrangler deploy --config wrangler.staging.toml
+#   저장소 루트에서: npm exec --offline -- wrangler deploy --dry-run --config worker/wrangler.staging.toml
 name = "pedagogy-ai-staging"
 main = "index.js"
 # Cloudflare 대시보드에서 2026-09-14에 확인한 staging Worker의 compatibility date.

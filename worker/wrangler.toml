@@ -57,4 +57,4 @@ enabled = true
 head_sampling_rate = 0.1
 
 # AI 공급자 키는 이미 이 Worker 에 secret 으로 등록돼 있다(ANTHROPIC_KEY).
-# 새로 넣어야 할 때만:  npx wrangler secret put ANTHROPIC_KEY
+# 새로 넣어야 할 때만(저장소 루트에서): npm exec --offline -- wrangler secret put ANTHROPIC_KEY --config worker/wrangler.toml

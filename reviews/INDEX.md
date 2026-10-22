@@ -1,6 +1,6 @@
 # 리뷰 현황
 
-마지막 정리: 2026-10-22
+마지막 정리: 2026-10-23
 
 **이 파일은 새 세션이 매번 읽는다.** 열린 이슈·현재 작업·최근 검토 다섯만 두고 과거는 `handoffs/`와 git에 보존한다. 기록 규칙은
 [`README.md`](README.md) 의 '기록의 수명' 절에 있다.
@@ -12,6 +12,7 @@
 | `REV-2026-074` | `P2` | macOS 폴더 아이콘 파일이 새 Git 폴더에서 재발해 refs를 오염시킨다 | `issues/2026-09/2026-09-09-rules-macos-icon-files-corrupt-git-refs.md` |
 | `REV-2026-075` | `P2` | AI 문서에 들어갔다 나오면 로그인이 안 된다(재현 절차 없음) | `issues/2026-09/2026-09-09-document-editor-login-after-return.md` |
 | `REV-2026-093` | `P2` | staging Gemini가 결제 전제 미충족(`FAILED_PRECONDITION`)으로 실패한다 | `issues/2026-09/2026-09-14-gemini-staging-provider-request-error.md` |
+| `REV-2026-147` | `P2` | 과거 Firebase CLI 환경 덤프에 세션 IPC 토큰 field가 남아 이력 노출 위험이 지속된다 | `issues/2026-10/2026-10-23-security-driveupload-messaging-token-history-exposure.md` |
 
 ⚠️ 이 표는 `npm run check:review-hygiene` 가 **실제 이슈 파일의 상태와 양방향으로**
 대조한다. 지난 요약을 지워도 안전한 이유가 이 대조다 — 남은 한 곳이 정확해야
@@ -23,8 +24,8 @@
 [계약](../docs/PRODUCT-UX-U0-CONTRACT.md) · [과제·결정표](../docs/PRODUCT-UX-U0-SCENARIOS.md) ·
 [시안](../docs/mockups/u0-flow.html). 계약 주장 5건을 코드로 확인했고 `REV-2026-108`을 재현했다.
 **D1 사용자 결정: 문항을 다른 권에 넣을 때 독립 사본/수정 연동을 선택 가능하게 한다.**
-**현재: PR #24 운영 재진입/실제 PDF 확인, REV-137/138/139 해결. U2 저장 엔진 검토 완료·구성 UI 구현/독립 검토 중(HANDOFF-197).**
-U1.5 main `877a8e7`·파일 225개 일치. 실제 Safari/iPad·원본 패널·D3/C1~C3·D1 연동 대기. 운영 보류 0건·재진입 26권/사본 8개 유지, 원래 JSON/계정 사본 보존.
+**현재: PR #24/25 독립 검토·CI·병합/Pages·로그인 운영 확인 완료. U2 두 권 구성/ACK·재진입·고정 ID·원본 바이트 보존 확인(HANDOFF-197). R5 새 독립 Codex 종합 판정 통과(사용자 승인 대체). R6 구현·HANDOFF-198 최종 독립 검토 통과; audit 잔여·REV-147 보존·최신 head CI 대기.**
+U1.5 main `877a8e7`·파일 225개 일치. 실제 Safari/iPad·원본 패널·D3/C1~C3·D1 연동 대기. 운영 보류 0건·기존26권/사본8개 보존·U2 테스트2권 추가 후28권, 원래 JSON/계정 사본 보존.
 순서·게이트는 [통합 레일](../docs/DEV-TOKEN-ROADMAP.md), 지시문은 [RAIL-ORDERS](../docs/RAIL-ORDERS.md).
 **B3 운영 장애 `REV-2026-109` 해결**(운영 `e50636c` → 문구 정정 `6679676`, 편집·삭제·진짜 충돌 운영 검증).
 `REV-2026-111`은 **B4 운영 배포(`451e8ba`)·운영 확인으로 해결**(`HANDOFF-169`).
@@ -85,15 +86,17 @@ U0→B6에서 정규화/복원·AI 계약을 함께 다룬다. Rules의 `hasOnly
 
 ## 최근 검토
 
-[HANDOFF-2026-196](handoffs/2026-10/2026-10-22-index-conflict-server-choice-reentry.md): REV-137/138 독립 검토 중 REV-139 발견·수정 재확인. 저장 43건/표적 RED, 새 CI·운영 대기.
+[HANDOFF-2026-198](handoffs/2026-10/2026-10-23-security-r6-verification-tools.md): R6 secret diff scan·도구 pin·Python converter·npm audit·Dependabot 판정, Actions Node24 migration, CDN/SRI·license boundary. REV-148 independently resolved; final review·new-head CI pending.
+
+[HANDOFF-2026-197](handoffs/2026-10/2026-10-22-index-u2-composition.md): U2 독립 Codex 검토·저장20/RED7·UI15/RED9·PR25/병합 CI·Pages 완료. 로그인 두 권 ACK/재진입·고정 ID·원본 JSON 바이트 불변. 다음 R5.
+
+[HANDOFF-2026-196](handoffs/2026-10/2026-10-22-index-conflict-server-choice-reentry.md): REV-137/138/139 독립 검토·저장43건/표적RED·PR24 CI/배포·운영 보류0/실제PDF 확인으로 해결.
 
 [HANDOFF-2026-195](handoffs/2026-10/2026-10-22-index-print-ui-followup.md): REV-137 인쇄 CSS·실제 PDF/키보드·정상/RED·175/175 통과. Claude 주간 한도/배포 대기. 최신 운영 재발 상태는 HANDOFF-196 참조.
 
-[HANDOFF-2026-194](handoffs/2026-10/2026-10-19-index-passage-membership.md): REV-108 운영 revision 3→4·ACK·재진입·PDF 범위·무표식 쓰기 3종 거절 확인으로 resolved. 별도 REV-137 출력 링크 노출 등록, 전체 충돌 보류 5 보존.
 
 [HANDOFF-2026-184](handoffs/2026-10/2026-10-04-index-u15-manual-link.md): U1.5 ⓑ `gpt-5.6-sol` / medium 재검토 **승인**(2026-10-19). REV-118 해결 · 정상 16/16·RED 17/17 · PR #16 병합 `877a8e7`·파일 대조 완료.
 
-[HANDOFF-2026-180](handoffs/2026-10/2026-10-03-index-u1-start-thumbs.md): U1 2차 — 시작 두 길·불러오기 이름·쪽 축소판·글꼴 실패 표시.
 
 저장 구조의 기존 미결과 상세는 각 인계를 따른다.
 

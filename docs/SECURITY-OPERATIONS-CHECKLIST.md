@@ -78,12 +78,27 @@ Pages 를 붙이지 못하고, 전환과 함께 Pages 설정 자체가 지워졌
   Playwright 오프라인 검사는 이 결과를 대체하지 않는다. 실제 iOS/WebView도 별도 점검한다.
 - [ ] GitHub ruleset 필수 CI/최신 승인/code-owner review·force push 금지·bypass 최소화 확인.
   실제 독립 승인자 지정, 관리자 MFA/passkey·복구 수단 확인.
-- [ ] secret scanning/push protection/Dependabot alerts와 보안 업데이트 활성화 확인.
-  private repo 요금제 지원 여부와 대체 scanner를 검증한다. 설정 YAML만으로 완료 처리하지 않는다.
-- [ ] Actions allowed policy·SHA pin, 최소 권한·외부 PR 권한·배포 environment 제한 확인.
-  배포 권한은 보호된 release job에만 주고 Cloudflare token은 필요한 리소스로 제한한다.
-- [ ] firebase-tools/wrangler와 Python 전이 의존성을 고정한 후 emulator·staging 배포 검증.
-  CDN SDK·CSS/폰트 목록과 SRI·라이선스를 별도 유지한다.
+- [x] GitHub API에서 `secret_scanning`과 `secret_scanning_push_protection` 활성화를 확인했다
+  (2026-10-23, 공개 저장소). `dependabot_security_updates`는 비활성, `non_provider_patterns`와
+  `validity_checks`도 비활성으로 조회됐다. 이 작업에서는 계정 설정을 변경하지 않았다.
+  Dependabot alerts의 실제 알림 목록은 별도 확인 전까지 미확인이다.
+- [x] R6에서 Gitleaks 8.30.1의 공식 checksum을 검증하고 git 전체 이력 기준선을 한 번 실행했다.
+  root 및 모든 하위 `transcript.txt`는 pathspec으로 제외했다. 이후 CI는 base..head diff만 검사한다.
+  과거 로컬 IPC 세션 토큰이 로그에 들어간 이력 노출은 [REV-2026-147](../reviews/issues/2026-10/2026-10-23-security-driveupload-messaging-token-history-exposure.md)에
+  기록했다. 전체 이력은 rewrite하지 않았고 계정 키 회전이나 값 유효성 검증도 하지 않았다.
+- [ ] Actions allowed policy, 최소 권한·외부 PR 권한·배포 environment 제한 확인.
+  R6은 Node20 제거에 대응해 checkout/setup-node/setup-python/setup-java/upload-artifact를
+  공식 Node24 지원 SHA로 고정했다(세부 pin은 HANDOFF-198). 배포 권한은 보호된 release job에만
+  주고 Cloudflare token은 필요한 리소스로 제한한다.
+- [x] `firebase-tools` 15.34.0, `wrangler` 4.151.1, Python `lxml` 6.1.3을 고정했다.
+  Firebase CLI emulator와 Wrangler staging `--dry-run`, HWPX 12항목·브라우저 parity를 로컬에서
+  검증했다. 실제 staging 배포는 실행하지 않았다. Firebase CLI 및 Firebase test SDK의 dev 전이
+  의존성 npm audit 잔여분은 R6 인계에서 영향 범위와 함께 기록한다.
+- [ ] CDN/SRI·라이선스 수동 인벤토리: 정적 script/style 태그는 대체로 SRI가 있으나
+  `mock-exam-editor.html`의 Pretendard CSS import 및 HANBatang/HCRDotum 외부 WOFF는 SRI가 없고,
+  HCR 글꼴의 상업 이용 허가 근거를 확인하지 못했다. CSS가 가져오는 하위 폰트와 Firebase의
+  동적 reCAPTCHA/하위 파일은 정적 태그 SRI 검증 범위 밖이다. 상세 경계와 파일 위치는
+  [HANDOFF-198](../reviews/handoffs/2026-10/2026-10-23-security-r6-verification-tools.md)에 기록.
 
 ## 전환·롤백 순서
 
