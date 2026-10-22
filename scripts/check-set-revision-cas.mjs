@@ -11,7 +11,7 @@ import {rehashInlineScripts} from './lib/csp-rehash.mjs';
 /* SET_REVISION_BASE 로 다른 기준 커밋(예: B4 직전)을 깨보기 대상으로 삼을 수 있다. */
 const BASE_COMMIT=process.env.SET_REVISION_BASE||'4ea6fa7';
 const base='http://127.0.0.1:18886';
-const EXPECTED_CHECKS=42;
+const EXPECTED_CHECKS=43;
 const CHOICE_CHECK='B4 다른 충돌 사본이 순서를 밀어도 서버본 선택 뒤 재진입에 재충돌하지 않는다';
 const choiceRed=process.env.SET_REVISION_CHOICE_RED==='1';
 const reviewRed=process.env.SET_REVISION_REVIEW_RED==='1';
@@ -19,13 +19,13 @@ let choiceSource;
 if(choiceRed||reviewRed){
   choiceSource=readFileSync('index.html','utf8');
   if(reviewRed){
-    const guard='        if(set===serverVersion)continue;';
+    const guard='    if(set===serverVersion)continue;';
     assert.ok(choiceSource.includes(guard),'REV-139 방어 제거 위치를 찾지 못했다');
     if(process.env.SET_REVISION_REVIEW_SKIP_MUTATION!=='1')
       choiceSource=rehashInlineScripts(choiceSource.replace(guard,''));
   }else if(process.env.SET_REVISION_CHOICE_SKIP_MUTATION!=='1'){
     const start=choiceSource.indexOf('    if(alive&&!intakeNeedsUpdate(d)&&chosenOrder!==normOrder(d.order)){');
-    const end=choiceSource.indexOf('    const before=sets.slice();',start);
+    const end=choiceSource.indexOf('    return adoptChosenServerVersion(',start);
     assert.ok(start>=0&&end>start,'REV-138 방어 제거 위치를 찾지 못했다');
     choiceSource=rehashInlineScripts(choiceSource.slice(0,start)+choiceSource.slice(end));
   }
@@ -723,9 +723,9 @@ try{
     assert.equal(r.remoteSame,true);assert.equal(r.held,true);
   });
 
-  await check('B4 서버본 순서 ACK 대기 중 목록이 바뀌어도 다른 권과 사본을 덮지 않는다',async p=>{
+  for(const depth of [0,3])await check(`B4 서버본 순서 ACK 대기 중 목록이 바뀌어도 다른 권과 사본을 덮지 않는다 (${depth})`,async p=>{
     await stub(p);const available=await heldStale(p);
-    const r=await p.evaluate(async()=>{
+    const r=await p.evaluate(async depth=>{
       if(typeof chooseServerVersion!=='function')return {};
       const shown=structuredClone(window.__remote.get('set-a'));
       sets.unshift(normSet({id:'prefix',name:'원격 삭제될 앞 권',problems:[{id:'prefix-q'}]},{keepId:true}));
@@ -734,13 +734,14 @@ try{
       fbDb.runTransaction=async run=>{
         const result=await tx(run);
         // 서버 ACK를 기다리는 동안 listener가 앞 권의 삭제를 반영한 상황.
-        sets.shift();afterConcurrentChange=JSON.stringify(sets);
+        const later=(count,fn)=>count?queueMicrotask(()=>later(count-1,fn)):fn();
+        later(depth,()=>{sets.shift();afterConcurrentChange=JSON.stringify(sets);});
         return result;
       };
       const result=await chooseServerVersion(currentUser.uid,'set-a',{exists:true,data:shown});
       return {result,unchanged:JSON.stringify(sets)===afterConcurrentChange,
         held:heldSetIds(currentUser.uid).has('set-a'),copies:sets.filter(s=>/내 사본/.test(s.name)).length};
-    });
+    },depth);
     assert.equal(available,true);assert.equal(r.result?.ok,false);assert.equal(r.result?.changed,true);
     assert.equal(r.unchanged,true);assert.equal(r.held,true);assert.equal(r.copies,1);
   });

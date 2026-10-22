@@ -88,7 +88,7 @@ U0→B6에서 정규화/복원·AI 계약을 함께 다룬다. Rules의 `hasOnly
 
 ## 최근 검토
 
-[HANDOFF-2026-196](handoffs/2026-10/2026-10-22-index-conflict-server-choice-reentry.md): REV-137/138 독립 검토 중 REV-139 발견·수정 재확인. 저장 42건/표적 RED, 새 CI·운영 대기.
+[HANDOFF-2026-196](handoffs/2026-10/2026-10-22-index-conflict-server-choice-reentry.md): REV-137/138 독립 검토 중 REV-139 발견·수정 재확인. 저장 43건/표적 RED, 새 CI·운영 대기.
 
 [HANDOFF-2026-195](handoffs/2026-10/2026-10-22-index-print-ui-followup.md): REV-137 인쇄 CSS·실제 PDF/키보드·정상/RED·175/175 통과. Claude 주간 한도/배포 대기. 최신 운영 재발 상태는 HANDOFF-196 참조.
 

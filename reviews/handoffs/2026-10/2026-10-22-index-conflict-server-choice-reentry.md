@@ -60,3 +60,11 @@
 - `2026-10-22 · 독립 Codex 에이전트`: 사용자 대체 승인에 따라 REV-137/138 검토, REV-139 발견·수정 후 재검증. 위 index 해시에 추가 재현 결함 없음. 실제 운영 확인은 구현자가 수행한다.
 
 - 최종 추가 검증: 저장 42/42·기준/REV-138·REV-139 표적 RED 통과, REV-139 변이 생략 제어 exit 1, 기존 브라우저 175/175·JSON 12종 거절·인쇄 정상/RED·공개/CSP 12실패 주입·B6 `test:intake-review` 정상/RED·static·review-hygiene·diff 통과.
+
+## Sonar 함수 분리·최종 독립 재확인
+
+새 head `7298bcf`의 Sonar는 `writeLocalNow`와 서버본 선택 callback의 중첩 복잡도를 지적했다. 검토 무효화·순서 tx·로컬 채택·ACK 기준을 이름 있는 helper로 분리했다. 중간 미커밋 제안에서 helper의 await 이후 listener가 앞 권을 삭제하는 depth3 마이크로태스크 경합이 재현돼, **실제 채택 직전 owner/index 검사와 로컬 배열 교체를 같은 동기 구간**에 두었다. 부모의 새 43번째 회귀도 수정 전 RED였다. 이 제안안은 운영에 배포하지 않았다.
+
+최종 `npm run test:set-revision`: **43/43**, B3 전 기준 RED·REV-138 순서 방어 RED·REV-139 검토 보존 RED 통과. 브라우저 175/175·JSON12·인쇄 정상/RED·공개/CSP·B6 `test:intake-review`·schema 정상14/14와 모든 표적/기준 RED 통과. 로그 `refactor-final-{cas,audit,public,intake,schema}.log`, `refactor-microtask-red.log`.
+
+- `2026-10-22 · 독립 Codex 에이전트`: 함수 분리의 의미 비교와 최종 브라우저 재실행 완료. depth1~3은 보류/사본 보존 후 재확인, depth4~8은 안전 채택 후 사본 유지. 로컬 저장 실패 복구·계정 전환·미래 schema 차단·REV-139 review/실제 ACK 일치 정상. 추가 결함 없음. 최종 index SHA-256 **`d61e3c101c7b8a745539d9c18dcee3eaf7342d2f0f401ec589691cbac4908f6a`**. 이전 해시는 그 전 검토 시점이고 이 해시가 최신 판정 대상이다. 근거 `refactor-final.log`.
