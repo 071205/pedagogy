@@ -1,43 +1,45 @@
-# 변경 인계 — U2 구성 초안 저장 엔진과 화면 진행 상태
+# 변경 인계 — U2 구성 저장·화면·운영 확인
 
 - ID: `HANDOFF-2026-197`
 - 날짜: `2026-10-22`
 - 작성자: `Codex`
-- 상태: `needs-follow-up`
+- 상태: `ready-for-review`
 - 영향 영역: `index`, `tests`, `docs`
-- 관련 이슈: 없음(기존 REV-137/138/139 운영 확인은 HANDOFF-196)
+- 관련 이슈: `REV-2026-140`~`146` resolved(기존 REV-137/138/139 운영 확인은 HANDOFF-196)
 
-## 현재 상태 — U2 구현·독립 검토 완료, PR #25 최종 CI 진행
+## 현재 상태 — U2 독립 검토·CI·배포·로그인 운영 확인 완료, 다음 R5
 
 - 실제 worktree `/Users/huryul/개발/pedagogy-작업사본/pedagogy-u15b`, 브랜치 `codex/u2-composition`. 기본 저장소는 전환하지 않았다. `transcript.txt` 접근 금지.
-- [PR #25](https://github.com/071205/pedagogy/pull/25) draft, main/Pages **아직 U2 미배포**. 저장 엔진 체크포인트 bda078e/4b12b0c, UI117c77b 및 후속 검사/설정 보완.
-- UI: 선택/새 문제집 메뉴·남은작업·3영역·수동본문/분류·묶음이동/제외·실제Undo/Redo·목적지/순서 diff/권수확인·고정 만들기/실패재시도·D4 결과/설정 켜기·끄기 구현. 상세는 U2-COMPOSITION.md. 유료 일괄 추출 비활성화, C1~C3/D3 게이트 유지.
-- 독립 Codex 저장/화면 검토 완료. 초안에서 REV-140~144를 재현·수정·독립 재확인했다. UI15건 정상(저장실패/고정ID재시도·D4·owner재오픈/늦은뷰어해제·순서diff 포함). UI9종 RED(권수/미저장/원문해제/owner/선택/배점/D4/순서/영속표시) 검출. order 변이 생략 제어는 의도한 exit1로 거짓 RED 성공을 거절했다. 저장20건+RED7 통과. 375/768/1194 가로넘침검사와375/1194캡처 육안확인.
-- 로컬 check:fast는 test:set-revision까지 모두 통과 후 HWPX 기본Python lxml 부재(skip는 통과아님)·한글 root URL의 cross-platform ENOENT로 중단했다. 번들Python/HWPX_REQUIRE=1로 HWPX12건/시험지/브라우저대조·자기검사 통과. cross-platform URL을 fileURLToPath로고쳐 실제 Chromium4크기/실패주입 통과(REV-145, 독립 확인). 이후 기존 브라우저175/잘못된JSON12·인쇄정상/RED·static·review-contracts 통과. library UI의 기존 U2 disabled/2길기대는 새3길/키보드와D4에맞게 갱신해 통과. 남은 sheet/source/mock-ui도 전체 exit0으로 완료했다. 자기검사가 일부러 출력하는 FAIL을 정상 실패와 구분했다. 로그 `/private/tmp/u2-check-fast-final.log`, `u2-remaining-gates.log`, `u2-library-contract-final.log`.
-- PR25 첫 CI verify는 **새 검사 logDir의 /private 경로가 Linux에서 EACCES**라 실패했다. node:os tmpdir()+path.join으로 수정. 첫 head Sonar/hwpx 성공, 새 head 최종CI는 별도 확인한다. 제품runtime실패와구분한다.
-- PR #24는 사용자 직접 승인 후 `20881c2` 병합·Pages built·병합 CI 성공/공개 index SHA `d61e3c10…` 일치. 실제 로그인 Chrome에서 보류3→0 후 새로고침해도26권/사본8·문항70/57/72유지. 실제2쪽PDF 링크없음·[01~03]/독립4번유지. REV-137/138/139 resolved, 모든사본/원본JSON보존(HANDOFF-196).
-- 다음: 최종 PR25 CI/새댓글 확인 → 실패만 재현수정 → 검토소스와같은head로 PR25병합/Pages → 운영 테스트용 권으로 U2구성/저장/재진입·원본불변 확인 → 레일 R5 연결게이트. 사용자가 이번작업 구현/검토/검증/병합/배포를 계속하도록 직접승인했다. 실제유료AI/실제Safari-iPad/D1수정연동은 별도게이트이며 완료로 확대하지 않는다.
+- [PR #25](https://github.com/071205/pedagogy/pull/25)는 검토 head `580a7facd87c5aba9898763a86129f940e8b0e03`에서 병합했다. main merge `7c6386e10d9e01d323a8ef58af119c28d74b56ca`, Pages `built`. 공개 index/UI/planner/CSS/intake 5파일이 아래 검토 SHA와 같다(`/private/tmp/u2-public-deployed.json`). Rules/Worker 변경·배포 없음.
+- PR head Verify [39757671461](https://github.com/071205/pedagogy/actions/runs/39757671461)의 verify/check:fast·cross-platform·hwpx 및 SonarCloud 모두 성공. 병합 Verify [39761068480](https://github.com/071205/pedagogy/actions/runs/39761068480)도 성공. CodeRabbit의 skipped review를 독립 승인으로 세지 않는다.
+- 사용자가 Claude 주간 한도 대기를 독립 Codex 검토로 대체하고 U2 Codex 구현, 이번 작업의 구현·검토·검증·병합·배포를 직접 승인했다. 저장/화면을 구현하지 않은 독립 Codex가 검토했다. Claude 승인이 아니다. 초안 결함 REV-140~146은 같은 이슈 파일에 수정·검증을 기록해 resolved.
+- 구현 계약: [U2-COMPOSITION](../../../docs/U2-COMPOSITION.md). 선택/새 문제집 메뉴·남은 작업·3영역·수동 본문/분류·묶음 이동/제외·실제 Undo/Redo·목적지+순서 diff/권수 확인·고정 만들기/실패 재시도·D4 결과/설정 켜기·끄기. B6의 owner/삭제 세대·원문 grant·부분 채택/고정 ID/미채택 fork를 계승한다. 실제 유료 일괄 추출은 비활성화이며 D3/C1~C3 게이트를 유지한다.
 
-## 변경 내용
+## 검증 — 재실행할 때의 기준
 
-사용자 승인으로 U2도 Codex가 구현한다. 먼저 B6 저장소 안에 기존 권 스냅샷·버전 검사·실제 Undo·묶음 유지·기존 원문 grant만 계승하는 구성 API를 추가했고 독립 Codex 검토를 마쳤다. 세부 계약은 [U2-COMPOSITION](../../../docs/U2-COMPOSITION.md). UI는 아직 구현 전이다. 유료 AI 운영 활성화와 Rules 변경은 없다.
+- `npm run test:composition`: 정상 **20/20**, stale/groups/frozen/undo/paid/views/fork **7종 RED** 및 paid 변이 생략 제어. `npm run test:intake` 기존 전체 정상/RED도 최종 코드에서 통과. `/private/tmp/u2-composition-final.log`, `u2-composition-skip-control.log`, `u2-b6-final.log`.
+- `npm run test:composition-ui`: 실제 DOM **15건 정상 + 9종 RED**(권수/미저장/원문 해제/owner/선택/배점/D4/순서/영속 표시). order 변이 생략 제어 exit1 확인. `/private/tmp/u2-ui-15.log`, `u2-persistence-red.log`, `u2-ui-order-red.log`, `u2-ui-pref-red.log`, `u2-ui-skip-control.log`.
+- 375/768/1194 가로 넘침 없음, 375/1194 캡처 육안 확인. 실제 Safari/iPad 검증과 구분한다.
+- 로컬 check:fast는 set-revision까지 통과 후 기본 Python lxml 부재와 한글 cwd URL의 cross-platform ENOENT로 중단했다. 번들 Python+HWPX_REQUIRE=1로 HWPX12/시험지/브라우저 대조·자기검사 통과. fileURLToPath 수정(REV-145) 후 Chromium4크기/실패 주입 통과. 기존 브라우저175/잘못된JSON12·인쇄 정상/RED·static·review-contracts·library UI·sheet/source/mock-ui를 이어 실행해 전체 exit0 확인. 원격 최종 CI의 check:fast는 일괄 성공이다. `/private/tmp/u2-check-fast-final.log`, `u2-remaining-gates.log`, `u2-library-contract-final.log`.
+- 공개233파일 build/check/실제 public 브라우저와 세 편집기 CSP 정상/RED 통과(`/private/tmp/u2-public-browser-final.log`). 첫 CI의 Linux /private EACCES는 os.tmpdir()+path.join으로 수정했으며 제품 실패와 구분한다.
 
-## 위험과 검토 요청
+## 로그인 운영 확인 — 2026-10-22 Chrome
 
-부분 채택 후 고정 매핑/다음 provider 시작 차단/이미 시작한 응답 보존/미채택 묶음 fork, owner 전환·실패 재진입을 확인했다. 화면의 명시 적용·오래된 제안·권수 차이 확인과 모바일은 다음 구현/검토 범위다.
+자체 작성한 기존 `REV108 운영 검증 020409 (테스트)` 4문항만 사용했다. 기존 자료/사본/백업은 보존했다. 유료 AI 호출은 0회다.
 
-## 검증
+1. 다른 PEDAGOGY 탭이 없음을 확인하고 U2에서 원하는 권수 2의 제안을 미리 확인·적용했다. 공통지문 3문항은 A, 독립 1문항은 B로 갔고 미분류/제외는 0이었다.
+2. `U2 운영 검증 A (테스트)` 3문항, B 1문항 생성. 처음에는 계정 저장 대기였고 상태 조회 뒤 **두 권 모두 계정 저장 확인됨**을 표시했다.
+3. 실제 편집기에서 두 권의 국어 과목, A의 `[01~03]` 지문 묶음, B의 독립 문항을 확인했다. 실제 A권 문항 편집→지면 배치의 2쪽 조립·`[01~03]`·3문항 유지도 확인했다. 새로고침 후 로그인 복원·라이브러리 **28권(기존26+검증2)**, 저장한 구성 작업 재진입·두 권 ACK 유지. 중복 권 생성 없음.
+4. 재진입 전후 UI 내보내기로 결과 ID/문항 ID/본문/묶음/과목을 대조했다. A ID `4f6ab081-e2a9-47ef-9522-562fb1f4e820`, B ID `d23b84eb-1581-473b-ba14-4070cfb7c03a` 유지. 새 권 JSON은 루트 폴더의 `folderId` 누락→빈 문자열 정규화만 달랐고 나머지 전체 데이터는 같다. 이를 바이트 동일로 기록하지 않는다.
+5. 기존 원본 JSON은 작업 전후 **2888바이트 완전 동일**, SHA-256 `dee58a702dc0474cb5c64e86a51bab182ae3c254825062c848ab631e973eac01`. 원본 4문항과 묶음도 그대로다. `/private/tmp/u2-operational-export-comparison.json`, `u2-operational-{original,A,B}-{before,after}.json`, 결과 캡처 `u2-operational-results.png`.
 
-- `node scripts/check-composition.mjs`: 정상 19/19(`/private/tmp/u2-composition-normal-19.log`).
-- `COMPOSITION_RED=stale|groups|frozen|undo|paid|views|fork node scripts/check-composition.mjs`: 각 표적 방어 제거 검출. 앞 네 가지는 이전 14건 이하에서, paid/views/fork는 최종 19건에서 확인했다. 이후 최종 19건 전체 RED 재실행과 변이 생략 제어도 통과했다(위 중단 시점).
-- `npm run test:intake`: 이전 엔진에서 통과(`/private/tmp/u2-b6-regression.log`). 마지막 provider/fork 보완 후 재실행도 exit 0(`/private/tmp/u2-b6-final.log`).
-- 독립 재현: `/private/tmp/u2-independent-review/{final-probes,concurrent-after,inflight}.log`. 임시 로그 소실 시 위 코드 검사로 재현한다.
+임시 자료는 소실될 수 있다. 영구 근거는 위 단계·재현 가능한 검사와 CI다. PR24의 보류3→0·새로고침26권/사본8 유지·실제2쪽PDF는 HANDOFF-196의 별도 운영 근거를 따른다.
 
-## 다음 검토자에게
+## 다음 행동·남은 범위
 
-실제 worktree `/Users/huryul/개발/pedagogy-작업사본/pedagogy-u15b`, 브랜치 `codex/u2-composition`. PR #24 head `cb1d26a` CI 모두 통과, CodeRabbit 자동 리뷰는 skipped(승인 아님). main 병합 시도는 자동 승인 심사가 기존 사용자 승인에 main/Pages가 명확하지 않다는 이유로 차단했다. 이후 사용자가 main/Pages를 직접 승인해 병합·Pages built·공개 바이트 일치를 확인했다(위 중단 시점). transcript.txt는 접근 금지.
+**U2의 로컬/보존 결과 구성·독립 채택 경로는 검토·배포·운영 확인을 마쳤다. 다음은 [R5 연결 게이트](../../../docs/R5-INTEGRATION-GATE.md)**다. R1·B1~B7·R4.5·U0~U2의 기존 승인 증거를 합치고 미검토/수정 영향/채택→충돌→편집·지면 연결만 확인한다. 같은 diff 전체를 다시 검토하지 않는다.
 
-다음은 저장 정상/RED/생략 제어·B6 회귀 → U2 화면 구현/독립 검토 → U2 PR이다. PR #24 운영 승인 시 HANDOFF-196의 테스트 권·보류 3권·모든 사본/백업 보존 조건으로 운영 확인한다. PR24 배포 파일 해시는 현재 U2 작업 파일이 아닌 `git show cb1d26a:index.html`과 비교한다.
+실제 유료 AI/D3/C1~C3·실제 Safari/iPad·D1 수정 연동 활성화·사용자 과제 관찰은 완료로 확대하지 않는다. R5의 모델별 종합 판정과 R6~R10 완료도 아직 아니다.
 
 ## 검토 기록
 
@@ -46,7 +48,7 @@
 - 2026-10-22 후속: 정상 19/19·7종 RED와 paid 변이 생략 제어(의도한 exit 1)를 최종 코드에서 확인했다(`/private/tmp/u2-composition-final.log`, `u2-composition-skip-control.log`). B6 기존 회귀의 partial adopt 후 paid retry 허용은 U2에서 의도적으로 제한하는 계약 변경이다. 독립 검토로 U0의 고정 구성/미채택 새 구성 계약과 일치함을 확인하고 B6 설계에 명시했다. 실패 쪽 명시 retry/성공 쪽 잠금은 채택 전 별도 검사로 보존하고, 부분 채택 뒤 실행/명시 재시도는 calls 불변 거절을 검사한다.
 - 사용자 PR #24 main/Pages 직접 승인 도착 후 `20881c2`로 병합 완료. Pages 배포/운영 확인은 진행 중이며 아직 REV-137/138/139 해결로 닫지 않았다.
 
-## U2 화면 구현·검토 진행 (재개 후 최신 상태)
+## U2 화면 구현·검토 당시 기록(최종 판정은 위 현재 상태)
 
 PR #24 운영 확인을 마치고 REV-137/138/139 해결(HANDOFF-196). U2의 실제 구성 화면을 외부 모듈/스타일로 구현했다. 라이브러리 선택/새 문제집 메뉴→기존 권·남은 B6 작업→목적지/문항/본문·원문→이동/제외/편집/실제Undo→문항별 구성 변경 확인/권수 차이 승인→고정 만들기/권별 결과/미채택 새 구성/D4 선호까지 연결한다. 유료 일괄 추출은 비활성화다. 새 권 과목은 단일 원본 과목 유지/혼합은 제한 없음, 머리말·선색은 새권 기본값(계약에 명시).
 
@@ -62,4 +64,8 @@ R5 준비표에서 H193 별도 브랜치의 관리 미구현 설명과 현재 H1
 
 - 2026-10-22 · 독립 Codex · 순서 diff의 목적지+번호 비교에 추가결함없음. UI 최종 SHA `7d7ab264ff24dd3baad0da91f3aae2ccd659036ab2f22fc672de532f281a55ef`. REV146의 두 실제함수를 독립 VM으로 4상태/빈목록/owner 전환 중 조회 차단 확인, CSP3개 일치·추가결함없음. index SHA `3fc1f2cc4d95333e369b8cb19f0fa0c7ec3b3ad830b040ca831bcdae12e4eaad`.
 
-공개233파일 build/check/실제공개브라우저 및 세편집기 CSP/RED는 전 단계에서 통과했다(`/private/tmp/u2-public-browser-final.log`). 마지막 index의 영속표시는 CSP재해시와 U2 DOM/독립검사로 좁게 확인했다. 마지막 head의 원격 CI 완료와 운영 U2 확인 전에는 U2 완료/실제AI 운영 완료로 바꾸지 않는다. 사용량 단계 경계 확인에서 5시간 잔여약21%·주간39%였고 범위를 U2최종검증/배포로고정했다.
+공개233파일 build/check/실제공개브라우저 및 세편집기 CSP/RED는 전 단계에서 통과했다(`/private/tmp/u2-public-browser-final.log`). 마지막 index의 영속표시는 CSP재해시와 U2 DOM/독립검사로 좁게 확인했다. 이 시점 뒤 최종 CI·병합·운영 확인을 완료했다(위 현재 상태). 실제 AI 운영 완료로 확대하지 않는다.
+
+## R5 준비 후속 — 2026-10-22
+
+[R5 연결 근거표](../../../docs/R5-INTEGRATION-GATE.md)에 기존 R1/B1~B7/R4.5/U0~U2 승인·후속 수정/배포·남은 외부 게이트를 합쳤다. 구현하지 않은 독립 Codex가 보존 초안→실제 U2 채택→편집/인쇄 DOM/지면→B4 보류/사본→원문 삭제/뷰어 해제를 폐기 가능한 Chromium에서 확인(exit0·새 결함 없음). 후속 CAS probe도 exit0: stale20/current21 거절/쓰기0·최신 순서 CAS revision22/쓰기1·다른 로컬/미관측/pending의 거짓ACK 차단·확정snapshot 뒤ACK·실제page.reload/같은 결과ID·편집/지면/인쇄DOM/원문/사본 유지. Firestore 서버·transaction·snapshot 전달만 메모리 대역이며 원격 인증/Rules/CAS 왕복으로 확대하지 않는다. `/private/tmp/r5-integration-review-2026-10-22/cas-probe.{mjs,log}`. 제품 파일 수정 없음. Claude 로그인 정상 후 Opus foreground 래퍼1회가 주간 한도로 exit1·최종 답변 없음(10/25 20시KST 해제)이므로 **R5 Claude 승인/완료로 기록하지 않는다.** 반복 호출하지 않고 근거표/정확한 남은 경계를 보존한다.
