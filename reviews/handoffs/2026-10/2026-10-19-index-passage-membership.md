@@ -3,9 +3,9 @@
 - ID: `HANDOFF-2026-194`
 - 날짜: `2026-10-19`(①) · `2026-10-20~21`(②)
 - 작성자: `Codex GPT-6 Sol / high 구현 · 부모 Codex 통합 검증/인계`
-- 상태: `reviewed` — ①·② Claude Opus 독립 검토 결함 없음(135·136 포함). `3335d15` CI·로컬 Rules 정상/RED 통과. **사용자 승인으로 엄격 Firestore Rules 운영 배포 완료. 다음: Claude의 PR 병합·Pages 배포 → 로컬 로그인 왕복. REV-108은 `in-progress`**
+- 상태: `reviewed` — ①·② Claude Opus 독립 검토 결함 없음(135·136 포함). `3335d15` CI·로컬 Rules 정상/RED 통과. **Rules·PR #23 병합/Pages·main CI 완료. 실제 Chrome 테스트 권 저장/재진입·명시 소속·PDF·운영 무표식 쓰기 거절 확인. REV-108은 `resolved`; 별도 출력 결함 REV-137은 `in-progress`(HANDOFF-195)**
 - 영향 영역: `index | normalize | render | firestore.rules | tests | docs`
-- 관련 이슈: `REV-2026-108` (`in-progress`, ② 출시 게이트 미완료)
+- 관련 이슈: `REV-2026-108` (`resolved`, 2026-10-22 운영 확인)
 - 브랜치: `codex/rev108-explicit-groups`
 - 기준: `main 877a8e7` (PR #16 병합), 선행 판정 `0cc9945`
 
@@ -246,3 +246,22 @@ Claude Opus 2회차 지적의 **REV-133 옛 묶음 보완·REV-134 옛 안내 �
   배포 전/후 SHA-256 모두 `9b16c418fa782139f6040b299e575717aa6654e559e566cb9dd3285c33ea0277`. 배포 로그는 `/private/tmp/rev108-resume-2026-10-21/deploy-firestore-rules.log`다. Storage·Worker·Pages는 배포하지 않았다.
 - **검증 재사용:** 위 JDK 21 `check:rules` 정상/RED exit 0 뒤 Rules·제품 코드는 바뀌지 않았다. `3335d15` 원격 CI 성공과 로컬 검사 샌드박스 11/11을 재사용한다. 이 배포는 운영 서버 컴파일·릴리스 완료 증거이며, 실제 인증된 데이터 쓰기/거절의 실행 증거를 대신하지 않는다.
 - **다음 담당/범위:** Claude가 PR #23의 최신 head와 CI를 확인하고 ready 전환·병합하여 Pages 빌드를 확인한다. 로컬 Codex는 이 단계에서 PR 상태·main·Pages를 바꾸지 않았다. Pages 반영 뒤 로그인 → 검증용 권 저장 `✓ 저장됨` → 새로고침 유지 → 옛 묶음 일괄 확인 → 인쇄를 확인한다. 구형 운영 탭의 실제 거절·Safari/iPad도 미검증이다. 안전한 운영 왕복/전체 완료로 선언하지 않으며 REV-108은 `in-progress`다.
+
+
+### ② 배포 후 운영 확인 (2026-10-22 · 로컬 Codex · REV-108 해결 확인)
+
+- [PR #23](https://github.com/071205/pedagogy/pull/23)은 `625e19c286e7b4ae84d300586c0757930cd69bf3`로 병합됐다. Pages API의 source는 `main`/루트, 최신 build commit도 같은 SHA이며 `built`다. [병합 커밋 Verify](https://github.com/071205/pedagogy/actions/runs/39551536590)의 verify·cross-platform·hwpx 모두 성공이다. PR head `9bb1b77` 실행의 WebKit 1194×834 클릭 timeout 1건과 병합 커밋 성공을 구분하며, timeout을 재현 결함이나 해결된 코드 결함으로 단정하지 않는다.
+- 운영 `index.html`·`service-config.js`·normalize·render·print·intake·intake-contract 7개를 시스템 curl로 읽어 검증 소스와 바이트/SHA-256이 모두 일치함을 확인했다. 최초 Python urllib는 로컬 CA 오류로 시작 실패했고, curl의 단발 503 뒤 한 번 제한 재시도하여 성공했다. TLS 검증은 끄지 않았다. 결과는 `/private/tmp/rev108-operational-2026-10-22/deployed-core-sha256.json`이다.
+- 실제 사용자 Chrome 프로필에서 PEDAGOGY 운영 로그인과 기존 라이브러리 로드를 확인했다. 로그인 전 이용약관·개인정보 동의는 사용자가 직접 처리했다. 사용자 기존 문제집을 직접 선택해 편집·삭제·충돌 해소하지 않았다. 다만 아래 수동 저장은 전체 권의 이미지 이전/재전송 경로이므로 기존 서버 문서가 전혀 변하지 않았다고 단정하지 않는다. 계정 식별자·토큰은 기록하지 않는다.
+- 자체 작성한 4문항 JSON `/private/tmp/rev108-operational-2026-10-22/rev108-legacy-fixture.json`을 준비했다. 구형 `groupSpan:3` 지문 1개와 무관한 4번으로 저장·새로고침·옛 묶음 확인·인쇄를 검증한다. native 파일창에서 해당 파일은 선택됐지만 열기가 비활성/무반응이었고 컴퓨터 제어가 `noWindowsAvailable`도 반환했다. JSON/모든 파일 필터·열기 액션·앱 재연결로 완료되지 않아 사용자의 직접 파일 열기를 요청했다. 이후 사용자가 열기를 완료했고 4문항 테스트 권이 정상 생성됐다. 파일창 도구 문제를 제품 가져오기 결함으로 등록하지 않는다.
+- **실제 저장/옛 묶음 확인:** 테스트 권의 머리말만 `REV-108 운영 검증용 자체 작성 자료 · 저장 왕복 확인`으로 바꾸고 수동 저장했다. 새로고침 뒤 머리말과 옛 묶음 경고가 유지됐다. 사용자 인증 SDK의 `SETS_COL(currentUser.uid).doc(testId).get({source:'server'})` 읽기에서 문서 존재·`setSchemaVersion:1`·revision 3·4문항·머리말 일치·첫 문항 `groupReview:'legacy'`를 확인했다. `isCloudSynced(testSet, sets.indexOf(testSet))`는 true, 해당 테스트 권의 보류는 false, 로컬 기준 revision도 3이었다. 처음의 UID 인자 누락으로 발생한 읽기 거절과 order 인자 누락으로 나온 ACK false는 진단 코드 오류이며 제품 결함이 아니다.
+- **실제 인쇄 경계:** 미확정 상태의 인쇄 시도에서는 Chrome 인쇄 미리보기가 열리지 않았다. 옛 묶음 `모두 이대로 확정` 뒤 경고가 사라지고 `[01~03]`이 표시됐으며 Chrome 실제 인쇄 미리보기(2쪽)가 열렸다. 4번은 독립 문항으로 표시됐다. PDF 저장 창의 자동 클릭/키 입력이 적용되지 않아 사용자에게 여백 없음·PDF 저장을 요청했다. 사용자는 다운로드 폴더의 기본 이름으로 저장했다. 해당 파일의 자체 작성 본문을 확인한 뒤 `/private/tmp/rev108-operational-2026-10-22/rev108-printed.pdf`로 증거 사본을 만들고 2쪽을 모두 PNG 렌더·육안 대조했다. `[01~03]`과 독립 4번은 정상이다. 다만 첫 쪽 하단에 화면용 `본문으로 건너뛰기` 링크가 찍혀 별도 REV-137로 등록했다. 인쇄 미관까지 결함 없음으로 선언하지 않는다.
+- **기존 자료/충돌 한계:** 수동 저장의 전체 이미지 이전/재전송 뒤 계정 전체 `충돌 보류 5`와 사본이 보였다. 발생 원인은 아직 분리하지 못했고 기존 자료의 충돌 선택·해소·삭제는 하지 않았다. 테스트 권은 위 서버 ACK로 별도 확인했으며 전체 계정 정상 저장으로 확대하지 않는다. 코드의 수동 저장은 전체 라이브러리를 다루므로 기존 자료 무변경이라고 기록하지 않는다.
+- **확정 후 서버/재진입:** 운영 Chrome에서 테스트 권의 schema 1·revision 3 저장/ACK·새로고침 유지, 옛 묶음 확정 후 revision 4·첫 3문항 동일 대표/4번 무소속·정규화 일치/ACK·재진입 유지를 확인했다. 실제 PDF 2쪽의 `[01~03]`과 독립 4번도 확인했다. 인증 SDK에서 무표식 다음 revision 덮어쓰기·신규 사본·tombstone이 모두 `permission-denied`였고 서버 원본은 불변이다. 구형 바이너리 탭 자체를 실행한 검증과는 구분한다. 원시 클라우드 `problems`와 로컬 배열은 저장 인코딩/정규화 때문에 단순 JSON 문자열이 달랐지만 `setJSON(local) === setJSON(docToSet(server))`는 true다. raw 비교 false를 데이터 유실로 판정하지 않는다. 주소창에서 운영 URL로 재진입해 로그인/테스트 권 복원·범위 유지와 서버 revision 4/정규화 일치/ACK를 다시 확인했다.
+- **완료와 남은 한계:** 구현·독립 검토·정상/RED·Rules/Pages 배포·테스트 권 실제 왕복 및 운영 쓰기 차단 근거를 모아 REV-108을 `resolved`로 바꾼다. 실제 Safari/iPad·U1.5 원본 패널은 미검증이다. 계정 전체 충돌 보류 5는 원인 미분리 상태로 보존하며 전체 계정 정상 저장으로 확대하지 않는다. 실제 구형 탭 UI의 거절 안내는 미검증이다. 화면용 링크 출력 REV-137은 별도 결함이며 다음 UI 구현자가 수정/출력 회귀·깨보기를 확인한다. 그 뒤 기존 레일의 U2(Claude Sonnet 5 구현 → Codex Sol medium 검토)로 잇는다.
+- **재현 자료:** 민감값 없는 관찰 `/private/tmp/rev108-operational-2026-10-22/observations.json`, PDF·`print-extracted.txt`·`print-page-1.png`·`print-page-2.png`. 임시 파일은 정리될 수 있으므로 위 fixture 구성/SDK 방식/판정을 영구 증거로 삼는다. 제품/Rules가 바뀌지 않아 기존 브라우저 175/175·Rules 정상/RED·병합 CI를 재사용했고 기록 변경에 review-hygiene·diff 검사를 실행한다.
+- 작업 사본은 `/Users/huryul/개발/pedagogy-작업사본/pedagogy-u15b`, 브랜치 `codex/rev108-operational-checks`(`origin/main 625e19c` 기준)다. 기본 폴더의 예전 `claude/u15-source-panel` 브랜치·`transcript.txt`는 변경하지 않았다. 제품·Rules 변경/배포나 유료 AI 호출은 하지 않았다.
+
+### 2026-10-22 종료 상태 보정
+
+사용자가 발견 문제 해결과 사용량 종료 전 정리를 요청했다. 후속 출력 수정·검증 및 운영 충돌 정리의 최신 상태는 [HANDOFF-195](2026-10-22-index-print-ui-followup.md)를 따른다. REV-137은 구현/로컬 정상·RED 완료, Claude 주간 한도 때문에 독립 검토 미완료·운영 미배포다. 위 운영 확인 시점의 충돌 5건은 초안 JSON/계정 사본 보존 후 2건 정리돼 3건이 남았다. REV-108 해결과 출력/전체 계정 정리 완료를 혼동하지 않는다.

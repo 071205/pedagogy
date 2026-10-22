@@ -123,7 +123,7 @@ test('038: failed local writes retain dirty and close warning, retry clears them
   const c=context(`let currentUser=null,localDirty=true,localTimer=0,wiping=false,sets=[{id:'unsaved'}],quotaWarned=false;
     const pendingLocalByOwner=new Map(),setsKey=()=> 'guest',setSaveStatus=()=>{},toast=()=>{};
     let broken=true,attempts=0;const localStorage={setItem:()=>{attempts++;if(broken)throw Error('fixture quota')}};`);
-  vm.runInContext(fn('writeLocalNow')+'\n'+fn('flushLocal')+'\n'+fn('hasUnsavedCloudWork'),c);
+  vm.runInContext(fn('invalidateEditedSetReview')+'\n'+fn('invalidateLocalReview')+'\n'+fn('writeLocalNow')+'\n'+fn('flushLocal')+'\n'+fn('hasUnsavedCloudWork'),c);
   assert.equal(vm.runInContext('flushLocal()',c),false);
   assert.equal(vm.runInContext('localDirty && hasUnsavedCloudWork()',c),true);
   assert.equal(vm.runInContext('flushLocal()',c),false);assert.equal(vm.runInContext('attempts',c),2);

@@ -25,7 +25,7 @@
      어렵다 — 새 로그인만 깨진다). 실제로 한 번 그랬으니 손대지 말 것. -->
 <meta http-equiv="Content-Security-Policy" content="
   default-src 'self';
-  script-src 'self' 'wasm-unsafe-eval' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-mGWmbt0vHUtuDGT8B4reAUtPntR+7sU0mgtRVzscb2c=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
+  script-src 'self' 'wasm-unsafe-eval' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-Pt3r9TsQ8VyCoRcg0/SenfLmwDN2cyG6Mm/zmaoF8Vc=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
   script-src-attr 'none';
   style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
   font-src 'self' data: https://cdn.jsdelivr.net;
@@ -1607,7 +1607,7 @@ body.hide-answers .answer-block{display:none!important}
   /* ⚠️ 화면용 세로 flex 를 **반드시 끈다.** flex 아이템 안에서는 `page-break-after` 가
      제대로 먹지 않아 쪽이 어긋난다. */
   body{background:#fff;display:block;min-height:0}
-  .topbar,#libraryView,#editorView,#mockView,#exportModal,#promptModal,#toastHost{display:none!important}
+  .skip-link,.topbar,#libraryView,#editorView,#mockView,#exportModal,#promptModal,#toastHost{display:none!important}
   #printDoc{display:block}
   #sheetBuild{display:none!important}
   /* 스크롤바 제거 */
@@ -4318,30 +4318,35 @@ function flushLocal(){
   if(!localDirty) return true;
   return writeLocalNow();
 }
-function writeLocalNow(){
+function invalidateEditedSetReview(set,old){
+  // Unknown schemas stay opaque; unsupported intake is read-only.
+  if(setSchemaUnsupported(set)||intakeNeedsUpdate(set))return;
+  for(const p of Array.isArray(set.problems)?set.problems:[]){
+    if(!p.intake)continue;
+    const priorProblems=old.find(x=>x.id===set.id)?.problems;
+    const prior=Array.isArray(priorProblems)?priorProblems.find(x=>x.id===p.id):null;
+    if(!prior?.intake)continue;
+    const body=x=>JSON.stringify([x.title,x.desc,x.answer,x.answerImg,x.blocks]);
+    const tags=x=>JSON.stringify([x.intake.units,x.intake.difficulty,x.intake.points,x.intake.pointsState]);
+    if(body(prior)!==body(p))p.intake.contentReview="unreviewed";
+    if(tags(prior)!==tags(p))p.intake.classificationReview="unreviewed";
+  }
+}
+function invalidateLocalReview(serverVersion){
+  let old=[];try{old=JSON.parse(intakeLocalBase.get(setsKey())||"[]");}catch{}
+  for(const set of sets){
+    // Only the exact server-adopted object retains its confirmed review.
+    if(set===serverVersion)continue;
+    invalidateEditedSetReview(set,old);
+  }
+}
+function writeLocalNow({serverVersion=null}={}){
   if(!intakeWriteAllowed()){intakeHoldWrite();return false;}
   if(wiping) return true;      // 삭제 중 — 지운 내용을 도로 쓰지 않는다
   try{
     // Editing a reviewed version makes the affected review stale. Adoption and
     // round-trip normalization retain its explicit state.
-    if(!intakeAdopting){
-      let old=[];try{old=JSON.parse(intakeLocalBase.get(setsKey())||"[]");}catch{}
-      for(const set of sets){
-        // Unknown set versions are opaque: keep their bytes on disk without
-        // assuming their problem collection still uses this version's shape.
-        if(setSchemaUnsupported(set))continue;
-        for(const p of Array.isArray(set.problems)?set.problems:[]){
-          if(!p.intake||intakeNeedsUpdate(set))continue;
-          const priorProblems=old.find(x=>x.id===set.id)?.problems;
-          const prior=Array.isArray(priorProblems)?priorProblems.find(x=>x.id===p.id):null;
-          if(!prior?.intake)continue;
-          const body=x=>JSON.stringify([x.title,x.desc,x.answer,x.answerImg,x.blocks]);
-          const tags=x=>JSON.stringify([x.intake.units,x.intake.difficulty,x.intake.points,x.intake.pointsState]);
-          if(body(prior)!==body(p))p.intake.contentReview="unreviewed";
-          if(tags(prior)!==tags(p))p.intake.classificationReview="unreviewed";
-        }
-      }
-    }
+    if(!intakeAdopting)invalidateLocalReview(serverVersion);
     const serialized=JSON.stringify(sets);
     localStorage.setItem(setsKey(),serialized);
     intakeLocalBase.set(setsKey(),serialized);
@@ -5030,40 +5035,77 @@ function serverChoiceBase(server){
   if(!server.exists) return "absent";
   return setWriteBaseEntryFromDoc(server.data);      // 저장 번호가 비정상이면 null — 고를 수 없다
 }
+function rememberChosenServerVersion(id,d,incoming){
+  /* 기준은 확인한 snapshot 의 모양대로 세운다(Codex 판정): 살아 있으면 본문·order 까지 같을 때만
+     영속 기준, tombstone 이면 영속 기준은 지우고 쓰기 기준만 tombstone, 부재면 둘 다 없음. */
+  if(incoming){
+    const wb=setWriteBaseEntryFromDoc(d), idx=sets.indexOf(incoming);
+    cloudSynced.set(id,cloudSyncEntry(incoming,d.order));
+    setWriteBase.set(id,wb);
+    if(normOrder(idx)===normOrder(d.order)) setSyncBase.set(id,setSyncMetaEntry(incoming,d.order,d.revision));
+    else setSyncBase.delete(id);
+    deletedIds.delete(id);
+  }else{
+    cloudSynced.delete(id); setSyncBase.delete(id);
+    if(d){ setWriteBase.set(id,setWriteBaseEntryFromDoc(d)); deletedIds.set(id,Number(d.updatedAt)||Date.now()); }
+    else setWriteBase.delete(id);
+  }
+}
+function adoptChosenServerVersion(owner,id,d,incoming,i,session){
+  // These checks and the local replacement must share one synchronous turn.
+  if(!choiceOwnerMatches(owner,session))return {ok:false,msg:"계정이 바뀌어 멈췄어요"};
+  if(sets.findIndex(s=>String(s.id)===id)!==i)
+    return {ok:false,changed:true,msg:"그사이 목록 순서가 바뀌었어요 · 계정 저장본을 다시 확인하고 골라 주세요"};
+  const before=sets.slice();
+  if(incoming){if(i>=0)sets[i]=incoming;else sets.splice(Math.min(normOrder(d.order),sets.length),0,incoming);}
+  else if(i>=0)sets.splice(i,1);
+  if(!sets.length)sets=[{id:uid(),name:"새 문제집",header:"",problems:[newProblem()]}];
+  if(!writeLocalNow({serverVersion:incoming})){
+    sets=before;return {ok:false,msg:"이 기기에 저장하지 못해 되돌리지 않았어요 · 충돌 당시 초안은 그대로예요"};
+  }
+  rememberChosenServerVersion(id,d,incoming);
+  writeSetSyncMeta(owner);
+  return updateSetConflicts(owner,map=>map.delete(id)).then(r=>{
+    resetHistoryBoundary();
+    return r.ok?{ok:true}:{ok:false,msg:"계정 저장본으로 맞췄지만 충돌 기록을 지우지 못했어요 · 다시 눌러 주세요"};
+  });
+}
+function choiceOwnerMatches(owner,session){return sessionMatches(session)&&currentUser?.uid===owner;}
+async function confirmServerChoiceOrder(owner,d,server,session,chosenOrder){
+  try{
+    const target={...d,order:chosenOrder,updatedAt:Date.now(),setSchemaVersion:SET_SCHEMA_VERSION};
+    const result=await writeSetDocRevision(owner,target,session,{explicitBase:serverChoiceBase(server)});
+    return {ok:true,doc:result.doc};
+  }catch(e){
+    if(e?.code==="set-revision-conflict")
+      return {ok:false,changed:true,msg:"그사이 계정 저장본이 바뀌었어요 · 새 내용을 확인하고 다시 골라 주세요"};
+    console.error("계정 저장본 순서 맞춤 실패:",e);
+    return {ok:false,msg:"계정 저장본에 맞추지 못했어요 · 충돌 당시 초안과 사본은 그대로예요"};
+  }
+}
 function chooseServerVersion(owner,setId,server){
   const session=sessionContext();
-  const task=cloudSaveQueue.catch(()=>{}).then(()=>{
-    if(!sessionMatches(session)||currentUser?.uid!==owner) return {ok:false,msg:"계정이 바뀌어 멈췄어요"};
+  const task=cloudSaveQueue.catch(()=>{}).then(async()=>{
+    if(!choiceOwnerMatches(owner,session)) return {ok:false,msg:"계정이 바뀌어 멈췄어요"};
     const id=String(setId), rec=readSetConflicts(owner).get(id);
     if(!rec) return {ok:false,msg:"이미 정리된 충돌이에요"};
     if(!serverChoiceBase(server)) return {ok:false,msg:"계정 저장본의 저장 번호가 올바르지 않아 고를 수 없어요 · 내보내기로 보존해 주세요"};
-    const d=server.exists?server.data:null, alive=!!d&&!d.deleted;
-    const incoming=alive?docToSet(d):null;
+    let d=server.exists?server.data:null;
+    const alive=!!d&&!d.deleted;
+    let incoming=alive?docToSet(d):null;
     if(alive&&!incoming) return {ok:false,msg:"계정 저장본을 읽을 수 없어요"};
-    const before=sets.slice(), i=sets.findIndex(s=>String(s.id)===id);
-    if(alive){ if(i>=0) sets[i]=incoming; else sets.splice(Math.min(normOrder(d.order),sets.length),0,incoming); }
-    else if(i>=0) sets.splice(i,1);
-    if(!sets.length) sets=[{id:uid(),name:"새 문제집",header:"",problems:[newProblem()]}];
-    if(!writeLocalNow()){ sets=before; return {ok:false,msg:"이 기기에 저장하지 못해 되돌리지 않았어요 · 충돌 당시 초안은 그대로예요"}; }
-    /* 기준은 확인한 snapshot 의 모양대로 세운다(Codex 판정): 살아 있으면 본문·order 까지 같을 때만
-       영속 기준, tombstone 이면 영속 기준은 지우고 쓰기 기준만 tombstone, 부재면 둘 다 없음. */
-    if(alive){
-      const wb=setWriteBaseEntryFromDoc(d), idx=sets.indexOf(incoming);
-      cloudSynced.set(id,cloudSyncEntry(incoming,d.order));
-      setWriteBase.set(id,wb);
-      if(normOrder(idx)===normOrder(d.order)) setSyncBase.set(id,setSyncMetaEntry(incoming,d.order,d.revision));
-      else setSyncBase.delete(id);
-      deletedIds.delete(id);
-    }else{
-      cloudSynced.delete(id); setSyncBase.delete(id);
-      if(d){ setWriteBase.set(id,setWriteBaseEntryFromDoc(d)); deletedIds.set(id,Number(d.updatedAt)||Date.now()); }
-      else setWriteBase.delete(id);
+    const i=sets.findIndex(s=>String(s.id)===id);
+    const chosenOrder=i>=0?i:Math.min(normOrder(d?.order),sets.length);
+    /* 충돌 사본이 앞에 끼면 로컬 index와 서버 order가 달라진다(REV-138).
+       이 상태로 기준을 지우고 성공 처리하면 재진입 때 no-base 충돌/새 사본이 반복된다.
+       확인한 서버본 위에 순서만 CAS로 확정한 뒤 실제 ACK를 영속 기준으로 쓴다.
+       미지원 intake는 읽기 전용 채택을 유지하며 이 순서 쓰기를 시도하지 않는다. */
+    if(alive&&!intakeNeedsUpdate(d)&&chosenOrder!==normOrder(d.order)){
+      const confirmed=await confirmServerChoiceOrder(owner,d,server,session,chosenOrder);
+      if(!confirmed.ok)return confirmed;
+      d=confirmed.doc;incoming=docToSet(d);
     }
-    writeSetSyncMeta(owner);
-    return updateSetConflicts(owner,map=>map.delete(id)).then(r=>{
-      resetHistoryBoundary();
-      return r.ok?{ok:true}:{ok:false,msg:"계정 저장본으로 맞췄지만 충돌 기록을 지우지 못했어요 · 다시 눌러 주세요"};
-    });
+    return adoptChosenServerVersion(owner,id,d,incoming,i,session);
   });
   cloudSaveQueue=task;
   return task;
