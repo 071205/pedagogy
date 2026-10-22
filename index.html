@@ -25,7 +25,7 @@
      어렵다 — 새 로그인만 깨진다). 실제로 한 번 그랬으니 손대지 말 것. -->
 <meta http-equiv="Content-Security-Policy" content="
   default-src 'self';
-  script-src 'self' 'wasm-unsafe-eval' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-mPSfNAW+qyz+bQGNcoLHDtVIO0Bxxg/ORUDO+TUBsyM=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
+  script-src 'self' 'wasm-unsafe-eval' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-qBA4yt4s6KgitlhQka3qzpLrcYkKdSci6yjijih69mY=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
   script-src-attr 'none';
   style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
   font-src 'self' data: https://cdn.jsdelivr.net;
@@ -4318,7 +4318,7 @@ function flushLocal(){
   if(!localDirty) return true;
   return writeLocalNow();
 }
-function writeLocalNow(){
+function writeLocalNow({serverVersion=null}={}){
   if(!intakeWriteAllowed()){intakeHoldWrite();return false;}
   if(wiping) return true;      // 삭제 중 — 지운 내용을 도로 쓰지 않는다
   try{
@@ -4327,6 +4327,9 @@ function writeLocalNow(){
     if(!intakeAdopting){
       let old=[];try{old=JSON.parse(intakeLocalBase.get(setsKey())||"[]");}catch{}
       for(const set of sets){
+        // Explicit server adoption keeps that exact version's review states.
+        // Other locally edited books still invalidate their affected review.
+        if(set===serverVersion)continue;
         // Unknown set versions are opaque: keep their bytes on disk without
         // assuming their problem collection still uses this version's shape.
         if(setSchemaUnsupported(set))continue;
@@ -5068,7 +5071,7 @@ function chooseServerVersion(owner,setId,server){
     if(alive){ if(i>=0) sets[i]=incoming; else sets.splice(Math.min(normOrder(d.order),sets.length),0,incoming); }
     else if(i>=0) sets.splice(i,1);
     if(!sets.length) sets=[{id:uid(),name:"새 문제집",header:"",problems:[newProblem()]}];
-    if(!writeLocalNow()){ sets=before; return {ok:false,msg:"이 기기에 저장하지 못해 되돌리지 않았어요 · 충돌 당시 초안은 그대로예요"}; }
+    if(!writeLocalNow({serverVersion:incoming})){ sets=before; return {ok:false,msg:"이 기기에 저장하지 못해 되돌리지 않았어요 · 충돌 당시 초안은 그대로예요"}; }
     /* 기준은 확인한 snapshot 의 모양대로 세운다(Codex 판정): 살아 있으면 본문·order 까지 같을 때만
        영속 기준, tombstone 이면 영속 기준은 지우고 쓰기 기준만 tombstone, 부재면 둘 다 없음. */
     if(alive){

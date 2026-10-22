@@ -24,7 +24,7 @@
     "test:mock-library": "node scripts/check-mock-library.mjs && MOCK_STORE_RED=1 node scripts/check-mock-library.mjs",
     "test:sets-cloud": "node scripts/check-sets-cloud-size.mjs && SETS_SIZE_RED=1 node scripts/check-sets-cloud-size.mjs",
     "test:set-sync-meta": "node scripts/check-set-sync-metadata.mjs && SET_SYNC_META_RED=1 node scripts/check-set-sync-metadata.mjs",
-    "test:set-revision": "node scripts/check-set-revision-cas.mjs && SET_REVISION_RED=1 node scripts/check-set-revision-cas.mjs && SET_REVISION_CHOICE_RED=1 node scripts/check-set-revision-cas.mjs",
+    "test:set-revision": "node scripts/check-set-revision-cas.mjs && SET_REVISION_RED=1 node scripts/check-set-revision-cas.mjs && SET_REVISION_CHOICE_RED=1 node scripts/check-set-revision-cas.mjs && SET_REVISION_REVIEW_RED=1 node scripts/check-set-revision-cas.mjs",
     "test:review-contracts": "node scripts/build-hwpx-templates.mjs --check && node scripts/check-review-contracts.mjs",
     "test:library-ui": "node scripts/check-library-ui.mjs",
     "test:mock-library-ui": "node scripts/check-mock-library-ui.mjs && MOCK_UI_RED=1 node scripts/check-mock-library-ui.mjs",

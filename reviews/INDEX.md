@@ -12,8 +12,9 @@
 | `REV-2026-074` | `P2` | macOS 폴더 아이콘 파일이 새 Git 폴더에서 재발해 refs를 오염시킨다 | `issues/2026-09/2026-09-09-rules-macos-icon-files-corrupt-git-refs.md` |
 | `REV-2026-075` | `P2` | AI 문서에 들어갔다 나오면 로그인이 안 된다(재현 절차 없음) | `issues/2026-09/2026-09-09-document-editor-login-after-return.md` |
 | `REV-2026-093` | `P2` | staging Gemini가 결제 전제 미충족(`FAILED_PRECONDITION`)으로 실패한다 | `issues/2026-09/2026-09-14-gemini-staging-provider-request-error.md` |
-| `REV-2026-138` | `P1` | 서버본 선택 뒤 재진입 보류·사본 중복, 로컬 수정/정상·RED 완료·검토 대기 | `issues/2026-10/2026-10-22-index-conflict-server-choice-reentry.md` |
-| `REV-2026-137` | `P2` | 인쇄 탐색 링크 수정·정상/RED 완료, Claude 한도에 따른 독립 검토/배포 대기 | `issues/2026-10/2026-10-22-index-skip-link-printed.md` |
+| `REV-2026-139` | `P1` | 서버본 채택이 intake 검토 상태를 바꾸고 다른 본문을 ACK로 표시한다 | `issues/2026-10/2026-10-22-index-server-choice-intake-false-ack.md` |
+| `REV-2026-138` | `P1` | 서버본 선택 뒤 재진입 보류·사본 중복, 로컬 수정/정상·RED·독립 검토 완료·운영 대기 | `issues/2026-10/2026-10-22-index-conflict-server-choice-reentry.md` |
+| `REV-2026-137` | `P2` | 인쇄 탐색 링크 수정·정상/RED 완료, 독립 Codex 검토 완료·운영 대기 | `issues/2026-10/2026-10-22-index-skip-link-printed.md` |
 
 ⚠️ 이 표는 `npm run check:review-hygiene` 가 **실제 이슈 파일의 상태와 양방향으로**
 대조한다. 지난 요약을 지워도 안전한 이유가 이 대조다 — 남은 한 곳이 정확해야
@@ -25,7 +26,7 @@
 [계약](../docs/PRODUCT-UX-U0-CONTRACT.md) · [과제·결정표](../docs/PRODUCT-UX-U0-SCENARIOS.md) ·
 [시안](../docs/mockups/u0-flow.html). 계약 주장 5건을 코드로 확인했고 `REV-2026-108`을 재현했다.
 **D1 사용자 결정: 문항을 다른 권에 넣을 때 독립 사본/수정 연동을 선택 가능하게 한다.**
-**현재: REV-108 해결. REV-138 저장 재진입·REV-137 출력 수정 로컬 정상/RED 완료, Claude 한도로 독립 검토/배포 대기(HANDOFF-196). 이후 U2.**
+**현재: REV-108 해결. 사용자 지정 독립 Codex 검토로 REV-139 발견·수정 재확인 완료. REV-137/138/139 새 CI·운영 적용 후 U2도 Codex 구현(HANDOFF-196).**
 U1.5 main `877a8e7`·파일 225개 일치. 실제 Safari/iPad·원본 패널·D3/C1~C3·D1 연동 대기. 운영 3건은 서버본 선택 후 재발. 26권/사본 8개(새 3개는 기기 보존), 원래 JSON/계정 사본 유지.
 순서·게이트는 [통합 레일](../docs/DEV-TOKEN-ROADMAP.md), 지시문은 [RAIL-ORDERS](../docs/RAIL-ORDERS.md).
 **B3 운영 장애 `REV-2026-109` 해결**(운영 `e50636c` → 문구 정정 `6679676`, 편집·삭제·진짜 충돌 운영 검증).
@@ -87,7 +88,7 @@ U0→B6에서 정규화/복원·AI 계약을 함께 다룬다. Rules의 `hasOnly
 
 ## 최근 검토
 
-[HANDOFF-2026-196](handoffs/2026-10/2026-10-22-index-conflict-server-choice-reentry.md): REV-138 운영 재진입 재발·로컬 수정/40건·표적 RED. PR #24 draft, Opus 검토/배포 대기.
+[HANDOFF-2026-196](handoffs/2026-10/2026-10-22-index-conflict-server-choice-reentry.md): REV-137/138 독립 검토 중 REV-139 발견·수정 재확인. 저장 42건/표적 RED, 새 CI·운영 대기.
 
 [HANDOFF-2026-195](handoffs/2026-10/2026-10-22-index-print-ui-followup.md): REV-137 인쇄 CSS·실제 PDF/키보드·정상/RED·175/175 통과. Claude 주간 한도/배포 대기. 최신 운영 재발 상태는 HANDOFF-196 참조.
 

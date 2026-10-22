@@ -11,13 +11,19 @@ import {rehashInlineScripts} from './lib/csp-rehash.mjs';
 /* SET_REVISION_BASE 로 다른 기준 커밋(예: B4 직전)을 깨보기 대상으로 삼을 수 있다. */
 const BASE_COMMIT=process.env.SET_REVISION_BASE||'4ea6fa7';
 const base='http://127.0.0.1:18886';
-const EXPECTED_CHECKS=40;
+const EXPECTED_CHECKS=42;
 const CHOICE_CHECK='B4 다른 충돌 사본이 순서를 밀어도 서버본 선택 뒤 재진입에 재충돌하지 않는다';
 const choiceRed=process.env.SET_REVISION_CHOICE_RED==='1';
+const reviewRed=process.env.SET_REVISION_REVIEW_RED==='1';
 let choiceSource;
-if(choiceRed){
+if(choiceRed||reviewRed){
   choiceSource=readFileSync('index.html','utf8');
-  if(process.env.SET_REVISION_CHOICE_SKIP_MUTATION!=='1'){
+  if(reviewRed){
+    const guard='        if(set===serverVersion)continue;';
+    assert.ok(choiceSource.includes(guard),'REV-139 방어 제거 위치를 찾지 못했다');
+    if(process.env.SET_REVISION_REVIEW_SKIP_MUTATION!=='1')
+      choiceSource=rehashInlineScripts(choiceSource.replace(guard,''));
+  }else if(process.env.SET_REVISION_CHOICE_SKIP_MUTATION!=='1'){
     const start=choiceSource.indexOf('    if(alive&&!intakeNeedsUpdate(d)&&chosenOrder!==normOrder(d.order)){');
     const end=choiceSource.indexOf('    const before=sets.slice();',start);
     assert.ok(start>=0&&end>start,'REV-138 방어 제거 위치를 찾지 못했다');
@@ -33,7 +39,7 @@ async function open(){
   p.setDefaultTimeout(8000);
   await p.route('**/*',r=>{
     const u=new URL(r.request().url());
-    if(choiceRed&&u.pathname==='/index.html')
+    if((choiceRed||reviewRed)&&u.pathname==='/index.html')
       return r.fulfill({contentType:'text/html',body:choiceSource});
     if(process.env.SET_REVISION_RED==='1'&&u.pathname==='/index.html')
       return r.fulfill({contentType:'text/html',body:process.env.SET_REVISION_INDEX
@@ -755,6 +761,43 @@ try{
     assert.equal(r.readOnly,true);assert.equal(r.future,999);
   });
 
+  for(const shifted of [false,true]) await check(`B4 서버본 검토 상태와 실제 ACK를 보존하고 형제 편집은 미확인으로 바꾼다 (${shifted?'순서 변경':'같은 순서'})`,async p=>{
+    await stub(p);
+    const r=await p.evaluate(async shifted=>{
+      if(typeof chooseServerVersion!=='function')return {};
+      const intake={version:1,sources:[],units:[],difficulty:null,points:2,pointsState:'read',
+        contentReview:'reviewed',classificationReview:'reviewed'};
+      const make=(id,text)=>normSet({id,name:id,problems:[{id:id+'-q',answer:text,
+        blocks:[{type:'statement',data:{text}}],intake:structuredClone(intake)}]},{keepId:true});
+      const local=make('set-a','local'),sibling=make('sibling','original');
+      sets=[local,sibling];intakeLocalBase.set(setsKey(),JSON.stringify(sets));writeLocalNow();
+      const server=make('set-a','server');server.problems[0].intake.points=3;
+      const old=setToDoc(local,0,{revision:9}),doc=setToDoc(server,0,{revision:10});
+      cloudSynced.set('set-a',cloudSyncEntry(docToSet(old),0));
+      setWriteBase.set('set-a',setWriteBaseEntryFromDoc(old));
+      window.__remote.set('set-a',doc);
+      await writeCloudSnapshot(currentUser.uid,sessionContext());
+      const heldBefore=heldSetIds(currentUser.uid).has('set-a');
+      sibling.problems[0].answer='손수 수정한 본문';sibling.problems[0].intake.points=5;
+      if(shifted)sets.unshift(normSet({id:'prefix',name:'앞 사본',problems:[{id:'prefix-q'}]},{keepId:true}));
+      const result=await chooseServerVersion(currentUser.uid,'set-a',{exists:true,data:structuredClone(doc)});
+      const at=sets.findIndex(x=>x.id==='set-a'),chosen=sets[at],remote=docToSet(window.__remote.get('set-a'));
+      const stored=readLocalSets().find(x=>x.id==='set-a');
+      return {result,heldBefore,content:chosen.problems[0].intake.contentReview,
+        classification:chosen.problems[0].intake.classificationReview,
+        same:setJSON(chosen)===setJSON(remote),storedSame:setJSON(stored)===setJSON(remote),
+        synced:isCloudSynced(chosen,at),meta:!!setSyncBaseFor(chosen,at),
+        siblingBody:sibling.problems[0].answer,siblingContent:sibling.problems[0].intake.contentReview,
+        siblingClassification:sibling.problems[0].intake.classificationReview};
+    },shifted);
+    assert.equal(r.heldBefore,true);assert.equal(r.result?.ok,true);
+    assert.equal(r.content,'reviewed');assert.equal(r.classification,'reviewed');
+    assert.equal(r.same,true,'ACK하는 로컬 본문은 실제 서버본과 같아야 한다');assert.equal(r.storedSame,true);
+    assert.equal(r.synced,true);assert.equal(r.meta,true);
+    assert.equal(r.siblingBody,'손수 수정한 본문');assert.equal(r.siblingContent,'unreviewed');
+    assert.equal(r.siblingClassification,'unreviewed');
+  });
+
   await check('B4 내 초안으로 교체는 확인한 서버본 위에만 명시 CAS로 쓴다',async p=>{
     await stub(p);
     const available=await heldStale(p);
@@ -968,6 +1011,13 @@ try{
 finally{if(browser)await browser.close();server.kill();}
 
 if(harnessFailure)process.exit(1);
+if(reviewRed){
+  const targets=failures.filter(name=>name.startsWith('B4 서버본 검토 상태와 실제 ACK를 보존하고 형제 편집은 미확인으로 바꾼다'));
+  if(checksRun!==EXPECTED_CHECKS||targets.length!==2){
+    console.error(`REV-139 깨보기 실패 — ${EXPECTED_CHECKS}건 완료 및 두 검토 상태 표적 실패가 필요하다.`);process.exit(1);
+  }
+  console.log('REV-139 깨보기 OK — 서버본 검토 상태 보존 제거 시 두 거짓 ACK 경계를 검출했다.');process.exit(0);
+}
 if(choiceRed){
   if(checksRun!==EXPECTED_CHECKS||!failures.includes(CHOICE_CHECK)){
     console.error(`REV-138 깨보기 실패 — ${EXPECTED_CHECKS}건 완료 및 재진입 표적 실패가 필요하다.`);process.exit(1);
