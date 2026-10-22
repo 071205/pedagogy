@@ -76,3 +76,7 @@
 `cb1d26a`의 verify/cross-platform/hwpx/SonarCloud가 모두 성공했다. CodeRabbit 상태는 리뷰 생략이므로 독립 승인으로 세지 않는다. 최초 병합 시도는 사용자 main/Pages 승인 근거 부족이라는 자동 심사로 차단됐고, 사용자에게 확인을 요청했다. 사용자가 **PR #24 병합·Pages 배포 승인**을 직접 답한 뒤 `20881c2c8c62b9eabab0db49e407f2265972ee26`로 병합했다. Pages built와 공개 index 바이트가 검토 SHA `d61e3c101c7b8a745539d9c18dcee3eaf7342d2f0f401ec589691cbac4908f6a`에 일치함을 확인했다.
 
 사용자가 잠시 중단을 요청했다. 운영 로그인 탭의 테스트 권·보류 3권 재선택/재진입·ACK·PDF는 아직 미확인이고 REV-137/138/139는 in-progress다. 26권/사본 8개/내보낸 원본 백업 보존. U2 저장 엔진은 독립 검토·정상19/RED7·B6 전체 회귀를 마쳐 별도 브랜치 `codex/u2-composition`에 보존했다. UI 미구현·U2 PR 없음. 재개 위치는 [HANDOFF-197](2026-10-22-index-u2-composition.md)의 중단 시점이다.
+
+## 재개 후 운영 확인 완료
+
+병합 커밋 `20881c2` Verify/Pages CI 모두 success, Pages built 확인. 로그인 프로필에서 원의 방정식/도형의 이동/집합의 서버본 선택 후 보류 0건·새로고침해도 전체26권/사본8개/문항70·57·72 유지. 원본/사본/백업은 삭제하지 않았다. 실제 Chrome PDF로 저장한 테스트 권 2쪽에 화면용 링크가 없고 `[01~03]`과 독립4번 유지, 첫 쪽 렌더도 확인했다(`/private/tmp/pr24-operational-{library.png,printed.pdf,printed.txt,print-page1.png}`). REV-137/138/139를 같은 이슈 파일의 근거 범위대로 resolved로 닫았다. REV-139의 reviewed/ACK 재현은 독립 메모리 Firestore 검사이며 운영에서 새 intake 충돌을 만든 검증으로 확대하지 않는다.

@@ -159,7 +159,7 @@ function create({session,library,renderer=browserRenderer(),transport=null,outbo
         const sourceIds=(p.intake?.sources||[]).map(x=>x.sourceId)
           .filter(sourceId=>allowed.has(sourceId)&&root.sources[sourceId]);
         drafts.push({id:ids.get(p.id),problem:copy(p),sourceIds,
-          originalSetName:set.name,ordinal:ordinal+1});
+          originalSetName:set.name,subject:global.PedagogyNormalize.normSubject(set.subject),ordinal:ordinal+1});
         if(p.groupOf===p.id)groups.push({id:id(),members:set.problems.filter(q=>q.groupOf===p.id).map(q=>ids.get(q.id))});
       }
     }
@@ -234,18 +234,26 @@ function create({session,library,renderer=browserRenderer(),transport=null,outbo
       next.composition=initialComposition(next);root.jobs[nextId]=next;return {jobId:nextId};
     });
   }
+  function applyDraftClassification(next,changes){
+    const keys=['units','difficulty','points','pointsState'];
+    if(!keys.some(key=>Object.hasOwn(changes,key)))return;
+    next.intake=copy(next.intake||{version:1,sources:[],units:[],difficulty:null,points:null,
+      pointsState:'absent',contentReview:'unknown',classificationReview:'unknown'});
+    if(Object.hasOwn(changes,'units'))next.intake.units=changes.units.map(value=>({value,origin:'user'}));
+    if(Object.hasOwn(changes,'difficulty'))next.intake.difficulty=changes.difficulty===null?null:{value:changes.difficulty,origin:'user'};
+    for(const key of ['points','pointsState'])if(Object.hasOwn(changes,key))next.intake[key]=changes[key];
+    if(Object.hasOwn(changes,'points')||Object.hasOwn(changes,'pointsState')){
+      const {points,pointsState}=next.intake;
+      if((points!==null&&(!Number.isFinite(points)||points<0))
+        ||!['read','absent','unreadable'].includes(pointsState)||(pointsState==='read')!==(points!==null))
+        fail('배점은 0 이상의 숫자로 입력하거나 비워 주세요');
+    }
+  }
   function patchDraftProblem(d,changes){
     const N=global.PedagogyNormalize,base=problemFromDraft(d,d.id),next=copy(base);
     const bodyKeys=['title','desc','answer','answerImg','blocks'];
     for(const key of bodyKeys)if(Object.hasOwn(changes,key))next[key]=copy(changes[key]);
-    const classificationKeys=['units','difficulty','points','pointsState'];
-    if(classificationKeys.some(key=>Object.hasOwn(changes,key))){
-      next.intake=copy(next.intake||{version:1,sources:[],units:[],difficulty:null,points:null,
-        pointsState:'absent',contentReview:'unknown',classificationReview:'unknown'});
-      if(Object.hasOwn(changes,'units'))next.intake.units=changes.units.map(value=>({value,origin:'user'}));
-      if(Object.hasOwn(changes,'difficulty'))next.intake.difficulty=changes.difficulty===null?null:{value:changes.difficulty,origin:'user'};
-      for(const key of ['points','pointsState'])if(Object.hasOwn(changes,key))next.intake[key]=changes[key];
-    }
+    applyDraftClassification(next,changes);
     const normalized=N.normProblem(next,{keepId:true,lossless:true});
     if(N.intakeNeedsUpdate({problems:[normalized]}))fail('분류 정보를 확인해 주세요');
     if(normalized.intake){
@@ -439,6 +447,12 @@ function create({session,library,renderer=browserRenderer(),transport=null,outbo
       }
     }
   }
+  function resultSubject(ledger,result){
+    if(!ledger.localComposition)return 'math';
+    const byId=new Map(ledger.drafts.map(d=>[d.id,d]));
+    const subjects=new Set(result.items.map(item=>byId.get(item.draftId).subject||'math'));
+    return subjects.size===1?[...subjects][0]:'all';
+  }
   async function adopt(jobId,{destinations,draftVersion,partial=false,adoptionId=null,mode='independent'}={}){
     const s=context();if(!library) fail('라이브러리 연결 필요');
     if(mode!=='independent') fail('수정 연동 저장은 별도 Rules·호환 검토 전 사용할 수 없습니다');
@@ -481,7 +495,7 @@ function create({session,library,renderer=browserRenderer(),transport=null,outbo
             if(!ledger.localComposition)problems[i].groupReview="intake";
           }
         });
-        next.push({id:result.setId,name:result.name,header:'',subject:'math',lineColor:'indigo',problems});included.push(result.setId);
+        next.push({id:result.setId,name:result.name,header:'',subject:resultSubject(ledger,result),lineColor:'indigo',problems});included.push(result.setId);
       }
       let saved=false,error=null;
       try{saved=await library.commit(next,before);matches(s);if(!saved)error='로컬 저장 실패';}

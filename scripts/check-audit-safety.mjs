@@ -140,6 +140,7 @@ test('032: repeated auth notification preserves edits; switching flushes old own
     let libFolderFilter="",libPicking=false,uiLangPref="system";
     const libPicked=new Set(),readLibMeta=()=>{},applyUiLang=()=>{};
     let cloudSynced=new Map(),setSyncBase=new Map(),setWriteBase=new Map(),deletedIds=new Map(),pendingLocalByOwner=new Map(),writes=[];
+    let compositionClosed=0;const compositionUI={close:()=>{compositionClosed++;}};
     let authInitialized=true,prevUid='A',localStamps={},lastSnapshot=null,undoStack=[],redoStack=[];
     const flushLocal=()=>{writes.push(currentUser?.uid);return true;},setsKey=()=>currentUser?.uid,flushOpenMock=()=>{};
     const migrateSharedLocalCache=()=>{},migrateSharedAuxKeys=()=>{},loadLastQ=()=>{},readStamps=()=>({}),loadSetSyncMeta=()=>{};
@@ -151,8 +152,10 @@ test('032: repeated auth notification preserves edits; switching flushes old own
   vm.runInContext(src.slice(start,src.indexOf('\n};',start)+3),c);
   await vm.runInContext("onAuth({uid:'A'})",c);
   assert.equal(vm.runInContext("sets[0].id",c),'work');
+  assert.equal(vm.runInContext('compositionClosed',c),0);
   await vm.runInContext("onAuth({uid:'B'})",c);
   assert.equal(vm.runInContext('writes.join()',c),'A');
+  assert.equal(vm.runInContext('compositionClosed',c),1);
   assert.equal(vm.runInContext('localDirty',c),false);
   await vm.runInContext('onAuth(null)',c);
   vm.runInContext("sets=[{id:'guest-work'}]",c);await vm.runInContext('onAuth(null)',c);

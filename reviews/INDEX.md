@@ -12,9 +12,6 @@
 | `REV-2026-074` | `P2` | macOS 폴더 아이콘 파일이 새 Git 폴더에서 재발해 refs를 오염시킨다 | `issues/2026-09/2026-09-09-rules-macos-icon-files-corrupt-git-refs.md` |
 | `REV-2026-075` | `P2` | AI 문서에 들어갔다 나오면 로그인이 안 된다(재현 절차 없음) | `issues/2026-09/2026-09-09-document-editor-login-after-return.md` |
 | `REV-2026-093` | `P2` | staging Gemini가 결제 전제 미충족(`FAILED_PRECONDITION`)으로 실패한다 | `issues/2026-09/2026-09-14-gemini-staging-provider-request-error.md` |
-| `REV-2026-139` | `P1` | 서버본 채택이 intake 검토 상태를 바꾸고 다른 본문을 ACK로 표시한다 | `issues/2026-10/2026-10-22-index-server-choice-intake-false-ack.md` |
-| `REV-2026-138` | `P1` | 서버본 선택 뒤 재진입 보류·사본 중복, 로컬 수정/정상·RED·독립 검토 완료·운영 대기 | `issues/2026-10/2026-10-22-index-conflict-server-choice-reentry.md` |
-| `REV-2026-137` | `P2` | 인쇄 탐색 링크 수정·정상/RED 완료, 독립 Codex 검토 완료·운영 대기 | `issues/2026-10/2026-10-22-index-skip-link-printed.md` |
 
 ⚠️ 이 표는 `npm run check:review-hygiene` 가 **실제 이슈 파일의 상태와 양방향으로**
 대조한다. 지난 요약을 지워도 안전한 이유가 이 대조다 — 남은 한 곳이 정확해야
@@ -26,8 +23,8 @@
 [계약](../docs/PRODUCT-UX-U0-CONTRACT.md) · [과제·결정표](../docs/PRODUCT-UX-U0-SCENARIOS.md) ·
 [시안](../docs/mockups/u0-flow.html). 계약 주장 5건을 코드로 확인했고 `REV-2026-108`을 재현했다.
 **D1 사용자 결정: 문항을 다른 권에 넣을 때 독립 사본/수정 연동을 선택 가능하게 한다.**
-**현재: PR #24 병합·Pages built/바이트 일치, 운영 보류 3권·PDF 확인 대기. U2 저장 엔진 검토/정상·RED 완료, UI 미구현. 사용자 요청으로 일시 중단(HANDOFF-197).**
-U1.5 main `877a8e7`·파일 225개 일치. 실제 Safari/iPad·원본 패널·D3/C1~C3·D1 연동 대기. 운영 3건은 서버본 선택 후 재발. 26권/사본 8개(새 3개는 기기 보존), 원래 JSON/계정 사본 유지.
+**현재: PR #24 운영 재진입/실제 PDF 확인, REV-137/138/139 해결. U2 저장 엔진 검토 완료·구성 UI 구현/독립 검토 중(HANDOFF-197).**
+U1.5 main `877a8e7`·파일 225개 일치. 실제 Safari/iPad·원본 패널·D3/C1~C3·D1 연동 대기. 운영 보류 0건·재진입 26권/사본 8개 유지, 원래 JSON/계정 사본 보존.
 순서·게이트는 [통합 레일](../docs/DEV-TOKEN-ROADMAP.md), 지시문은 [RAIL-ORDERS](../docs/RAIL-ORDERS.md).
 **B3 운영 장애 `REV-2026-109` 해결**(운영 `e50636c` → 문구 정정 `6679676`, 편집·삭제·진짜 충돌 운영 검증).
 `REV-2026-111`은 **B4 운영 배포(`451e8ba`)·운영 확인으로 해결**(`HANDOFF-169`).

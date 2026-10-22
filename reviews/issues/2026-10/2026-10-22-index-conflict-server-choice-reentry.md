@@ -3,7 +3,7 @@
 - ID: `REV-2026-138`
 - 날짜: `2026-10-22`
 - 보고자: `Codex`
-- 상태: `in-progress`
+- 상태: `resolved`
 - 심각도: `P1`
 - 영향 영역: `index`
 - 관련 인계: `HANDOFF-2026-196`
@@ -35,3 +35,5 @@
 
 - `2026-10-22 · Codex`: 등록·구현. 지원 서버본의 order가 다르면 화면에서 확인한 정확한 snapshot을 `explicitBase`로 사용해 해당 권의 순서만 transaction으로 확정한 뒤 실제 ACK로 영속 기준을 남긴다. 서버 본문은 재정규화하지 않고 그대로 전송하며 order/updatedAt/revision/무표식 승격 표식만 달라진다. 원격 변경·실패는 초안/보류를 유지하고 미지원 intake는 쓰지 않는다.
 - 로컬 정상 40/40, 기존 B3 전 기준 RED 및 순서 CAS 제거 표적 RED 통과. 변이 생략 제어는 의도한 exit 1. 원격 변경/쓰기 실패 보존·ACK 대기 중 index 변경 중단·미지원 intake 읽기 전용 경계 포함. 독립 Claude Opus 검토와 운영 배포/재진입 확인은 미완료이므로 `in-progress` 유지.
+
+- `2026-10-22 · Codex 운영 확인`: 사용자 승인으로 PR #24가 `20881c2`로 병합·Pages built, 병합 CI 성공·공개 index SHA `d61e3c10…` 일치 확인. 실제 로그인 Chrome에서 원의 방정식/도형의 이동/집합의 확인된 계정 저장본(각 문항 70/57/72)을 한 번씩 선택해 보류 3→2→1→0을 확인했다. 새로고침 후에도 보류 banner hidden, 전체 26권·사본 8개·원본 문항 수가 유지된다. 사본 삭제/정리는 하지 않았다. `/private/tmp/pr24-operational-library.png`. 이 운영 재현의 재진입/사본 중복 결함은 해결됐으므로 resolved. 서버본 reviewed intake 상태/실제 ACK 일치는 독립 브라우저 메모리 Firestore 검증이며 운영 SDK 직접 재측정으로 확대하지 않는다.

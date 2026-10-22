@@ -67,7 +67,7 @@ function label(draft,preset){
   const data=metadata(draft);
   if(preset==='units')return data.units.length===1?data.units[0]:null;
   if(preset==='difficulty')return data.difficulty;
-  return data.pointsState==='read'?String(data.points)+'점':null;
+  return data.pointsState==='read'&&Number.isFinite(data.points)&&data.points>=0?String(data.points)+'점':null;
 }
 function propose(job,value){
   const opts=settings(value),plan={destinations:[],excluded:[],unassigned:[],settings:opts};

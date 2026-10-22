@@ -49,7 +49,7 @@ try{
       points:null,pointsState:'absent',contentReview:'reviewed',classificationReview:'reviewed'});
     const problem=(id,unit)=>({id,title:id,answer:'$x=2$',blocks:[{type:'statement',data:{text:'본문 $x^2$'}}],intake:intake(unit)});
     const first=normSet({id:'source-a',name:'기존 A',problems:[problem('g1','함수'),problem('g2','함수'),problem('q3','방정식')]},{keepId:true});
-    first.problems[0].groupLead='다음 자료를 읽고 물음에 답하시오.';
+    first.subject='english';first.problems[0].groupLead='다음 자료를 읽고 물음에 답하시오.';
     ok(PedagogyNormalize.setGroupSpan(first.problems,'g1',2));
     const second=normSet({id:'source-b',name:'기존 B',problems:[problem('q4','도형')]},{keepId:true});
     sets=[first,second];ok(writeLocalNow());
@@ -117,7 +117,7 @@ try{
       const copied=sets.find(x=>x.id===a.results[0].setId);
       ok(!['g1','g2','q3','q4'].includes(copied.problems[0].id));
       eq(copied.problems[0].groupOf,copied.problems[0].id);eq(copied.problems[1].groupOf,copied.problems[0].id);
-      eq(PedagogyNormalize.groupDiagnostics(copied.problems),[]);
+      eq(PedagogyNormalize.groupDiagnostics(copied.problems),[]);eq(copied.subject,'english');
       eq(copied.problems[0].answer,'$x=7$');eq(copied.problems[0].groupLead,'다음 자료를 읽고 물음에 답하시오.');
     });
     await check('frozen',async()=>{
@@ -227,6 +227,13 @@ try{
       eq(forked.drafts[0].problem.groupReview,'intake');eq(forked.drafts[0].problem.groupOf,forked.drafts[0].id);
       eq(forked.kind,'extraction');
     });
+    await check('mixed-subjects',async()=>{
+      const created=await client.createComposition(['source-a','source-b']);let mixed=await client.readComposition(created.jobId);
+      const plan=PedagogyComposition.propose(mixed,{preset:'books',count:1}).plan;
+      await client.saveComposition(created.jobId,{draftVersion:mixed.draftVersion,plan});mixed=await client.readComposition(created.jobId);
+      const adopted=await client.adopt(created.jobId,{draftVersion:mixed.draftVersion,destinations:mixed.composition.destinations});
+      eq(sets.find(s=>s.id===adopted.results[0].setId).subject,'all');
+    });
     await check('future-and-legacy',async()=>{
       const future={id:'future',name:'미래',setSchemaVersion:99,problems:[problem('future-q','미래')]};sets.push(future);ok(writeLocalNow());
       await rejects(()=>client.createComposition(['future']),/문항|업데이트/);
@@ -237,7 +244,7 @@ try{
   });
   for(const name of result.names)console.log((result.failures.some(x=>x.name===name)?'FAIL ':'PASS ')+name);
   result.failures.forEach(f=>console.error(f.name+': '+f.message));
-  assert.equal(result.names.length,19,'all composition acceptance checks must run');
+  assert.equal(result.names.length,20,'all composition acceptance checks must run');
   if(mutation){
     assert.notEqual(process.env.COMPOSITION_SKIP_MUTATION,'1','RED mutation skipped');
     const target={paid:'frozen-concurrent-cost',views:'view-group-ids',fork:'unadopted-fork'}[mutation]||mutation;
