@@ -26,7 +26,7 @@
      어렵다 — 새 로그인만 깨진다). 실제로 한 번 그랬으니 손대지 말 것. -->
 <meta http-equiv="Content-Security-Policy" content="
   default-src 'self';
-  script-src 'self' 'wasm-unsafe-eval' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-QNi9CIrexYA5KtTdfP24w7X/up6G5A3MKBmk0D2orKY=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
+  script-src 'self' 'wasm-unsafe-eval' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-jpmvr9aO1g0rnAjUxZ2zows6XRLWxdWQW15z+mIPNE8=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
   script-src-attr 'none';
   style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
   font-src 'self' data: https://cdn.jsdelivr.net;
@@ -10298,6 +10298,14 @@ function resetDataSources(){
   $("#dmSourcesList").replaceChildren();
   $("#dmSourcesInfo").textContent="계정이 바뀌었어요 · 설정을 다시 열면 이 계정의 원본을 보여 드려요";
 }
+async function sourcePersistenceText(){
+  if(typeof navigator.storage?.persisted!=="function")return "영속 저장 미지원 · 브라우저 회수 가능";
+  try{
+    return await navigator.storage.persisted()
+      ?"영속 저장 활성화됨 · 영구 보관·백업 보장은 아님"
+      :"영속 저장이 활성화되지 않음 · 브라우저 회수 가능";
+  }catch{return "영속 저장 상태 확인 실패 · 브라우저 회수 가능";}
+}
 async function renderDataSources(){
   const info=$("#dmSourcesInfo"), list=$("#dmSourcesList");
   const gen=++dsGen, session={owner:intakeOwner(),epoch:authEpoch};
@@ -10311,10 +10319,9 @@ async function renderDataSources(){
     return;
   }
   const used=rows.filter(x=>SRC_OK(x.state)).reduce((n,x)=>n+(x.bytes||0),0);
-  let keep="";
-  try{ if(navigator.storage?.persisted) keep=(await navigator.storage.persisted())?" · 브라우저 보관 보장 받음":" · 브라우저가 공간이 부족하면 지울 수 있음"; }catch{}
+  const keep=" · "+await sourcePersistenceText();
   if(!live()) return;
-  info.textContent=rows.length?`원본 ${rows.length}개 · ${fmtBytes(used)} / 1GB${keep}`:"보관한 원본이 없어요. 지면 배치의 '원본' 에서 PDF·사진을 연결할 수 있어요.";
+  info.textContent=rows.length?`원본 ${rows.length}개 · ${fmtBytes(used)} / 1GB${keep}`:"보관한 원본이 없어요. 지면 배치의 '원본' 에서 PDF·사진을 연결할 수 있어요."+keep;
   list.replaceChildren(...rows.map(x=>{
     const li=document.createElement("li");
     const meta=el("span","meta"); meta.append(el("span","name",x.name||"원본"),

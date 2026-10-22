@@ -5,6 +5,7 @@ import {readFile,mkdir} from 'node:fs/promises';
 import {createServer} from 'node:net';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
+import {createHash} from 'node:crypto';
 const port=await new Promise(resolve=>{const s=createServer();s.listen(0,'127.0.0.1',()=>{const p=s.address().port;s.close(()=>resolve(p));});});
 const base=`http://127.0.0.1:${port}`,server=spawn('python3',['serve.py','--port',String(port)],{stdio:'ignore'}),red=process.env.COMPOSITION_UI_RED||'';
 let browser;const failures=[],names=[];
@@ -21,6 +22,7 @@ try{
     source:['/pedagogy-composition-ui.js','{view.close();return;}sourceView=view;','{return;}sourceView=view;'],
     owner:['/pedagogy-composition-ui.js','finally{if(lease===serial){','finally{if(true){'],
     selection:['/pedagogy-composition-ui.js','if(!visible.includes(selectedId))','if(false)'],
+    persistence:['/index.html','async function sourcePersistenceText(){',"async function sourcePersistenceText(){return '';"],
     order:['/pedagogy-composition-ui.js','`${d.name} ${index+1}번`','d.name'],
     pref:['/pedagogy-composition-ui.js','const route=bridge.route(report);',"const route={view:'list'};"],
     points:['/pedagogy-intake.js',"fail('배점은 0 이상의 숫자로 입력하거나 비워 주세요');",'void 0;']
@@ -28,7 +30,11 @@ try{
    if(red&&mutations[red]?.[0]===u.pathname){
     const [,from,to]=mutations[red];let source=await readFile(u.pathname.slice(1),'utf8');
     assert.ok(source.includes(from));if(process.env.COMPOSITION_UI_SKIP_MUTATION!=='1')source=source.replace(from,to);
-    return r.fulfill({contentType:'application/javascript',body:source});
+    if(u.pathname==='/index.html'){
+     const hashes=[...source.matchAll(/<!--[\s\S]*?-->|<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi)].filter(m=>m[1]!==undefined&&!/\bsrc\s*=/.test(m[1])).map(m=>`'sha256-${createHash('sha256').update(m[2]).digest('base64')}'`);
+     let i=0;source=source.replace(/(script-src[^;]*?)((?:'sha256-[^']+'\s*)+)/,(all,head,list)=>head+list.replace(/'sha256-[^']+'/g,()=>hashes[i++]));
+    }
+    return r.fulfill({contentType:u.pathname==='/index.html'?'text/html':'application/javascript',body:source});
    }return r.continue();
   });
   const p=await ctx.newPage();p.setDefaultTimeout(5000);await p.goto(base+'/index.html');
@@ -148,6 +154,17 @@ try{
   await p.getByRole('button',{name:'뒤로',exact:true}).click();await settled(p);await p.getByRole('button',{name:'새 구성안 미리보기',exact:true}).click();await settled(p);
   assert.match(await p.locator('.cmp-proposal details').innerText(),/변경 3건/);await p.locator('.cmp-proposal summary').click();assert.match(await p.locator('.cmp-proposal details').innerText(),/문제집 1 2번 → 문제집 1 1번/);
  });
+ await check('persistence-status',async p=>{
+  const result=await p.evaluate(async()=>{
+   sheetSourceReader=async()=>({listSources:async()=>[]});const values=[];
+   for(const flag of ['granted','inactive','unsupported','error']){
+    navigator.storage.persisted=flag==='unsupported'?undefined:async()=>{if(flag==='error')throw Error('fixture');return flag==='granted';};
+    await renderDataSources();values.push(document.getElementById('dmSourcesInfo').textContent);
+   }return values;
+  });
+  assert.match(result[0],/원본이 없어요.*영속 저장 활성화됨.*영구 보관·백업 보장은 아님/);
+  assert.match(result[1],/활성화되지 않음/);assert.match(result[2],/미지원/);assert.match(result[3],/확인 실패/);
+ });
  await check('layout-and-keyboard',async p=>{
   await start(p);for(const width of [375,768,1194]){await p.setViewportSize({width,height:900});
    const overflow=await p.locator('#compositionDialog').evaluate(d=>({scroll:d.scrollWidth,width:d.clientWidth}));assert.ok(overflow.scroll<=overflow.width+1,JSON.stringify({width,...overflow}));
@@ -155,6 +172,6 @@ try{
   }
   await p.locator('#compositionDialog').getByLabel('문항 제목',{exact:true}).focus();await p.keyboard.type(' 수정');let handled=false;p.once('dialog',async d=>{handled=true;await d.dismiss();});await p.keyboard.press('Escape');assert.equal(handled,true);assert.equal(await p.locator('#compositionDialog').evaluate(x=>x.open),true);
  });
- for(const f of failures)console.error(JSON.stringify(f));assert.equal(names.length,14);
- if(red){assert.notEqual(process.env.COMPOSITION_UI_SKIP_MUTATION,'1');assert.ok(failures.some(f=>f.name===({count:'count-confirmation',dirty:'dirty-and-undo',source:'late-source-disposal',owner:'late-source-disposal',selection:'selected-bucket-consistency',points:'invalid-points',pref:'settings-preference',order:'proposal-order-diff'}[red])));console.log('RED UI '+red+' detected');}else assert.deepEqual(failures,[]);
+ for(const f of failures)console.error(JSON.stringify(f));assert.equal(names.length,15);
+ if(red){assert.notEqual(process.env.COMPOSITION_UI_SKIP_MUTATION,'1');assert.ok(failures.some(f=>f.name===({count:'count-confirmation',dirty:'dirty-and-undo',source:'late-source-disposal',owner:'late-source-disposal',selection:'selected-bucket-consistency',points:'invalid-points',pref:'settings-preference',order:'proposal-order-diff',persistence:'persistence-status'}[red])));console.log('RED UI '+red+' detected');}else assert.deepEqual(failures,[]);
 }finally{await browser?.close();server.kill();}
