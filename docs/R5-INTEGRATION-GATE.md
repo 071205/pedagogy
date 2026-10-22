@@ -1,6 +1,6 @@
 # R5 연결 게이트 근거와 남은 판정
 
-2026-10-22 · 작성 Codex · **독립 Codex 연결 검증 완료, Claude 종합 판정은 주간 한도 대기**
+2026-10-23 · 작성 Codex · **R5 통과·R6 진입 가능 — 사용자 승인으로 독립 Codex 종합 판정**
 
 대상은 PR25 검토 head `580a7fa`, main merge `7c6386e`의 R1·B1~B7·R4.5·U0~U2 연결이다.
 이미 승인된 같은 diff를 재검토하지 않는다. 이 문서 자체는 독립 승인이나 출시 완료 증거가 아니다.
@@ -42,11 +42,13 @@
 - R7: 호스트/보안 응답 헤더·App Check·origin/전환·롤백. 현재 Pages의 HTTP 보안 헤더 제약을 R1 결함 미해결로 뒤집지 않음.
 - REV074/075/093 열린 상태는 유지. R6~R10·결제/출시 완료가 아니며 공백을 승인으로 대체하지 않는다.
 
-## 종합 판정
+## 종합 판정 — 2026-10-23
 
-- 합의: U2 개별 묶음 구현·독립 검토·배포/Chrome 구성 확인은 완료. 기존 승인 증거를 재사용한다.
-- 미합의/미완료: 레일이 배정한 Claude Opus R5 종합 판정은 아직 없다. `claude auth status` 로그인 정상 후 기존 `ask-claude-readonly.mjs --model opus --effort high --timeout-seconds 600`을 foreground로 **1회** 호출했으나 주간 한도(`resets Oct 25 at 8pm Asia/Seoul`)로 exit1, 최종 답변 없음·진행 로그0바이트. 인증 정상과 검토 승인을 구분한다. 같은 조건에서 반복 호출하지 않는다. `/private/tmp/r5-opus-review-prompt.md`, `r5-opus-wrapper.log`. 독립 Codex의 추가 연결 검사는 완료했으며 아래 실제 함수/서버 대역 범위를 따른다.
-- 다음 행동: 독립 Codex 연결 근거를 재사용하고 Claude는 한도 해제(2026-10-25 20:00 KST) 후 같은 범위의 종합 판정을 받는다. 실제 결함이면 같은 리뷰 규약으로 재현·수정·검증 후 해당 영향만 재검토한다. R5 판정 전 R6를 완료 처리하지 않는다.
+- **합의: R5 통과·R6 진입 가능.** 사용자가 “검토 에이전트 띄워서 하고 레일대로 계속 진행하자”라고 지시해 Claude 주간 한도 대기를 독립 Codex 종합 검토로 대체했다. 구현·기존 연결 probe와 별개의 새 검토자 `/root/r5_gate_review`가 최종 승인 증거·실제 코드/연결 assertions·대역 범위를 대조했다. R5에서 추가 재현 결함·미검토 수정 영향·승인 누락 없음.
+- **미합의: R5 범위 없음.** R6~R10·실제 유료 AI/D3/C1~C3·운영 SW·Safari/iPad·D1 연동·R7 헤더/호스트·사용자 관찰은 위 후속 게이트에 남는다.
+- 근거: 원격 main `7c6386e`와 당시 HEAD `2f47d66` 차이는 문서6개, 운영5파일 SHA가 H197 검토본과 동일. 기존 R1/B1~B7/R4.5/U0~U2 최종 독립 승인·후속 해소/배포를 각 인계에서 확인했다. U2 구성/고정 채택/결과 상태와 CAS probe의 실제 함수 호출/단언을 독립 대조해 기존 정상/RED와 함께 유효한 연결 증거로 판정했다. 승인된 같은 검사는 재실행하지 않았다.
+- 다음 행동: **R6 / GPT-6 Luna medium**이 기존 CI 재사용·의존성/secret 검사 공백·도구 고정·Dependabot 항목을 처리한다.
+- 구현자·검토자: 구현 Codex / 연결 probe 구현하지 않은 Codex / 이번 종합 판정 새 독립 Codex `/root/r5_gate_review`. **Claude 승인으로 기록하지 않는다.** 과거 Claude 요청1회는 로그인 정상 후 주간 한도 exit1·최종 없음이었다(`/private/tmp/r5-opus-wrapper.log`).
 
 ## 독립 연결 재현 절차(유료 호출·운영 데이터 없음)
 
@@ -70,4 +72,4 @@
 - 실제 page.reload 후 같은 IDB 작업/결과 ID·ACK·원문 available·충돌 사본1개를 확인하고 실제 편집/지면/print DOM에서 채택한 서버 본문·안내/묶음·원문1쪽 대응과 별도 원본 불변을 확인했다. 이어 원문 삭제 영향표와 삭제 후 문항/사본 보존·뷰어 정리도 통과했다.
 - 실행 `node /private/tmp/r5-integration-review-2026-10-22/cas-probe.mjs`, cas-probe.log **exit0**. 기존 CAS43건을 다시 실행하지 않았다. 원격 Firestore/Rules·실제 인증·서버 transaction 재시도까지 검증했다는 뜻은 아니다. 기존 정상/RED·운영 U2 ACK/재진입 증거와 함께 재사용한다.
 
-**현재 남은 R5 단계는 Claude Opus 종합 판정**이다. 이 독립 Codex 연결 확인을 Claude 승인으로 바꾸지 않는다. 구현자 Codex / 연결 검토자 구현하지 않은 Codex / Claude 요청 1회 주간 한도 실패(최종 없음).
+이 연결 probe 뒤 2026-10-23 새 독립 Codex 종합 판정으로 R5를 통과했다(위 종합 판정). Claude 요청의 주간 한도 실패는 승인과 구별한다.

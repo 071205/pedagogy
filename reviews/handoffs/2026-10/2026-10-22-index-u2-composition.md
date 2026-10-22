@@ -69,3 +69,7 @@ R5 준비표에서 H193 별도 브랜치의 관리 미구현 설명과 현재 H1
 ## R5 준비 후속 — 2026-10-22
 
 [R5 연결 근거표](../../../docs/R5-INTEGRATION-GATE.md)에 기존 R1/B1~B7/R4.5/U0~U2 승인·후속 수정/배포·남은 외부 게이트를 합쳤다. 구현하지 않은 독립 Codex가 보존 초안→실제 U2 채택→편집/인쇄 DOM/지면→B4 보류/사본→원문 삭제/뷰어 해제를 폐기 가능한 Chromium에서 확인(exit0·새 결함 없음). 후속 CAS probe도 exit0: stale20/current21 거절/쓰기0·최신 순서 CAS revision22/쓰기1·다른 로컬/미관측/pending의 거짓ACK 차단·확정snapshot 뒤ACK·실제page.reload/같은 결과ID·편집/지면/인쇄DOM/원문/사본 유지. Firestore 서버·transaction·snapshot 전달만 메모리 대역이며 원격 인증/Rules/CAS 왕복으로 확대하지 않는다. `/private/tmp/r5-integration-review-2026-10-22/cas-probe.{mjs,log}`. 제품 파일 수정 없음. Claude 로그인 정상 후 Opus foreground 래퍼1회가 주간 한도로 exit1·최종 답변 없음(10/25 20시KST 해제)이므로 **R5 Claude 승인/완료로 기록하지 않는다.** 반복 호출하지 않고 근거표/정확한 남은 경계를 보존한다.
+
+## 검토 기록 — R5 종합 판정 2026-10-23
+
+사용자가 검토 에이전트로 계속 진행하도록 승인했다. 새 비구현 검토자 `/root/r5_gate_review`가 R1/B1~B7/R4.5/U0~U2의 최종 독립 승인·후속 해소/배포, runtime5파일 SHA 일치, 실제 U2/채택/CAS/ACK/재진입/지면/원문 probe의 호출과 assertions를 코드로 대조했다. **R5 통과·R6 진입 가능, R5 미합의/새 재현 결함 없음.** Claude 승인으로 기록하지 않는다. 실제 유료AI/D3/C1~C3·SW운영·Safari/iPad·D1연동·R7/사용자관찰은 후속 게이트에 남는다. 다음은 레일 배정 **R6 / GPT-6 Luna medium**. 기존 승인된 같은 검사를 반복하지 않는다.
