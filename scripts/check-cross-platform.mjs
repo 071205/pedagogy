@@ -14,9 +14,10 @@
  */
 import { spawn } from "node:child_process";
 import { createServer } from "node:net";
+import { fileURLToPath } from "node:url";
 import { chromium, webkit, firefox } from "playwright";
 
-const root = new URL("..", import.meta.url).pathname;
+const root = fileURLToPath(new URL("..", import.meta.url));
 const only = process.env.XPLAT_ONLY || "";          // "chromium" 처럼 하나만 돌릴 때
 const freePort = () => new Promise(r => {
   const s = createServer(); s.listen(0, "127.0.0.1", () => { const p = s.address().port; s.close(() => r(p)); });

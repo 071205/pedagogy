@@ -26,7 +26,7 @@
      어렵다 — 새 로그인만 깨진다). 실제로 한 번 그랬으니 손대지 말 것. -->
 <meta http-equiv="Content-Security-Policy" content="
   default-src 'self';
-  script-src 'self' 'wasm-unsafe-eval' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-sWfyH+MlyX+7roNjfQyefnsT69wEhZ8BehGazLGXUcw=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
+  script-src 'self' 'wasm-unsafe-eval' 'sha256-mKaRer1Ji4vdxfQU42DpjPMS0DPB8fqLSmYCUMr6UHA=' 'sha256-8YJufgr/XqJK7D4Q4sEK3z2UGuGrGx2s3RdkEYboejc=' 'sha256-QNi9CIrexYA5KtTdfP24w7X/up6G5A3MKBmk0D2orKY=' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://www.google.com;
   script-src-attr 'none';
   style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
   font-src 'self' data: https://cdn.jsdelivr.net;
@@ -2413,6 +2413,11 @@ function setEditorActions(on){
               <span class="settings-choice-copy"><span class="settings-choice-title">언어</span>
                 <span class="settings-choice-desc">편집 화면에 표시할 언어를 고릅니다</span></span>
               <select id="setLang"></select>
+            </label>
+            <label class="settings-choice">
+            <span class="settings-choice-copy"><span class="settings-choice-title">구성 후 이동</span>
+              <span class="settings-choice-desc">여러 권이나 확인이 필요한 결과는 목록에서 확인합니다</span></span>
+            <input id="setDirectEditor" type="checkbox" aria-label="문제집 한 권을 만들면 바로 편집기 열기">
             </label>
           </div>
           <p class="dm-note">언어는 <b>화면 글</b>만 바꿉니다 — 문제집 내용과 인쇄물은 그대로예요.</p>
@@ -6126,6 +6131,9 @@ function openSettings(){
     try{ localStorage.setItem(langKey(),uiLangPref); }catch(e){ console.warn("언어 설정 저장 실패", e); }
     applyUiLang(); renderLibrary();
   };
+  const direct=$("#setDirectEditor");
+  direct.checked=readIntakePrefs();
+  direct.onchange=()=>{if(!writeIntakePrefs(direct.checked)){direct.checked=readIntakePrefs();toast("이 브라우저에 설정을 저장하지 못했어요","error");}};
   prepDataPane();
 }
 $("#settingsBtn").onclick=()=>showSettings("screen");
@@ -10782,7 +10790,7 @@ const compositionUI=PedagogyCompositionUI.create({
   sets:()=>sets,
   signedIn:()=>!!currentUser,
   route:intakeResultRoute,readPrefs:readIntakePrefs,writePrefs:writeIntakePrefs,
-  editor:showEditor,source:blob=>openSourceView(blob),notify:toast,
+  editor:showEditor,source:blob=>openSourceView(blob),
   math:element=>{if(typeof renderMathInElement==="function")renderMathInElement(element,{delimiters:[{left:"$$",right:"$$",display:true},{left:"$",right:"$",display:false}],throwOnError:false});}
 });
 $("#selComposeBtn").onclick=()=>compositionUI.open([...libPicked]);

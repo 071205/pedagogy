@@ -3,10 +3,12 @@ import {chromium} from 'playwright';
 import {spawn} from 'node:child_process';
 import {readFile,mkdir} from 'node:fs/promises';
 import {createServer} from 'node:net';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
 const port=await new Promise(resolve=>{const s=createServer();s.listen(0,'127.0.0.1',()=>{const p=s.address().port;s.close(()=>resolve(p));});});
 const base=`http://127.0.0.1:${port}`,server=spawn('python3',['serve.py','--port',String(port)],{stdio:'ignore'}),red=process.env.COMPOSITION_UI_RED||'';
 let browser;const failures=[],names=[];
-const logDir='/private/tmp/u2-ui';await mkdir(logDir,{recursive:true});
+const logDir=join(tmpdir(),'pedagogy-u2-ui');await mkdir(logDir,{recursive:true});
 try{
  for(let n=0;n<80;n++){try{if((await fetch(base+'/health')).ok)break;}catch{}await new Promise(r=>setTimeout(r,100));}
  browser=await chromium.launch();
@@ -19,6 +21,8 @@ try{
     source:['/pedagogy-composition-ui.js','{view.close();return;}sourceView=view;','{return;}sourceView=view;'],
     owner:['/pedagogy-composition-ui.js','finally{if(lease===serial){','finally{if(true){'],
     selection:['/pedagogy-composition-ui.js','if(!visible.includes(selectedId))','if(false)'],
+    order:['/pedagogy-composition-ui.js','`${d.name} ${index+1}번`','d.name'],
+    pref:['/pedagogy-composition-ui.js','const route=bridge.route(report);',"const route={view:'list'};"],
     points:['/pedagogy-intake.js',"fail('배점은 0 이상의 숫자로 입력하거나 비워 주세요');",'void 0;']
    };
    if(red&&mutations[red]?.[0]===u.pathname){
@@ -125,6 +129,25 @@ try{
   await p.evaluate(()=>__releaseSource());await p.waitForFunction(()=>__closed===1);assert.equal(await p.locator('.cmp-content').evaluate(x=>x.disabled),true,'old finally unlocked new owner');
   await p.evaluate(async()=>{__releaseNew();await __newOpen;});assert.equal(await p.locator('.cmp-content').evaluate(x=>x.disabled),false);
  });
+ await check('local-failure-retry',async p=>{
+  await start(p);await p.getByRole('button',{name:'새 구성안 미리보기',exact:true}).click();await settled(p);await p.getByRole('button',{name:'새 구성안 적용',exact:true}).click();await settled(p);
+  await p.evaluate(()=>{window.__realLocalWrite=writeLocalNow;writeLocalNow=()=>false;});await p.getByRole('button',{name:'문제집 1권 만들기',exact:true}).click();await settled(p);
+  assert.match(await p.locator('.cmp-results').innerText(),/이 기기 저장 실패/);
+  const mapped=await p.evaluate(async()=>{writeLocalNow=__realLocalWrite;const c=createIntakeStorageClient(),j=(await c.listJobs())[0];const report=await c.adoptionStatus(j.adoptionId);return report.results[0].setId;});
+  assert.equal(await p.evaluate(()=>sets.length),1);await p.getByRole('button',{name:'실패한 저장 다시 시도',exact:true}).click();await settled(p);
+  assert.match(await p.locator('.cmp-results').innerText(),/이 기기 저장됨/);assert.deepEqual(await p.evaluate(()=>sets.map(s=>s.id)),['a',mapped]);
+ });
+ await check('settings-preference',async p=>{
+  await p.locator('#settingsBtn').click();await p.getByLabel('문제집 한 권을 만들면 바로 편집기 열기',{exact:true}).check();assert.equal(await p.evaluate(()=>readIntakePrefs()),true);
+  await p.locator('#settingsBack').click();await start(p);await p.getByRole('button',{name:'새 구성안 미리보기',exact:true}).click();await settled(p);await p.getByRole('button',{name:'새 구성안 적용',exact:true}).click();await settled(p);await p.getByRole('button',{name:'문제집 1권 만들기',exact:true}).click();await settled(p);
+  assert.equal(await p.locator('#compositionDialog').evaluate(x=>x.open),false,'saved preference did not open editor');
+  await p.getByRole('button',{name:'문제집 라이브러리로 이동',exact:true}).click();await p.locator('#settingsBtn').click();await p.getByLabel('문제집 한 권을 만들면 바로 편집기 열기',{exact:true}).uncheck();assert.equal(await p.evaluate(()=>readIntakePrefs()),false);
+ });
+ await check('proposal-order-diff',async p=>{
+  await start(p);await p.getByRole('button',{name:'새 구성안 미리보기',exact:true}).click();await settled(p);await p.getByRole('button',{name:'새 구성안 적용',exact:true}).click();await settled(p);
+  await p.getByRole('button',{name:'뒤로',exact:true}).click();await settled(p);await p.getByRole('button',{name:'새 구성안 미리보기',exact:true}).click();await settled(p);
+  assert.match(await p.locator('.cmp-proposal details').innerText(),/변경 3건/);await p.locator('.cmp-proposal summary').click();assert.match(await p.locator('.cmp-proposal details').innerText(),/문제집 1 2번 → 문제집 1 1번/);
+ });
  await check('layout-and-keyboard',async p=>{
   await start(p);for(const width of [375,768,1194]){await p.setViewportSize({width,height:900});
    const overflow=await p.locator('#compositionDialog').evaluate(d=>({scroll:d.scrollWidth,width:d.clientWidth}));assert.ok(overflow.scroll<=overflow.width+1,JSON.stringify({width,...overflow}));
@@ -132,6 +155,6 @@ try{
   }
   await p.locator('#compositionDialog').getByLabel('문항 제목',{exact:true}).focus();await p.keyboard.type(' 수정');let handled=false;p.once('dialog',async d=>{handled=true;await d.dismiss();});await p.keyboard.press('Escape');assert.equal(handled,true);assert.equal(await p.locator('#compositionDialog').evaluate(x=>x.open),true);
  });
- for(const f of failures)console.error(JSON.stringify(f));assert.equal(names.length,11);
- if(red){assert.notEqual(process.env.COMPOSITION_UI_SKIP_MUTATION,'1');assert.ok(failures.some(f=>f.name===({count:'count-confirmation',dirty:'dirty-and-undo',source:'late-source-disposal',owner:'late-source-disposal',selection:'selected-bucket-consistency',points:'invalid-points'}[red])));console.log('RED UI '+red+' detected');}else assert.deepEqual(failures,[]);
+ for(const f of failures)console.error(JSON.stringify(f));assert.equal(names.length,14);
+ if(red){assert.notEqual(process.env.COMPOSITION_UI_SKIP_MUTATION,'1');assert.ok(failures.some(f=>f.name===({count:'count-confirmation',dirty:'dirty-and-undo',source:'late-source-disposal',owner:'late-source-disposal',selection:'selected-bucket-consistency',points:'invalid-points',pref:'settings-preference',order:'proposal-order-diff'}[red])));console.log('RED UI '+red+' detected');}else assert.deepEqual(failures,[]);
 }finally{await browser?.close();server.kill();}

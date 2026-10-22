@@ -250,14 +250,14 @@ function create(bridge){
     view.render=page.render({canvasContext:canvas.getContext('2d'),viewport});await view.render.promise;current(lease);if(token===sourceToken)output.replaceChildren(canvas);
   }
   function placementNames(plan){
-    const map=new Map();plan.destinations.forEach(d=>d.items.forEach(x=>map.set(x.draftId,d.name)));
+    const map=new Map();plan.destinations.forEach(d=>d.items.forEach((x,index)=>map.set(x.draftId,`${d.name} ${index+1}번`)));
     for(const [key,label] of [['excluded','제외'],['unassigned','미분류']])plan[key].forEach(id=>map.set(id,label));
     return map;
   }
   function proposalChanges(panel,before,after){
     const old=placementNames(before),next=placementNames(after),details=node('details'),rows=node('ul');
     const changes=job.drafts.filter(d=>old.get(d.id)!==next.get(d.id));
-    details.append(node('summary',`문항별 목적지 변경 ${changes.length}건 보기`));
+    details.append(node('summary',`문항별 목적지·순서 변경 ${changes.length}건 보기`));
     changes.forEach(d=>rows.append(node('li',`${d.problem.title||'문항 '+(job.drafts.findIndex(x=>x.id===d.id)+1)}: ${old.get(d.id)} → ${next.get(d.id)}`)));
     details.append(rows);panel.append(details);
   }
