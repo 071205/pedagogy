@@ -10,7 +10,7 @@
 ## 현재 상태 — R6 독립 검토·CI·병합 완료, 다음 R7 준비
 
 - [PR #26](https://github.com/071205/pedagogy/pull/26) 검토 head `42210121d188325eca8f9cd4167004c2d4ade83e`의 Verify [39809806697](https://github.com/071205/pedagogy/actions/runs/39809806697) `secrets/verify/cross-platform/hwpx` 및 SonarCloud 모두 성공했다. verify에는 전체 `check:fast`, visual, 공개 산출물, Rules 검사가 포함된다. CodeRabbit skipped 결과를 독립 승인으로 세지 않는다.
-- 사용자 지속 승인 범위에서 2026-10-23 01:24 KST main `ceec8a3183cf669f0502e94cff646f7500dfea99`로 병합했다. 후속 main CI/Pages는 이 기록 시점 진행 중이다. 제품 runtime 파일 변경·Rules/AI Worker 배포는 없다.
+- 사용자 지속 승인 범위에서 2026-10-23 01:24 KST main `ceec8a3183cf669f0502e94cff646f7500dfea99`로 병합했다. 후속 main Verify [39813830441](https://github.com/071205/pedagogy/actions/runs/39813830441)의 네 job도 모두 성공했고 Pages는 같은 merge commit으로 built를 확인했다. 제품 runtime 파일 변경·Rules/AI Worker 배포는 없다.
 - 대체된 Dependabot #1/#2/#3/#5/#6/#20/#22를 닫았다. #17(pixelmatch8)/#19(pdfjs6.4)/#21(Playwright1.64)은 아래 사유대로 별도 검증 대상으로 유지한다.
 - 다음 작업 브랜치 `codex/r7-static-host-preparation`. R7은 별도 정적 호스트의 로컬 설정·헤더·404·동일 산출물 검증과 전환 준비다. 실제 도메인 이전·Pages/private 전환·App Check 운영 강제는 아직 하지 않았다. audit 잔여와 REV-147은 그대로 보존한다.
 

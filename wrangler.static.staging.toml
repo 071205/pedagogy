@@ -1,0 +1,10 @@
+# R7 local staging fixture only. A reviewed host name, domains, credentials and
+# deployment environment are separate operational decisions.
+# Never combine this asset host with worker/wrangler.toml (AI quota/DO/secrets).
+name = "pedagogy-static-local-fixture"
+compatibility_date = "2026-10-19"
+
+[assets]
+directory = "./dist/public"
+html_handling = "auto-trailing-slash"
+not_found_handling = "none"
