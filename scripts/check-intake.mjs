@@ -164,9 +164,16 @@ try{
       const setup=await c.createJob([file()]);await c.run(setup.jobId);const j=await c.readJob(setup.jobId);eq(j.pages.map(p=>p.state),['success','failed']);
       const opts={draftVersion:j.draftVersion,destinations:[{id:'a',name:'A',items:[{placementId:'1',draftId:j.drafts[0].id}]}]};
       await rejects(()=>c.adopt(setup.jobId,opts),/성공한 쪽만/);
-      ok((await c.adopt(setup.jobId,{...opts,partial:true})).adoption.partial);
+      // U2 freezes paid execution after adoption; retry semantics remain covered before it.
       await c.run(setup.jobId);eq(n,2);await rejects(()=>c.run(setup.jobId,{retryPages:[1]}),/차감/);
       await c.run(setup.jobId,{retryPages:[1],confirmCharge:true});eq(n,3);eq(max,1);eq((await c.readJob(setup.jobId)).pages[1].state,'success');
+      const partialClient=make({dbName:'b6-partial-frozen',transport:async()=>{if(++n===5)throw Error('fixture failure');return response();}});
+      const partialSetup=await partialClient.createJob([file()]);await partialClient.run(partialSetup.jobId);
+      const partialJob=await partialClient.readJob(partialSetup.jobId);
+      const partialOpts={draftVersion:partialJob.draftVersion,partial:true,destinations:[{id:'a',name:'A',items:[{placementId:'1',draftId:partialJob.drafts[0].id}]}]};
+      ok((await partialClient.adopt(partialSetup.jobId,partialOpts)).adoption.partial);
+      await rejects(()=>partialClient.run(partialSetup.jobId),/만들기/);
+      await rejects(()=>partialClient.run(partialSetup.jobId,{retryPages:[1],confirmCharge:true}),/만들기/);eq(n,5);
     });
     await check('늦은 AI 응답은 삭제 세대 뒤 원문/결과 못 부활',async()=>{
       let resolve,started;const ready=new Promise(r=>started=r),reply=new Promise(r=>resolve=r);

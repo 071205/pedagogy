@@ -70,3 +70,9 @@
 - `2026-10-22 · 독립 Codex 에이전트`: 함수 분리의 의미 비교와 최종 브라우저 재실행 완료. depth1~3은 보류/사본 보존 후 재확인, depth4~8은 안전 채택 후 사본 유지. 로컬 저장 실패 복구·계정 전환·미래 schema 차단·REV-139 review/실제 ACK 일치 정상. 추가 결함 없음. 최종 index SHA-256 **`d61e3c101c7b8a745539d9c18dcee3eaf7342d2f0f401ec589691cbac4908f6a`**. 이전 해시는 그 전 검토 시점이고 이 해시가 최신 판정 대상이다. 근거 `refactor-final.log`.
 
 - `65616a0` Sonar 성공·cross-platform/hwpx 성공, verify의 `check-audit-safety.mjs` 038 VM만 실패했다. 원인은 함수 분리 후 실제 제품 helper 두 개를 VM에 함께 올리지 않아 localStorage 호출 전에 ReferenceError가 catch된 하네스 누락이다. 기대값을 낮추거나 제품을 stub하지 않고 `invalidateEditedSetReview`/`invalidateLocalReview`의 실제 소스를 함께 로드한다. 이 변경은 제품 index 해시/독립 승인 범위를 바꾸지 않는다. U2 WIP는 명시 경로 stash로 보존한 뒤 별도 브랜치에서 이어간다.
+
+## PR #24 병합·배포 확인 및 일시 중단 (2026-10-22)
+
+`cb1d26a`의 verify/cross-platform/hwpx/SonarCloud가 모두 성공했다. CodeRabbit 상태는 리뷰 생략이므로 독립 승인으로 세지 않는다. 최초 병합 시도는 사용자 main/Pages 승인 근거 부족이라는 자동 심사로 차단됐고, 사용자에게 확인을 요청했다. 사용자가 **PR #24 병합·Pages 배포 승인**을 직접 답한 뒤 `20881c2c8c62b9eabab0db49e407f2265972ee26`로 병합했다. Pages built와 공개 index 바이트가 검토 SHA `d61e3c101c7b8a745539d9c18dcee3eaf7342d2f0f401ec589691cbac4908f6a`에 일치함을 확인했다.
+
+사용자가 잠시 중단을 요청했다. 운영 로그인 탭의 테스트 권·보류 3권 재선택/재진입·ACK·PDF는 아직 미확인이고 REV-137/138/139는 in-progress다. 26권/사본 8개/내보낸 원본 백업 보존. U2 저장 엔진은 독립 검토·정상19/RED7·B6 전체 회귀를 마쳐 별도 브랜치 `codex/u2-composition`에 보존했다. UI 미구현·U2 PR 없음. 재개 위치는 [HANDOFF-197](2026-10-22-index-u2-composition.md)의 중단 시점이다.
