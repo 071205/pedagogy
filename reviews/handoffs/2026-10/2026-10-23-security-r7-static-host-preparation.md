@@ -7,7 +7,13 @@
 - 영향 영역: `worker | tests | docs`
 - 관련 이슈: 없음
 
-## 중단 체크포인트 — 사용자 요청으로 현재 작업까지만 보존
+## 현재 상태 — 로컬 준비 독립 검토 통과, 새 head CI 대기
+
+- 사용자가 재개를 요청했고, 이전 구현에 참여하지 않은 독립 Codex가 REV-149/150을 재현했다. 같은 이슈에 수정·정상/RED·독립 재검증을 기록해 둘 다 resolved다.
+- 최종 CLI timeout 경계까지 독립 재검증을 통과했다. 정상 exit0·비동기 ENOENT·SIGINT와 timeout의 실제 소유 child가 종료되고 clean이 1회 수행됐다. 검토 범위 안의 미합의/추가 재현 결함은 없다.
+- 다음은 이 수정본 commit/PR → 새 head 필수 CI → 로컬 준비 묶음 병합이다. R7 전체의 실제 호스트·도메인·App Check·자료 이관·Pages/private 전환 완료는 아니다.
+
+## 이전 중단 체크포인트 — 4196588 보존 당시 기록
 
 - 실제 worktree: `/Users/huryul/개발/pedagogy-작업사본/pedagogy-u15b`, branch `codex/r7-static-host-preparation`. 기본 저장소 checkout은 변경하지 않았다. `transcript.txt`는 접근·수정·생성 금지다.
 - 로컬 구현과 아래 정상/RED 검사는 보존했다. 마지막 framing 검사 대기를 `networkidle`로 바꾼 뒤 `test-static-host-final.log`도 성공했다. 새 R7 원격 CI·PR·병합은 아직 없다.
@@ -75,7 +81,33 @@ HTML HTTP 헤더·같은 출처 mock iframe·외부 origin embedding 거절을 �
 
 2026-10-23 · 독립 Codex 검토 요청 후 사용량 한도로 종료. 최종 판정 미수신·검토 대기. 부모는 인계·검사 로그와 변경을 보존하고 중단한다.
 
+2026-10-23 · 재개 후 독립 검토가 `REV-2026-149`(TOML 다른 섹션 decoy)와
+`REV-2026-150`(이미 signal 종료된 child의 cleanup hang)을 재현했다.
+구현자는 같은 이슈 파일에 해결 근거를 남기고 두 회귀를 추가했다. 전역 정규식 대신
+Python 표준 `tomllib`으로 실제 TOML 구조를 파싱해 허용 top-level/[assets]
+키·값만 받는다. Wrangler 4.151.1은 `smol-toml` 1.9.0을 내부 번들에 두지만
+공개 import가 되지 않으며, offline npm cache에도 없어 새 npm 의존성을 만들지 않았다.
+verify job은 기존 pinned `setup-python`으로 Python 3.12를 고정한다. 현장
+Python이 없거나 3.11 미만이면 시작 검사가 실패하고, 설정 원문은 오류에 노출하지
+않는다. child lifecycle은 spawn 직후 감시·terminal snapshot·유한 stop과
+finally cleanup으로 수정했다. `test-rev149-150-final.log`와 실제
+`test-static-host-review-fixes.log` 통과, 새 회귀의 실패 주입은
+`red-review-config.log`·`red-review-terminal.log`에서 exit 1이다.
+`package.json`/lock 변경 없음. 독립 재검증과 원격 운영 증거는 아직 대기한다.
+
+2026-10-23 · REV-150의 기존 terminal/error/유한 stop 경계는 독립 재검증을
+통과했다. 다만 standalone CLI의 wait timeout 뒤 살아 있는 소유 child를
+종료하지 않고 clean만 하는 추가 재현을 같은 이슈에서 보완했다.
+`runStaticStagingCli()`의 실제 entry 경로에 stop→clean을 적용하고,
+실제 Node child 회귀는 수정 전 `red-cli-timeout.log` exit 1,
+수정 후 `test-cli-timeout.log` 통과했다. 독립 probe의 후속 안전 판정도
+`cli-timeout-after-probe.log`에서 kills=1·cleans=1·childRemainsLive=false다.
+독립 최종 재검증과 운영 게이트는 여전히 대기한다.
+
 ## 재개 시 대조할 핵심 파일 SHA-256
+
+아래는 첫 검토 요청 때의 보존 snapshot이다. REV-149/150 수정 뒤 현재 파일 hash를
+뜻하지 않으며, 당시 사용량 한도 종료를 성공 판정으로 바꾸지 않는다.
 
 - `scripts/build-public.mjs`: `acf915ec4c710a797934a0792f047ff786c178cee6a1e3ee70f08ab9015d1021`
 - `scripts/build-public.test.mjs`: `c933b9de443d6d244a91917bb9307a414b4bcc477b8818f7c349b66b97eda1eb`
@@ -83,3 +115,13 @@ HTML HTTP 헤더·같은 출처 mock iframe·외부 origin embedding 거절을 �
 - `scripts/static-staging.test.mjs`: `8bd87c16d7107ff681d1e2534b23f1c811df4b615ebd0c356f40fdc68636598f`
 - `scripts/check-static-host.mjs`: `0930d3a472d2af48b97627580ee28b8d0467102da60da85c0cdfb5c414bacea0`
 - `wrangler.static.staging.toml`: `b9f405086868e2b2a10aa80d7a194601cdd3cd313a94bfd77ecca975fcbbbdc6`
+
+## 최종 독립 검토 — 2026-10-23 재개 후
+
+- 비구현자 `/root/r5_gate_review`: **합의 — R7 로컬 Static Assets 준비 묶음 통과. REV149/150 해소, 추가 재현 결함 없음. 미합의 — 검토 범위 안에는 없음.** 원본 CLI timeout probe는 SIGTERM→종료→clean, child 생존 없음으로 바뀌었고 실제 child 정상 종료·ENOENT·SIGINT도 통과했다. config 7경계·이미 signal 종료/비동기 오류/유한 stop·framing 양성/음성 근거를 재사용했다. 새 head CI는 필수이며 이 판정은 운영 R7 완료 승인이 아니다.
+- 최신 독립 로그: `/private/tmp/r7-independent-2026-10-23/{fix-boundaries-probe,lifecycle-fixed-probe,cli-timeout-final-probe,cli-outcomes-probe}.log`. 임시 로그가 정리돼도 두 이슈의 재현 절차 및 영구 회귀로 다시 검증할 수 있다.
+- 최종 검토 파일 SHA-256:
+  - `scripts/serve-static-staging.mjs`: `5c3aeed5f3104ecc5d244f44690e86dc543072b23e52ea0aa9f0f0d275c0c3cf`
+  - `scripts/check-static-host.mjs`: `b75225a614fe3b75faea15a182b9134c98f7937e6377bda6254931bbe13579b4`
+  - `scripts/static-staging.test.mjs`: `896d3a22bdfcc2d9eb5286f8d1d477255ebcc40204b6228fecf38fa83dfb4859`
+  - `scripts/check-static-staging-config.py`: `00e115057545dfa31c5e03de800d7dfd53ca09bc07a9250e0852946c8cac1cbf`

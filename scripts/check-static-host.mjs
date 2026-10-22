@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { createServer } from 'node:net';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
-import { startStaticStaging } from './serve-static-staging.mjs';
+import { startStaticStaging, stopStaticStaging } from './serve-static-staging.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
@@ -16,11 +16,15 @@ async function freePort() {
   return port;
 }
 
-async function ready(base, child) {
+async function ready(base, lifecycle) {
   for (let i = 0; i < 100; i++) {
-    if (child.exitCode !== null) throw Error(`Wrangler exited ${child.exitCode} before readiness`);
-    try { if ((await fetch(base + '/', { signal: AbortSignal.timeout(500) })).ok) return; }
+    const ended = lifecycle.status();
+    if (ended) throw Error(`Wrangler exited ${ended.code ?? ended.signal ?? ended.error} before readiness`);
+    let response;
+    try { response = await fetch(base + '/', { signal: AbortSignal.timeout(500) }); }
     catch { /* Local runtime is still starting. */ }
+    if (lifecycle.status()) throw Error('Wrangler exited during readiness');
+    if (response?.ok) return;
     await new Promise(resolve => setTimeout(resolve, 100));
   }
   throw Error('Local Wrangler did not become ready');
@@ -49,10 +53,10 @@ async function checkResponse(base, path, asset, framing, manifest) {
 
 const port = await freePort();
 const base = `http://127.0.0.1:${port}`;
-const { child, manifest, clean } = await startStaticStaging({ root, port });
+const { lifecycle, manifest, clean } = await startStaticStaging({ root, port });
 let browser;
 try {
-  await ready(base, child);
+  await ready(base, lifecycle);
   for (const [path, asset, framing] of [
     ['/', 'index.html', "'none'"], ['/index.html?probe=1', 'index.html', "'none'"],
     ['/index?probe=1', 'index.html', "'none'"],
@@ -115,10 +119,6 @@ try {
   await context.close();
   console.log(`Static host: ${Object.keys(manifest).length} manifest assets, root/aliases/404/headers and iframe policies passed`);
 } finally {
-  await browser?.close();
-  if (child.exitCode === null) {
-    child.kill('SIGTERM');
-    await new Promise(resolve => child.once('exit', resolve));
-  }
-  await clean();
+  try { await browser?.close(); }
+  finally { await stopStaticStaging(lifecycle, clean); }
 }

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { spawn } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -11,12 +11,15 @@ const projectRoot = fileURLToPath(new URL('../', import.meta.url));
 export async function prepareStaticStaging(root = projectRoot) {
   root = resolve(root);
   const config = await readFile(join(root, 'wrangler.static.staging.toml'), 'utf8');
-  assert.match(config, /^name = "pedagogy-static-local-fixture"$/m);
-  assert.match(config, /^directory = "\.\/dist\/public"$/m);
-  assert.match(config, /^html_handling = "auto-trailing-slash"$/m);
-  assert.match(config, /^not_found_handling = "none"$/m);
-  assert.doesNotMatch(config, /^\s*(main|route|routes|account_id|zone_id|binding|AI_PROVIDER|ANTHROPIC_KEY)\s*=/m);
-  assert.doesNotMatch(config, /\[\[(?:durable_objects|migrations)/);
+  try {
+    execFileSync('python3', [fileURLToPath(new URL('./check-static-staging-config.py', import.meta.url))],
+      { input: config, stdio: ['pipe', 'ignore', 'pipe'] });
+  } catch (error) {
+    if (error.code === 'ENOENT' || /requires Python 3\.11\+ tomllib/.test(error.stderr?.toString('utf8') || '')) {
+      throw Error('static staging config requires Python 3.11+ tomllib');
+    }
+    throw Error('static staging config rejected: expected assets-only local fixture');
+  }
   // Always rebuild before starting the local host. buildPublic keeps the old
   // output on input failure; this gate must refuse to serve that stale output.
   const built = await buildPublic(root);
@@ -25,6 +28,51 @@ export async function prepareStaticStaging(root = projectRoot) {
   assert.deepEqual(verified, built, 'Built and verified public bytes differ');
   assert.deepEqual(recorded, built, 'Public manifest does not describe the served bytes');
   return built;
+}
+
+export function observeStaticChild(child) {
+  let terminal = child.exitCode != null || child.signalCode != null
+    ? { code: child.exitCode, signal: child.signalCode, error: null } : null;
+  let finish;
+  const finished = new Promise(resolveFinished => { finish = resolveFinished; });
+  const settle = result => {
+    if (terminal) return;
+    terminal = result;
+    finish(result);
+  };
+  if (terminal) finish(terminal);
+  child.once('error', error => settle({ code: null, signal: null, error }));
+  child.once('exit', (code, signal) => settle({ code, signal, error: null }));
+  // The event can fire between the initial snapshot and listener registration.
+  if (child.exitCode != null || child.signalCode != null) {
+    settle({ code: child.exitCode, signal: child.signalCode, error: null });
+  }
+  const status = () => terminal;
+  const wait = async ({ timeoutMs = 3000 } = {}) => {
+    if (terminal) return terminal;
+    let timer;
+    try {
+      return await Promise.race([finished, new Promise((_, reject) => {
+        timer = setTimeout(() => reject(Error('Local Wrangler exit timed out')), timeoutMs);
+      })]);
+    } finally { clearTimeout(timer); }
+  };
+  const stop = async ({ timeoutMs = 3000 } = {}) => {
+    if (terminal) return terminal;
+    child.kill('SIGTERM');
+    try { return await wait({ timeoutMs }); }
+    catch (error) {
+      if (terminal) return terminal;
+      child.kill('SIGKILL');
+      return await wait({ timeoutMs });
+    }
+  };
+  return { status, wait, stop };
+}
+
+export async function stopStaticStaging(lifecycle, clean) {
+  try { await lifecycle.stop(); }
+  finally { await clean(); }
 }
 
 export async function startStaticStaging({ root = projectRoot, port = 8797,
@@ -45,21 +93,31 @@ export async function startStaticStaging({ root = projectRoot, port = 8797,
     await clean();
     throw error;
   }
-  return { child, manifest, clean };
+  return { child, lifecycle: observeStaticChild(child), manifest, clean };
+}
+
+export async function runStaticStagingCli(lifecycle, clean,
+  { onSignal = process.on.bind(process), waitTimeoutMs = 24 * 60 * 60 * 1000 } = {}) {
+  let interrupted = false;
+  let rejectStop;
+  const stopFailed = new Promise((_, reject) => { rejectStop = reject; });
+  for (const signal of ['SIGINT', 'SIGTERM']) onSignal(signal, () => {
+    if (interrupted) return;
+    interrupted = true;
+    void lifecycle.stop().catch(rejectStop);
+  });
+  try {
+    const result = await Promise.race([
+      lifecycle.wait({ timeoutMs: waitTimeoutMs }), stopFailed,
+    ]);
+    if (result.error) throw result.error;
+    if (result.code !== 0 && !interrupted) throw Error(`Local Wrangler exited ${result.code ?? result.signal}`);
+  } finally { await stopStaticStaging(lifecycle, clean); }
 }
 
 if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.meta.url) {
   const port = Number(process.argv[2] || 8797);
   if (!Number.isSafeInteger(port) || port < 1024 || port > 65535) throw Error('Invalid local port');
-  const { child, clean } = await startStaticStaging({ port });
-  let interrupted = false;
-  for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => {
-    interrupted = true;
-    child.kill(signal);
-  });
-  await new Promise((resolveChild, rejectChild) => {
-    child.once('error', rejectChild);
-    child.once('exit', code => code === 0 || interrupted
-      ? resolveChild() : rejectChild(Error(`Local Wrangler exited ${code}`)));
-  }).finally(clean);
+  const { lifecycle, clean } = await startStaticStaging({ port });
+  await runStaticStagingCli(lifecycle, clean);
 }
