@@ -1,15 +1,15 @@
 # PEDAGOGY 통합 실행 레일 — 보안·저장·출시·비용
 
-개정: 2026-10-23 · REV-108/PR23·REV-137/138/139/PR24 해결·운영 확인 완료. U2/PR25 독립 Codex 검토·CI·병합/Pages·로그인 운영 확인 완료(유료 일괄 AI 비활성). R5도 사용자 승인으로 새 독립 Codex 종합 판정 통과. R6 구현과 REV-148 scanner 독립 재검증 완료; HANDOFF-198 최종 독립 검토 통과·새 head CI 대기. 모델 대체는 사용자 직접 승인에 따른다.
+개정: 2026-10-23 · REV-108/PR23·REV-137/138/139/PR24 해결·운영 확인 완료. U2/PR25 독립 Codex 검토·CI·병합/Pages·로그인 운영 확인 완료(유료 일괄 AI 비활성). R5도 사용자 승인으로 새 독립 Codex 종합 판정 통과. R6 독립 검토·새 head CI·PR26 병합 완료(HANDOFF-198). R7 로컬 정적 호스트·전환 준비 진행. 모델 대체는 사용자 직접 승인에 따른다.
 사용자 요청: 기존 비용 레일과 Sonar·안티그래비티 검증 제안을 합쳐, 모델을 직접 바꿔 실행한다.
 **실행 순서·현재 단계는 이 문서 한 곳에서만 관리한다.**
 [이전 레일](DEV-TOKEN-ROADMAP-ARCHIVE-2026-09-20.md)은 완료 증거·계약 보관본이다.
 
-## 현재 위치 — R5 통과 → R6 구현·독립 검토 통과·새 head CI 대기
+## 현재 위치 — R6 검토·CI·병합 완료 → R7 로컬 호스트·전환 준비
 
 **2026-10-22 U2 운영 확인 완료:** PR #25 검토 head `580a7fa` CI와 main merge `7c6386e` CI 모두 성공, Pages built·공개 5파일 SHA 일치. 독립 Codex 검토·저장20/RED7·UI15/RED9 완료. 로그인 Chrome에서 자체 검증 4문항을 3+1의 새 두 권으로 만들고 양쪽 계정 ACK·새로고침/작업 재진입·고정 ID·국어/지문 묶음·기존 원본 JSON 바이트 불변을 확인했다. 라이브러리 26→28권은 테스트 결과 두 권 추가다. **이후 2026-10-23 사용자 승인으로 새 독립 Codex가 R5 종합 판정 통과·R6 진입 가능으로 판정**([HANDOFF-197](../reviews/handoffs/2026-10/2026-10-22-index-u2-composition.md)). 사용자는 이번 작업 구현·검토·검증·병합·배포를 계속하도록 승인했다. 실제 유료 AI/D3/C1~C3·Safari/iPad·D1 연동·사용자 과제 관찰은 별도 게이트다.
 
-**R6 구현은 HANDOFF-198에 ready-for-review로 기록했다.** Gitleaks 경계 13종이 독립 재검증됐고 REV-148을 해결했다. 5개 GitHub Actions를 Node24 지원 SHA로 갱신했으며 static, review hygiene, YAML, diff 검사를 통과했다. npm audit에는 dev/emulator 도구 트리 8 high·4 moderate가 남아 자동 메이저 하향/비호환 override는 적용하지 않았다. CDN 하위 SRI 및 HCR 글꼴 권리 확인은 출시 체크리스트에 남겼다. REV-147은 과거 세션 IPC 토큰 로그 노출의 P2 잔여 이력으로 추적한다. 최종 독립 Codex 검토는 통과했다. 변경 head CI 성공 전 R6 완료나 R7 진입으로 표시하지 않는다.
+**R6 완료:** [HANDOFF-198](../reviews/handoffs/2026-10/2026-10-23-security-r6-verification-tools.md), PR #26 head `4221012`의 secrets/verify/check:fast·cross-platform·hwpx·Sonar 성공, main merge `ceec8a3`. scanner 13경계 독립 확인·REV-148 해결·Actions 5종 Node24 SHA/도구 pin 완료. 중복 Dependabot 7개는 닫았고 #17/#19/#21은 별도 검증 대상으로 남겼다. npm audit dev/emulator 8 high·4 moderate와 REV-147(P2), CDN 하위 SRI·글꼴 권리 공백은 보존한다. **현재 R7은 로컬 정적 호스트·헤더/404/manifest 및 전환 준비만 진행한다.** 실제 새 domain/site key·App Check 정상/거절·구 origin 자료 이관 검증·Pages/private 전환은 미완료다. 일반 JSON에는 원문 Blob/진행 작업/충돌 기록이 포함되지 않으므로 주소 이전을 완료로 표시하지 않는다.
 
 **2026-10-22 일시 중단:** 사용자 직접 승인 후 PR #24가 `20881c2`로 병합·Pages built이며 공개 index가 검토 SHA `d61e3c10…`와 일치한다. 운영 보류 3권/ACK·PDF 확인은 아직 남아 REV-137/138/139를 닫지 않았다. U2 저장 엔진은 Codex 구현·독립 Codex 검토·정상19/RED7·B6 전체 회귀를 완료했고 `codex/u2-composition`에 커밋 보존한다. U2 화면은 미구현/PR 없음. 사용자 요청으로 잠시 중단, 재개는 [HANDOFF-197](../reviews/handoffs/2026-10/2026-10-22-index-u2-composition.md)의 현재 상태·다음 행동을 따른다. 아래 이전 시점 기록보다 이 상태가 최신이다.
 
@@ -286,8 +286,8 @@ R7의 실제 환경 전환 대기 중에는 R8의 로컬 검증을 진행할 수
 | R4.5 · 두 묶음 승인 완료 | **Claude Sonnet 5 구현 → Codex Sol medium 검토(완료 기록)** | 선지 넘침 사다리와 `⋮`·`…` 단독행 가운데 정렬을 구현·독립 검토했다. HANDOFF-163·164 증거를 재사용하고 동일 diff를 다시 검토하지 않는다. |
 | 제품 UX 레일 통합 · 문서 완료 | **Astra high** | 요구 매핑·순서·담당·완료 기준을 기록. 기능 구현·사용자 결정·독립 승인은 미완료 |
 | R5 · 통과(2026-10-23 사용자 승인 대체) | **비구현자** — 이번 종합 판정은 새 독립 Codex(`/root/r5_gate_review`), Claude 승인과 구분 | 묶음별 독립 검토 증거를 합치는 종합 게이트. 승인된 B1/B2 등 동일 diff는 재심사하지 않고 미검토·수정 영향·AI 채택→충돌→편집/지면 연결만 확인. 미결 결함·배포 대기는 구분 기록하며 증거 없이 완료 처리하지 않음 |
-| R6 · 진행 중(R5 통과) | **GPT-6 Luna / medium**(로컬) | 기존 CI 결과 대조, 의존성/secret 검사 공백 및 필요한 도구 고정 처리. 규칙 검사는 유효한 증거가 없거나 변경됐을 때 실행. **Dependabot PR #1~#7(GitHub Actions 5 · Playwright · firebase dev 의존성)을 하위 항목으로 여기서 처리** — dev 의존성이라는 이유만으로 먼저 merge 하지 않는다. 클라우드 Claude 는 CI·PR 증거 수집만 보조하고, 공백 판정·의존성 변경 결정·도구 고정·완료 판정은 Luna 몫이다(넘기면 담당 교체) |
-| R7 · R1·R5·R6 후 | **GPT-6 Sol / medium** | 검증된 공개 산출물·새 호스트·App Check·origin 이전 준비와 승인된 staging 검증. 전환/롤백/정상·거절 증적 확보 |
+| R6 · 완료(PR26 검토·CI·병합) | **GPT-6 Luna / medium**(로컬) | 기존 CI 결과 대조, 의존성/secret 검사 공백 및 필요한 도구 고정 처리. 규칙 검사는 유효한 증거가 없거나 변경됐을 때 실행. **Dependabot PR #1~#7(GitHub Actions 5 · Playwright · firebase dev 의존성)을 하위 항목으로 여기서 처리** — dev 의존성이라는 이유만으로 먼저 merge 하지 않는다. 클라우드 Claude 는 CI·PR 증거 수집만 보조하고, 공백 판정·의존성 변경 결정·도구 고정·완료 판정은 Luna 몫이다(넘기면 담당 교체) |
+| R7 · 로컬 준비 진행(R1·R5·R6 통과) | **GPT-6 Sol / medium** | 검증된 공개 산출물·새 호스트·App Check·origin 이전 준비와 승인된 staging 검증. 전환/롤백/정상·거절 증적 확보 |
 | R8 · R5·R6 후, 운영 확인은 R7 후 | **GPT-6 Sol / medium**(로컬) | 아래 UX 과제와 핵심 사용자 여정·복구·출력·장애·관측 검증. AI 일괄 구성과 N제 전체 지면을 함께 확인하며 실제 Safari/iOS·한글 미확인은 별도 남김. 클라우드의 자동 여정 검사 실행은 보조이며 완료 판정을 대신하지 않는다 |
 | R9 · R2·R5 후, 공개는 R7·R8 후 | **Astra high 설계 → GPT-6 Sol / high 구현 → Claude Opus 5 독립 검토** | 상품·가격·PG·법무 결정을 반영해 결제/권한/해지·환불/지원/비용 차단 구현·검증 |
 | R10 · 필수 단계 충족 후 | **GPT-6 Sol / high, 독립 검토자** | release 커밋·동일 산출물·CI·운영 증거·복구·결제·최신 Sonar/출시 게이트를 대조해 준비 가능/불가 판정 |

@@ -24,7 +24,7 @@
 [계약](../docs/PRODUCT-UX-U0-CONTRACT.md) · [과제·결정표](../docs/PRODUCT-UX-U0-SCENARIOS.md) ·
 [시안](../docs/mockups/u0-flow.html). 계약 주장 5건을 코드로 확인했고 `REV-2026-108`을 재현했다.
 **D1 사용자 결정: 문항을 다른 권에 넣을 때 독립 사본/수정 연동을 선택 가능하게 한다.**
-**현재: PR #24/25 독립 검토·CI·병합/Pages·로그인 운영 확인 완료. U2 두 권 구성/ACK·재진입·고정 ID·원본 바이트 보존 확인(HANDOFF-197). R5 새 독립 Codex 종합 판정 통과(사용자 승인 대체). R6 구현·HANDOFF-198 최종 독립 검토 통과; audit 잔여·REV-147 보존·최신 head CI 대기.**
+**현재: PR #24/25 독립 검토·CI·병합/Pages·로그인 운영 확인 완료. U2 두 권 구성/ACK·재진입·고정 ID·원본 바이트 보존 확인(HANDOFF-197). R5 새 독립 Codex 종합 판정 통과(사용자 승인 대체). R6/HANDOFF-198 독립 검토·CI·PR26 병합 완료; audit 잔여·REV-147 보존. 다음 R7 로컬 호스트·전환 준비.**
 U1.5 main `877a8e7`·파일 225개 일치. 실제 Safari/iPad·원본 패널·D3/C1~C3·D1 연동 대기. 운영 보류 0건·기존26권/사본8개 보존·U2 테스트2권 추가 후28권, 원래 JSON/계정 사본 보존.
 순서·게이트는 [통합 레일](../docs/DEV-TOKEN-ROADMAP.md), 지시문은 [RAIL-ORDERS](../docs/RAIL-ORDERS.md).
 **B3 운영 장애 `REV-2026-109` 해결**(운영 `e50636c` → 문구 정정 `6679676`, 편집·삭제·진짜 충돌 운영 검증).
