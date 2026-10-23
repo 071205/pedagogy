@@ -27,7 +27,11 @@ let server;
 let lifecycle;
 let browser;
 const results = [];
-const redControl = process.env.R8_RED === 'drop-result-local';
+const redMode = process.env.R8_RED || '';
+const redControl = redMode === 'drop-result-local';
+const editPrint = process.env.R8_EDIT_PRINT === '1';
+if (redMode && !['drop-result-local', 'drop-edit', 'blank-print'].includes(redMode)) throw Error('Unknown R8_RED');
+if (['drop-edit', 'blank-print'].includes(redMode) && !editPrint) throw Error('R8_EDIT_PRINT=1 required');
 const settled = page => page.waitForFunction(() => !document.querySelector('.cmp-content')?.disabled);
 const canonical = items => items.map(({ payload }) => payload)
   .sort((a, b) => a.title.localeCompare(b.title, 'ko'));
@@ -57,12 +61,12 @@ async function inventory(page) {
   });
 }
 
-function assertInventory(actual, original, label) {
+function assertInventory(actual, original, label, expectedResults = original.original) {
   assert.equal(actual.original.length, 8, `${label}: original count`);
   assert.equal(actual.results.length, 8, `${label}: result count`);
   assert.deepEqual(canonical(actual.original), canonical(original.original),
     `${label}: original body payload`);
-  assert.deepEqual(canonical(actual.results), canonical(original.original),
+  assert.deepEqual(canonical(actual.results), canonical(expectedResults),
     `${label}: result body payload`);
   const resultIds = actual.results.map(item => item.id);
   assert.equal(new Set(resultIds).size, 8, `${label}: unique result IDs`);
@@ -105,6 +109,79 @@ async function seed(page) {
   });
 }
 
+// This optional extension preserves the original journey's offline boundary.
+// It exercises the UI print preparation and Chromium PDF output, not an OS dialog.
+async function editAndPrint(page, viewport, result, mark) {
+  const before = await page.evaluate(() => ({ setId: currentSetId, questionId: currentQId,
+    question: JSON.parse(JSON.stringify(activeProblems().find(q => q.id === currentQId))) }));
+  assert.ok(before.question, 'an adopted question must be selected');
+  const body = ['R8-EDIT-BEGIN', ...Array.from({ length: 12 }, (_, i) =>
+    `편집한 긴 본문 ${i + 1}: 두 정수의 합과 차를 구하고 풀이 과정을 쓰시오.`), 'R8-EDIT-END'].join('\n');
+  if (!await page.getByLabel('문항 제목', { exact: true }).isVisible()) await page.locator('#metaHead').click();
+  await page.getByLabel('문항 제목', { exact: true }).fill('R8-EDIT-TITLE');
+  await page.getByLabel('문항 정답', { exact: true }).fill('R8-EDIT-ANSWER');
+  await page.getByLabel('문제 본문', { exact: true }).fill(body);
+  await page.waitForFunction(({ setId, questionId, body }) => {
+    const saved = JSON.parse(localStorage.getItem('PM_SETS_V7:guest') || '[]');
+    const q = saved.find(s => s.id === setId)?.problems.find(q => q.id === questionId);
+    return q?.title === 'R8-EDIT-TITLE' && q.answer === 'R8-EDIT-ANSWER' && q.blocks[0]?.data?.text === body;
+  }, { ...before, body });
+  const after = await page.evaluate(() => JSON.parse(JSON.stringify(activeProblems().find(q => q.id === currentQId))));
+  assert.equal(after.id, before.questionId, 'editing retains adopted question ID');
+  const sheetButton = viewport.width < 1024 ? '.pane-tab[data-pane="sheet"]' : '#viewSeg button[data-view="sheet"]';
+  await page.locator(sheetButton).click();
+  await page.waitForFunction(() => document.querySelector('#sheetState')?.dataset.s === 'ok' && !sheetBusy);
+  assert.match(await page.locator('#sheetStage').innerText(), /R8-EDIT-END/);
+  await page.locator('#sheetEditBtn').click();
+  await page.evaluate(() => { window.__r8PrintCalls = 0; window.print = () => { window.__r8PrintCalls++; }; });
+  const dialogs = [];
+  const acceptFallback = async dialog => { dialogs.push(dialog.message()); await dialog.accept(); };
+  page.on('dialog', acceptFallback);
+  try {
+    await page.locator('#printBtn').click();
+    await page.locator('#exportWithAns').click();
+    await page.waitForFunction(() => window.__r8PrintCalls === 1 && !printing);
+  } finally { page.off('dialog', acceptFallback); }
+  assert.equal(dialogs.length, 1, 'offline missing KaTeX explicitly asks for fallback printing');
+  assert.match(dialogs[0], /KaTeX/);
+  const appPages = await page.locator('#printDoc .page').count();
+  assert.ok(appPages > 0);
+  if (redMode === 'blank-print') {
+    await page.locator('#printDoc .content').evaluateAll(nodes => nodes.forEach(node => node.textContent = ''));
+    result.mutation = { kind: redMode, scope: 'isolated print DOM only' };
+  }
+  const pdfPath = join(out, `edit-print-${viewport.width}${redMode ? '-' + redMode : ''}.pdf`);
+  const pdf = await page.pdf({ path: pdfPath, preferCSSPageSize: true, printBackground: true });
+  const textPages = await page.evaluate(async data => {
+    const pdfjs = await import('/vendor/pdfjs/pdf.mjs');
+    pdfjs.GlobalWorkerOptions.workerSrc = '/vendor/pdfjs/pdf.worker.mjs';
+    const task = pdfjs.getDocument({ data: new Uint8Array(data), isEvalSupported: false });
+    try {
+      const doc = await task.promise, pages = [];
+      for (let i = 1; i <= doc.numPages; i++) pages.push((await (await doc.getPage(i)).getTextContent()).items.map(x => x.str || '').join(''));
+      return pages;
+    } finally { await task.destroy(); }
+  }, Array.from(pdf));
+  assert.equal(textPages.length, appPages, 'PDF page count matches prepared app pages');
+  const text = textPages.join('');
+  for (const marker of ['R8-EDIT-BEGIN', 'R8-EDIT-END', 'R8-EDIT-ANSWER'])
+    assert.ok(text.includes(marker), `PDF retains edited payload: ${marker}`);
+  assert.ok(!text.replace(/\s/g, '').includes('본문으로건너뛰기'), 'PDF excludes screen navigation');
+  mark('UI edits → local persistence → sheet → prepared print → Chromium PDF', {
+    editedQuestionIdRetained: true, bodyLines: 14, pdfPages: textPages.length,
+    offlineFontFallbackAccepted: true, systemPrintDialogTested: false, pdfFile: pdfPath.split('/').pop() });
+  if (redMode === 'drop-edit') {
+    result.mutation = await page.evaluate(({ setId, questionId, question }) => {
+      const key = 'PM_SETS_V7:guest', saved = JSON.parse(localStorage.getItem(key));
+      const target = saved.find(s => s.id === setId);
+      target.problems[target.problems.findIndex(q => q.id === questionId)] = question;
+      localStorage.setItem(key, JSON.stringify(saved));
+      return { kind: 'drop-edit', scope: 'isolated guest persisted edited question only' };
+    }, before);
+  }
+  return { before: before.question, after };
+}
+
 async function runOne(viewport) {
   const context = await browser.newContext({ viewport, hasTouch: viewport.width < 1194,
     locale: 'ko-KR' });
@@ -123,6 +200,7 @@ async function runOne(viewport) {
     await page.waitForFunction(() => typeof compositionUI === 'object');
     await seed(page);
     const original = await inventory(page);
+    let expectedResults = original.original;
     assert.equal(original.original.length, 8);
     assert.equal(original.results.length, 0);
     step = 'start from library';
@@ -235,6 +313,13 @@ async function runOne(viewport) {
     assert.equal(await page.evaluate(() => editorMode), 'edit');
     mark('result editor ↔ sheet ↔ editor', { pages: sheet.pages, sameSet: true });
 
+    if (editPrint) {
+      step = 'edit persistence and PDF output';
+      const edit = await editAndPrint(page, viewport, result, mark);
+      expectedResults = adoptedInventory.results.map(item => item.id === edit.after.id
+        ? { id: item.id, payload: { title: edit.after.title, answer: edit.after.answer, desc: edit.after.desc || '', blocks: edit.after.blocks } } : item);
+    }
+
     step = 'reload and resume';
     if (redControl) {
       result.mutation = await page.evaluate(() => {
@@ -257,7 +342,7 @@ async function runOne(viewport) {
       originalCount: sets.find(x => x.id === 'r8-original')?.problems.length }));
     assert.deepEqual(after.ids, state.ids, 'reload must retain generated result set IDs');
     assert.equal(after.originalCount, 8);
-    assertInventory(await inventory(page), original, 'after reload');
+    assertInventory(await inventory(page), original, 'after reload', expectedResults);
     await page.getByRole('button', { name: '문제집 라이브러리로 이동' }).click();
     await page.getByRole('button', { name: '+ 새 문제집', exact: true }).click();
     await settled(page);
@@ -290,10 +375,10 @@ try {
   lifecycle = observeStaticChild(server);
   await waitForOwnedServer();
   browser = await chromium.launch({ headless: true });
-  const viewports = redControl ? [{ width: 1194, height: 834 }]
+  const viewports = redMode ? [{ width: 1194, height: 834 }]
     : [{ width: 1194, height: 834 }, { width: 768, height: 1024 }, { width: 375, height: 812 }];
   for (const viewport of viewports) await runOne(viewport);
-  await writeFile(`${out}/connected-journey${redControl ? '-red' : ''}.json`,
+  await writeFile(`${out}/connected-journey${editPrint ? '-edit-print' : ''}${redMode ? '-' + redMode : ''}.json`,
     JSON.stringify(results, null, 2));
   for (const result of results) console.log(JSON.stringify({ viewport: result.viewport,
     complete: result.complete, failedStep: result.failedStep, error: result.error,

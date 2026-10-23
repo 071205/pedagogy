@@ -7,7 +7,7 @@
 - 영향 영역: `worker | tests | docs`
 - 관련 이슈: 없음
 
-## 현재 상태 — 로컬 준비 독립 검토·PR27 CI 통과, 미병합·세션 인계
+## 현재 상태 — PR27 병합·Pages 확인, main CI/분리 staging 접근 확인 중
 
 - 사용자가 재개를 요청했고, 이전 구현에 참여하지 않은 독립 Codex가 REV-149/150을 재현했다. 같은 이슈에 수정·정상/RED·독립 재검증을 기록해 둘 다 resolved다.
 - 최종 CLI timeout 경계까지 독립 재검증을 통과했다. 정상 exit0·비동기 ENOENT·SIGINT와 timeout의 실제 소유 child가 종료되고 clean이 1회 수행됐다. 검토 범위 안의 미합의/추가 재현 결함은 없다.
@@ -155,3 +155,50 @@ finally cleanup으로 수정했다. `test-rev149-150-final.log`와 실제
 4. R7 외부 접근 대기 중 R8의 남은 로컬 실패/복구·출력·성능 검증은 GPT-6 Sol / medium으로 진행 가능하다. R7 운영 완료·D3/C1~C3 조건 충족 전 유료 일괄 AI 활성화나 R8 운영 완료로 표시하지 않는다. R9 공개·R10 출시는 뒤 게이트를 따른다.
 
 인계 마감 검증: 최종 저장소 위치에서 `R8_REPO_ROOT` 없이 정상 명령을 실행해 세 화면 모두 complete=true/exit0, 임시 브라우저 close·소유 serve.py SIGTERM 종료를 확인했다(`/private/tmp/r8-2026-10-23/handoff-location.log`). `check:review-hygiene`는 이슈138/열림4·INDEX116/120·최근5/5·자기검사6/6 통과, `git diff --check` 통과다. 인계 branch의 원격 CI는 별도로 실행/완료했다고 주장하지 않는다.
+
+
+## 2026-10-23 후속 재개 — PR27 병합·R8 편집/출력 추가 증거
+
+이 절이 위 새 채팅 체크포인트보다 최신이다. 실제 worktree/금지 파일 조건은 유지한다.
+
+- PR27 최신 head `44a93dd511ebaf27875acba1a65c6e6475edcf6c`, ready/open/CLEAN,
+  필수 네 job·Sonar 성공, 새 inline review 0건을 확인하고 사전 승인 범위에서 merge했다.
+  merge는 `506b33cd4e0a5c965d44d161391094b32c17460d`(2026-10-23 17:10 KST)다.
+- 정확한 merge의 [main Verify](https://github.com/071205/pedagogy/actions/runs/39922835078)는
+  현재 진행 중이다. secrets/hwpx 성공, verify/cross-platform은 아직 완료 증거가 없다.
+  [Pages 배포](https://github.com/071205/pedagogy/actions/runs/39922834612)는 성공했고
+  Pages API의 commit/status도 동일 merge/built다. 공개 index/document/mock 편집기,
+  service-config, intake의 5파일을 소스와 바이트·SHA 대조해 모두 일치했다.
+- 인계 branch `codex/r7-r8-session-handoff`에서 `origin/main`만 merge했다(`d3e399a`).
+  `f33fbf8`의 인계·R8 자료를 그대로 보존했으며 PR27 코드 중복 cherry-pick이나
+  기본 checkout 전환은 하지 않았다. 이 branch 자체 CI 완료라고 주장하지 않는다.
+- Firebase CLI에는 현재 1개 계정만 등록돼 있다. 그 계정의 staging Web 앱 목록도
+  403/PERMISSION_DENIED다. invalid_grant/재인증 요구/통신 실패 증거는 없다.
+  REV-093의 과거 기록은 staging이 다른 Google 계정에 있다고 설명하나, 현재 staging
+  IAM까지 확인한 결론은 아니다. 사용자 요청으로 `firebase login:add --interactive`의
+  브라우저를 열었으며 첫 인증은 기존 계정 갱신이었다. 두 번째 인증은 다른 staging
+  관리자 계정 선택을 기다린다. 기본 계정/프로젝트는 전환하지 않았다.
+- production Firebase 설정을 사용하는 별도 호스트를 격리 staging으로 표시하지 않는다.
+  현재 index/document의 Firebase config·AI URL 및 CSP는 production 값이다. 실제
+  staging config 접근과 이 연결의 분리 검증 전 새 정적 호스트를 배포하지 않았다.
+  App Check·구 origin 무손실 이관(high 저장 설계)·Pages/private 전환·롤백 운영 게이트는
+  그대로 미완료다. 도메인 구매 보류와 유료 AI gate도 유지한다.
+- 무료 경로는 Workers Static Assets + 기본 workers.dev 주소다. [공식 과금 안내](https://developers.cloudflare.com/workers/static-assets/billing-and-limitations/)의
+  정적 요청 무료 범위를 확인했다. AI Worker·Firebase·Storage 비용까지 무료라는 뜻은
+  아니며 새 요금제 가입/도메인 결제는 하지 않았다.
+
+### 새 R8 감사 확장 (앱 코드 변경 없음)
+
+- 기존 guest 구성 여정에 `R8_EDIT_PRINT=1`을 추가했다. 결과 한 문항을 UI에서
+  제목/정답/긴 본문 수정 → localStorage 값 일치 → 지면 끝 표식 → 인쇄 UI → 실제
+  Chromium PDF → 재로드로 이어간다. 원본 8문항 불변과 결과의 수정 payload를 분리한다.
+- 정상 세 화면 크기 exit0, `drop-edit`·`blank-print`는 각각 저장 편집 유실/PDF 본문
+  누락 단언에서 exit1이다. 기존 기본 모드도 변경 뒤 세 크기 exit0로 확인했다.
+- 비구현자 `/root/r8_edit_print_review`(GPT-6 Sol / medium)의 독립 판정:
+  **합의 — 오프라인 폰트 대체·Chromium PDF 범위에서 병합 가능. 미합의 — 없음.
+  근거 — 코드 diff·정상/RED JSON·실제 A4 1쪽 PDF의 본문 12행/정답/표식과 화면 링크
+  제외를 대조했고 재현 결함 없음. 다음 행동 — 기존 인계에 기록 후 좁은 변경 병합.**
+- [감사 README](../../audits/2026-10-23/README.md)에 한 명령 재현,
+  정상/RED JSON과 합성 PDF를 영구 보존했다. Poppler 렌더 표본에서도 잘림/겹침은 없다.
+  브라우저/소유 serve.py cleanup 성공이다. 운영 글꼴/수식·OS 인쇄창·종이/한글 앱·
+  로그인 ACK·실제 PDF 입력·AI·실기기·인간 관찰의 완료 증거는 아니다.

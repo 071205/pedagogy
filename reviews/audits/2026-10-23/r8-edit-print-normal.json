@@ -1,0 +1,194 @@
+[
+  {
+    "viewport": "1194×834",
+    "steps": [
+      {
+        "name": "library → saved local composition",
+        "aiCalls": 0
+      },
+      {
+        "name": "book proposal applied",
+        "requested": 5,
+        "destinations": 4
+      },
+      {
+        "name": "misclassification move → Undo",
+        "originalBucket": "문제집 1 · 2",
+        "movedBucket": "문제집 2 · 3",
+        "restoredPlanAndDestinationItems": true
+      },
+      {
+        "name": "source opened from question detail",
+        "source": "synthetic PNG page 1"
+      },
+      {
+        "name": "manual fifth destination and moved one item",
+        "destinations": 5
+      },
+      {
+        "name": "local guest results",
+        "rows": 5,
+        "statuses": [
+          "이 기기 저장됨 · 로그인 전 · 이 기기에만 저장",
+          "이 기기 저장됨 · 로그인 전 · 이 기기에만 저장",
+          "이 기기 저장됨 · 로그인 전 · 이 기기에만 저장",
+          "이 기기 저장됨 · 로그인 전 · 이 기기에만 저장",
+          "이 기기 저장됨 · 로그인 전 · 이 기기에만 저장"
+        ],
+        "setCount": 6,
+        "uniqueNewQuestionIds": 8,
+        "bodyPayloadsPreserved": 8
+      },
+      {
+        "name": "result editor ↔ sheet ↔ editor",
+        "pages": 1,
+        "sameSet": true
+      },
+      {
+        "name": "UI edits → local persistence → sheet → prepared print → Chromium PDF",
+        "editedQuestionIdRetained": true,
+        "bodyLines": 14,
+        "pdfPages": 1,
+        "offlineFontFallbackAccepted": true,
+        "systemPrintDialogTested": false,
+        "pdfFile": "edit-print-1194.pdf"
+      },
+      {
+        "name": "reload → preserved result IDs, payloads and composition",
+        "unchangedIds": true,
+        "preservedInventory": 8,
+        "results": 5
+      }
+    ],
+    "fixture": "guest existing set + one synthetic image source; no PDF extraction or AI call",
+    "complete": true
+  },
+  {
+    "viewport": "768×1024",
+    "steps": [
+      {
+        "name": "library → saved local composition",
+        "aiCalls": 0
+      },
+      {
+        "name": "book proposal applied",
+        "requested": 5,
+        "destinations": 4
+      },
+      {
+        "name": "misclassification move → Undo",
+        "originalBucket": "문제집 1 · 2",
+        "movedBucket": "문제집 2 · 3",
+        "restoredPlanAndDestinationItems": true
+      },
+      {
+        "name": "source opened from question detail",
+        "source": "synthetic PNG page 1"
+      },
+      {
+        "name": "manual fifth destination and moved one item",
+        "destinations": 5
+      },
+      {
+        "name": "local guest results",
+        "rows": 5,
+        "statuses": [
+          "이 기기 저장됨 · 로그인 전 · 이 기기에만 저장",
+          "이 기기 저장됨 · 로그인 전 · 이 기기에만 저장",
+          "이 기기 저장됨 · 로그인 전 · 이 기기에만 저장",
+          "이 기기 저장됨 · 로그인 전 · 이 기기에만 저장",
+          "이 기기 저장됨 · 로그인 전 · 이 기기에만 저장"
+        ],
+        "setCount": 6,
+        "uniqueNewQuestionIds": 8,
+        "bodyPayloadsPreserved": 8
+      },
+      {
+        "name": "result editor ↔ sheet ↔ editor",
+        "pages": 1,
+        "sameSet": true
+      },
+      {
+        "name": "UI edits → local persistence → sheet → prepared print → Chromium PDF",
+        "editedQuestionIdRetained": true,
+        "bodyLines": 14,
+        "pdfPages": 1,
+        "offlineFontFallbackAccepted": true,
+        "systemPrintDialogTested": false,
+        "pdfFile": "edit-print-768.pdf"
+      },
+      {
+        "name": "reload → preserved result IDs, payloads and composition",
+        "unchangedIds": true,
+        "preservedInventory": 8,
+        "results": 5
+      }
+    ],
+    "fixture": "guest existing set + one synthetic image source; no PDF extraction or AI call",
+    "complete": true
+  },
+  {
+    "viewport": "375×812",
+    "steps": [
+      {
+        "name": "library → saved local composition",
+        "aiCalls": 0
+      },
+      {
+        "name": "book proposal applied",
+        "requested": 5,
+        "destinations": 4
+      },
+      {
+        "name": "misclassification move → Undo",
+        "originalBucket": "문제집 1 · 2",
+        "movedBucket": "문제집 2 · 3",
+        "restoredPlanAndDestinationItems": true
+      },
+      {
+        "name": "source opened from question detail",
+        "source": "synthetic PNG page 1"
+      },
+      {
+        "name": "manual fifth destination and moved one item",
+        "destinations": 5
+      },
+      {
+        "name": "local guest results",
+        "rows": 5,
+        "statuses": [
+          "이 기기 저장됨 · 로그인 전 · 이 기기에만 저장",
+          "이 기기 저장됨 · 로그인 전 · 이 기기에만 저장",
+          "이 기기 저장됨 · 로그인 전 · 이 기기에만 저장",
+          "이 기기 저장됨 · 로그인 전 · 이 기기에만 저장",
+          "이 기기 저장됨 · 로그인 전 · 이 기기에만 저장"
+        ],
+        "setCount": 6,
+        "uniqueNewQuestionIds": 8,
+        "bodyPayloadsPreserved": 8
+      },
+      {
+        "name": "result editor ↔ sheet ↔ editor",
+        "pages": 1,
+        "sameSet": true
+      },
+      {
+        "name": "UI edits → local persistence → sheet → prepared print → Chromium PDF",
+        "editedQuestionIdRetained": true,
+        "bodyLines": 14,
+        "pdfPages": 1,
+        "offlineFontFallbackAccepted": true,
+        "systemPrintDialogTested": false,
+        "pdfFile": "edit-print-375.pdf"
+      },
+      {
+        "name": "reload → preserved result IDs, payloads and composition",
+        "unchangedIds": true,
+        "preservedInventory": 8,
+        "results": 5
+      }
+    ],
+    "fixture": "guest existing set + one synthetic image source; no PDF extraction or AI call",
+    "complete": true
+  }
+]

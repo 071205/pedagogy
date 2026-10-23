@@ -42,3 +42,46 @@ RED 로그는 `/private/tmp/r8-2026-10-23/portable/red.log`, 결과 JSON은
 소유 127.0.0.1 `serve.py`, 임시 Playwright context만 사용하고 외부 요청을 차단한다.
 
 세션 인계 마감 때 영구 경로에서 `R8_REPO_ROOT` 없이 정상 명령을 다시 실행해 세 화면 complete=true·exit0 및 브라우저/소유 서버 정리를 확인했다. 인계 로그: `/private/tmp/r8-2026-10-23/handoff-location.log`. 원래 정상/RED JSON은 같은 폴더의 `r8-connected-journey-normal.json`, `r8-connected-journey-red.json`에 보존한다.
+
+
+## R8 추가 로컬 검증 — 편집 저장·Chromium PDF (2026-10-23)
+
+기존 기본 명령/기존 정상·RED 자료는 유지한다. `R8_EDIT_PRINT=1`을 지정하면 같은
+5권 구성 여정 뒤 결과 한 문항의 제목·정답·14줄 본문을 실제 UI로 수정한다.
+이 기기 저장의 값 일치를 기다린 뒤 지면에 끝 표식이 반영되는지, 인쇄 UI의
+정답 포함 경로가 준비를 마치는지 확인한다. `window.print()`만 계측 대역으로 바꾸고
+Chromium의 실제 `page.pdf()`를 생성한다. PDF.js로 앱/출력 쪽수 일치,
+본문 시작/끝·정답 표식 보존과 화면 링크 제외를 확인한다. 재로드 뒤 원본 8문항
+불변·수정된 결과 payload·다섯 결과 권 ID 보존을 함께 확인한다.
+
+```sh
+R8_EDIT_PRINT=1 node reviews/audits/2026-10-23/r8-connected-journey.mjs
+```
+
+새 단언의 실패 주입(둘 다 예상 exit 1):
+
+```sh
+R8_EDIT_PRINT=1 R8_RED=drop-edit node reviews/audits/2026-10-23/r8-connected-journey.mjs
+R8_EDIT_PRINT=1 R8_RED=blank-print node reviews/audits/2026-10-23/r8-connected-journey.mjs
+```
+
+`drop-edit`는 격리 guest의 저장된 편집 문항만 수정 전 값으로 돌린다. 재로드의
+`after reload: result body payload` 단언에서 실패했다. `blank-print`는 인쇄 DOM의
+본문만 비워 `PDF retains edited payload: R8-EDIT-BEGIN` 단언에서 실패했다.
+실제 서비스 저장 장애나 출력 장애를 재현했다는 의미는 아니다.
+
+영구 증거: [정상 JSON](r8-edit-print-normal.json), [편집 유실 RED](r8-edit-print-red-edit.json),
+[빈 본문 RED](r8-edit-print-red-print.json), [합성 출력 표본](r8-edit-print-sample.pdf).
+정상 1194×834·768×1024·375×812는 모두 complete=true/exit0이며 각 PDF는 A4 1쪽이다.
+표본을 Poppler로 렌더해 12개 긴 본문 행·끝 표식·정답의 잘림/겹침이 없음을 확인했다.
+두 RED는 각각 지정 단언에서 complete=false/exit1이고 소유 브라우저/서버는 정리됐다.
+새 독립 Codex(`/root/r8_edit_print_review`, GPT-6 Sol / medium)가 실제 코드 diff,
+정상/RED JSON, 표본 PDF의 text/page metadata를 대조해 이 좁은 범위에 추가 재현
+결함 없음·병합 가능으로 판정했다. 구현자의 자기검증과 구분한다.
+
+**범위:** 외부 요청을 전부 차단한 합성 guest 검사다. KaTeX 부재 확인창에서 명시적으로
+계속을 선택하며 본문은 수식 없는 텍스트다. 따라서 오프라인 폰트 대체·Chromium PDF
+결과이고 정상 CDN 글꼴/수식 출력, 실제 시스템 인쇄 대화상자·종이·한글 앱, 실계정 ACK,
+실제 PDF 입력 추출, 유료 AI, 실기기 Safari/iPad와 인간 사용자 관찰을 증명하지 않는다.
+R8 전체 운영 완료가 아니다. 임시 로그는 `/private/tmp/r8-edit-print-*.log`,
+전체 세 크기 PDF는 `/private/tmp/r8-edit-print-2026-10-23/normal/`에 있다.
