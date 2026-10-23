@@ -30,8 +30,11 @@ const results = [];
 const redMode = process.env.R8_RED || '';
 const redControl = redMode === 'drop-result-local';
 const editPrint = process.env.R8_EDIT_PRINT === '1';
-if (redMode && !['drop-result-local', 'drop-edit', 'blank-print'].includes(redMode)) throw Error('Unknown R8_RED');
+const sourcePdf = process.env.R8_SOURCE_PDF === '1';
+const pdfSource = sourcePdf ? await import('./r8-pdf-source.mjs') : null;
+if (redMode && !['drop-result-local', 'drop-edit', 'blank-print', 'drop-pdf-source', 'blank-pdf-canvas', 'drop-prior-ref'].includes(redMode)) throw Error('Unknown R8_RED');
 if (['drop-edit', 'blank-print'].includes(redMode) && !editPrint) throw Error('R8_EDIT_PRINT=1 required');
+if (['drop-pdf-source', 'blank-pdf-canvas', 'drop-prior-ref'].includes(redMode) && !sourcePdf) throw Error('R8_SOURCE_PDF=1 required');
 const settled = page => page.waitForFunction(() => !document.querySelector('.cmp-content')?.disabled);
 const canonical = items => items.map(({ payload }) => payload)
   .sort((a, b) => a.title.localeCompare(b.title, 'ko'));
@@ -185,8 +188,10 @@ async function editAndPrint(page, viewport, result, mark) {
 async function runOne(viewport) {
   const context = await browser.newContext({ viewport, hasTouch: viewport.width < 1194,
     locale: 'ko-KR' });
-  await context.route('**/*', route => {
+  await context.route('**/*', async route => {
     const url = new URL(route.request().url());
+    if (url.origin === base && url.pathname === '/index.html' && redMode === 'drop-prior-ref')
+      return route.fulfill({ contentType: 'text/html; charset=utf-8', body: await pdfSource.dropPriorRefsHtml(root) });
     return url.origin === base ? route.continue() : route.abort();
   });
   const page = await context.newPage();
@@ -201,6 +206,7 @@ async function runOne(viewport) {
     await seed(page);
     const original = await inventory(page);
     let expectedResults = original.original;
+    let pdfProof;
     assert.equal(original.original.length, 8);
     assert.equal(original.results.length, 0);
     step = 'start from library';
@@ -320,6 +326,13 @@ async function runOne(viewport) {
         ? { id: item.id, payload: { title: edit.after.title, answer: edit.after.answer, desc: edit.after.desc || '', blocks: edit.after.blocks } } : item);
     }
 
+    if (sourcePdf) {
+      step = 'actual PDF source connection';
+      if (redMode === 'drop-prior-ref') result.mutation = { kind: redMode, scope: 'isolated served HTML assignSourcePage drops other source refs; CSP rehashed' };
+      pdfProof = await pdfSource.connectPdfSource({ page, viewport, out, mark, result, redMode });
+      if (redMode === 'drop-pdf-source') result.mutation = await pdfSource.dropPdfBlob(page, pdfProof);
+    }
+
     step = 'reload and resume';
     if (redControl) {
       result.mutation = await page.evaluate(() => {
@@ -354,6 +367,10 @@ async function runOne(viewport) {
     assert.equal(await page.locator('.cmp-result').count(), bookCount);
     mark('reload → preserved result IDs, payloads and composition',
       { unchangedIds: true, preservedInventory: 8, results: bookCount });
+    if (sourcePdf) {
+      step = 'PDF source reload and reopen';
+      await pdfSource.verifyPdfSourceReload({ page, viewport, proof: pdfProof, mark });
+    }
     result.complete = true;
   } catch (error) {
     result.complete = false;
@@ -378,7 +395,7 @@ try {
   const viewports = redMode ? [{ width: 1194, height: 834 }]
     : [{ width: 1194, height: 834 }, { width: 768, height: 1024 }, { width: 375, height: 812 }];
   for (const viewport of viewports) await runOne(viewport);
-  await writeFile(`${out}/connected-journey${editPrint ? '-edit-print' : ''}${redMode ? '-' + redMode : ''}.json`,
+  await writeFile(`${out}/connected-journey${editPrint ? '-edit-print' : ''}${sourcePdf ? '-source-pdf' : ''}${redMode ? '-' + redMode : ''}.json`,
     JSON.stringify(results, null, 2));
   for (const result of results) console.log(JSON.stringify({ viewport: result.viewport,
     complete: result.complete, failedStep: result.failedStep, error: result.error,

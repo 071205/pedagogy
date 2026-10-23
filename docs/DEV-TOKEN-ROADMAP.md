@@ -5,19 +5,36 @@
 **실행 순서·현재 단계는 이 문서 한 곳에서만 관리한다.**
 [이전 레일](DEV-TOKEN-ROADMAP-ARCHIVE-2026-09-20.md)은 완료 증거·계약 보관본이다.
 
-## 현재 위치 — R7 로컬 준비 PR27 병합·main Verify/Pages 확인, 분리 staging 계정 인증 대기
+## 현재 위치 — R7 무료 게스트 호스트 준비, 분리 Firebase 접근/프로젝트 한도 대기
 
-**2026-10-22 U2 운영 확인 완료:** PR #25 검토 head `580a7fa` CI와 main merge `7c6386e` CI 모두 성공, Pages built·공개 5파일 SHA 일치. 독립 Codex 검토·저장20/RED7·UI15/RED9 완료. 로그인 Chrome에서 자체 검증 4문항을 3+1의 새 두 권으로 만들고 양쪽 계정 ACK·새로고침/작업 재진입·고정 ID·국어/지문 묶음·기존 원본 JSON 바이트 불변을 확인했다. 라이브러리 26→28권은 테스트 결과 두 권 추가다. **이후 2026-10-23 사용자 승인으로 새 독립 Codex가 R5 종합 판정 통과·R6 진입 가능으로 판정**([HANDOFF-197](../reviews/handoffs/2026-10/2026-10-22-index-u2-composition.md)). 사용자는 이번 작업 구현·검토·검증·병합·배포를 계속하도록 승인했다. 실제 유료 AI/D3/C1~C3·Safari/iPad·D1 연동·사용자 과제 관찰은 별도 게이트다.
+R1~R6와 U2는 기존 승인·운영 증거를 유지한다. R7 로컬 준비 PR27은 merge
+`506b33cd4e0a5c965d44d161391094b32c17460d`, main Verify `39922835078` 네 job 성공·
+Pages 및 핵심5파일 일치까지 확인했다. R8 편집 저장/오프라인 PDF PR28은 merge
+`a3d8a726c80b77675d2b141e38d1fdeef44f4326`, main Verify `39933138950` 네 job 성공·
+Pages built다. PR head Sonar 성공과 main의 기존 Security E/9월 finding4건 실패를 구별한다.
+인계 branch의 별도 CI 완료는 주장하지 않는다. [HANDOFF-199](../reviews/handoffs/2026-10/2026-10-23-security-r7-static-host-preparation.md).
 
-**R6 완료:** [HANDOFF-198](../reviews/handoffs/2026-10/2026-10-23-security-r6-verification-tools.md), PR #26 head `4221012`의 secrets/verify/check:fast·cross-platform·hwpx·Sonar 성공, main merge `ceec8a3`. scanner 13경계 독립 확인·REV-148 해결·Actions 5종 Node24 SHA/도구 pin 완료. 중복 Dependabot 7개는 닫았고 #17/#19/#21은 별도 검증 대상으로 남겼다. npm audit dev/emulator 8 high·4 moderate와 REV-147(P2), CDN 하위 SRI·글꼴 권리 공백은 보존한다. **현재 R7은 로컬 정적 호스트·헤더/404/manifest 및 전환 준비만 진행한다.** 실제 새 domain/site key·App Check 정상/거절·구 origin 자료 이관 검증·Pages/private 전환은 미완료다. 일반 JSON에는 원문 Blob/진행 작업/충돌 기록이 포함되지 않으므로 주소 이전을 완료로 표시하지 않는다.
+**최신 체크포인트:** [HANDOFF-200](../reviews/handoffs/2026-10/2026-10-23-tests-r8-pdf-source.md).
+R8 실제 2쪽 PDF의 수동 원문 입력·렌더·기존 참조/Blob 바이트·SHA·ID·재로드 재진입을
+추가 검증했다. source-only/편집·출력 결합/기본 대조 각각 세 화면 크기 정상, 세 실패 주입은
+목표 단언에서 실패했다. 독립 Codex가 찾은 검사 결함 REV151은 수정·재검증 후 resolved다.
+[감사 README](../reviews/audits/2026-10-23/README.md). PDF AI 추출·유료 AI·실계정 ACK·
+실제 시스템 인쇄/한글·Safari/iPad·인간 관찰은 포함하지 않아 R8 운영 완료가 아니다.
 
-**R7 로컬 준비 독립 검토 통과:** [HANDOFF-199](../reviews/handoffs/2026-10/2026-10-23-security-r7-static-host-preparation.md)의 별도 정적 Wrangler 설정·`_headers`·fresh manifest 시작 게이트와 로컬 HTTP/Chromium 정상·RED 검사를 구현했다. 새 호스트 생성·운영 도메인, Firebase/Worker App Check, 구 origin의 Blob/작업/충돌 자료 export-import와 Pages/private 전환은 실행하지 않았고 운영 증거도 없다. **재개 후 독립 검토가 REV149/150을 재현했고 수정·정상/RED·최종 재검증까지 통과했다. PR #27 head `44a93dd`의 Verify `39854078445` 네 job과 SonarCloud가 통과했다. 아직 미병합이며 실제 운영 R7은 미완료다. 이전 사용량 한도 실패는 이번 최종 독립 판정과 구분한다.**
+**외부 환경:** 사용자 로그인 갱신 뒤에도 CLI 계정은 하나이고 분리 `pedagogy-ai-staging`
+SDK 조회는 403이다. projects:list에 production만 보이며 원인은 미확정이다. 결제 연결
+없는 별도 `pedagogy-web-staging` 생성도 code8 프로젝트 quota 초과로 거절됐다.
+생성 완료·분리 staging 완료로 기록하거나 production 설정을 staging으로 사용하지 않는다.
+사용자는 부재 중 기존 승인 범위에서 계속 진행하고 인간 결정은 미결로 남기도록 지시했다.
+**도메인 구매 보류·무료 기본 주소/호스팅 우선**을 유지한다. AI/DB/Storage 전체 무료를 뜻하지 않는다.
 
-**2026-10-23 후속 재개:** PR27 동일 head/댓글/CI를 재확인해 merge `506b33c`로 병합했다. 정확한 merge의 Pages 배포 성공·공개 핵심5파일 바이트/SHA 일치, [main Verify](https://github.com/071205/pedagogy/actions/runs/39922835078)는 필수 네 job 모두 성공했다. cross-platform 최초 attempt는 apt 미러 다운로드 지연으로 설치 중 30분 취소됐고 그 job만 1회 재시도해 실제 세 엔진/CSP/auth/public 검사를 통과했다. main Sonar는 직전 main과 같은 Security E/기존 9월 finding 4건으로 실패 상태이며 PR27/28의 Sonar 성공과 구분한다. 인계 branch에는 main만 merge해 `f33fbf8` 문서/R8 자료를 보존했다. Firebase CLI 현재 계정 1개의 staging Web 앱 조회는 403/PERMISSION_DENIED이며, 사용자 요청으로 다른 staging 관리자 계정 브라우저 인증을 기다린다. production 설정을 staging으로 표시하거나 새 호스트에 배포하지 않았다. R8에는 UI 편집 저장·재로드/오프라인 폰트 대체 Chromium PDF 정상3화면·RED2·독립 Codex 통과 증거를 추가했다([감사 README](../reviews/audits/2026-10-23/README.md)). R7/R8 운영 전체 완료는 아니다. 무료 기본 호스팅 우선·도메인 구매 보류를 유지한다.
+별도 guest-preview 패키지의 명시 guest 부팅·backend/loopback 차단·이관 금지 배너·
+정상/RED·독립 검토 후 새 기본 주소만 배포하는 작업을 진행한다. 아직 새 호스트 배포 전이다.
+이는 정적 호스트 경계 검증이며 분리 Firebase/Auth/App Check 검증·R7 실제 운영 이전을
+대체하지 않는다. 구 origin 자료 이관은 [별도 설계안](R7-ORIGIN-MIGRATION-DESIGN.md)의
+high 구현·검토가 필요하다. 기존 일반 JSON만으로 Blob/작업/충돌을 무손실 이관할 수 없다.
+Pages/private 전환·App Check 정상/거절·자료 이관/롤백 증거는 미완료다.
 
-**PR28 후속:** R8 편집 저장/오프라인 PDF 감사는 독립 검토와 head `59361d6`의 필수4CI/Sonar 뒤 `a3d8a72`로 병합했다. 새 merge의 Pages API는 built이며 [main Verify](https://github.com/071205/pedagogy/actions/runs/39933138950)는 진행 중이다. 마지막 문서 체크포인트의 별도 CI 완료는 주장하지 않는다. 최신 재개 지점은 HANDOFF-199 마지막 체크포인트이며, 다른 staging 관리자 계정 브라우저 인증(CLI 현재1개)을 기다린다.
-
-**2026-10-23 새 채팅 인계:** HANDOFF-199 마지막 체크포인트가 최신이다. PR27 head를 유지하고 `codex/r7-r8-session-handoff`에 인계·[R8 guest 연결 감사](../reviews/audits/2026-10-23/README.md)를 보존한다. 세 화면 크기 정상/결과 제거 RED·독립 검토는 통과했으나 실제 PDF/AI·ACK·출력·실기기·인간 관찰을 포함하지 않아 R8 운영 완료가 아니다. **사용자 결정은 도메인 구매 보류·무료 기본 주소/호스팅 우선**이다. Cloudflare 인증은 확인했으나 새 호스트 미배포, 분리 staging public SDK 설정 읽기는 Firebase API 403 PERMISSION_DENIED로 막혔고 원인은 미확정이다. AI/DB/Storage 등 전체 무료를 뜻하지 않는다.
 
 **2026-10-22 일시 중단:** 사용자 직접 승인 후 PR #24가 `20881c2`로 병합·Pages built이며 공개 index가 검토 SHA `d61e3c10…`와 일치한다. 운영 보류 3권/ACK·PDF 확인은 아직 남아 REV-137/138/139를 닫지 않았다. U2 저장 엔진은 Codex 구현·독립 Codex 검토·정상19/RED7·B6 전체 회귀를 완료했고 `codex/u2-composition`에 커밋 보존한다. U2 화면은 미구현/PR 없음. 사용자 요청으로 잠시 중단, 재개는 [HANDOFF-197](../reviews/handoffs/2026-10/2026-10-22-index-u2-composition.md)의 현재 상태·다음 행동을 따른다. 아래 이전 시점 기록보다 이 상태가 최신이다.
 
@@ -295,7 +312,7 @@ R7의 실제 환경 전환 대기 중에는 R8의 로컬 검증을 진행할 수
 | 제품 UX 레일 통합 · 문서 완료 | **Astra high** | 요구 매핑·순서·담당·완료 기준을 기록. 기능 구현·사용자 결정·독립 승인은 미완료 |
 | R5 · 통과(2026-10-23 사용자 승인 대체) | **비구현자** — 이번 종합 판정은 새 독립 Codex(`/root/r5_gate_review`), Claude 승인과 구분 | 묶음별 독립 검토 증거를 합치는 종합 게이트. 승인된 B1/B2 등 동일 diff는 재심사하지 않고 미검토·수정 영향·AI 채택→충돌→편집/지면 연결만 확인. 미결 결함·배포 대기는 구분 기록하며 증거 없이 완료 처리하지 않음 |
 | R6 · 완료(PR26 검토·CI·병합) | **GPT-6 Luna / medium**(로컬) | 기존 CI 결과 대조, 의존성/secret 검사 공백 및 필요한 도구 고정 처리. 규칙 검사는 유효한 증거가 없거나 변경됐을 때 실행. **Dependabot PR #1~#7(GitHub Actions 5 · Playwright · firebase dev 의존성)을 하위 항목으로 여기서 처리** — dev 의존성이라는 이유만으로 먼저 merge 하지 않는다. 클라우드 Claude 는 CI·PR 증거 수집만 보조하고, 공백 판정·의존성 변경 결정·도구 고정·완료 판정은 Luna 몫이다(넘기면 담당 교체) |
-| R7 · 로컬 준비 PR27 병합·main Verify/Pages 확인, 분리 staging 접근 대기(R1·R5·R6 통과) | **GPT-6 Sol / medium** | HANDOFF-199의 정적 산출물/헤더·local Wrangler까지 구현·검사. 새 호스트·App Check·origin 이전·전환/롤백/정상·거절 운영 증적은 미완료 |
+| R7 · PR27 병합·main Verify/Pages 완료, 무료 guest 호스트 준비·분리 backend 대기(R1·R5·R6 통과) | **GPT-6 Sol / medium** | HANDOFF-199의 정적 산출물/헤더·local Wrangler까지 구현·검사. 새 호스트·App Check·origin 이전·전환/롤백/정상·거절 운영 증적은 미완료 |
 | R8 · R5·R6 후, 운영 확인은 R7 후 | **GPT-6 Sol / medium**(로컬) | 아래 UX 과제와 핵심 사용자 여정·복구·출력·장애·관측 검증. AI 일괄 구성과 N제 전체 지면을 함께 확인하며 실제 Safari/iOS·한글 미확인은 별도 남김. 클라우드의 자동 여정 검사 실행은 보조이며 완료 판정을 대신하지 않는다 |
 | R9 · R2·R5 후, 공개는 R7·R8 후 | **Astra high 설계 → GPT-6 Sol / high 구현 → Claude Opus 5 독립 검토** | 상품·가격·PG·법무 결정을 반영해 결제/권한/해지·환불/지원/비용 차단 구현·검증 |
 | R10 · 필수 단계 충족 후 | **GPT-6 Sol / high, 독립 검토자** | release 커밋·동일 산출물·CI·운영 증거·복구·결제·최신 Sonar/출시 게이트를 대조해 준비 가능/불가 판정 |

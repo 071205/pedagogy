@@ -85,3 +85,43 @@ R8_EDIT_PRINT=1 R8_RED=blank-print node reviews/audits/2026-10-23/r8-connected-j
 실제 PDF 입력 추출, 유료 AI, 실기기 Safari/iPad와 인간 사용자 관찰을 증명하지 않는다.
 R8 전체 운영 완료가 아니다. 임시 로그는 `/private/tmp/r8-edit-print-*.log`,
 전체 세 크기 PDF는 `/private/tmp/r8-edit-print-2026-10-23/normal/`에 있다.
+
+
+## R8 실제 PDF 원문 연결 — 수동 입력·렌더·재진입 (2026-10-23)
+
+```sh
+R8_SOURCE_PDF=1 node reviews/audits/2026-10-23/r8-connected-journey.mjs
+R8_EDIT_PRINT=1 R8_SOURCE_PDF=1 node reviews/audits/2026-10-23/r8-connected-journey.mjs
+```
+
+helper `r8-pdf-source.mjs`는 결정적인 실제 2쪽 PDF(652바이트)를 만든다. 기존 결과 문항에
+유효한 PNG 참조를 실제 UI로 먼저 연결한 뒤, filechooser·다른 탭 닫기 확인창·PDF.js
+1쪽 파랑/2쪽 빨강 canvas 픽셀·2쪽 지정·기존 원문 참조 보존을 검증한다. 재로드 후에는
+동일 source/question ID, Blob 바이트·SHA-256·참조를 대조하고 복수 원문 선택자로
+같은 PDF 2쪽을 다시 열어 실제 빨간 픽셀까지 확인한다. PDF는 helper에서 재현 가능하며
+Poppler의 2쪽 렌더로 파랑/빨강 입력을 별도로 확인했다.
+
+새 실패 주입은 모두 예상 exit1이다.
+
+```sh
+R8_SOURCE_PDF=1 R8_RED=drop-pdf-source node reviews/audits/2026-10-23/r8-connected-journey.mjs
+R8_SOURCE_PDF=1 R8_RED=blank-pdf-canvas node reviews/audits/2026-10-23/r8-connected-journey.mjs
+R8_SOURCE_PDF=1 R8_RED=drop-prior-ref node reviews/audits/2026-10-23/r8-connected-journey.mjs
+```
+
+각각 격리 guest Blob 제거, 쪽 문구를 남긴 canvas 픽셀 제거, 격리 제공 HTML의 앱
+assignSourcePage에서 다른 원문 참조 보존 제거다. 마지막 변이는 inline CSP를 재해시하며
+저장소 제품 HTML은 수정하지 않는다. 목표 단언은 Blob 보존/2쪽 실제 픽셀/기존 참조 보존이다.
+
+영구 증거는 `r8-source-pdf-normal.json`, `r8-source-pdf-combined.json`,
+`r8-source-pdf-default-control.json`, `r8-source-pdf-red-blob.json`,
+`r8-source-pdf-red-pixels.json`, `r8-source-pdf-red-prior.json`이다.
+세 정상 모드는 각각 1194×834·768×1024·375×812 complete=true/exit0, 세 RED는
+complete=false/exit1이며 소유 서버와 브라우저가 정리됐다. 독립 Codex가 기존 refs가
+비어 공허하게 통과하던 검사 결함 REV-151을 발견했고 실제 PNG 참조 준비·비어 있지
+않음 단언·앱 동작 변이 RED로 수정 후 재검증 합의했다. 같은 이슈 파일에서 resolved다.
+
+**범위:** 외부 요청 차단, 합성 guest와 합성 PDF의 수동 원문 연결이다. PDF AI 추출,
+실패 쪽/부분 채택, 유료 AI, 클라우드 ACK, 시스템 인쇄/한글 앱, Safari/iPad 또는 인간
+사용자 관찰을 증명하지 않는다. R8 운영 완료가 아니다. 임시 전체 로그는
+`/private/tmp/r8-source-pdf-verified-*.log`와 `r8-source-pdf-fixed-red-prior.log`에 있다.

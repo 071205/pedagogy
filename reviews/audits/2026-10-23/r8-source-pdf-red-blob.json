@@ -1,0 +1,77 @@
+[
+  {
+    "viewport": "1194×834",
+    "steps": [
+      {
+        "name": "library → saved local composition",
+        "aiCalls": 0
+      },
+      {
+        "name": "book proposal applied",
+        "requested": 5,
+        "destinations": 4
+      },
+      {
+        "name": "misclassification move → Undo",
+        "originalBucket": "문제집 1 · 2",
+        "movedBucket": "문제집 2 · 3",
+        "restoredPlanAndDestinationItems": true
+      },
+      {
+        "name": "source opened from question detail",
+        "source": "synthetic PNG page 1"
+      },
+      {
+        "name": "manual fifth destination and moved one item",
+        "destinations": 5
+      },
+      {
+        "name": "local guest results",
+        "rows": 5,
+        "statuses": [
+          "이 기기 저장됨 · 로그인 전 · 이 기기에만 저장",
+          "이 기기 저장됨 · 로그인 전 · 이 기기에만 저장",
+          "이 기기 저장됨 · 로그인 전 · 이 기기에만 저장",
+          "이 기기 저장됨 · 로그인 전 · 이 기기에만 저장",
+          "이 기기 저장됨 · 로그인 전 · 이 기기에만 저장"
+        ],
+        "setCount": 6,
+        "uniqueNewQuestionIds": 8,
+        "bodyPayloadsPreserved": 8
+      },
+      {
+        "name": "result editor ↔ sheet ↔ editor",
+        "pages": 1,
+        "sameSet": true
+      },
+      {
+        "name": "actual PDF chooser → tab confirmation → blue/red rendering → page 2 assignment",
+        "sourceId": "c688128f-2131-43b7-afea-834508e9422f",
+        "bytes": 652,
+        "sha256": "8353c281a55ebdee783cc23791e49cea3ed0ca0a06fee035b30d784b2c799a88",
+        "pdfPages": 2,
+        "assignedPages": [
+          2
+        ],
+        "priorRefCount": 1,
+        "priorRefsPreserved": true
+      },
+      {
+        "name": "reload → preserved result IDs, payloads and composition",
+        "unchangedIds": true,
+        "preservedInventory": 8,
+        "results": 5
+      }
+    ],
+    "fixture": "guest existing set + one synthetic image source; no PDF extraction or AI call",
+    "mutation": {
+      "kind": "drop-pdf-source",
+      "sourceId": "c688128f-2131-43b7-afea-834508e9422f",
+      "scope": "isolated guest IDB source Blob only"
+    },
+    "complete": false,
+    "failedStep": "PDF source reload and reopen",
+    "error": "PDF source Blob retained after reload",
+    "message": "이 브라우저에 저장한 작업을 열었어요"
+  }
+]

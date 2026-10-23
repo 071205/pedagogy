@@ -264,3 +264,14 @@ finally cleanup으로 수정했다. `test-rev149-150-final.log`와 실제
    high 저장 설계/독립 검토 게이트로 남긴다. 이관 전 Pages/private 전환은 진행하지 않는다.
 5. R8 실제 PDF 입력/부분 실패·ACK·정상 폰트/수식·실기기/인간 관찰은 별도 미검증이다.
    이번 편집 저장/오프라인 PDF 결과를 전체 운영 완료로 확대하지 않는다.
+
+
+## 후속 체크포인트 — HANDOFF200 (2026-10-23)
+
+PR28 main `a3d8a72`의 Verify `39933138950` 필수 네 job 성공·Pages built 확인.
+수동 실제 PDF 원문 연결 감사와 REV151 수정·독립 재검증은
+[HANDOFF200](2026-10-23-tests-r8-pdf-source.md)과 감사 README에 보존했다.
+로그인 갱신 후에도 분리 staging403이며 새 결제 미연결 프로젝트 생성은 code8 quota로
+거절됐다. production 설정으로 대체하지 않는다. 무료 guest-preview 정적 호스트 준비를
+계속하며 도메인 구매·실자료 이관·운영전환은 하지 않았다. 사용자는 부재 중 승인 범위에서
+자율 진행하고 질문은 미결로 남기도록 지시했다. 인계 branch 별도 CI 완료 주장은 없다.
