@@ -1,0 +1,69 @@
+[
+  {
+    "viewport": "1194×834",
+    "steps": [
+      {
+        "name": "library → saved local composition",
+        "aiCalls": 0
+      },
+      {
+        "name": "book proposal applied",
+        "requested": 5,
+        "destinations": 4
+      },
+      {
+        "name": "misclassification move → Undo",
+        "originalBucket": "문제집 1 · 2",
+        "movedBucket": "문제집 2 · 3",
+        "restoredPlanAndDestinationItems": true
+      },
+      {
+        "name": "source opened from question detail",
+        "source": "synthetic PNG page 1"
+      },
+      {
+        "name": "manual fifth destination and moved one item",
+        "destinations": 5
+      },
+      {
+        "name": "local guest results",
+        "rows": 5,
+        "statuses": [
+          "이 기기 저장됨 · 로그인 전 · 이 기기에만 저장",
+          "이 기기 저장됨 · 로그인 전 · 이 기기에만 저장",
+          "이 기기 저장됨 · 로그인 전 · 이 기기에만 저장",
+          "이 기기 저장됨 · 로그인 전 · 이 기기에만 저장",
+          "이 기기 저장됨 · 로그인 전 · 이 기기에만 저장"
+        ],
+        "setCount": 6,
+        "uniqueNewQuestionIds": 8,
+        "bodyPayloadsPreserved": 8
+      },
+      {
+        "name": "result editor ↔ sheet ↔ editor",
+        "pages": 1,
+        "sameSet": true
+      },
+      {
+        "name": "RED control removes persisted result sets",
+        "key": "PM_SETS_V7:guest",
+        "before": 6,
+        "after": 1,
+        "removedResultSets": 5,
+        "mechanism": "test-only isolated guest local storage and in-memory state mutation"
+      }
+    ],
+    "fixture": "guest existing set + one synthetic image source; no PDF extraction or AI call",
+    "mutation": {
+      "key": "PM_SETS_V7:guest",
+      "before": 6,
+      "after": 1,
+      "removedResultSets": 5,
+      "mechanism": "test-only isolated guest local storage and in-memory state mutation"
+    },
+    "complete": false,
+    "failedStep": "reload and resume",
+    "error": "reload must retain generated result set IDs\n+ actual - expected\n\n  [\n    'r8-original',\n-   'ece8985a-ab6e-4cca-9896-65ed0f941c86',\n-   '8d5ae3eb-efaf-4103-a484-85a98fea0fc4',\n-   '21a48487-93d2-4208-b872-8ef8c28f29ef',\n-   'c8221950-d8ba-44b4-9cd5-b75fb08a819f',\n-   '490f0ca8-f55e-457b-bfaa-20efa37a7b41'\n  ]\n",
+    "message": ""
+  }
+]

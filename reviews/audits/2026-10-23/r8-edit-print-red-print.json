@@ -1,0 +1,58 @@
+[
+  {
+    "viewport": "1194×834",
+    "steps": [
+      {
+        "name": "library → saved local composition",
+        "aiCalls": 0
+      },
+      {
+        "name": "book proposal applied",
+        "requested": 5,
+        "destinations": 4
+      },
+      {
+        "name": "misclassification move → Undo",
+        "originalBucket": "문제집 1 · 2",
+        "movedBucket": "문제집 2 · 3",
+        "restoredPlanAndDestinationItems": true
+      },
+      {
+        "name": "source opened from question detail",
+        "source": "synthetic PNG page 1"
+      },
+      {
+        "name": "manual fifth destination and moved one item",
+        "destinations": 5
+      },
+      {
+        "name": "local guest results",
+        "rows": 5,
+        "statuses": [
+          "이 기기 저장됨 · 로그인 전 · 이 기기에만 저장",
+          "이 기기 저장됨 · 로그인 전 · 이 기기에만 저장",
+          "이 기기 저장됨 · 로그인 전 · 이 기기에만 저장",
+          "이 기기 저장됨 · 로그인 전 · 이 기기에만 저장",
+          "이 기기 저장됨 · 로그인 전 · 이 기기에만 저장"
+        ],
+        "setCount": 6,
+        "uniqueNewQuestionIds": 8,
+        "bodyPayloadsPreserved": 8
+      },
+      {
+        "name": "result editor ↔ sheet ↔ editor",
+        "pages": 1,
+        "sameSet": true
+      }
+    ],
+    "fixture": "guest existing set + one synthetic image source; no PDF extraction or AI call",
+    "mutation": {
+      "kind": "blank-print",
+      "scope": "isolated print DOM only"
+    },
+    "complete": false,
+    "failedStep": "edit persistence and PDF output",
+    "error": "PDF retains edited payload: R8-EDIT-BEGIN",
+    "message": "처리 중…"
+  }
+]

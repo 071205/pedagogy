@@ -1,0 +1,67 @@
+[
+  {
+    "viewport": "1194×834",
+    "steps": [
+      {
+        "name": "library → saved local composition",
+        "aiCalls": 0
+      },
+      {
+        "name": "book proposal applied",
+        "requested": 5,
+        "destinations": 4
+      },
+      {
+        "name": "misclassification move → Undo",
+        "originalBucket": "문제집 1 · 2",
+        "movedBucket": "문제집 2 · 3",
+        "restoredPlanAndDestinationItems": true
+      },
+      {
+        "name": "source opened from question detail",
+        "source": "synthetic PNG page 1"
+      },
+      {
+        "name": "manual fifth destination and moved one item",
+        "destinations": 5
+      },
+      {
+        "name": "local guest results",
+        "rows": 5,
+        "statuses": [
+          "이 기기 저장됨 · 로그인 전 · 이 기기에만 저장",
+          "이 기기 저장됨 · 로그인 전 · 이 기기에만 저장",
+          "이 기기 저장됨 · 로그인 전 · 이 기기에만 저장",
+          "이 기기 저장됨 · 로그인 전 · 이 기기에만 저장",
+          "이 기기 저장됨 · 로그인 전 · 이 기기에만 저장"
+        ],
+        "setCount": 6,
+        "uniqueNewQuestionIds": 8,
+        "bodyPayloadsPreserved": 8
+      },
+      {
+        "name": "result editor ↔ sheet ↔ editor",
+        "pages": 1,
+        "sameSet": true
+      },
+      {
+        "name": "UI edits → local persistence → sheet → prepared print → Chromium PDF",
+        "editedQuestionIdRetained": true,
+        "bodyLines": 14,
+        "pdfPages": 1,
+        "offlineFontFallbackAccepted": true,
+        "systemPrintDialogTested": false,
+        "pdfFile": "edit-print-1194-drop-edit.pdf"
+      }
+    ],
+    "fixture": "guest existing set + one synthetic image source; no PDF extraction or AI call",
+    "mutation": {
+      "kind": "drop-edit",
+      "scope": "isolated guest persisted edited question only"
+    },
+    "complete": false,
+    "failedStep": "reload and resume",
+    "error": "after reload: result body payload\n+ actual - expected\n... Skipped lines\n\n  [\n    {\n      answer: '1',\n      blocks: [\n        {\n...\n    {\n+     answer: '2',\n+     blocks: [\n+       {\n+         data: {\n+           text: '합성 본문 2: f(x)=x+2의 값을 구하시오.'\n+         },\n+         type: 'statement'\n+       }\n+     ],\n+     desc: '',\n+     title: '합성 함수 문항 2'\n+   },\n+   {\n      answer: '3',\n      blocks: [\n        {\n          data: {\n            text: '합성 본문 3: f(x)=x+3의 값을 구하시오.'\n...\n    },\n-   {\n-     answer: 'R8-EDIT-ANSWER',\n-     blocks: [\n-       {\n-         data: {\n-           text: 'R8-EDIT-BEGIN",
+    "message": ""
+  }
+]
