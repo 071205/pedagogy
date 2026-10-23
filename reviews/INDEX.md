@@ -24,7 +24,7 @@
 [계약](../docs/PRODUCT-UX-U0-CONTRACT.md) · [과제·결정표](../docs/PRODUCT-UX-U0-SCENARIOS.md) ·
 [시안](../docs/mockups/u0-flow.html). 계약 주장 5건을 코드로 확인했고 `REV-2026-108`을 재현했다.
 **D1 사용자 결정: 문항을 다른 권에 넣을 때 독립 사본/수정 연동을 선택 가능하게 한다.**
-**현재: PR #24/25 독립 검토·CI·병합/Pages·로그인 운영 확인 완료. U2 두 권 구성/ACK·재진입·고정 ID·원본 바이트 보존 확인(HANDOFF-197). R5 새 독립 Codex 종합 판정 통과(사용자 승인 대체). R6/HANDOFF-198 독립 검토·CI·PR26 병합 완료; audit 잔여·REV-147 보존. R7 로컬 준비 PR27 병합(506b33c)·Pages/5파일 일치, main CI 진행 중. 무료 호스팅 우선·분리 staging 계정 인증 대기. R8 guest 편집 저장/오프라인 PDF 정상3화면·RED2·독립 Codex 통과(HANDOFF-199 후속 재개).**
+**현재: PR #24/25 독립 검토·CI·병합/Pages·로그인 운영 확인 완료. U2 두 권 구성/ACK·재진입·고정 ID·원본 바이트 보존 확인(HANDOFF-197). R5 새 독립 Codex 종합 판정 통과(사용자 승인 대체). R6/HANDOFF-198 독립 검토·CI·PR26 병합 완료; audit 잔여·REV-147 보존. R7 로컬 준비 PR27 병합(506b33c)·main Verify4개/Pages/5파일 일치, main Sonar 기존 E 유지. 무료 호스팅 우선·분리 staging 계정 인증 대기. R8 편집 저장/오프라인 PDF 정상3화면·RED2·독립 Codex/PR28 head CI 통과·a3d8a72 병합, 새 main Verify 진행 중(HANDOFF-199 마지막 체크포인트).**
 U1.5 main `877a8e7`·파일 225개 일치. 실제 Safari/iPad·원본 패널·D3/C1~C3·D1 연동 대기. 운영 보류 0건·기존26권/사본8개 보존·U2 테스트2권 추가 후28권, 원래 JSON/계정 사본 보존.
 순서·게이트는 [통합 레일](../docs/DEV-TOKEN-ROADMAP.md), 지시문은 [RAIL-ORDERS](../docs/RAIL-ORDERS.md).
 **B3 운영 장애 `REV-2026-109` 해결**(운영 `e50636c` → 문구 정정 `6679676`, 편집·삭제·진짜 충돌 운영 검증).
@@ -86,7 +86,7 @@ U0→B6에서 정규화/복원·AI 계약을 함께 다룬다. Rules의 `hasOnly
 
 ## 최근 검토
 
-[HANDOFF-2026-199](handoffs/2026-10/2026-10-23-security-r7-static-host-preparation.md): R7 로컬 Static Assets 설정·HTTP headers·fresh manifest·Wrangler/iframe 정상·RED. REV149/150 resolved·PR27 병합/Pages·main CI 진행 중. R8 편집 저장/오프라인 PDF 정상3화면·RED2·독립 Codex 통과; staging 인증/App Check·origin 대기.
+[HANDOFF-2026-199](handoffs/2026-10/2026-10-23-security-r7-static-host-preparation.md): R7 로컬 Static Assets 설정·HTTP headers·fresh manifest·Wrangler/iframe 정상·RED. REV149/150 resolved·PR27 병합/main Verify4개/Pages·main Sonar 기존 E. R8 편집 저장/오프라인 PDF 정상3화면·RED2·독립 Codex 통과; staging 인증/App Check·origin 대기.
 
 [HANDOFF-2026-198](handoffs/2026-10/2026-10-23-security-r6-verification-tools.md): R6 secret diff scan·도구 pin·Python converter·npm audit·Dependabot 판정, Actions Node24 migration, CDN/SRI·license boundary. REV-148 resolved; 독립 검토·CI·PR26 병합 완료.
 
