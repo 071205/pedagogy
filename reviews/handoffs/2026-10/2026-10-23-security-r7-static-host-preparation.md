@@ -7,11 +7,11 @@
 - 영향 영역: `worker | tests | docs`
 - 관련 이슈: 없음
 
-## 현재 상태 — 로컬 준비 독립 검토 통과, 새 head CI 대기
+## 현재 상태 — 로컬 준비 독립 검토·PR27 CI 통과, 미병합·세션 인계
 
 - 사용자가 재개를 요청했고, 이전 구현에 참여하지 않은 독립 Codex가 REV-149/150을 재현했다. 같은 이슈에 수정·정상/RED·독립 재검증을 기록해 둘 다 resolved다.
 - 최종 CLI timeout 경계까지 독립 재검증을 통과했다. 정상 exit0·비동기 ENOENT·SIGINT와 timeout의 실제 소유 child가 종료되고 clean이 1회 수행됐다. 검토 범위 안의 미합의/추가 재현 결함은 없다.
-- 다음은 이 수정본 commit/PR → 새 head 필수 CI → 로컬 준비 묶음 병합이다. R7 전체의 실제 호스트·도메인·App Check·자료 이관·Pages/private 전환 완료는 아니다.
+- PR #27 head `44a93dd511ebaf27875acba1a65c6e6475edcf6c`는 ready/open이며 Verify run `39854078445`의 secrets·verify/check:fast·cross-platform·hwpx가 모두 success다. SonarCloud도 통과했다. 병합·새 호스트 배포는 하지 않았다. R7 전체의 실제 호스트·App Check·자료 이관·Pages/private 전환 완료는 아니다.
 
 ## 이전 중단 체크포인트 — 4196588 보존 당시 기록
 
@@ -125,3 +125,33 @@ finally cleanup으로 수정했다. `test-rev149-150-final.log`와 실제
   - `scripts/check-static-host.mjs`: `b75225a614fe3b75faea15a182b9134c98f7937e6377bda6254931bbe13579b4`
   - `scripts/static-staging.test.mjs`: `896d3a22bdfcc2d9eb5286f8d1d477255ebcc40204b6228fecf38fa83dfb4859`
   - `scripts/check-static-staging-config.py`: `00e115057545dfa31c5e03de800d7dfd53ca09bc07a9250e0852946c8cac1cbf`
+
+
+## 새 채팅 재개 체크포인트 — 2026-10-23 사용자 요청
+
+사용자가 컨텍스트 누적으로 새 채팅에서 이어가도록 정리를 요청했다. 이 절이 위 과거 중단 기록보다 최신이다.
+
+- 실제 worktree는 `/Users/huryul/개발/pedagogy-작업사본/pedagogy-u15b`. PR #27 branch `codex/r7-static-host-preparation`의 head는 `44a93dd511ebaf27875acba1a65c6e6475edcf6c`로 고정했다. 인계 문서·R8 감사 자료는 그 위 별도 `codex/r7-r8-session-handoff`에 보존한다. PR27 head와 이 인계 브랜치를 혼동하지 않는다.
+- PR: <https://github.com/071205/pedagogy/pull/27>. Verify: <https://github.com/071205/pedagogy/actions/runs/39854078445>. 마지막 실측은 open/ready/CLEAN·4 job success이며 미병합이다. 재개 때 새 댓글·head·CI를 다시 확인한 뒤 기존 승인 범위에서 병합하고, 정확한 merge의 main CI와 Pages 상태를 확인한다. PR27 통과로 이 인계 브랜치의 별도 CI까지 통과했다고 쓰지 않는다.
+- **최신 사용자 결정: 도메인 구매 보류, 무료 기본 주소/호스팅부터 진행.** `pedagogy.tools`는 검색 후보였을 뿐 등록·결제하지 않았다. Cloudflare `workers.dev`와 정적 호스팅을 우선 검토한다. AI/DB/Storage/Worker 사용량까지 전체 무료라는 뜻은 아니다. 기존 운영 사이트는 그대로이며 새 원격 정적 호스트를 만들거나 배포하지 않았다.
+- Cloudflare `wrangler whoami`는 인증 상태만 확인했다. 계정 ID·이메일·token 값은 인계하지 않는다. 분리된 staging `pedagogy-ai-staging`의 기존 web app public SDK config 읽기는 Firebase API **403 PERMISSION_DENIED**였다. 앱 부재·로그인 만료·IAM 원인은 미확정이며 읽기만 시도했다. 원문 debug/env/token을 출력하지 말고 오류 metadata만 확인한다. production Firebase config를 쓰고 분리 staging이라고 표시하지 않는다.
+- 사용자에게는 이 프로젝트 작업을 계속 진행하고 독립 검토 에이전트를 사용하도록 사전 승인이 있다. 사소한 다음 행동을 반복 승인받지 않는다. 유료 도메인 구매는 위 최신 보류 결정을 따른다. 저장소의 낡은 왕복 3회 제한 대신 세션에서 직접 제공된 AGENTS의 '호출 횟수 상한 없음, 새 근거 없이 같은 질문 반복 금지'를 우선한다.
+- Claude 주간 한도로 실패했던 호출은 승인과 구분한다. 이전 표시상 2026-10-25 20:00 KST까지였으므로 상태 변화 근거 없이 재시도하지 않는다. R5·R6·R7의 성공 판정은 독립 Codex 판정이며 Claude 승인이라고 쓰지 않는다.
+- `transcript.txt`는 읽기·수정·추가·생성 금지다. 기본 checkout `/Users/huryul/개발/pedagogy-main`을 전환하거나 그곳의 기존 파일을 섞지 않는다. 새 채팅은 먼저 사용자 AGENTS·reviews/README·INDEX·통합 레일 현재 위치를 읽는다.
+
+### R8 로컬 연결 증거 — 일부만 완료
+
+- 영구 자료: [감사 README](../../audits/2026-10-23/README.md), [실행 코드](../../audits/2026-10-23/r8-connected-journey.mjs), [정상 결과](../../audits/2026-10-23/r8-connected-journey-normal.json), [RED 결과](../../audits/2026-10-23/r8-connected-journey-red.json).
+- 비구현자 `/root/r5_gate_review`가 강화된 본문/고정 ID/Undo 단언과 최종 이식본을 독립 검토했다. 최종 이식본은 경로/소유 서버 대기·cleanup만 변경됐고 추가 재현 결함 없음. 별도 원문 이미지 probe에서 naturalWidth/Height=1과 decode도 확인했다. 구현자 `/root/r7_prepare`는 GPT-6 Sol / medium이며 자기 승인으로 세지 않는다.
+- 합성 guest 원본 8문항·PNG 원문 1쪽, UI로 5권 요청(자동 제안4권 차이 확인)→이동/Undo→원문 열기→수동5번째권→채택→편집기/지면→재로드/재진입을 1194×834·768×1024·375×812에서 정상 통과했다. 원본·결과 본문 payload 8개, 새 문항 ID 중복/누락 없음, 다섯 결과 ID 보존을 확인했다. RED는 격리 guest 결과5권을 의도적으로 삭제한 뒤 재로드 ID 단언이 exit1이었다. 이는 검사 음성 대조이며 실제 저장 장애 재현으로 확대하지 않는다.
+- **미검증:** 실제 PDF 추출/실패 쪽/부분 채택, 새 편집 내용 저장, 실계정/클라우드 ACK, 유료 AI, 인쇄·한글 출력, 실기기 Safari/iPad, 인간 사용자 과제 관찰. 자동 클릭을 인간 관찰 완료로 기록하지 않는다. R8 운영 완료가 아니다.
+- 재실행은 README의 정상/RED 한 명령을 사용한다. 변경 없는 기존 정상·RED 전체를 반복하지 않는다. `/private/tmp/r8-2026-10-23/portable/`의 로그는 보조이며 임시 폴더가 없어져도 영구 코드·JSON으로 재현 가능하다.
+
+### 다음 행동
+
+1. PR27 head/댓글/필수 CI 상태 확인 → 로컬 준비 묶음만 병합 → 정확한 merge의 main CI/Pages 확인. 새 코드 결함이 없으면 이미 통과한 전체 검사를 반복하지 않는다.
+2. 인계 branch의 문서·R8 감사 자료를 main 이후 작업에 보존한다. R7 병합 후 이 branch를 이어 쓰거나 관련 인계 commit을 가져오되 PR27 코드 전체를 중복 cherry-pick하지 않는다.
+3. 무료 호스팅 경로로 실제 staging Firebase 접근/설정·App Check·origin·무손실 원문/작업 이관·롤백 증거를 준비한다. 현재 403 원인 및 계정 접근을 먼저 확인한다. 저장 계약 변경/이관 설계는 레일의 high 역할·독립 검토로 올린다.
+4. R7 외부 접근 대기 중 R8의 남은 로컬 실패/복구·출력·성능 검증은 GPT-6 Sol / medium으로 진행 가능하다. R7 운영 완료·D3/C1~C3 조건 충족 전 유료 일괄 AI 활성화나 R8 운영 완료로 표시하지 않는다. R9 공개·R10 출시는 뒤 게이트를 따른다.
+
+인계 마감 검증: 최종 저장소 위치에서 `R8_REPO_ROOT` 없이 정상 명령을 실행해 세 화면 모두 complete=true/exit0, 임시 브라우저 close·소유 serve.py SIGTERM 종료를 확인했다(`/private/tmp/r8-2026-10-23/handoff-location.log`). `check:review-hygiene`는 이슈138/열림4·INDEX116/120·최근5/5·자기검사6/6 통과, `git diff --check` 통과다. 인계 branch의 원격 CI는 별도로 실행/완료했다고 주장하지 않는다.
