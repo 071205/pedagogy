@@ -24,6 +24,11 @@ try {
   assert.doesNotMatch(policy.match(/(?:^|;)\s*script-src\s+([^;]+)/)?.[1]||'', /'sha256-/,
     'externalized public scripts must not retain source-only inline hashes');
   assert.deepEqual(Object.keys(first), [...PUBLIC_FILES]);
+  const headerBytes = await readFile(join(out, '_headers'), 'utf8');
+  assert.match(headerBytes, /^\/\*\n  X-Content-Type-Options: nosniff\n  Referrer-Policy: strict-origin-when-cross-origin/m);
+  assert.match(headerBytes, /\/mock-exam-editor\n  Content-Security-Policy: [^\n]+frame-ancestors 'self'/);
+  assert.match(headerBytes, /\/index\.html\n  Content-Security-Policy: [^\n]+frame-ancestors 'none'/);
+  assert.equal((headerBytes.match(/frame-ancestors 'self'/g)||[]).length, 2);
   assert.deepEqual(await buildPublic(root), first, 'build must be byte-reproducible');
   for (const file of PUBLIC_INPUTS.filter(file=>!['index.html','mock-exam-editor.html','document-editor.html'].includes(file))) {
     assert.deepEqual(await readFile(join(out, file)), await readFile(join(root, file)));
@@ -41,6 +46,9 @@ try {
   }
   await writeFile(join(out,'index.html'),publicIndex.replace("script-src 'self'", "script-src 'self' 'unsafe-inline'"));
   await assert.rejects(verifyPublic(out), /Unsafe public script policy/);
+  await buildPublic(root);
+  await writeFile(join(out, '_headers'), headerBytes.replace("frame-ancestors 'self'", "frame-ancestors 'none'"));
+  await assert.rejects(verifyPublic(out), /HTTP headers mismatch/);
   await buildPublic(root);
   await writeFile(join(out,'index.html'),publicIndex.replace('</body>','<script>window.injected=1</script></body>'));
   await assert.rejects(verifyPublic(out), /Inline script/);

@@ -22,7 +22,36 @@ const SCRIPT_COUNTS = Object.freeze({'index.html':3,'mock-exam-editor.html':1,'d
 const scriptName = (file,index) => `assets/${file.replace(/\.html$/,'')}-${index}.js`;
 export const PUBLIC_FILES = Object.freeze([...PUBLIC_INPUTS,
   ...Object.entries(SCRIPT_COUNTS).flatMap(([file,count])=>Array.from({length:count},(_,i)=>scriptName(file,i+1))),
+  '_headers',
 ].sort());
+
+const HTML_FRAMING = Object.freeze({
+  'index.html': "'none'",
+  'document-editor.html': "'none'",
+  'legal.html': "'none'",
+  'mock-exam-editor.html': "'self'",
+});
+
+function publicHeaders(assets) {
+  const lines = ['/*', '  X-Content-Type-Options: nosniff',
+    '  Referrer-Policy: strict-origin-when-cross-origin'];
+  for (const [file, framing] of Object.entries(HTML_FRAMING)) {
+    const html = assets.get(file)?.toString('utf8');
+    const policy = html?.match(/<meta\s+http-equiv="Content-Security-Policy"\s+content="([\s\S]*?)"/i)?.[1]
+      ?.replace(/\s+/g, ' ').trim();
+    if (!policy || /(?:^|;)\s*frame-ancestors\s/i.test(policy)) {
+      throw Error(`Review HTTP CSP source: ${file}`);
+    }
+    // Cloudflare joins duplicate _headers values. Keep CSP on disjoint routes;
+    // a site-wide frame-ancestors policy would break the same-origin mock iframe.
+    const routes = file === 'index.html' ? ['/', '/index', '/index.html']
+      : [`/${file.replace(/\.html$/, '')}`, `/${file}`];
+    for (const route of routes) {
+      lines.push('', route, `  Content-Security-Policy: ${policy}; frame-ancestors ${framing}`);
+    }
+  }
+  return Buffer.from(lines.join('\n') + '\n');
+}
 
 // Classic script order and global lexical scope are intentional public contracts.
 // Skip complete HTML comments; script bodies are consumed as raw text, not parsed as HTML.
@@ -103,12 +132,15 @@ export async function verifyPublic(directory) {
   await walk();
   if (JSON.stringify(found.sort()) !== JSON.stringify(PUBLIC_FILES)) throw new Error('Public file allowlist mismatch');
   const manifest = {};
+  const assets = new Map();
   for (const file of found) {
     const bytes = await readFile(await plainPath(directory, file));
     checkContent(file, bytes);
     checkPublicPolicy(file, bytes);
+    assets.set(file, bytes);
     manifest[file] = { bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') };
   }
+  if (!assets.get('_headers').equals(publicHeaders(assets))) throw Error('Public HTTP headers mismatch');
   return manifest;
 }
 
@@ -121,6 +153,7 @@ export async function buildPublic(root) {
     checkContent(file, bytes);
     assets.push(...splitScripts(file,bytes));
   }
+  assets.push(['_headers', publicHeaders(new Map(assets))]);
   const dist = join(root, 'dist');
   await mkdir(dist, { recursive: true });
   if ((await lstat(dist)).isSymbolicLink()) throw new Error('dist must not be a symlink');

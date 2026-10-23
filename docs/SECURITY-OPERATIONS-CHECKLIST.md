@@ -13,18 +13,40 @@ Pages 를 붙이지 못하고, 전환과 함께 Pages 설정 자체가 지워졌
 다시 만들어 복구했다. **아래 순서를 지키지 않으면 같은 일이 반복된다** — 대체 호스트가
 살아 있는 것을 확인한 *다음에* 저장소를 비공개로 옮긴다.
 
-- [ ] GitHub 현재 visibility·Pages source·활성 workflow·배포 주체 확인. 이번 작업은 GitHub
-  콘솔/원격 설정을 조회하거나 변경하지 않았다. 과거 리뷰의 공개 상태는 과거 증거로만 취급한다.
+- [ ] GitHub 보호 설정·배포 주체 확정. 2026-10-23 API 조회에서 visibility는 public,
+  Pages는 legacy `main`/루트·custom domain 없음, rulesets는 빈 목록이었다. PR26 병합
+  `ceec8a3`의 Verify와 Pages built를 확인했다. 보호 규칙·독립 승인자·배포 권한 분리는
+  아직 완료로 표시하지 않으며 원격 설정은 변경하지 않았다.
 - [ ] private source 저장소와 접근자 확정, 원격·CI 연결 전환. 기존 공개 이력/clone은 회수
   불가함을 기록. 노출된 실제 secret은 전체 이력 scanner 결과에 따라 폐기·교체한다.
 - [ ] 상용 호스트를 Workers Static Assets로 준비. assets root는 `dist/public`만 지정.
   빌드 성공한 동일 산출물을 승격하고 manifest 해시를 배포 기록과 대조한다. 공개 sourcemap,
   `.git`, Worker, reviews, tests URL이 실서비스에서도 404인지 확인한다.
+  R7 로컬 준비에서는 별도 `wrangler.static.staging.toml`과 생성 `_headers`를 검증한다.
+  `npm run test:static-host`는 fresh build→manifest 대조 후 127.0.0.1 Wrangler에서
+  root/HTML 별칭·404·CSP/framing·같은 출처 iframe을 확인한다. 새 원격 호스트의
+  생성·승격·도메인·실응답 확인과 구분한다.
 - [ ] 정적 자산/AI API의 production·staging 도메인·Worker·Firebase·Anthropic key 분리.
   staging은 실제 운영 사용자 자료를 읽지 못하도록 별도 프로젝트를 사용한다.
 - [ ] 도메인 이전 전에 기존 origin의 localStorage/IndexedDB 자료를 JSON으로 export할 경로를
   제공하고 새 origin import를 테스트한다. origin 변경은 로컬 데이터를 자동 이동하지 않는다.
   Firebase 승인 도메인·Auth redirect·Storage CORS·Worker Origin·CSP·App Check 도메인을 함께 점검한다.
+
+  | 기존 origin 상태 | 현재 사용자 JSON의 범위 | 이전 판단 |
+  | --- | --- | --- |
+  | 문제집 본문 `PM_SETS_V7:<owner>` 및 로그인 Firestore 문제집 (`index.html:3041`, `:3865`) | `:6757` 전체 내보내기, `:6770` 가져오기는 새 ID의 문제집을 추가한다 | 서버 확정본은 새 origin 로그인에서 읽을 수 있으나 guest·미확정 로컬본과 원래 ID의 연속성은 자동 보장하지 않는다 |
+  | 모의고사 `PM_MOCK_SETS_V1:<owner>` (`mock-library-store.js:133`) | `index.html:7300`, `:7427`의 개별 JSON은 새 ID 사본으로 가져온다 | 미저장 `MOCK_DRAFT_V1`(`mock-exam-editor.html:2388`)과 정렬·마지막 선택은 별도 |
+  | 원문·작업 `PM_INTAKE_V1` v1의 `owners` store (`pedagogy-intake.js:10-45`) | 문제집 JSON의 `intake.sources`는 출처 ID/쪽 표시만 남긴다 | 같은 owner 레코드의 Blob·jobs/구성 초안·adoptions 고정 ID·links 권한·outbox(`pedagogy-intake-sw.js:5-50`)는 미포함. 파일 재연결은 명시 확인해야 한다 |
+  | 충돌·복구·설정 (`index.html:3316`, `:3496`, `:4839`, `:5444`) | 일반 문제집 JSON에 없음 | `PM_BACKUP`, `PM_SET_SYNC_META_V1`, `PM_SET_CONFLICTS_V1` snapshot, 폴더/선호는 별도. 보류·미ACK 초안을 서버본과 혼동하지 않는다 |
+  | 문서 AI 초안 `PEDAGOGY_DOCUMENT_BETA` (`document-editor.html:302`) | 문제집/모의고사 JSON에 없음 | 새 origin에 자동 이관되지 않는다 |
+
+  기존 origin을 유지하며 각 사용자가 JSON 사본을 내보내고 새 origin에서 명시 가져오기·원문
+  재연결을 하는 제한적 이전 안내는 가능하다. 이 방식은 작업 재개·연결 권한·충돌 snapshot의
+  무손실 이전을 뜻하지 않는다. 구 origin과 새 origin의 동시 편집/구버전 탭을 통제할 계약도
+  필요하다. 전체 이관은 [U0 계약 §5](PRODUCT-UX-U0-CONTRACT.md)의 owner·삭제 세대·
+  sourceId/권 연결·고정 채택 ID를 검토하는 별도 저장 설계(high 담당) 후 구현/검증한다.
+  이 설계와 실계정 export/import 증거 전에는 Pages를 안내/중지하거나 저장소를 private로
+  바꾸지 않는다.
 - [ ] 새 호스트 정상 확인 후 기존 Pages는 이전 안내로 전환. 앱과 모든 공개 이력을 동시에
   감출 수 있다고 약속하지 않는다. 캐시·구버전 탭 대응 및 지원 종료 시점을 공지한다.
 
@@ -116,4 +138,4 @@ Pages 를 붙이지 못하고, 전환과 함께 Pages 설정 자체가 지워졌
 
 ## 2026-09-11 후속 코드 검증
 
-공개 산출물은 22개 파일이며 임의 inline script를 차단한다. 세 브라우저의 CSP·편집·인쇄·HWPX·file 실행을 확인했다. Auth/App Check 초기화 장애 분리와 SDK 대역을 사용한 화면 왕복·계정 격리도 검사했다. 실제 Google 로그인, 운영 site key, 콘솔 enforcement 증적을 대신하지 않는다.
+당시 공개 산출물은 22개 파일이었고 임의 inline script를 차단했다. 현재 파일 수는 `PUBLIC_FILES`와 매 빌드 manifest로 판정한다. 세 브라우저의 CSP·편집·인쇄·HWPX·file 실행을 확인했다. Auth/App Check 초기화 장애 분리와 SDK 대역을 사용한 화면 왕복·계정 격리도 검사했다. 실제 Google 로그인, 운영 site key, 콘솔 enforcement 증적을 대신하지 않는다.

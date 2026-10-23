@@ -9,7 +9,7 @@
 
 | 순서 | 결정 | 현재 코드와의 차이 / 완료 조건 |
 | --- | --- | --- |
-| P0 · 1단계 | 공개 산출물 허용 목록, 이벤트 속성 CSP, CI 최소 권한 | 허용된 입력 17개와 추출 스크립트 5개로 공개 파일 22개를 생성. 루트 HTML의 인라인 스크립트 5개도 hash로 잠금. 실제 호스팅은 미전환 |
+| P0 · 1단계 | 공개 산출물 허용 목록, 이벤트 속성 CSP, CI 최소 권한 | `PUBLIC_INPUTS`/`PUBLIC_FILES`가 현재 공개 파일 목록을 고정하고 세 편집기의 인라인 스크립트를 분리한다. 실제 호스팅은 미전환 |
 | P0 · 출시 전 | private source → 검증된 public build → 상용 호스트 | 원본·이력·리뷰·Worker를 비공개 저장소에서 관리. GitHub Pages에서 상용 서비스 이전 |
 | P0 · 출시 전 | Firebase와 Worker에 각각 App Check 강제 | 클라이언트 전송·Worker 검증 코드는 완료. site key·staging 양성/음성·운영 enforce는 미완료 |
 | P0 · 출시 전 | 전역 AI 횟수 상한 + 운영 중단 + 공급자별 비용 통제 | 개인/전역 DO와 kill switch는 있음. 금액 상한·Firebase 총량·운영 반영은 별도 |
@@ -59,9 +59,12 @@ Origin/CORS는 브라우저 정책이며 스크립트가 헤더를 위조하는 
 **공개 대상:** 사용자가 실행할 HTML/CSS/JS, 공개 Firebase 설정·App Check site key,
 배포 허가된 템플릿·라이선스 고지. Firebase API key를 감추는 것을 접근 통제로 삼지 않는다.
 
-이번 `npm run build:public`은 `dist/public/`에 17개 허용 입력에서 22개 파일을 생성한다. 세 편집기의 인라인 스크립트 5개를 `assets/`로 추출하고 순서·바이트·전역 lexical scope를 보존한다. 입력의 중간
+`npm run build:public`은 `PUBLIC_INPUTS`의 파일만 `dist/public/`에 복사하고 세 편집기의 인라인 스크립트를 `assets/`로 추출해 순서·바이트·전역 lexical scope를 보존한다. R7 준비는 메타 CSP에서 페이지별 HTTP CSP와 `frame-ancestors`를 만든 `_headers`를 공개 산출물 허용 목록·manifest에 포함한다. 입력의 중간
 디렉터리까지 symlink를 거부하고 출력의 초과 파일/디렉터리, 소스맵 참조, 대표적인 비밀 패턴을
 검사한다. `dist/public-manifest.json`의 파일별 SHA-256·바이트 수는 웹 루트 밖에 둔다.
+`wrangler.static.staging.toml`은 이 산출물만 로컬에서 서빙하며 기존 AI Worker의
+DO·secret 설정과 분리된다. 로컬 HTTP·브라우저 검사는 운영 호스트·도메인·App Check
+적용 증거가 아니다.
 `npm run check:public`은 산출물 허용 목록·금지 내용 검사다. manifest는 서명된 출처 증명이
 아니며 이 검사는 완전한 secret scanner가 아니다. 실패한 빌드의 이전 산출물을 배포하지 않는다.
 
