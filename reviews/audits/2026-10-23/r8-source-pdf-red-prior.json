@@ -1,0 +1,58 @@
+[
+  {
+    "viewport": "1194×834",
+    "steps": [
+      {
+        "name": "library → saved local composition",
+        "aiCalls": 0
+      },
+      {
+        "name": "book proposal applied",
+        "requested": 5,
+        "destinations": 4
+      },
+      {
+        "name": "misclassification move → Undo",
+        "originalBucket": "문제집 1 · 2",
+        "movedBucket": "문제집 2 · 3",
+        "restoredPlanAndDestinationItems": true
+      },
+      {
+        "name": "source opened from question detail",
+        "source": "synthetic PNG page 1"
+      },
+      {
+        "name": "manual fifth destination and moved one item",
+        "destinations": 5
+      },
+      {
+        "name": "local guest results",
+        "rows": 5,
+        "statuses": [
+          "이 기기 저장됨 · 로그인 전 · 이 기기에만 저장",
+          "이 기기 저장됨 · 로그인 전 · 이 기기에만 저장",
+          "이 기기 저장됨 · 로그인 전 · 이 기기에만 저장",
+          "이 기기 저장됨 · 로그인 전 · 이 기기에만 저장",
+          "이 기기 저장됨 · 로그인 전 · 이 기기에만 저장"
+        ],
+        "setCount": 6,
+        "uniqueNewQuestionIds": 8,
+        "bodyPayloadsPreserved": 8
+      },
+      {
+        "name": "result editor ↔ sheet ↔ editor",
+        "pages": 1,
+        "sameSet": true
+      }
+    ],
+    "fixture": "guest existing set + one synthetic image source; no PDF extraction or AI call",
+    "mutation": {
+      "kind": "drop-prior-ref",
+      "scope": "isolated served HTML assignSourcePage drops other source refs; CSP rehashed"
+    },
+    "complete": false,
+    "failedStep": "actual PDF source connection",
+    "error": "PDF assignment preserves prior source refs\n+ actual - expected\n\n  [\n    {\n      pages: [\n-       1\n-     ],\n-     sourceId: '10531a44-5f01-4f26-9163-88f5696e53bc'\n-   },\n-   {\n-     pages: [\n        2\n      ],\n      sourceId: '364d8c48-b5ca-434d-8ab6-222e9804397a'\n    }\n  ]\n",
+    "message": "처리 중…"
+  }
+]

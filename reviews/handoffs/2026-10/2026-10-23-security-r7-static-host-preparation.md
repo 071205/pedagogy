@@ -3,15 +3,15 @@
 - ID: `HANDOFF-2026-199`
 - 날짜: `2026-10-23`
 - 작성자: Codex (GPT-6 Sol / medium)
-- 상태: `ready-for-review`
+- 상태: `needs-follow-up`
 - 영향 영역: `worker | tests | docs`
 - 관련 이슈: 없음
 
-## 현재 상태 — PR27 병합·Pages 확인, main CI/분리 staging 접근 확인 중
+## 현재 상태 — PR27 병합·main Verify/Pages 확인, 분리 staging 계정 인증 대기
 
 - 사용자가 재개를 요청했고, 이전 구현에 참여하지 않은 독립 Codex가 REV-149/150을 재현했다. 같은 이슈에 수정·정상/RED·독립 재검증을 기록해 둘 다 resolved다.
 - 최종 CLI timeout 경계까지 독립 재검증을 통과했다. 정상 exit0·비동기 ENOENT·SIGINT와 timeout의 실제 소유 child가 종료되고 clean이 1회 수행됐다. 검토 범위 안의 미합의/추가 재현 결함은 없다.
-- PR #27 head `44a93dd511ebaf27875acba1a65c6e6475edcf6c`는 ready/open이며 Verify run `39854078445`의 secrets·verify/check:fast·cross-platform·hwpx가 모두 success다. SonarCloud도 통과했다. 병합·새 호스트 배포는 하지 않았다. R7 전체의 실제 호스트·App Check·자료 이관·Pages/private 전환 완료는 아니다.
+- PR27은 검토 head `44a93dd`를 `506b33c`로 병합했다. PR head 필수4CI/Sonar와 정확한 main merge 필수4Verify/Pages·공개5파일 일치까지 확인했다. main Sonar의 기존 Security E 차단은 별도로 남는다. R8 추가 감사 PR28도 검토 head `59361d6`의 필수4CI/Sonar 뒤 `a3d8a72`로 병합했다. 새 호스트/App Check/자료 이관/Pages-private 전환은 미완료이며 마지막 체크포인트를 따른다.
 
 ## 이전 중단 체크포인트 — 4196588 보존 당시 기록
 
@@ -165,7 +165,9 @@ finally cleanup으로 수정했다. `test-rev149-150-final.log`와 실제
   필수 네 job·Sonar 성공, 새 inline review 0건을 확인하고 사전 승인 범위에서 merge했다.
   merge는 `506b33cd4e0a5c965d44d161391094b32c17460d`(2026-10-23 17:10 KST)다.
 - 정확한 merge의 [main Verify](https://github.com/071205/pedagogy/actions/runs/39922835078)는
-  현재 진행 중이다. secrets/hwpx 성공, verify/cross-platform은 아직 완료 증거가 없다.
+  **필수 네 job 모두 success**다. 최초 cross-platform은 apt 미러 전송이 느려 설치 중
+  30분 취소됐고, 그 job만 새 runner로 1회 재실행해 실제 smoke/CSP/auth/public
+  검사까지 성공했다. 다른 세 job은 기존 성공을 재사용했다.
   [Pages 배포](https://github.com/071205/pedagogy/actions/runs/39922834612)는 성공했고
   Pages API의 commit/status도 동일 merge/built다. 공개 index/document/mock 편집기,
   service-config, intake의 5파일을 소스와 바이트·SHA 대조해 모두 일치했다.
@@ -202,3 +204,74 @@ finally cleanup으로 수정했다. `test-rev149-150-final.log`와 실제
   정상/RED JSON과 합성 PDF를 영구 보존했다. Poppler 렌더 표본에서도 잘림/겹침은 없다.
   브라우저/소유 serve.py cleanup 성공이다. 운영 글꼴/수식·OS 인쇄창·종이/한글 앱·
   로그인 ACK·실제 PDF 입력·AI·실기기·인간 관찰의 완료 증거는 아니다.
+
+
+### 후속 원격 진단 — CI 미러 지연과 Sonar baseline
+
+- PR27 성공 로그와 main/PR28 최초 취소 로그는 모두 Ubuntu26.04 image
+  `20261012.163.1`·6 upgraded/185 new/142MB로 같다. 취소는
+  `http://azure.archive.ubuntu.com/ubuntu` 패키지 다운로드 중 발생했으며 제품 검사는
+  skipped였다. main의 새 runner에서는 설치가 41초로 회복됐다. OS 변경 원인으로
+  확정하거나 timeout을 늘리거나 검사를 생략하지 않았다. 독립 Codex는 공식
+  runner-images의 mirror+file 설정과 새 근거를 대조해, 설정 변경 없이 취소된 job만
+  1회 재시도하는 판단에 합의했다. 새 재현 제품 결함 이슈는 만들지 않았다.
+- 정확한 main merge Sonar 분석 revision은 `506b33c`다. main Quality Gate는
+  Security E(`new_security_rating=5`)로 실패했다. 직전 main `ceec8a3`도 같은 조건으로
+  실패했다. 9월 생성 finding 네 건은 `AaC9cN6v4jtq7QCmB16o`,
+  `AaC9cN6v4jtq7QCmB16p`(exam_layout.py/S5332),
+  `AaC9XYwkZDGRIvaeUnAR`(document-editor/Web:S7039),
+  `AaDzlq6Uo2rmfWZ12byK`(serve.py/S5131)다. 이번 변경에서 Sonar 상태를 닫거나
+  제외하지 않았다. PR head Sonar 통과를 main 전체 보안 게이트 통과로 확대하지 않는다.
+- 임시 로그: `/private/tmp/pedagogy-{main-cross-39922835078,pr27-cross-success,pr28-cross-cancelled}.log`.
+  영구 재조회는 해당 Actions run·job API와 [Sonar main](https://sonarcloud.io/dashboard?id=071205_pedagogy&branch=main)을 사용한다.
+- Cloudflare `whoami --json`은 authenticated/exit0·계정1개였고, 후보
+  `pedagogy-static-staging` deployments 조회는 Worker 부재(code10007)였다.
+  원격 생성/배포·요금제/도메인 결제·production Firebase/Worker 변경은 0건이다.
+- 현재 Chrome 계정 선택 창과 Firebase `login:add --interactive`는 다른 staging
+  관리자 계정 인증을 기다린다. CLI 계정 수는 여전히1개여서 접근 문제가 해소됐다고
+  기록하지 않는다. 다음은 사용자가 인증을 마친 새 계정을 명시해 기존 staging 앱
+  public SDK config의 project/app ID를 읽고 일치 확인하는 것이다. 기본 계정을 바꾸지 않는다.
+
+
+## 마지막 체크포인트 — PR27/28 병합 뒤 사용자 인증 대기
+
+- PR27 merge `506b33c`: Verify `39922835078` 필수4개 **success**, Pages **built**,
+  공개 핵심5파일 바이트/SHA 일치 완료다. main Sonar의 기존 E 차단은 위 finding과 함께 보존한다.
+- PR28 검토 head `59361d6ed12890dc8cb2e28464262ddd1e0785af`: [Verify `39925011160`](https://github.com/071205/pedagogy/actions/runs/39925011160)의
+  필수4개·Sonar **success**다. 최초 apt 설치 취소 뒤 cross-platform만 한 번 재시도했고
+  나머지 성공 job은 재사용했다. 새 결함 지적/inline review는 없었다.
+- [PR28](https://github.com/071205/pedagogy/pull/28)은
+  `a3d8a726c80b77675d2b141e38d1fdeef44f4326`로 병합했다(2026-10-23 18:36 KST).
+  이 새 merge의 [main Verify `39933138950`](https://github.com/071205/pedagogy/actions/runs/39933138950)는
+  **아직 진행 중**이며 head CI로 대신 완료 표시하지 않는다. Pages API는 정확한 새 merge를
+  **built**로 반환했다. 이 묶음은 감사/문서만 바꿔 기존 운영 실행5파일은 불변이다.
+- 실제 worktree/branch는 그대로다. 인계 branch를 `origin/main a3d8a72`까지 fast-forward해
+  `f33fbf8`의 자료를 보존했고, 마지막 원격 상태 갱신만 별도 문서 체크포인트로 남긴다.
+  이 마지막 인계 commit의 별도 CI를 실행/완료했다고 주장하지 않는다.
+- 추가 staging 관리자 인증은 아직 미완료(CLI 계정1개)다. 사용자가 요청한 Chrome 계정 선택
+  창과 `login:add --interactive`가 열려 있다. 인증 완료 뒤 새 계정을 명시한 읽기부터 재개한다.
+  기본 계정 전환·production 설정의 가짜 staging·도메인 구매·유료 AI 호출은 하지 않는다.
+
+다음 행동:
+
+1. PR28 exact merge의 새 main Verify 결과부터 확인한다. PR27의 성공 결과는 반복하지 않는다.
+2. 사용자가 staging 계정을 인증하면 기존 Web app public SDK config를 그 계정으로 읽고,
+   project `pedagogy-ai-staging`/기존 app ID 일치를 확인한다. 403이 해소되지 않으면 IAM/앱
+   접근 조건을 새 근거로 진단한다. 지금까지의 인증 실패를 승인/접근 성공으로 세지 않는다.
+3. 무료 Workers Static Assets 기본 주소에 쓸 production/staging Firebase·AI URL·CSP·
+   App Check/origin 설정을 분리 검증한다. 원격 생성/배포 전 현재 config와 manifest를 고정한다.
+4. 무손실 origin archive/import는 owner/epoch·삭제 세대·연결 권한·고정 채택 ID를 보존하는
+   high 저장 설계/독립 검토 게이트로 남긴다. 이관 전 Pages/private 전환은 진행하지 않는다.
+5. R8 실제 PDF 입력/부분 실패·ACK·정상 폰트/수식·실기기/인간 관찰은 별도 미검증이다.
+   이번 편집 저장/오프라인 PDF 결과를 전체 운영 완료로 확대하지 않는다.
+
+
+## 후속 체크포인트 — HANDOFF200 (2026-10-23)
+
+PR28 main `a3d8a72`의 Verify `39933138950` 필수 네 job 성공·Pages built 확인.
+수동 실제 PDF 원문 연결 감사와 REV151 수정·독립 재검증은
+[HANDOFF200](2026-10-23-tests-r8-pdf-source.md)과 감사 README에 보존했다.
+로그인 갱신 후에도 분리 staging403이며 새 결제 미연결 프로젝트 생성은 code8 quota로
+거절됐다. production 설정으로 대체하지 않는다. 무료 guest-preview 정적 호스트 준비를
+계속하며 도메인 구매·실자료 이관·운영전환은 하지 않았다. 사용자는 부재 중 승인 범위에서
+자율 진행하고 질문은 미결로 남기도록 지시했다. 인계 branch 별도 CI 완료 주장은 없다.
