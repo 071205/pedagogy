@@ -74,3 +74,14 @@ fast-forward했다. PR29 main CI/Pages는 아직 완료 확인 전이다.
 GUEST_HOST_BASE 원격 전체 바이트/헤더/404/iframe 검증이다. 도메인 구매·production
 Firebase/Worker·실제 자료·기존 Pages/private 전환은 하지 않는다. 실패 시 새 guest
 리소스만 중지/삭제하거나 검증된 guest 산출물로 복귀하며 production은 롤백 대상이 아니다.
+
+
+### REV152 — CI 도구 가정 수정
+
+PR30 head 4dcc11f의 Verify40123745055는 새 guest 기능/RED와 Wrangler233자산·헤더·
+404·iframe 정상을 실제 Linux에서 통과했다. 마지막 RED 로그 확인의 rg가 러너에 없어
+exit127로 실패했으므로 [REV152](../../issues/2026-10/2026-10-25-tests-guest-ci-log-tool.md)를 기록했다.
+검색만 grep -F로 바꾸며 RED 원래 exit1과 목표 문구를 모두 요구하는 게이트는 유지한다.
+제한 PATH 대조는 old127/fixed0/wrong-exit1/wrong-message1, 독립 Codex 좁은 검토 합의다.
+다른 통과 검사는 로컬에서 반복하지 않았고 새 CI head 성공을 기다린다.
+PR29 main1ed8d7f의 Verify40123600931 네 job 성공·Pages built도 최종 확인했다.

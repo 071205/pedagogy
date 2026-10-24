@@ -148,7 +148,7 @@ jobs:
           guest_status=$?
           set -e
           test "$guest_status" -eq 1
-          rg -F "Guest HTTP CSP must match verified framing" "$RUNNER_TEMP/guest-host-red.log"
+          grep -F "Guest HTTP CSP must match verified framing" "$RUNNER_TEMP/guest-host-red.log"
       - name: Upload visual diff on failure
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
