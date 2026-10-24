@@ -25,7 +25,7 @@
 [계약](../docs/PRODUCT-UX-U0-CONTRACT.md) · [과제·결정표](../docs/PRODUCT-UX-U0-SCENARIOS.md) ·
 [시안](../docs/mockups/u0-flow.html). 계약 주장 5건을 코드로 확인했고 `REV-2026-108`을 재현했다.
 **D1 사용자 결정: 문항을 다른 권에 넣을 때 독립 사본/수정 연동을 선택 가능하게 한다.**
-**현재: U2/PR25 운영 확인·R5 독립 Codex·R6/PR26 완료. R7 PR27 병합(506b33c)·main Verify4개/Pages/5파일 일치. R8 PR28 병합(a3d8a72)·main Verify4개/Pages 완료. 추가 수동 PDF 연결 정상3크기/RED3·독립 Codex·REV151 해결(HANDOFF-200). PR29 병합(1ed8d7f)·main CI 대기. 무료 guest 호스트 코드/정상·RED·독립 검토 완료(HANDOFF-201), 새 head CI/배포 전. Firebase staging403/새 프로젝트 quota 대기. main Sonar 기존 E·App Check·자료 이관·R7/8 운영 전체 완료는 미결.**
+**현재: U2/PR25 운영 확인·R5 독립 Codex·R6/PR26 완료. R7 PR27 병합(506b33c)·main Verify4개/Pages/5파일 일치. R8 PR28 병합(a3d8a72)·main Verify4개/Pages 완료. 추가 수동 PDF 연결 정상3크기/RED3·독립 Codex·REV151 해결(HANDOFF-200). PR29 병합(1ed8d7f)·main CI4개/Pages 완료. Guest PR30 최신28189ae CI진행·미병합/미배포, REV152 grep수정·대조·독립 검토 후 새 CI 대기(HANDOFF-201 마지막 체크포인트). Firebase staging403/새 프로젝트 quota 대기. main Sonar 기존 E·App Check·자료 이관·R7/8 운영 전체 완료는 미결.**
 U1.5 main `877a8e7`·파일 225개 일치. 실제 Safari/iPad·원본 패널·D3/C1~C3·D1 연동 대기. 운영 보류 0건·기존26권/사본8개 보존·U2 테스트2권 추가 후28권, 원래 JSON/계정 사본 보존.
 순서·게이트는 [통합 레일](../docs/DEV-TOKEN-ROADMAP.md), 지시문은 [RAIL-ORDERS](../docs/RAIL-ORDERS.md).
 **B3 운영 장애 `REV-2026-109` 해결**(운영 `e50636c` → 문구 정정 `6679676`, 편집·삭제·진짜 충돌 운영 검증).
@@ -87,7 +87,7 @@ U0→B6에서 정규화/복원·AI 계약을 함께 다룬다. Rules의 `hasOnly
 
 ## 최근 검토
 
-[HANDOFF-2026-201](handoffs/2026-10/2026-10-23-index-r7-guest-preview.md): 무료 guest 전용 overlay·명시 auth/AI/server 차단·원본 불변·allowlist. UI/RED·실 Wrangler 233자산/헤더/404/iframe·독립 Codex 완료. PR29 병합, guest 새 CI/배포 전.
+[HANDOFF-2026-201](handoffs/2026-10/2026-10-23-index-r7-guest-preview.md): 무료 guest 전용 overlay·명시 auth/AI/server 차단·원본 불변·allowlist. UI/RED·실 Wrangler 233자산/헤더/404/iframe·독립 Codex 완료. PR29 main CI/Pages 완료. PR30 최신28189ae CI 진행·미병합/미배포, REV152 새 CI 대기·마감 인계.
 
 [HANDOFF-2026-200](handoffs/2026-10/2026-10-23-tests-r8-pdf-source.md): 실제 PDF 수동 연결·픽셀/2쪽 지정·기존 refs/Blob/SHA/재로드 정상3크기·RED3. REV151 수정·독립 재검증. PR28 main CI4개/Pages 완료, Firebase403/새 프로젝트 quota·무료 guest 호스트 준비.
 

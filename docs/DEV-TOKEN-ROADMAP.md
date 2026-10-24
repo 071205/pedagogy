@@ -7,12 +7,16 @@
 
 ## 현재 위치 — R7 무료 게스트 호스트 준비, 분리 Firebase 접근/프로젝트 한도 대기
 
-**2026-10-25 재개:** R8 PR29 head `b1f1678` 필수4CI/Sonar 통과 후 `1ed8d7f`로 병합했다.
-정확한 main CI/Pages 확인은 진행 중이다. [HANDOFF-201](../reviews/handoffs/2026-10/2026-10-23-index-r7-guest-preview.md)의
-별도 guest overlay와 명시 호출 차단·원본 불변·정확 allowlist, UI 정상/RED 및 실제 Wrangler
-233자산/헤더/404/iframe 정상·헤더 제거 RED·독립 Codex 검토를 완료했다. 현재
-`codex/r7-guest-preview-host`에서 새 head CI·PR·새 무료 호스트 배포/원격 검증을 진행한다.
-아직 원격 배포 전이며 staging/Auth/App Check/실자료 이관·R7/8 운영 완료와 구별한다.
+**2026-10-25 마감:** PR29 head `b1f1678` 필수4CI/Sonar 통과 후 `1ed8d7f`로 병합했고,
+정확한 main Verify40123600931 네 job 및 Pages built를 확인했다.
+[HANDOFF-201 마지막 체크포인트](../reviews/handoffs/2026-10/2026-10-23-index-r7-guest-preview.md)가 최신이다.
+PR30 guest 코드·정상/RED·독립 Codex 검토 완료. 최초 CI의 guest 정상/RED/실 Wrangler도
+통과했으나 마지막 rg 부재로 실패(REV152)해 grep 한 줄 수정·제한 PATH 대조·독립 검토를 마쳤다.
+최신 PR head `28189ae6e56e98dc89d7b2b7ad8adc3ee7d15d3b`, Verify40125969663은 진행 중이다.
+PR30 미병합·새 원격 host 미배포이며 인계 branch `codex/r7-guest-preview-handoff`의 별도 CI
+성공을 주장하지 않는다. 사용자 사용량 마감 요청으로 정리했다. 다음 Sol medium은 PR30
+정확 CI→REV152 해소→병합/main CI/Pages→무료 guest 배포·원격 검증 순서로 재개한다.
+분리 Firebase403/새 프로젝트 quota·App Check·실자료 이관·R7/8 운영 전체 완료는 미결이다.
 
 R1~R6와 U2는 기존 승인·운영 증거를 유지한다. R7 로컬 준비 PR27은 merge
 `506b33cd4e0a5c965d44d161391094b32c17460d`, main Verify `39922835078` 네 job 성공·

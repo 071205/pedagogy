@@ -85,3 +85,45 @@ exit127로 실패했으므로 [REV152](../../issues/2026-10/2026-10-25-tests-gue
 제한 PATH 대조는 old127/fixed0/wrong-exit1/wrong-message1, 독립 Codex 좁은 검토 합의다.
 다른 통과 검사는 로컬에서 반복하지 않았고 새 CI head 성공을 기다린다.
 PR29 main1ed8d7f의 Verify40123600931 네 job 성공·Pages built도 최종 확인했다.
+
+
+## 최종 마감 체크포인트 — 2026-10-25
+
+사용자가 사용량 종료 전 마무리를 요청해 새 배포를 시작하지 않고 인계한다.
+
+- 실제 worktree: `/Users/huryul/개발/pedagogy-작업사본/pedagogy-u15b`.
+  인계 branch `codex/r7-guest-preview-handoff`; 기본 checkout은 전환하지 않았다.
+- PR29는 `1ed8d7f1d96e41e06d8d9ea81cd1e303c4833f48`로 병합 완료.
+  정확한 main Verify40123600931 필수4job 성공, Pages40123600472 성공·built 확인.
+- PR30 https://github.com/071205/pedagogy/pull/30 은 open/미병합이다.
+  branch `codex/r7-guest-preview-host`, 최신 head
+  `28189ae6e56e98dc89d7b2b7ad8adc3ee7d15d3b`, Verify40125969663 진행 중이다.
+  인계 branch 문서 커밋과 PR head를 구별하며 별도 CI 성공을 주장하지 않는다.
+- 최초 head4dcc11f의 Sonar·secrets·cross-platform·hwpx 및 verify의 기존 종합/시각/
+  공개 산출물 검사는 성공했다. 새 guest UI/RED 및 실제 Wrangler 정상도 통과했으나
+  마지막 rg 부재(exit127)로 verify job은 실패했다. 이를 전체 CI 성공으로 세지 않는다.
+- REV152는 grep -F 한 줄 수정·제한 PATH 정상/음성 대조4개·독립 Codex 합의까지 완료,
+  새 head CI 확인 전이므로 in-progress다. 성공 후 같은 이슈에 근거를 추가해 resolved로
+  바꾸고 INDEX 열린 표에서 제거한다. 다른 통과 로컬 검사는 불필요하게 반복하지 않는다.
+- 새 guest 호스트는 아직 생성/배포하지 않았다. 이름 조회는 worker-not-found·인증 오류 없음,
+  전용 config dry-run exit0·No bindings 확인. private 안전 요약은 임시
+  `pedagogy-r7-guest-deploy-moykhsn1/safe-summary.json`에 있으며 raw CLI 로그/토큰은 출력하지 않는다.
+  생성 artifact는 `dist/guest-preview/dist/public`, config는 `dist/guest-preview/wrangler.toml`.
+  정확 manifest SHA는 위 정상 로그의 311046… 값과 같다.
+
+### 다음 실행 순서
+
+1. PR30 최신 댓글/head28189ae·필수4job/Sonar를 확인한다. 실패면 실제 근거만 조사한다.
+   grep 수정 CI가 성공하면 REV152를 같은 파일에서 해소한다.
+2. 검토된 정확 head를 병합하고 merge main CI·Pages를 확인한다. 인계 문서는 별도 보존하며
+   PR30 코드 전체를 중복 cherry-pick하지 않는다. 기본 checkout을 전환하지 않는다.
+3. 무료 guest 배포 직전 fresh build/verify와 이름 충돌을 확인한다. 생성 guest config만 사용해
+   새 `pedagogy-guest-preview`를 배포하고 CLI version ID·공개 URL을 기록한다.
+4. `GUEST_HOST_BASE=https://pedagogy-guest-preview.<label>.workers.dev node scripts/check-guest-host.mjs`
+   로 전체233자산/SHA·별칭/HTTP헤더/private404/iframe를 확인한다. 새 host 실패 시 전용
+   config의 리소스만 중지/삭제한다. 기존 production Firebase/Worker/Pages는 변경하지 않는다.
+5. 운영 체크리스트와 레일에 실제 원격 증거를 추가한다. 분리 staging403/프로젝트 quota,
+   App Check·실자료 이관/high 구현·R8 실제 AI/ACK/실기기/인간 관찰은 미결로 유지한다.
+
+도메인 구매 보류·무료 기본 주소 우선·실제 자료 이관 금지·transcript.txt 접근 금지를 유지한다.
+다음 기본 담당은 레일의 GPT-6 Sol / medium이다. 이번 인계는 운영 완료가 아니다.
