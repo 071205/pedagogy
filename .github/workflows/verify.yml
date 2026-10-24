@@ -139,6 +139,16 @@ jobs:
         run: npm run test:visual
       - name: Verify public artifact boundary (no deployment)
         run: npm run build:public && npm run check:public && npm run test:public-browser && npm run test:static-host
+      - name: Verify isolated guest preview boundary (no deployment)
+        run: |
+          npm run test:guest-preview
+          npm run test:guest-host
+          set +e
+          GUEST_HOST_RED=drop-frame-headers node scripts/check-guest-host.mjs > "$RUNNER_TEMP/guest-host-red.log" 2>&1
+          guest_status=$?
+          set -e
+          test "$guest_status" -eq 1
+          rg -F "Guest HTTP CSP must match verified framing" "$RUNNER_TEMP/guest-host-red.log"
       - name: Upload visual diff on failure
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

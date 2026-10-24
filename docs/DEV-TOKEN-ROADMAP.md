@@ -7,6 +7,13 @@
 
 ## 현재 위치 — R7 무료 게스트 호스트 준비, 분리 Firebase 접근/프로젝트 한도 대기
 
+**2026-10-25 재개:** R8 PR29 head `b1f1678` 필수4CI/Sonar 통과 후 `1ed8d7f`로 병합했다.
+정확한 main CI/Pages 확인은 진행 중이다. [HANDOFF-201](../reviews/handoffs/2026-10/2026-10-23-index-r7-guest-preview.md)의
+별도 guest overlay와 명시 호출 차단·원본 불변·정확 allowlist, UI 정상/RED 및 실제 Wrangler
+233자산/헤더/404/iframe 정상·헤더 제거 RED·독립 Codex 검토를 완료했다. 현재
+`codex/r7-guest-preview-host`에서 새 head CI·PR·새 무료 호스트 배포/원격 검증을 진행한다.
+아직 원격 배포 전이며 staging/Auth/App Check/실자료 이관·R7/8 운영 완료와 구별한다.
+
 R1~R6와 U2는 기존 승인·운영 증거를 유지한다. R7 로컬 준비 PR27은 merge
 `506b33cd4e0a5c965d44d161391094b32c17460d`, main Verify `39922835078` 네 job 성공·
 Pages 및 핵심5파일 일치까지 확인했다. R8 편집 저장/오프라인 PDF PR28은 merge
