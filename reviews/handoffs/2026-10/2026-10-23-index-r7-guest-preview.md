@@ -268,3 +268,20 @@ cwd 안에 보존한 정상/RED 원문·head/main CI4job·배포 안전 메타�
 현재 실행 환경에서는 writable-root symlink 때문에 기본 sandbox 실행/브라우저 자동화가 실패했다.
 정상적인 작업별 exec escalation으로 진단했으며 전역 sandbox 설정은 변경하지 않았다.
 새 채팅에서도 동일 실패가 재현되면 승인된 개별 호출로 처리하고 전역 설정으로 우회하지 않는다.
+
+
+## 2026-10-27 후속 — R8 로컬 검사·새 인증 timeout
+
+[HANDOFF-202](2026-10-27-tests-r8-render-recovery.md)에 로컬 렌더 복구·300문항 제품 doPrint
+정합 정상12/목표 RED6·필수회귀175와 독립 검토의 후속 상태를 기록한다. 제품 소스는 그대로다.
+사용자가 로그인 가능하다고 답해 새 공식 Firebase 추가 계정 흐름을 Chrome 계정 선택으로 열었지만
+10분 timeout으로 끝났고 완료 callback은 없었다. 종료 뒤 CLI 계정1개·기본 fingerprint
+`d8bbf1f8ef96` 유지를 확인했다. 새 흐름의 세션/URL도 만료 상태이므로 재사용하지 않는다.
+분리 Firebase 접근 복구, App Check·실자료 이관/high 구현·main Sonar·R7/8 운영 전체 게이트는
+여전히 남는다. 기본 checkout 전환·transcript.txt 접근·production/결제/IAM 변경은 없다.
+
+최신 후속: 첫 창 미표시/오류 보고 뒤 Chrome 일반 열기의 **새** 인증 흐름은 실제 완료됐다.
+계정2개·기본계정 유지, 추가계정의 staging project/web config GET200과 과거 number/app identity
+일치를 확인했다. 이제 다음은 **접근 재시도**가 아니라 기존 staging의 자원/Auth·App Check 준비다.
+Firestore403/SERVICE_DISABLED·bucket 없음·Google provider GET404·billing false를 구별한다.
+최종 근거는 [HANDOFF-202](2026-10-27-tests-r8-render-recovery.md)의 접근 복구와 감사 JSON이다.

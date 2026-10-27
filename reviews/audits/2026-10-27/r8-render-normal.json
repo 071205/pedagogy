@@ -1,0 +1,212 @@
+{
+  "red": "",
+  "complete": true,
+  "results": [
+    {
+      "viewport": {
+        "width": 1194,
+        "height": 834
+      },
+      "case": "font-failure-reload-recovery",
+      "failed": {
+        "warn": true,
+        "text": "⚠ 본문 글꼴을 받지 못해 대체 글꼴로 그렸어요 · 인쇄도 이 모양이에요 · 새로고침하면 다시 받아요",
+        "problems": [
+          "본문"
+        ]
+      },
+      "recovered": {
+        "hidden": true,
+        "problems": []
+      }
+    },
+    {
+      "viewport": {
+        "width": 1194,
+        "height": 834
+      },
+      "case": "image-failure-replacement-recovery",
+      "failed": {
+        "issues": [
+          {
+            "kind": "image",
+            "text": "그림 1장을 불러오지 못했어요"
+          }
+        ],
+        "broken": 1,
+        "button": true
+      },
+      "recovered": {
+        "issues": [],
+        "loaded": 1
+      }
+    },
+    {
+      "viewport": {
+        "width": 1194,
+        "height": 834
+      },
+      "case": "stale-completion-recovery",
+      "bad": 0,
+      "swaps": 1,
+      "latest": true,
+      "text": true,
+      "busy": false,
+      "building": false
+    },
+    {
+      "viewport": {
+        "width": 1194,
+        "height": 834
+      },
+      "case": "300-question-same-session-parity",
+      "sheetMs": 184,
+      "printMs": 313,
+      "printCalls": 1,
+      "same": true,
+      "sheetIds": 300,
+      "printIds": 300,
+      "pages": 150,
+      "fontProblems": []
+    },
+    {
+      "viewport": {
+        "width": 768,
+        "height": 1024
+      },
+      "case": "font-failure-reload-recovery",
+      "failed": {
+        "warn": true,
+        "text": "⚠ 본문 글꼴을 받지 못해 대체 글꼴로 그렸어요 · 인쇄도 이 모양이에요 · 새로고침하면 다시 받아요",
+        "problems": [
+          "본문"
+        ]
+      },
+      "recovered": {
+        "hidden": true,
+        "problems": []
+      }
+    },
+    {
+      "viewport": {
+        "width": 768,
+        "height": 1024
+      },
+      "case": "image-failure-replacement-recovery",
+      "failed": {
+        "issues": [
+          {
+            "kind": "image",
+            "text": "그림 1장을 불러오지 못했어요"
+          }
+        ],
+        "broken": 1,
+        "button": true
+      },
+      "recovered": {
+        "issues": [],
+        "loaded": 1
+      }
+    },
+    {
+      "viewport": {
+        "width": 768,
+        "height": 1024
+      },
+      "case": "stale-completion-recovery",
+      "bad": 0,
+      "swaps": 1,
+      "latest": true,
+      "text": true,
+      "busy": false,
+      "building": false
+    },
+    {
+      "viewport": {
+        "width": 768,
+        "height": 1024
+      },
+      "case": "300-question-same-session-parity",
+      "sheetMs": 179,
+      "printMs": 339,
+      "printCalls": 1,
+      "same": true,
+      "sheetIds": 300,
+      "printIds": 300,
+      "pages": 150,
+      "fontProblems": []
+    },
+    {
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "case": "font-failure-reload-recovery",
+      "failed": {
+        "warn": true,
+        "text": "⚠ 본문 글꼴을 받지 못해 대체 글꼴로 그렸어요 · 인쇄도 이 모양이에요 · 새로고침하면 다시 받아요",
+        "problems": [
+          "본문"
+        ]
+      },
+      "recovered": {
+        "hidden": true,
+        "problems": []
+      }
+    },
+    {
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "case": "image-failure-replacement-recovery",
+      "failed": {
+        "issues": [
+          {
+            "kind": "image",
+            "text": "그림 1장을 불러오지 못했어요"
+          }
+        ],
+        "broken": 1,
+        "button": true
+      },
+      "recovered": {
+        "issues": [],
+        "loaded": 1
+      }
+    },
+    {
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "case": "stale-completion-recovery",
+      "bad": 0,
+      "swaps": 1,
+      "latest": true,
+      "text": true,
+      "busy": false,
+      "building": false
+    },
+    {
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "case": "300-question-same-session-parity",
+      "sheetMs": 179,
+      "printMs": 323,
+      "printCalls": 1,
+      "same": true,
+      "sheetIds": 300,
+      "printIds": 300,
+      "pages": 150,
+      "fontProblems": []
+    }
+  ],
+  "cleanup": [
+    "fulfilled",
+    "fulfilled"
+  ],
+  "serverStopped": true
+}

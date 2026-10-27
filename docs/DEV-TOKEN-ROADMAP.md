@@ -7,6 +7,11 @@
 
 ## 현재 위치 — R7 guest 호스트 검증 완료, 분리 backend·운영 전환 대기
 
+**2026-10-27 R8 로컬 후속:** [HANDOFF-202](../reviews/handoffs/2026-10/2026-10-27-tests-r8-render-recovery.md).
+세 화면의 글꼴 정의 부재/이미지 데이터 교체 복구·옛 렌더 폐기·300문항 제품 doPrint 정합 정상12,
+독립 RED6·필수 브라우저 회귀175 통과. 시스템 인쇄·실계정/실기기·인간 관찰 증거가 아니며
+분리 backend/App Check·이관·main Sonar·R7/R8 운영 전체 게이트는 그대로다.
+
 **2026-10-27 최신:** [HANDOFF-201](../reviews/handoffs/2026-10/2026-10-23-index-r7-guest-preview.md).
 PR29 main1ed8d7f의 CI4개/Pages 완료. R7 guest PR30 최종head88c86d5의 Verify40427720314
 필수4job/Sonar 및 merge d65e759의 Verify40430188686 필수4job·Pages built/핵심5파일 일치 완료.
@@ -43,14 +48,21 @@ R8 실제 2쪽 PDF의 수동 원문 입력·렌더·기존 참조/Blob 바이트
 [감사 README](../reviews/audits/2026-10-23/README.md). PDF AI 추출·유료 AI·실계정 ACK·
 실제 시스템 인쇄/한글·Safari/iPad·인간 관찰은 포함하지 않아 R8 운영 완료가 아니다.
 
-**외부 환경(2026-10-27 새 채팅 인계):** CLI 계정 1개·기본 계정 유지가 재확인됐다.
-마지막 분리 `pedagogy-ai-staging` SDK 조회는 403이며 projects:list에 production만 보였다.
-과거 `/u/1` 계정의 실제 staging 기록이 있어 다른 계정 접근 복구가 우선이다. 마지막 로그인
-도구 세션은 더 이상 조회되지 않아 완료/활성 대기로 간주하지 않는다. 상세 진단·안전한 재개는
-[HANDOFF-201 마지막 체크포인트](../reviews/handoffs/2026-10/2026-10-23-index-r7-guest-preview.md#2026-10-27-새-채팅-재개-체크포인트--staging-접근-복구)를 따른다. 결제 연결
-없는 별도 `pedagogy-web-staging` 생성도 code8 프로젝트 quota 초과로 거절됐다.
-생성 완료·분리 staging 완료로 기록하거나 production 설정을 staging으로 사용하지 않는다.
-사용자는 부재 중 기존 승인 범위에서 계속 진행하고 인간 결정은 미결로 남기도록 지시했다.
+**외부 환경(2026-10-27 접근 복구):** 사용자 추가 인증 뒤 CLI 계정은 **2개**이며 기본 계정은
+유지됐다. 추가 계정을 명시 선택한 읽기 전용 REST GET에서 `pedagogy-ai-staging` project와
+web config 모두 **200**, project number `450368559700`·app ID가 과거 staging과 정확히 일치한다.
+[안전한 진단 증거](../reviews/audits/2026-10-27/staging-access-recovery.json).
+첫 새 인증은 timeout이었으나 Chrome 일반 열기로 다시 시작한 새 흐름은 완료 callback까지
+회수했다. 이전 세션/URL은 재사용하지 않았다. 기본 계정 전환이나 production 변경은 없다.
+
+분리 staging 전체가 준비된 것은 아니다. Firestore GET은 **403/SERVICE_DISABLED**,
+Storage bucket list는 200/빈 목록, App Check Enterprise 앱 설정은 존재하지만 허용 도메인·
+정상 발급/거절은 미확인이다. 서비스 목록에는 Auth UNENFORCED만 보였고 Google provider
+설정 GET은 404다. billingEnabled=false이며 결제 연결·C1 공급자 호출은 하지 않았다.
+다음 기본 Sol medium은 기존 staging을 기준으로 Firestore/Storage/Auth·Rules·origin/App Check
+준비 범위를 정한다. API 활성화·지역/버킷 생성·새 비용을 접근 조회와 혼동하지 않는다.
+과거 `pedagogy-web-staging` 신규 생성의 quota 거절은 해소된 것으로 쓰지 않지만, 복구된 기존
+staging을 버리고 새 프로젝트 생성을 반복할 필요는 없다. production을 staging으로 표시하지 않는다.
 **도메인 구매 보류·무료 기본 주소/호스팅 우선**을 유지한다. AI/DB/Storage 전체 무료를 뜻하지 않는다.
 
 별도 guest-preview 패키지의 명시 guest 부팅·backend/loopback 차단·이관 금지 배너·

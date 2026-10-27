@@ -86,6 +86,8 @@ U0→B6에서 정규화/복원·AI 계약을 함께 다룬다. Rules의 `hasOnly
 
 ## 최근 검토
 
+[HANDOFF-2026-202](handoffs/2026-10/2026-10-27-tests-r8-render-recovery.md): R8 합성 렌더 복구·300문항 정합 정상12/RED6·필수회귀175 통과. 추가계정 인증·기존 staging identity GET200 복구. Firestore API/자원·Auth/App Check·운영 게이트 미결.
+
 [HANDOFF-2026-201](handoffs/2026-10/2026-10-23-index-r7-guest-preview.md): guest overlay·CI/RED·Claude 경계 보완·REV152/153 해결. PR30 head/main CI4개·Pages 일치·무료 guest 배포와 원격233자산/헤더/404/양성/iframe 통과. 분리 backend/실자료 이관·운영 전환은 미완료.
 
 [HANDOFF-2026-200](handoffs/2026-10/2026-10-23-tests-r8-pdf-source.md): 실제 PDF 수동 연결·픽셀/2쪽 지정·기존 refs/Blob/SHA/재로드 정상3크기·RED3. REV151 수정·독립 재검증. PR28 main CI4개/Pages 완료, Firebase403/새 프로젝트 quota·무료 guest 호스트 준비.
@@ -94,7 +96,6 @@ U0→B6에서 정규화/복원·AI 계약을 함께 다룬다. Rules의 `hasOnly
 
 [HANDOFF-2026-198](handoffs/2026-10/2026-10-23-security-r6-verification-tools.md): R6 secret diff scan·도구 pin·Python converter·npm audit·Dependabot 판정, Actions Node24 migration, CDN/SRI·license boundary. REV-148 resolved; 독립 검토·CI·PR26 병합 완료.
 
-[HANDOFF-2026-197](handoffs/2026-10/2026-10-22-index-u2-composition.md): U2 독립 Codex 검토·저장20/RED7·UI15/RED9·PR25/병합 CI·Pages 완료. 로그인 두 권 ACK/재진입·고정 ID·원본 JSON 바이트 불변. 다음 R5.
 
 
 

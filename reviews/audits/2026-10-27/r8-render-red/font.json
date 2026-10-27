@@ -1,0 +1,11 @@
+{
+  "red": "font",
+  "complete": false,
+  "results": [],
+  "error": "font: failed body font must be visible",
+  "cleanup": [
+    "fulfilled",
+    "fulfilled"
+  ],
+  "serverStopped": true
+}

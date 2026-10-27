@@ -1,0 +1,11 @@
+{
+  "red": "print-layout",
+  "complete": false,
+  "results": [],
+  "error": "print-layout: 300-question print/sheet layout must agree",
+  "cleanup": [
+    "fulfilled",
+    "fulfilled"
+  ],
+  "serverStopped": true
+}

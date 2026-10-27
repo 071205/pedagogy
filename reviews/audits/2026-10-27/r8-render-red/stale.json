@@ -1,0 +1,11 @@
+{
+  "red": "stale",
+  "complete": false,
+  "results": [],
+  "error": "stale: only current render may publish {\"bad\":1,\"swaps\":2,\"latest\":true,\"text\":true,\"busy\":false,\"building\":false}",
+  "cleanup": [
+    "fulfilled",
+    "fulfilled"
+  ],
+  "serverStopped": true
+}

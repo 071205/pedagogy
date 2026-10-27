@@ -1,0 +1,11 @@
+{
+  "red": "image",
+  "complete": false,
+  "results": [],
+  "error": "image: failed image must have a visible issue {\"issues\":[],\"broken\":1,\"button\":false}",
+  "cleanup": [
+    "fulfilled",
+    "fulfilled"
+  ],
+  "serverStopped": true
+}

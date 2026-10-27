@@ -1,0 +1,52 @@
+{
+  "dateKST": "2026-10-27",
+  "sourceHead": "6ccf6855c32704ef7fe3326eab349a59ce660f22",
+  "productIndexSha256": "3fc1f2cc4d95333e369b8cb19f0fa0c7ec3b3ad830b040ca831bcdae12e4eaad",
+  "probeSha256": "cb96a7abec69f5ef53ecfd71dc601300c282773afd485cf28affcad9ccb03f79",
+  "normalExit": 0,
+  "normalComplete": true,
+  "normalCases": 12,
+  "redCases": [
+    {
+      "mode": "image",
+      "exit": 1,
+      "targetPrefix": "image"
+    },
+    {
+      "mode": "font",
+      "exit": 1,
+      "targetPrefix": "font"
+    },
+    {
+      "mode": "stale",
+      "exit": 1,
+      "targetPrefix": "stale"
+    },
+    {
+      "mode": "count",
+      "exit": 1,
+      "targetPrefix": "count"
+    },
+    {
+      "mode": "print-order",
+      "exit": 1,
+      "targetPrefix": "print-order"
+    },
+    {
+      "mode": "print-layout",
+      "exit": 1,
+      "targetPrefix": "print-layout"
+    }
+  ],
+  "regressionPassed": 175,
+  "scope": "local synthetic guest only; system print intercepted; no backend or real-user/paid AI access",
+  "notCovered": [
+    "App Check",
+    "real account ACK",
+    "system print/Hancom",
+    "Safari/iPad",
+    "human observation",
+    "source migration/rollback",
+    "main Sonar release gate"
+  ]
+}
