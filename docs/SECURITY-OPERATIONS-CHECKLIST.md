@@ -50,6 +50,14 @@ Pages 를 붙이지 못하고, 전환과 함께 Pages 설정 자체가 지워졌
 - [ ] 새 호스트 정상 확인 후 기존 Pages는 이전 안내로 전환. 앱과 모든 공개 이력을 동시에
   감출 수 있다고 약속하지 않는다. 캐시·구버전 탭 대응 및 지원 종료 시점을 공지한다.
 
+### R7 guest 미리보기 — 운영 이전과 구별
+
+별도 [guest 배포 절차](R7-GUEST-PREVIEW-RUNBOOK.md)의 전용 cwd/config·신규 이름 확인·
+소유 확인 rollback을 따른다. 로컬 allowlist/원본 불변·정상/RED·독립 Codex와 Claude 코드
+검토는 완료했으며 신규 remote 배포는 아직 전이다. framing 양성 대조 보완 REV153은
+새 CI/원격 확인 대기다. 이 준비는 A의 상용 호스트/분리 backend/자료 이관/Pages/private
+완료 체크를 대신하지 않는다.
+
 ## B. Firebase / App Check — 출시 차단
 
 - [ ] 실제 project number/app ID와 Enterprise site key의 프로젝트·허용 도메인 일치 확인.

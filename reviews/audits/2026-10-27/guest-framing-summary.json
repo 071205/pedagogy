@@ -1,0 +1,42 @@
+{
+  "scope": "isolated local guest host verification; no deployed host or product-source mutation",
+  "date": "2026-10-27",
+  "before": {
+    "baseHead": "06e9029",
+    "mutation": "remove only the top-level libraryView id after page bootstrap in a private checker copy",
+    "exitCode": 0,
+    "falsePositive": "crossOriginIndexBlocked=true without a positive target assertion"
+  },
+  "normal": {
+    "kind": "guest-host",
+    "base": "http://127.0.0.1:55252",
+    "manifestFiles": 234,
+    "servedAssets": 233,
+    "manifestSha256": "311046226308c8356c39e7e97626b0cfd360721043b6d1899546484dd00a6fa3",
+    "allBytesMatch": true,
+    "topLevelLibrary": true,
+    "aliases": true,
+    "private404": true,
+    "httpHeaders": true,
+    "sameOriginMock": true,
+    "crossOriginIndexBlocked": true
+  },
+  "negativeControls": [
+    {
+      "mode": "missing-library-view",
+      "exitCode": 1,
+      "assertion": "Guest top-level library positive control"
+    },
+    {
+      "mode": "drop-frame-headers",
+      "exitCode": 1,
+      "assertion": "Guest HTTP CSP must match verified framing"
+    },
+    {
+      "mode": "remote missing-library-view",
+      "exitCode": 1,
+      "assertion": "Failure injection is local only",
+      "beforeNetwork": true
+    }
+  ]
+}
