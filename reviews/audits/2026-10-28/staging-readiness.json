@@ -1,0 +1,78 @@
+{
+  "dateKST": "2026-10-28",
+  "method": "direct REST GET only; no API enable, writes, billing, IAM, provider call",
+  "accountCount": 2,
+  "defaultFingerprint": "d8bbf1f8ef96",
+  "selectedFingerprint": "74138acea7c7",
+  "project": {
+    "http": 200,
+    "projectId": "pedagogy-ai-staging",
+    "projectNumber": "450368559700",
+    "resources": {
+      "hostingSite": "pedagogy-ai-staging"
+    }
+  },
+  "webConfig": {
+    "http": 200,
+    "projectId": "pedagogy-ai-staging",
+    "appId": "1:450368559700:web:5e8f86074f042dd7d12bc1",
+    "authDomain": "pedagogy-ai-staging.firebaseapp.com",
+    "storageBucket": "pedagogy-ai-staging.firebasestorage.app"
+  },
+  "firestore": {
+    "http": 403,
+    "status": "PERMISSION_DENIED",
+    "reasons": [
+      {
+        "reason": "SERVICE_DISABLED",
+        "service": "firestore.googleapis.com"
+      }
+    ]
+  },
+  "storage": {
+    "http": 200,
+    "buckets": []
+  },
+  "auth": {
+    "http": 200,
+    "authorizedDomains": [
+      "localhost",
+      "pedagogy-ai-staging.firebaseapp.com",
+      "pedagogy-ai-staging.web.app"
+    ],
+    "subtype": "FIREBASE_AUTH",
+    "anonymousEnabled": null,
+    "emailEnabled": null
+  },
+  "googleProvider": {
+    "http": 404,
+    "status": "NOT_FOUND",
+    "reasons": []
+  },
+  "billing": {
+    "http": 200,
+    "billingEnabled": false
+  },
+  "appCheck": {
+    "http": 200,
+    "services": [
+      {
+        "name": "projects/450368559700/services/identitytoolkit.googleapis.com",
+        "enforcementMode": "UNENFORCED"
+      }
+    ]
+  },
+  "enterpriseConfig": {
+    "http": 200,
+    "configured": true,
+    "tokenTtl": "3600s"
+  },
+  "recaptchaKey": {
+    "http": 200,
+    "allowedDomains": [
+      "localhost"
+    ],
+    "allowAllDomains": false,
+    "integrationType": "SCORE"
+  }
+}

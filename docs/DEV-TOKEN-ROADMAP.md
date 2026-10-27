@@ -7,6 +7,13 @@
 
 ## 현재 위치 — R7 guest 호스트 검증 완료, 분리 backend·운영 전환 대기
 
+**2026-10-28 R7 준비안:** [HANDOFF-203](../reviews/handoffs/2026-10/2026-10-28-docs-r7-firebase-staging-plan.md)·
+[자원/지역/비용 실행안](R7-FIREBASE-STAGING-PLAN.md). 기존 staging의 project/app GET200·계정2개·
+기본계정 유지를 재확인했다. Firestore API 비활성(DB 유무 미확인)·bucket 없음·Google provider404·
+billing false·reCAPTCHA localhost 한정이다. 권장은 결제 없이 Auth/Firestore부터(A), Storage는
+Blaze/비용/지역 결정 뒤(B)다. API enable/생성/설정/배포는 아직 없다. Claude 최종 합의로 준비안 확정, 다음은 A0 medium
+로컬 분리 overlay 구현+독립 검토다. A1은 기존 DB/지역 확인 뒤, B 결제는 별도 결정이다.
+
 **2026-10-27 R8 로컬 후속:** [HANDOFF-202](../reviews/handoffs/2026-10/2026-10-27-tests-r8-render-recovery.md).
 세 화면의 글꼴 정의 부재/이미지 데이터 교체 복구·옛 렌더 폐기·300문항 제품 doPrint 정합 정상12,
 독립 RED6·필수 브라우저 회귀175 통과. 시스템 인쇄·실계정/실기기·인간 관찰 증거가 아니며
@@ -28,10 +35,10 @@ PR head Sonar 성공이나 네 CI job 성공이 이 출시 차단의 해소를 �
 
 **남은 게이트:** 로그인·AI·계정 동기화를 끈 guest만 배포했다. 도메인 구매 보류,
 production Firebase/Worker·기존 Pages 설정·실제 자료·private 전환은 변경하지 않았다.
-분리 Firebase 마지막 SDK 조회403·새 프로젝트 quota 거절 이후 해소 증거는 없으며
+분리 Firebase 접근은 추가 계정으로 복구됐지만 자원/Auth·Rules·App Check 준비는 남았다.
 App Check 정상/거절·원문 무손실 이관/롤백·실계정/실기기/인간 관찰이 남았다.
-R7/R8 운영 전체 완료가 아니다. 다음 기본 Sol medium은 외부 권한 조건을 확인하고,
-외부 대기 중 허용된 R8 로컬 검증을 이어갈 수 있다. 실제 자료 이관 구현은 별도 high·독립 검토다.
+R7/R8 운영 전체 완료가 아니다. 다음 기본 Sol medium은 최신 R7 준비안의 A0부터 진행하고,
+원격 자원/지역·과금 조건 대기 중 허용된 R8 로컬 검증을 이어갈 수 있다. 실제 자료 이관 구현은 별도 high·독립 검토다.
 인계 branch의 문서/감사 후속 커밋에 별도 CI 완료를 주장하지 않는다.
 
 R1~R6와 U2는 기존 승인·운영 증거를 유지한다. R7 로컬 준비 PR27은 merge
