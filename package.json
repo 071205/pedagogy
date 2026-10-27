@@ -60,7 +60,11 @@
     "build:guest-preview": "node scripts/build-guest-preview.mjs",
     "check:guest-preview": "node scripts/build-guest-preview.mjs --check",
     "test:guest-preview": "node scripts/guest-preview.test.mjs",
-    "test:guest-host": "node scripts/check-guest-host.mjs"
+    "test:guest-host": "node scripts/check-guest-host.mjs",
+    "read:backend-staging-config": "node scripts/backend-staging-config.mjs",
+    "build:backend-staging": "node scripts/build-backend-staging.mjs",
+    "serve:backend-staging": "node scripts/serve-backend-staging.mjs",
+    "test:backend-staging": "node scripts/backend-staging.test.mjs && node scripts/check-backend-staging.mjs"
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^6.0.0",

@@ -1,0 +1,15 @@
+{
+  "scope": "actual pinned SDK initialization; all backend requests blocked",
+  "complete": true,
+  "results": [
+    {
+      "case": "normal",
+      "passed": true,
+      "sdk": "10.12.0"
+    }
+  ],
+  "cleanup": [
+    "fulfilled",
+    "fulfilled"
+  ]
+}

@@ -1,0 +1,59 @@
+{
+  "dateKST": "2026-10-28",
+  "baseHead": "1629dee",
+  "sourceSha256": {
+    "scripts/backend-staging-config.mjs": "f2fce3378a94d54bde4fd4ada1c5a3f8c28dfce0e46ac3a154f8de84adeda3ae",
+    "scripts/backend-staging-runtime.mjs": "55ba8e7341dd1cdcb9770898385d8ac0b44ceddf0401fd7cce1152a2039899e1",
+    "scripts/build-backend-staging.mjs": "5950ef086cedd2387021e6f0c4bdc632a0e2adbec4490fd529b34c31c6595f06",
+    "scripts/serve-backend-staging.mjs": "41e51b489b7823744589101b356563b3d3a550a130fe00ef660a7ef9b9e39f30",
+    "scripts/backend-staging.test.mjs": "25dd8cb6b8ac2e6cd342420dcb60ee53f198d5438516f5996776ea94bc537680",
+    "scripts/check-backend-staging.mjs": "a01899163017aea2281a80e25290c567a7c7e8ce36999a4d8fcaeac644ddc40a",
+    "package.json": "47ac8b9e687b7d1f1ecba1f1277226d37bdc43d4bca2b7a5d0c65d34e24c13de",
+    ".github/workflows/verify.yml": "681a4e3e3c3d598e250c684f8870d0da7ad4e71d5582a1d5e0a8b3a88907b9c8"
+  },
+  "checks": {
+    "test:backend-staging": {
+      "exit": 0,
+      "invalidConfigurationCases": 9,
+      "artifactRedCases": 12,
+      "browserRedCases": 9,
+      "fixture": "a0-browser-fixture.json"
+    },
+    "actualSdk": {
+      "exit": 0,
+      "result": "a0-real-sdk.json",
+      "backendRequests": "blocked"
+    },
+    "regression-test.html": {
+      "passed": 175,
+      "exit": 0,
+      "scope": "unchanged source via serve.py"
+    },
+    "test:public": {
+      "exit": 0,
+      "cspFailureInjections": 12
+    }
+  },
+  "remoteResourceChanges": 0,
+  "providerCalls": 0,
+  "googleLoginAttestationAck": "not tested",
+  "reviewCalls": [
+    {
+      "model": "opus",
+      "effort": "high",
+      "scope": "6 implementation files",
+      "timeoutSeconds": 600,
+      "exit": 124,
+      "finalResult": false
+    },
+    {
+      "model": "opus",
+      "effort": "high",
+      "scope": "runtime/config only",
+      "timeoutSeconds": 360,
+      "exit": 124,
+      "finalResult": false
+    }
+  ],
+  "independentReview": "pending user choice of replacement reviewer; timeouts are not approvals"
+}

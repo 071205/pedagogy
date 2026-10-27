@@ -7,6 +7,13 @@
 
 ## 현재 위치 — R7 guest 호스트 검증 완료, 분리 backend·운영 전환 대기
 
+**2026-10-28 A0 구현 검토 대기:** [HANDOFF-204](../reviews/handoffs/2026-10/2026-10-28-security-r7-backend-staging-a0.md)·
+[로컬 실행](R7-BACKEND-STAGING-A0.md). 전용 빌드/host·프로필 admission·staging 양성/prod 음성·
+AI/Storage/계정삭제 차단, artifact RED12/runtime RED9·설정 거절9·필수 회귀175·public 검사 통과.
+실제 SDK10.12 초기화는 확인했으나 backend 요청은 모두 차단했다. Claude 코드 검토 두 번은
+600/360초 timeout/최종 의견0이므로 합의가 아니다. 독립 검토 담당 대체에 대한 사용자 답 대기,
+그 뒤 코드 검토·필요 수정/재검증·PR/CI를 진행한다. A1/과금/원격 자원/운영 게이트는 그대로다.
+
 **2026-10-28 R7 준비안:** [HANDOFF-203](../reviews/handoffs/2026-10/2026-10-28-docs-r7-firebase-staging-plan.md)·
 [자원/지역/비용 실행안](R7-FIREBASE-STAGING-PLAN.md). 기존 staging의 project/app GET200·계정2개·
 기본계정 유지를 재확인했다. Firestore API 비활성(DB 유무 미확인)·bucket 없음·Google provider404·
