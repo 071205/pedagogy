@@ -203,3 +203,68 @@ cwd 안에 보존한 정상/RED 원문·head/main CI4job·배포 안전 메타�
 추가 보존했다. 기존 source bytes/CI/배포 증거는 재사용했고 불필요한 회귀를 반복하지 않았다.
 원격 완료가 분리 staging·AppCheck·자료 이관·R7/8 운영 전체 완료를 뜻하지 않는다는
 한정은 유지한다. 신규 runtime 코드 변경은 없고 최종 branch는 문서/감사 후속 인계다.
+
+
+## 2026-10-27 새 채팅 재개 체크포인트 — staging 접근 복구
+
+사용자 요청으로 긴 대화를 새 채팅으로 넘긴다. 이 체크포인트 전 HEAD는
+`81bcf8273d79411588f723db30fd48467e0d5fbf`, branch는
+`codex/r7-guest-host-verified`이며 upstream과 같고 작업 트리는 깨끗했다.
+이 후속 변경은 인계/레일 문서뿐이다. PR30 검증 revision과 문서 branch CI를 혼동하지 않는다.
+
+### 변하지 않는 제약
+
+- 실제 worktree `/Users/huryul/개발/pedagogy-작업사본/pedagogy-u15b`에서 계속한다.
+  기본 checkout `/Users/huryul/개발/pedagogy-main`은 전환하지 않는다.
+- `transcript.txt`는 읽기·수정·추가·생성 금지다.
+- 최신 사용자 AGENTS가 디스크의 오래된 왕복 3회 제한보다 우선한다. 횟수 상한은 없으나
+  새 근거 없는 같은 질문 반복·상대 에이전트의 중첩 호출은 금지다. 한 번에 한 구현자다.
+- 구현·독립 검토·검증·병합·배포는 기존 사용자 승인 범위에서 진행한다. Claude도 사용 가능하다.
+  도메인 구매 보류, 무료 기본 주소/호스팅 우선은 유지한다. AI/DB/Storage 전체 무료라는 뜻이 아니다.
+- 자격 증명·OAuth URL/state·원시 CLI debug/env·계정 객체는 출력하거나 커밋하지 않는다.
+  `firebase login:list --json`도 계정 토큰이 포함될 수 있어 사용하지 않는다.
+
+### 새로 확인한 외부 접근 상태
+
+- 새 채팅 인계 직전 안전한 계정 메타데이터만 다시 조회했다. CLI 계정은 **1개**이며
+  기본 계정 fingerprint `d8bbf1f8ef96`이 유지된다. 다른 staging 계정 추가 완료 증거는 없다.
+- 마지막 원격 조회에서 그 계정의 Firebase 프로젝트 목록에는 production만 보였고,
+  `pedagogy-ai-staging` 앱/SDK는 403 PERMISSION_DENIED였다. invalid_grant는 없었다.
+  GCP 프로젝트 목록은 200/6개 ACTIVE였지만 대상 staging은 없었고, 대상 ID/번호의 GET은
+  403이었다. 이것만으로 프로젝트 삭제/부재/권한 원인을 확정하지 않는다.
+- 과거 실제 staging 증거는 존재한다. `reviews/issues/2026-09/2026-09-14-gemini-staging-provider-request-error.md`
+  에 두 번째 Google 계정(`/u/1`) 사용 기록이 있고,
+  `reviews/handoffs/2026-09/2026-09-14-ops6b-staging-preflight.md`에 생성/등록 기록이 있다.
+  project number `450368559700`, web app `1:450368559700:web:5e8f86074f042dd7d12bc1`이다.
+- 사용자가 여러 번 로그인 창 재열기를 요청했다. 마지막에는 새 CLI `login:add` 흐름의
+  공식 Google OAuth URL에 `prompt=select_account`만 추가해 Chrome 새 창으로 열었다.
+  이전 완료 흐름들은 같은 계정을 갱신했을 뿐이었다. 마지막 도구 세션 98424는 인계 시
+  `Unknown process id`라 결과를 회수할 수 없다. 살아 있는 로그인 대기로 취급하거나
+  완료된 OAuth URL을 다시 열지 않는다. 인증 성공/새 계정 추가도 주장하지 않는다.
+- 새 Firebase 프로젝트 `pedagogy-web-staging` 생성의 과거 code8 quota 거절은 여전히
+  미해결이다. 목록 6개만으로 생성 quota 여유를 추정하지 않는다. 관련 없는 프로젝트를
+  삭제/재사용하거나 production 설정을 분리 staging으로 표시하지 않는다.
+- 현재 인증 진단은 private 임시 파일만 사용했다. 토큰/원시 로그는 저장소에 넣지 않았으며
+  제품 코드·실자료·production·결제/IAM 변경은 없다. 임시 로그의 영구 보존을 가정하지 않는다.
+
+### 재개 순서와 모델
+
+1. 최신 사용자 AGENTS → reviews/README.md·INDEX.md → 통합 레일 현재 위치 → 이 체크포인트를 읽는다.
+   기존 완료 CI/원격 검증은 관련 변경 없이 반복하지 않는다.
+2. 기본 담당은 **GPT-6 Sol / medium**. 먼저 CLI 계정 수와 대상 staging 접근을 안전하게
+   확인한다. 새 계정이 있으면 `--account`를 명시하고 기본 계정은 유지한다.
+3. 여전히 계정 1개/403이면 다른 staging 계정의 사용자 인증 또는 IAM 권한 부여가 외부 조건이다.
+   필요할 때만 새로운 유효 로그인 흐름으로 창을 열고, 같은 계정 재로그인을 해소로 기록하지 않는다.
+   사용자가 답할 수 없으면 해당 인간 입력은 미결로 남기고 독립 작업을 계속한다.
+4. 접근 복구 후 프로젝트/웹 앱 identity부터 읽기 전용으로 확인하고 분리 설정·App Check·origin을
+   준비한다. firebase-tools management getProject는 API enable 부수효과가 있어 단순 진단에 쓰지 않는다.
+   유료 AI 호출/C1 결제 전제·승인 범위는 별도 게이트를 유지한다.
+5. 외부 대기 중 R8 남은 로컬 검증(300문항 성능, 폰트/이미지 실패, 오래된 렌더 완료 역전/복구)을
+   기존 검사와 대조해 필요한 묶음만 진행할 수 있다. 실계정 ACK·유료 AI·시스템 인쇄/한글·Safari/iPad·
+   인간 관찰 완료로 확대하지 않는다. 실제 자료 이관 구현은 별도 high·독립 검토가 필요하다.
+6. main Sonar 정확 d65e759의 new_security_rating=5/ERROR는 기존 출시 차단으로 유지한다.
+   R7/R8 운영 전체 완료, source private 전환, 실자료 이관/롤백 완료는 선언하지 않는다.
+
+현재 실행 환경에서는 writable-root symlink 때문에 기본 sandbox 실행/브라우저 자동화가 실패했다.
+정상적인 작업별 exec escalation으로 진단했으며 전역 sandbox 설정은 변경하지 않았다.
+새 채팅에서도 동일 실패가 재현되면 승인된 개별 호출로 처리하고 전역 설정으로 우회하지 않는다.

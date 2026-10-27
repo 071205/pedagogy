@@ -43,15 +43,18 @@ R8 실제 2쪽 PDF의 수동 원문 입력·렌더·기존 참조/Blob 바이트
 [감사 README](../reviews/audits/2026-10-23/README.md). PDF AI 추출·유료 AI·실계정 ACK·
 실제 시스템 인쇄/한글·Safari/iPad·인간 관찰은 포함하지 않아 R8 운영 완료가 아니다.
 
-**외부 환경:** 사용자 로그인 갱신 뒤에도 CLI 계정은 하나이고 분리 `pedagogy-ai-staging`
-SDK 조회는 403이다. projects:list에 production만 보이며 원인은 미확정이다. 결제 연결
+**외부 환경(2026-10-27 새 채팅 인계):** CLI 계정 1개·기본 계정 유지가 재확인됐다.
+마지막 분리 `pedagogy-ai-staging` SDK 조회는 403이며 projects:list에 production만 보였다.
+과거 `/u/1` 계정의 실제 staging 기록이 있어 다른 계정 접근 복구가 우선이다. 마지막 로그인
+도구 세션은 더 이상 조회되지 않아 완료/활성 대기로 간주하지 않는다. 상세 진단·안전한 재개는
+[HANDOFF-201 마지막 체크포인트](../reviews/handoffs/2026-10/2026-10-23-index-r7-guest-preview.md#2026-10-27-새-채팅-재개-체크포인트--staging-접근-복구)를 따른다. 결제 연결
 없는 별도 `pedagogy-web-staging` 생성도 code8 프로젝트 quota 초과로 거절됐다.
 생성 완료·분리 staging 완료로 기록하거나 production 설정을 staging으로 사용하지 않는다.
 사용자는 부재 중 기존 승인 범위에서 계속 진행하고 인간 결정은 미결로 남기도록 지시했다.
 **도메인 구매 보류·무료 기본 주소/호스팅 우선**을 유지한다. AI/DB/Storage 전체 무료를 뜻하지 않는다.
 
 별도 guest-preview 패키지의 명시 guest 부팅·backend/loopback 차단·이관 금지 배너·
-정상/RED·독립 검토 후 새 기본 주소만 배포하는 작업을 진행한다. 아직 새 호스트 배포 전이다.
+정상/RED·독립 검토와 새 기본 주소 배포/원격 검증은 위 최신 체크포인트대로 완료했다.
 이는 정적 호스트 경계 검증이며 분리 Firebase/Auth/App Check 검증·R7 실제 운영 이전을
 대체하지 않는다. 구 origin 자료 이관은 [별도 설계안](R7-ORIGIN-MIGRATION-DESIGN.md)의
 high 구현·검토가 필요하다. 기존 일반 JSON만으로 Blob/작업/충돌을 무손실 이관할 수 없다.
