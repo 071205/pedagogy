@@ -13,6 +13,7 @@
 | `REV-2026-075` | `P2` | AI 문서에 들어갔다 나오면 로그인이 안 된다(재현 절차 없음) | `issues/2026-09/2026-09-09-document-editor-login-after-return.md` |
 | `REV-2026-093` | `P2` | staging Gemini가 결제 전제 미충족(`FAILED_PRECONDITION`)으로 실패한다 | `issues/2026-09/2026-09-14-gemini-staging-provider-request-error.md` |
 | `REV-2026-147` | `P2` | 과거 Firebase CLI 환경 덤프에 세션 IPC 토큰 field가 남아 이력 노출 위험이 지속된다 | `issues/2026-10/2026-10-23-security-driveupload-messaging-token-history-exposure.md` |
+| `REV-2026-153` | `P2` | 게스트 framing 검사가 top-level 비교 대상의 양성 대조를 확인하지 않는다 | `issues/2026-10/2026-10-27-tests-guest-framing-positive-control.md` |
 
 ⚠️ 이 표는 `npm run check:review-hygiene` 가 **실제 이슈 파일의 상태와 양방향으로**
 대조한다. 지난 요약을 지워도 안전한 이유가 이 대조다 — 남은 한 곳이 정확해야

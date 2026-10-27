@@ -60,6 +60,9 @@ async function checkResponse(base, path, asset, framing, manifest) {
 const remote = process.env.GUEST_HOST_BASE || '';
 if(remote && !/^https:\/\/pedagogy-guest-preview\.[a-z0-9-]+\.workers\.dev$/.test(remote))
   throw Error('Remote verification requires the dedicated guest preview workers.dev origin');
+const red = process.env.GUEST_HOST_RED || '';
+if(remote && red) throw Error('Failure injection is local only');
+if(red && !['drop-frame-headers','missing-library-view'].includes(red)) throw Error('Unknown guest host failure injection');
 const manifest = await verifyGuest(root);
 const port = remote ? 0 : await freePort();
 let base = remote || `http://127.0.0.1:${port}`;
@@ -81,8 +84,7 @@ if(!remote) {
 let browser;
 try {
   if(lifecycle) await ready(base, lifecycle);
-  if(process.env.GUEST_HOST_RED==='drop-frame-headers') {
-    if(remote) throw Error('Failure injection is local only');
+  if(red==='drop-frame-headers') {
     const upstream=base;
     proxy=httpServer(async(req,res)=>{
       try {
@@ -139,6 +141,8 @@ try {
   });
   const page = await context.newPage();
   await page.goto(base + '/');
+  if(red==='missing-library-view') await page.locator('#libraryView').evaluate(el=>el.removeAttribute('id'));
+  assert.equal(await page.locator('#libraryView').count(),1,'Guest top-level library positive control');
   assert.equal(await page.locator('#guestPreviewBanner').isVisible(),true);
   assert.equal(await page.locator('#loginBtn').isDisabled(),true);
   assert.equal(await page.evaluate(()=>fbReady),false);
@@ -166,7 +170,7 @@ try {
       'Cross-origin embedding must be blocked by frame-ancestors');
   } finally { await new Promise(resolve => http.close(resolve)); }
   await context.close();
-  console.log(JSON.stringify({kind:'guest-host',base,manifestFiles:Object.keys(manifest).length,servedAssets:files.length,manifestSha256:sha(Buffer.from(JSON.stringify(manifest))),allBytesMatch:true,aliases:true,private404:true,httpHeaders:true,sameOriginMock:true,crossOriginIndexBlocked:true}));
+  console.log(JSON.stringify({kind:'guest-host',base,manifestFiles:Object.keys(manifest).length,servedAssets:files.length,manifestSha256:sha(Buffer.from(JSON.stringify(manifest))),allBytesMatch:true,topLevelLibrary:true,aliases:true,private404:true,httpHeaders:true,sameOriginMock:true,crossOriginIndexBlocked:true}));
 } finally {
   try { await browser?.close(); }
   finally {

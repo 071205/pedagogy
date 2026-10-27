@@ -95,3 +95,28 @@ build-guest-preview.mjs와 guest-preview.test.mjs의 새 EOF 빈 줄 때문에 �
 두 빈 줄만 제거했다. 앞선 git diff --check가 새 untracked 파일 전체를 포함하지 못했던
 검증 범위 문제이며 이제 origin/main...HEAD 및 working diff를 모두 확인한다.
 제품 동작 변경 없이 새 head CI를 기다린다. c497888 인계 문서는 별도 branch에 보존돼 있다.
+
+
+## 2026-10-27 Claude 배포 경계 협의
+
+사용자가 Claude 검토를 직접 허용해 로그인 상태 확인 뒤 저장소 foreground 읽기 전용
+래퍼를 opus/high로 2회 호출했고 모두 정상 완료했다. 제한 Read/Grep/Glob·plan·세션 비저장,
+쓰기/원격/중첩 호출 없이 지정6파일과 새 이견만 검토했다.
+[사용 스킬](/Users/huryul/.codex/skills/claude-codex-collaboration/SKILL.md)의 과거3회상한보다
+최신 사용자 AGENTS의 상한 없음/중복질문 금지가 우선한다.
+
+1차 조건부 합의에서 G1 deploy cwd를 생성 guest 폴더로 고정, G3 정확10007/인증오류없음만
+신규생성·기존/불명확대상이면deploy/delete금지, G2 원격framing의top-level양성대조를 제시했다.
+G1/G3은 위 [운영 절차](../../../docs/R7-GUEST-PREVIEW-RUNBOOK.md)에 명시했다.
+G2는 기존 checker의 top-level id만 제거해도 exit0인 실제 검사 공백을 Codex가 재현해
+REV153으로 등록하고 count1 단언·local-only DOM변이·CI exit1/문구 확인을 추가했다.
+순차 정상0/대상제거1/HTTP헤더제거1/원격주입거절1을 확인했다. 공개 runtime 원본은 수정하지 않았다.
+
+2차 Claude 최종 합의: G2 코드/CI 공백 해소, G1/G3 명시 절차로 조건 충족, 미합의 없음.
+다만 Claude 파일 도구가 cwd 밖 임시 로그를 읽지 못했으므로 로그 수치를 독립 확인한
+판정으로 과장하지 않는다. Codex가 실제 로그/exit를 대조했고 민감값 없는 원문 probe 로그와
+요약을 reviews/audits/2026-10-27에 보존했다. 새 CI/원격 전 운영 성공을 주장하지 않는다.
+REV153은 새 CI·원격 증거 후 같은 파일에서 해결 처리한다.
+
+참고: head06e9029의 Verify40424583729는 필수4job 및 Sonar 성공이다. 양성대조 보완은
+그 후속 변경이므로 새 head CI로 확인한다. 이전 제품/저장 전체 회귀를 로컬에서 반복하지 않았다.
