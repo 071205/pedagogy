@@ -5,14 +5,29 @@
 **실행 순서·현재 단계는 이 문서 한 곳에서만 관리한다.**
 [이전 레일](DEV-TOKEN-ROADMAP-ARCHIVE-2026-09-20.md)은 완료 증거·계약 보관본이다.
 
-## 현재 위치 — R7 무료 게스트 호스트 준비, 분리 Firebase 접근/프로젝트 한도 대기
+## 현재 위치 — R7 guest 호스트 검증 완료, 분리 backend·운영 전환 대기
 
-**2026-10-25 재개:** R8 PR29 head `b1f1678` 필수4CI/Sonar 통과 후 `1ed8d7f`로 병합했다.
-정확한 main CI/Pages 확인은 진행 중이다. [HANDOFF-201](../reviews/handoffs/2026-10/2026-10-23-index-r7-guest-preview.md)의
-별도 guest overlay와 명시 호출 차단·원본 불변·정확 allowlist, UI 정상/RED 및 실제 Wrangler
-233자산/헤더/404/iframe 정상·헤더 제거 RED·독립 Codex 검토를 완료했다. 현재
-`codex/r7-guest-preview-host`에서 새 head CI·PR·새 무료 호스트 배포/원격 검증을 진행한다.
-아직 원격 배포 전이며 staging/Auth/App Check/실자료 이관·R7/8 운영 완료와 구별한다.
+**2026-10-27 최신:** [HANDOFF-201](../reviews/handoffs/2026-10/2026-10-23-index-r7-guest-preview.md).
+PR29 main1ed8d7f의 CI4개/Pages 완료. R7 guest PR30 최종head88c86d5의 Verify40427720314
+필수4job/Sonar 및 merge d65e759의 Verify40430188686 필수4job·Pages built/핵심5파일 일치 완료.
+[게스트 미리보기](https://pedagogy-guest-preview.dbruddl79.workers.dev)를 신규 배포했고,
+version b22da34b-4d78-469c-be22-a2d776b9e811, 원격233자산 bytes/SHA·aliases/HTTP헤더·
+private404·top-level 양성 대조·iframe 정상까지 확인했다. 234 manifest 중 _headers는 비공개 제어파일이다.
+[감사 증거](../reviews/audits/2026-10-27/README.md). REV152/153은 같은 이슈 파일에서 resolved다.
+
+Codex 구현/독립 검토 뒤 사용자 허용으로 Claude opus/high 읽기 전용 협의를 실행했다.
+배포cwd·신규 이름 중단 조건·framing 양성 대조를 보완했고 코드/CI·절차 최종 합의다.
+CLI/원격 실행 증거는 별도 구분하며 구현자·검토자의 확인 한계를 HANDOFF201에 보존한다.
+main Sonar는 정확한 d65e759 분석에서도 new_security_rating=5/ERROR로 기존 차단 상태다.
+PR head Sonar 성공이나 네 CI job 성공이 이 출시 차단의 해소를 뜻하지 않는다.
+
+**남은 게이트:** 로그인·AI·계정 동기화를 끈 guest만 배포했다. 도메인 구매 보류,
+production Firebase/Worker·기존 Pages 설정·실제 자료·private 전환은 변경하지 않았다.
+분리 Firebase 마지막 SDK 조회403·새 프로젝트 quota 거절 이후 해소 증거는 없으며
+App Check 정상/거절·원문 무손실 이관/롤백·실계정/실기기/인간 관찰이 남았다.
+R7/R8 운영 전체 완료가 아니다. 다음 기본 Sol medium은 외부 권한 조건을 확인하고,
+외부 대기 중 허용된 R8 로컬 검증을 이어갈 수 있다. 실제 자료 이관 구현은 별도 high·독립 검토다.
+인계 branch의 문서/감사 후속 커밋에 별도 CI 완료를 주장하지 않는다.
 
 R1~R6와 U2는 기존 승인·운영 증거를 유지한다. R7 로컬 준비 PR27은 merge
 `506b33cd4e0a5c965d44d161391094b32c17460d`, main Verify `39922835078` 네 job 성공·

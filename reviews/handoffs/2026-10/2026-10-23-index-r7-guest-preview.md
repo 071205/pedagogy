@@ -87,6 +87,48 @@ exit127로 실패했으므로 [REV152](../../issues/2026-10/2026-10-25-tests-gue
 PR29 main1ed8d7f의 Verify40123600931 네 job 성공·Pages built도 최종 확인했다.
 
 
+## 최종 마감 체크포인트 — 2026-10-25
+
+사용자가 사용량 종료 전 마무리를 요청해 새 배포를 시작하지 않고 인계한다.
+
+- 실제 worktree: `/Users/huryul/개발/pedagogy-작업사본/pedagogy-u15b`.
+  인계 branch `codex/r7-guest-preview-handoff`; 기본 checkout은 전환하지 않았다.
+- PR29는 `1ed8d7f1d96e41e06d8d9ea81cd1e303c4833f48`로 병합 완료.
+  정확한 main Verify40123600931 필수4job 성공, Pages40123600472 성공·built 확인.
+- PR30 https://github.com/071205/pedagogy/pull/30 은 open/미병합이다.
+  branch `codex/r7-guest-preview-host`, 최신 head
+  `28189ae6e56e98dc89d7b2b7ad8adc3ee7d15d3b`, Verify40125969663 진행 중이다.
+  인계 branch 문서 커밋과 PR head를 구별하며 별도 CI 성공을 주장하지 않는다.
+- 최초 head4dcc11f의 Sonar·secrets·cross-platform·hwpx 및 verify의 기존 종합/시각/
+  공개 산출물 검사는 성공했다. 새 guest UI/RED 및 실제 Wrangler 정상도 통과했으나
+  마지막 rg 부재(exit127)로 verify job은 실패했다. 이를 전체 CI 성공으로 세지 않는다.
+- REV152는 grep -F 한 줄 수정·제한 PATH 정상/음성 대조4개·독립 Codex 합의까지 완료,
+  새 head CI 확인 전이므로 in-progress다. 성공 후 같은 이슈에 근거를 추가해 resolved로
+  바꾸고 INDEX 열린 표에서 제거한다. 다른 통과 로컬 검사는 불필요하게 반복하지 않는다.
+- 새 guest 호스트는 아직 생성/배포하지 않았다. 이름 조회는 worker-not-found·인증 오류 없음,
+  전용 config dry-run exit0·No bindings 확인. private 안전 요약은 임시
+  `pedagogy-r7-guest-deploy-moykhsn1/safe-summary.json`에 있으며 raw CLI 로그/토큰은 출력하지 않는다.
+  생성 artifact는 `dist/guest-preview/dist/public`, config는 `dist/guest-preview/wrangler.toml`.
+  정확 manifest SHA는 위 정상 로그의 311046… 값과 같다.
+
+### 다음 실행 순서
+
+1. PR30 최신 댓글/head28189ae·필수4job/Sonar를 확인한다. 실패면 실제 근거만 조사한다.
+   grep 수정 CI가 성공하면 REV152를 같은 파일에서 해소한다.
+2. 검토된 정확 head를 병합하고 merge main CI·Pages를 확인한다. 인계 문서는 별도 보존하며
+   PR30 코드 전체를 중복 cherry-pick하지 않는다. 기본 checkout을 전환하지 않는다.
+3. 무료 guest 배포 직전 fresh build/verify와 이름 충돌을 확인한다. 생성 guest config만 사용해
+   새 `pedagogy-guest-preview`를 배포하고 CLI version ID·공개 URL을 기록한다.
+4. `GUEST_HOST_BASE=https://pedagogy-guest-preview.<label>.workers.dev node scripts/check-guest-host.mjs`
+   로 전체233자산/SHA·별칭/HTTP헤더/private404/iframe를 확인한다. 새 host 실패 시 전용
+   config의 리소스만 중지/삭제한다. 기존 production Firebase/Worker/Pages는 변경하지 않는다.
+5. 운영 체크리스트와 레일에 실제 원격 증거를 추가한다. 분리 staging403/프로젝트 quota,
+   App Check·실자료 이관/high 구현·R8 실제 AI/ACK/실기기/인간 관찰은 미결로 유지한다.
+
+도메인 구매 보류·무료 기본 주소 우선·실제 자료 이관 금지·transcript.txt 접근 금지를 유지한다.
+다음 기본 담당은 레일의 GPT-6 Sol / medium이다. 이번 인계는 운영 완료가 아니다.
+
+
 ## 2026-10-27 재개 — 대상 CI 통과·공백 정리
 
 28189ae의 Verify40125969663에서 새 guest 단계는 성공해 REV152를 대상 증거로 resolved로
@@ -120,3 +162,44 @@ REV153은 새 CI·원격 증거 후 같은 파일에서 해결 처리한다.
 
 참고: head06e9029의 Verify40424583729는 필수4job 및 Sonar 성공이다. 양성대조 보완은
 그 후속 변경이므로 새 head CI로 확인한다. 이전 제품/저장 전체 회귀를 로컬에서 반복하지 않았다.
+
+
+## 2026-10-27 배포·원격 검증 완료 체크포인트
+
+- PR30 최종head88c86d545ef9dc77585b866a8b6030a7aecfae90 Verify40427720314 필수4job/Sonar 성공,
+  merge d65e759136c4bb79b2f6b0a91943c870d4b4e20f Verify40430188686 필수4job/guest단계 성공.
+  Pages 정확merge built·핵심5파일 bytes/SHA 일치다. gh watch가 비정상 종료했지만 최종 API의
+  정확head/job 성공을 대조했으며 이를 CI 실패/재실행으로 오인하지 않았다.
+- 새 https://pedagogy-guest-preview.dbruddl79.workers.dev 배포 성공. version
+  b22da34b-4d78-469c-be22-a2d776b9e811, manifest234/제공233,
+  SHA311046226308c8356c39e7e97626b0cfd360721043b6d1899546484dd00a6fa3.
+  배포직전HEAD/clean tree/정확CI/fresh build/check를 확인했고 cwd=dist/guest-preview,
+  CLI/config절대경로, API code집합이정확10007/인증오류없음일때만 신규생성했다.
+  생성확인/versionID/URL 메타데이터를 기록했으며기존/불명확대상을덮어쓰거나삭제하지않았다.
+- 원격 checker exit0: 모든233자산/SHA·aliases/HTTP CSP/framing·private404·top-level 양성
+  대조·same-origin mock/cross-origin index 차단 통과. 근거 reviews/audits/2026-10-27.
+  REV153은 CI/원격까지 충족해 같은 파일에서 resolved로 닫았다.
+- main Sonar 정확d65e759 분석은 new_security_rating5/ERROR다. 기존 출시 차단을 유지하고
+  PR head Sonar/네 CI job 성공과 구분한다. Python 로컬 CA 오류는 Node의 TLS 검증 유지
+  fetch로 Pages bytes를 대조해 환경 문제로 구분했으며 인증서 검증을 끄지 않았다.
+- 실제자료/production Firebase·Worker·Rules·Pages설정·도메인/결제는변경하지않았다.
+  rollback은준비만했고실제삭제/복원은하지않았다. 분리SDK403/새projectquota는마지막조회이후
+  해소증거없음. AppCheck·원문무손실이관/high·실계정ACK·실기기/한글/인간관찰은미결이다.
+- c497888 이전 인계는 이 branch에서 문서 merge로 보존했으며 PR30 코드 중복cherry-pick은없다.
+  현재인계 branch codex/r7-guest-host-verified의 문서후속커밋에별도CI완료를주장하지않는다.
+  다음기본담당Solmedium, 실제자료이관구현은별도high·독립검토게이트다.
+
+
+### Claude 3차 최종 증거 대조 — 종결
+
+cwd 안에 보존한 정상/RED 원문·head/main CI4job·배포 안전 메타데이터·원격 결과·Pages
+5파일·main Sonar 상태·REV153 처리 기록을 Claude opus/high가 읽기 전용으로 대조했다.
+구체적 불일치 없음, 합의/미합의 없음, REV153 resolved 및 guest 호스팅 부분 완료가
+정확하다고 최종 판정했다. [최종 답변](../../audits/2026-10-27/claude-final-verdict.md).
+이번 범위 Claude 실제 호출은 3회 모두 정상 완료이며, 이전 세션 한도 실패와 구별한다.
+
+그 판정 당시 PR Sonar 통과/Pages built 자체는 서술 근거였다는 한계도 그대로 보존했다.
+이후 Codex가 같은 revision의 실제 API 필드를 다시 대조해 publication-checks.json에
+추가 보존했다. 기존 source bytes/CI/배포 증거는 재사용했고 불필요한 회귀를 반복하지 않았다.
+원격 완료가 분리 staging·AppCheck·자료 이관·R7/8 운영 전체 완료를 뜻하지 않는다는
+한정은 유지한다. 신규 runtime 코드 변경은 없고 최종 branch는 문서/감사 후속 인계다.

@@ -52,11 +52,16 @@ Pages 를 붙이지 못하고, 전환과 함께 Pages 설정 자체가 지워졌
 
 ### R7 guest 미리보기 — 운영 이전과 구별
 
-별도 [guest 배포 절차](R7-GUEST-PREVIEW-RUNBOOK.md)의 전용 cwd/config·신규 이름 확인·
-소유 확인 rollback을 따른다. 로컬 allowlist/원본 불변·정상/RED·독립 Codex와 Claude 코드
-검토는 완료했으며 신규 remote 배포는 아직 전이다. framing 양성 대조 보완 REV153은
-새 CI/원격 확인 대기다. 이 준비는 A의 상용 호스트/분리 backend/자료 이관/Pages/private
-완료 체크를 대신하지 않는다.
+- [x] 2026-10-27 Codex가 전용 [guest 절차](R7-GUEST-PREVIEW-RUNBOOK.md)로
+  https://pedagogy-guest-preview.dbruddl79.workers.dev 를 신규 배포했다. version
+  b22da34b-4d78-469c-be22-a2d776b9e811, manifest SHA311046226308c8356c39e7e97626b0cfd360721043b6d1899546484dd00a6fa3.
+  정확10007/인증오류없음·전용cwd/config·생성확인메타데이터를 보존했다.
+  PR30 head88c86d5/merge d65e759의 CI4개와 Pages·5파일 일치, 원격233자산/SHA·aliases·
+  HTTP헤더/private404·양성대조/iframe 검증까지 통과했다. [증거](../reviews/audits/2026-10-27/README.md).
+- [ ] 위 guest는 로그인/AI/계정 동기화·실자료 이관을 지원하지 않는다. A의 상용 호스트/
+  분리 backend·App Check·자료 이관·Pages/private 전환 완료 체크를 대체하지 않는다.
+  d65e759 main Sonar의 new_security_rating5/ERROR도 유지하며 PR head 성공과 구별한다.
+  rollback은 이번 생성확인리소스만 중지할 절차 준비이며 실제 삭제/복원 실험은 하지 않았다.
 
 ## B. Firebase / App Check — 출시 차단
 

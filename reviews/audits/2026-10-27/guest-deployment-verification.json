@@ -1,0 +1,102 @@
+{
+  "sourceCommit": "d65e759136c4bb79b2f6b0a91943c870d4b4e20f",
+  "requiredCiRun": "40430188686",
+  "requiredJobsSucceeded": true,
+  "workerName": "pedagogy-guest-preview",
+  "manifestFiles": 234,
+  "manifestSha256": "311046226308c8356c39e7e97626b0cfd360721043b6d1899546484dd00a6fa3",
+  "lookupExit": 1,
+  "lookupCodes": [
+    "10007"
+  ],
+  "authenticationError": false,
+  "createdInThisSession": true,
+  "deploymentExit": 0,
+  "versionId": "b22da34b-4d78-469c-be22-a2d776b9e811",
+  "url": "https://pedagogy-guest-preview.dbruddl79.workers.dev",
+  "deployment": "succeeded",
+  "observedDate": "2026-10-27",
+  "deployCwdWithinWorktree": "dist/guest-preview",
+  "configWithinWorktree": "dist/guest-preview/wrangler.toml",
+  "remoteVerification": {
+    "kind": "guest-host",
+    "base": "https://pedagogy-guest-preview.dbruddl79.workers.dev",
+    "manifestFiles": 234,
+    "servedAssets": 233,
+    "manifestSha256": "311046226308c8356c39e7e97626b0cfd360721043b6d1899546484dd00a6fa3",
+    "allBytesMatch": true,
+    "topLevelLibrary": true,
+    "aliases": true,
+    "private404": true,
+    "httpHeaders": true,
+    "sameOriginMock": true,
+    "crossOriginIndexBlocked": true
+  },
+  "headCi": {
+    "runId": 40427720314,
+    "headSha": "88c86d545ef9dc77585b866a8b6030a7aecfae90",
+    "status": "completed",
+    "conclusion": "success",
+    "jobs": [
+      {
+        "name": "secrets",
+        "conclusion": "success",
+        "guestStep": []
+      },
+      {
+        "name": "verify",
+        "conclusion": "success",
+        "guestStep": [
+          {
+            "name": "Verify isolated guest preview boundary (no deployment)",
+            "conclusion": "success"
+          }
+        ]
+      },
+      {
+        "name": "cross-platform",
+        "conclusion": "success",
+        "guestStep": []
+      },
+      {
+        "name": "hwpx",
+        "conclusion": "success",
+        "guestStep": []
+      }
+    ]
+  },
+  "mergeCi": {
+    "runId": 40430188686,
+    "headSha": "d65e759136c4bb79b2f6b0a91943c870d4b4e20f",
+    "status": "completed",
+    "conclusion": "success",
+    "jobs": [
+      {
+        "name": "secrets",
+        "conclusion": "success",
+        "guestStep": []
+      },
+      {
+        "name": "hwpx",
+        "conclusion": "success",
+        "guestStep": []
+      },
+      {
+        "name": "cross-platform",
+        "conclusion": "success",
+        "guestStep": []
+      },
+      {
+        "name": "verify",
+        "conclusion": "success",
+        "guestStep": [
+          {
+            "name": "Verify isolated guest preview boundary (no deployment)",
+            "conclusion": "success"
+          }
+        ]
+      }
+    ]
+  },
+  "scope": "static guest preview only; no backend staging, App Check, data migration or production transition"
+}

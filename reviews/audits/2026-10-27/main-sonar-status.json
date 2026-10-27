@@ -1,0 +1,12 @@
+{
+  "revision": "d65e759136c4bb79b2f6b0a91943c870d4b4e20f",
+  "date": "2026-10-27T01:02:51+0000",
+  "qualityGate": "ERROR",
+  "failingConditions": [
+    {
+      "metricKey": "new_security_rating",
+      "actualValue": "5",
+      "errorThreshold": "1"
+    }
+  ]
+}
