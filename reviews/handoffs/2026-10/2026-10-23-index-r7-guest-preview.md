@@ -85,3 +85,13 @@ exit127로 실패했으므로 [REV152](../../issues/2026-10/2026-10-25-tests-gue
 제한 PATH 대조는 old127/fixed0/wrong-exit1/wrong-message1, 독립 Codex 좁은 검토 합의다.
 다른 통과 검사는 로컬에서 반복하지 않았고 새 CI head 성공을 기다린다.
 PR29 main1ed8d7f의 Verify40123600931 네 job 성공·Pages built도 최종 확인했다.
+
+
+## 2026-10-27 재개 — 대상 CI 통과·공백 정리
+
+28189ae의 Verify40125969663에서 새 guest 단계는 성공해 REV152를 대상 증거로 resolved로
+닫았다. secrets/cross-platform/hwpx/Sonar도 성공했으나 verify 전체는 마지막 공백 검사에서
+build-guest-preview.mjs와 guest-preview.test.mjs의 새 EOF 빈 줄 때문에 실패했다.
+두 빈 줄만 제거했다. 앞선 git diff --check가 새 untracked 파일 전체를 포함하지 못했던
+검증 범위 문제이며 이제 origin/main...HEAD 및 working diff를 모두 확인한다.
+제품 동작 변경 없이 새 head CI를 기다린다. c497888 인계 문서는 별도 branch에 보존돼 있다.

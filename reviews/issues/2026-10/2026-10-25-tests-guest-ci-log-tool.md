@@ -3,7 +3,7 @@
 - ID: `REV-2026-152`
 - 날짜: `2026-10-25`
 - 보고자: Codex
-- 상태: `in-progress`
+- 상태: `resolved`
 - 심각도: `P2`
 - 영향 영역: `tests`
 - 관련 인계: `HANDOFF-2026-201`
@@ -31,3 +31,9 @@ Wrangler 233자산/헤더/404/iframe 정상은 통과했다. HTTP CSP 제거 RED
   잘못된 실패 문구 거절(exit1). 실행 summary는 임시 pedagogy-rev152-* 폴더에 보존했다.
 - 독립 Codex GPT-6 Sol / medium이 CI 실제 실패 로그·한 줄 diff·코드/문구 검사를
   대조해 최소 수정 합의·미합의 없음으로 판정했다. 새 head CI 완료 전 in-progress 유지.
+
+- 2026-10-27 — head28189ae의 Verify40125969663에서 `Verify isolated guest preview
+  boundary (no deployment)` 단계가 success였다. 실제 Linux의 guest 정상/RED와 Wrangler
+  정상, HTTP CSP 제거 exit1+grep 문구 확인까지 통과해 원래 rg 부재 결함은 해결됐다.
+  전체 verify job은 별도 두 새 파일 EOF 빈 줄에서 실패했으며 이 성공과 구별한다.
+  EOF 두 줄은 동작 변경 없이 제거하고 PR 전체 diff의 공백 검사를 진행한다.

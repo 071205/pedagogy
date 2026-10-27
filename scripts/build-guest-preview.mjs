@@ -197,4 +197,3 @@ if(process.argv[1]&&pathToFileURL(resolve(process.argv[1])).href===import.meta.u
   const manifest=process.argv.includes('--check')?await verifyGuest():await buildGuest();
   console.log('Guest preview artifact verified: '+Object.keys(manifest).length+' files.');
 }
-

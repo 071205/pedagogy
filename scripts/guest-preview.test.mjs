@@ -132,4 +132,3 @@ try {
   await new Promise(resolve=>server.close(resolve));
 }
 console.log('Guest RED: banner, CSP, SDK, iframe, endpoint, config, account/runtime guards, symlinks, private asset and inline injection detected');
-
