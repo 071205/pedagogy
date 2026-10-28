@@ -20,7 +20,7 @@
 
 ## 지금 하는 일
 
-**2026-10-29 우선 적용:** 통합 레일 상단을 출시 범위 중심으로 재구성. Sol medium [첫 공개 범위/증거 공백표](../docs/FIRST-RELEASE-SCOPE.md) 작성 완료. 다음 범위 선택·main Sonar 분류. 전체 staging·AI·결제를 공통 선행 조건으로 묶지 않으며 노출 기능 안전성은 유지. 문서 변경만, 출시 승인 아님.
+**2026-10-29 확정:** 편집·출력 + 로그인·저장·이미지 + AI 모두 첫 출시 포함. 통합 레일을 출시 전1~6/후1~4로 확정. [공백표](../docs/FIRST-RELEASE-SCOPE.md) 갱신, 다음 Sol medium은 전1 Sonar 분류. 무료/유료 미정·문서만 변경.
 
 **R4/U0 계약 독립 검토·연결 시안 완료**(Claude Opus 5 · `HANDOFF-167`):
 [계약](../docs/PRODUCT-UX-U0-CONTRACT.md) · [과제·결정표](../docs/PRODUCT-UX-U0-SCENARIOS.md) ·
