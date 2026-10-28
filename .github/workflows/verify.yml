@@ -121,6 +121,8 @@ jobs:
       #    아무것도 검사하지 않는다(그리고 `XPLAT_REQUIRE=1` 이라 실패한다).
       - name: Install fixed Chromium
         run: ./node_modules/.bin/playwright install --with-deps chromium
+      - name: Preview paper navigation and disclosure
+        run: npm run test:sheet-navigation
       - name: Fast code, fixture, and configuration checks
         env:
           XPLAT_REQUIRE: "1"        # 건너뜀은 통과가 아니다

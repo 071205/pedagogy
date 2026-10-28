@@ -17,7 +17,7 @@
 |---|---|
 | 끝난 것 | R2·R3 계약 · R4/B1·B2 · **B3 코드·독립 검토** · **R4.5 두 묶음 승인** · **⑥ 제품 UX 레일 통합(문서만)** |
 | 후속 완료 | R1 독립 검토 완료. **B3 3/3 완료**(`HANDOFF-170` 검토). **B5 검토·운영 배포 완료**(`HANDOFF-171`) |
-| 다음 | **R7 guest PR30 head88c86d5·merge d65e759 CI4개/Pages 완료, 신규 workers.dev 배포·원격233자산/헤더/404/양성/iframe 통과. REV152/153 해결·Claude 코드/절차 합의.** HANDOFF-201 최신 체크포인트. R8 로컬 렌더 복구·300문항 정상12/RED6·필수회귀175(HANDOFF-202). 추가 계정 인증·기존 staging identity GET200 복구. R7 자원/지역/비용 실행안(HANDOFF-203) Claude 최종 합의·원격 변경 없음. A0 구현·독립 검토 완료(HANDOFF-204), Claude 재시도 의견2건+독립 Codex1건 재현/수정·최종 합의, artifact/runtime 각14RED. 다음은 [PR35](https://github.com/071205/pedagogy/pull/35) 필수 CI/병합 확인 뒤 A1, Storage는 B 결정 뒤. App Check·실자료 이관/high 구현·main Sonar·R7/8 운영 전체 게이트 유지 |
+| 다음 | **R7 guest PR30 head88c86d5·merge d65e759 CI4개/Pages 완료, 신규 workers.dev 배포·원격233자산/헤더/404/양성/iframe 통과. REV152/153 해결·Claude 코드/절차 합의.** HANDOFF-201 최신 체크포인트. R8 로컬 렌더 복구·300문항 정상12/RED6·필수회귀175(HANDOFF-202). 추가 계정 인증·기존 staging identity GET200 복구. R7 자원/지역/비용 실행안(HANDOFF-203) Claude 최종 합의·원격 변경 없음. A0 구현·독립 검토 완료(HANDOFF-204), Claude 재시도 의견2건+독립 Codex1건 재현/수정·최종 합의, artifact/runtime 각14RED. 다음은 [PR35](https://github.com/071205/pedagogy/pull/35) head dae2283 CI4개/PR Sonar 통과·merge7850590 병합·Pages built/5파일 일치, main CI4개 통과. 사용자 선택 R8 시험지 미리보기·출력 완성도: HANDOFF205 REV157 로컬 수정·독립 합의, 정상3/RED10 및 기존 검사 통과. 다음 UI PR/CI. A1 자동 진행 보류, Storage는 B 결정 뒤. App Check·실자료 이관/high 구현·main Sonar·R7/8 운영 전체 게이트 유지 |
 | 세션 | 클라우드/로컬 병렬 — 어느 세션에서 무엇을 하는지는 [DEV-TOKEN-ROADMAP '세션 분담'](DEV-TOKEN-ROADMAP.md#세션-분담--클라우드--로컬-2026-10-03--astra-high-판정)(2026-10-03 Astra high 판정). Codex 검토·배포·한글·로그인 확인은 로컬에만 있다 |
 | 결정·외부 대기 | D1 독립/연동 선택 완료. D2②·D4 답 반영·U0 개정 재검토 합의, D3 운영 숫자·D1 기본값/패널 시안 선택, C1 결제·새 호출 승인, R7 외부 환경. 구 탭은 사용자가 다른 기기 새로고침으로 정리하고 별도 안내 없이 엄격 Rules 적용을 결정 |
 
@@ -32,7 +32,7 @@ B3 전환 Rules → 플래그 1 클라이언트 → 엄격 Rules가 순서대로
 
 ## 바로 진행할 작업과 전체 모델 순서
 
-**2026-10-22 U2 운영 확인 완료:** PR #25 검토 head `580a7fa` CI와 main merge `7c6386e` CI 모두 성공, Pages built·공개 5파일 SHA 일치. 독립 Codex 검토·저장20/RED7·UI15/RED9 완료. 로그인 Chrome에서 자체 검증 4문항을 3+1의 새 두 권으로 만들고 양쪽 계정 ACK·새로고침/작업 재진입·고정 ID·국어/지문 묶음·기존 원본 JSON 바이트 불변을 확인했다. 라이브러리 26→28권은 테스트 결과 두 권 추가다. **이후 2026-10-23 사용자 승인으로 새 독립 Codex가 R5 종합 판정 통과·R6 진입 가능으로 판정**([HANDOFF-197](../reviews/handoffs/2026-10/2026-10-22-index-u2-composition.md)). 사용자는 이번 작업 구현·검토·검증·병합·배포를 계속하도록 승인했다. 실제 유료 AI/D3/C1~C3·Safari/iPad·D1 연동·사용자 과제 관찰은 별도 게이트다.
+**2026-10-22 U2 운영 확인 완료:** PR #25 검토 head `580a7fa` CI와 main merge `7c6386e` CI 모두 성공, Pages built·공개 5파일 SHA 일치. 독립 Codex 검토·저장20/RED7·UI15/RED10 완료. 로그인 Chrome에서 자체 검증 4문항을 3+1의 새 두 권으로 만들고 양쪽 계정 ACK·새로고침/작업 재진입·고정 ID·국어/지문 묶음·기존 원본 JSON 바이트 불변을 확인했다. 라이브러리 26→28권은 테스트 결과 두 권 추가다. **이후 2026-10-23 사용자 승인으로 새 독립 Codex가 R5 종합 판정 통과·R6 진입 가능으로 판정**([HANDOFF-197](../reviews/handoffs/2026-10/2026-10-22-index-u2-composition.md)). 사용자는 이번 작업 구현·검토·검증·병합·배포를 계속하도록 승인했다. 실제 유료 AI/D3/C1~C3·Safari/iPad·D1 연동·사용자 과제 관찰은 별도 게이트다.
 
 **2026-10-22 일시 중단:** 사용자 직접 승인 후 PR #24가 `20881c2`로 병합·Pages built이며 공개 index가 검토 SHA `d61e3c10…`와 일치한다. 운영 보류 3권/ACK·PDF 확인은 아직 남아 REV-137/138/139를 닫지 않았다. U2 저장 엔진은 Codex 구현·독립 Codex 검토·정상19/RED7·B6 전체 회귀를 완료했고 `codex/u2-composition`에 커밋 보존한다. U2 화면은 미구현/PR 없음. 사용자 요청으로 잠시 중단, 재개는 [HANDOFF-197](../reviews/handoffs/2026-10/2026-10-22-index-u2-composition.md)의 현재 상태·다음 행동을 따른다. 아래 이전 시점 기록보다 이 상태가 최신이다.
 
@@ -57,7 +57,7 @@ B3 전환 Rules → 플래그 1 클라이언트 → 엄격 Rules가 순서대로
 | **U1 공통 UX·N제 전체 지면** | Claude **Sonnet 5** → Codex **GPT-6 Sol / medium** 검토 | ⑩-A 지시문 · **완료 — 1차 `11f1e12` · 2차 `a93e7e3` 운영 배포, 완료 기준 대조(HANDOFF-180)** | U0 시안 확인 + B4 검토. B5~B7/C1 대기 중이면 앞당길 수 있음 |
 | **U1.5 원본 대조** *(2026-09-26 추가)* | 화면: Claude **Sonnet 5** → Codex **GPT-6 Sol / medium** 검토. 저장 변경이 필요하면 그 부분만 Codex **GPT-6 Sol / high** → Claude 검토 | ⑩-A2 지시문 | U1 검토 + B6 의 공통 원문 보관 기반 검토 |
 | **REV-2026-108 지문 묶음 소속** *(2026-10-03 추가)* | Codex **GPT-6 Astra / high** 선행 판정 → Codex **GPT-6 Sol / high** 구현 → Claude **Opus** 검토 | ⑩-A3 지시문 | U1.5 검토·merge(선행 판정은 그 전에 로컬에서 미리 가능). U2 앞 |
-| **U2 구성 UX 완료(실호출 제외)** | 사용자 승인으로 **Codex 구현 → 독립 Codex 검토** | PR25 `7c6386e`·HANDOFF-197 | 저장20/RED7·UI15/RED9·CI·Pages·로그인 ACK/재진입/원본 보존 확인. 실제 AI는 D3/C1~C3 별도 |
+| **U2 구성 UX 완료(실호출 제외)** | 사용자 승인으로 **Codex 구현 → 독립 Codex 검토** | PR25 `7c6386e`·HANDOFF-197 | 저장20/RED7·UI15/RED10·CI·Pages·로그인 ACK/재진입/원본 보존 확인. 실제 AI는 D3/C1~C3 별도 |
 | **R5 연결 게이트 통과** | 이번 사용자 승인으로 새 **독립 Codex** 종합 검토 | R5-INTEGRATION-GATE.md · 2026-10-23 | 기존 승인/후속 해소·수정 영향·연결 probe 대조, 미합의 없음. Claude 승인과 구별 |
 | **R6 검사·도구** | Codex **GPT-6 Luna / medium** | ⑫ 기존 CI·secret·의존성 공백 대조 · **Dependabot PR #1~#7 포함** | R5 완료. 클라우드 Claude 는 CI 증거 수집만 보조 |
 | **R7 환경 전환 준비** | Codex **GPT-6 Sol / medium** | ⑬ 호스트·App Check·롤백 증거 준비 | R1·R5·R6. 실제 이전은 별도 사용자 승인 |

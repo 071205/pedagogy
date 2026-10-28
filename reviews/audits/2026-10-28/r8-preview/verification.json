@@ -1,0 +1,62 @@
+{
+  "dateKST": "2026-10-28",
+  "base": "cef4801",
+  "sourceSha256": {
+    "index.html": "1411f879b8d5e98f690b68ddfe2db0bf35639d80638590ccd20de789d4196812",
+    "scripts/check-sheet-navigation.mjs": "a207942a07cceb37254d643265cb51a1f3f0bdd2c8c698f6fd18949de2634d4c",
+    "package.json": "8850262d3847c03452c6af06c1378e744e50263e58ae7a80e2963c213193522a",
+    ".github/workflows/verify.yml": "15636822b2417ab3a716f75f1fe6d9cc119b12a1dc218e80039cc7eee9edcd54"
+  },
+  "checks": {
+    "previewNavigation": {
+      "exit": 0,
+      "viewports": 3,
+      "pagesPerViewport": 6,
+      "redTargets": 10,
+      "exactSourcePreparationWait": true
+    },
+    "sheetView": {
+      "exit": 0,
+      "normal": 17,
+      "redTargets": 14
+    },
+    "sheetSource": {
+      "exit": 0,
+      "normal": 16,
+      "redTargets": 17
+    },
+    "auditBrowser": {
+      "exit": 0,
+      "regressionPassed": 175,
+      "malformedJsonRejected": 12
+    },
+    "printUiPdf": {
+      "exit": 0,
+      "pages": 2,
+      "bodyAndNavigationBoundary": true,
+      "redTargets": 1
+    },
+    "public": {
+      "exit": 0,
+      "cspRedTargets": 12
+    },
+    "static": {
+      "exit": 0
+    },
+    "guestSourceControls": {
+      "exit": 0,
+      "viewports": 3,
+      "evidence": "source-flex-before-after.json"
+    }
+  },
+  "remoteBackendWrites": 0,
+  "serviceAiProviderCalls": 0,
+  "systemPrintAndRealDevice": "not tested",
+  "independentReview": "independent-review.md",
+  "priorMainCi": {
+    "head": "78505904f1a106e8c4e3d3804b9f1132f4253d87",
+    "run": 40613492383,
+    "requiredJobs": "4/4 success"
+  },
+  "legacyChecksNote": "Existing sheet/print/source paths passed before final narrow flex-basis adjustment; final flex verified by normal3/RED10 + guest3 + regression175/public; full exact-head CI follows."
+}

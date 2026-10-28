@@ -1,0 +1,59 @@
+{
+  "beforeHead": "bdf31ae",
+  "beforeViewport": {
+    "width": 375,
+    "height": 812
+  },
+  "before": {
+    "height": 12,
+    "scrollHeight": 159,
+    "rect": {
+      "top": 548.5,
+      "bottom": 561.671875
+    },
+    "connectButtonHit": false,
+    "hidden": false
+  },
+  "after": [
+    {
+      "name": "desktop",
+      "original": {
+        "height": 601,
+        "scrollHeight": 601,
+        "rect": {
+          "top": 233.5,
+          "bottom": 834
+        },
+        "connectButtonHit": true,
+        "hidden": false
+      }
+    },
+    {
+      "name": "tablet",
+      "original": {
+        "height": 139,
+        "scrollHeight": 139,
+        "rect": {
+          "top": 408,
+          "bottom": 548.375
+        },
+        "connectButtonHit": true,
+        "hidden": false
+      }
+    },
+    {
+      "name": "mobile",
+      "original": {
+        "height": 153,
+        "scrollHeight": 159,
+        "rect": {
+          "top": 548.5,
+          "bottom": 702.5
+        },
+        "connectButtonHit": true,
+        "hidden": false
+      }
+    }
+  ],
+  "scope": "synthetic guest; inspector closed before connection-button hit test"
+}
