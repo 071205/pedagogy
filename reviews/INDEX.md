@@ -20,6 +20,8 @@
 
 ## 지금 하는 일
 
+**2026-10-29 우선 적용:** 통합 레일 상단을 출시 범위 중심으로 재구성. 다음 Sol medium은 첫 공개 범위/증거 공백표만 작성. 전체 staging·AI·결제를 공통 선행 조건으로 묶지 않으며 노출 기능 안전성은 유지. 문서 변경만, 출시 승인 아님.
+
 **R4/U0 계약 독립 검토·연결 시안 완료**(Claude Opus 5 · `HANDOFF-167`):
 [계약](../docs/PRODUCT-UX-U0-CONTRACT.md) · [과제·결정표](../docs/PRODUCT-UX-U0-SCENARIOS.md) ·
 [시안](../docs/mockups/u0-flow.html). 계약 주장 5건을 코드로 확인했고 `REV-2026-108`을 재현했다.
@@ -95,8 +97,6 @@ U0→B6에서 정규화/복원·AI 계약을 함께 다룬다. Rules의 `hasOnly
 [HANDOFF-2026-202](handoffs/2026-10/2026-10-27-tests-r8-render-recovery.md): R8 합성 렌더 복구·300문항 정합 정상12/RED6·필수회귀175 통과. 추가계정 인증·기존 staging identity GET200 복구. Firestore API/자원·Auth/App Check·운영 게이트 미결.
 
 [HANDOFF-2026-201](handoffs/2026-10/2026-10-23-index-r7-guest-preview.md): guest overlay·CI/RED·Claude 경계 보완·REV152/153 해결. PR30 head/main CI4개·Pages 일치·무료 guest 배포와 원격233자산/헤더/404/양성/iframe 통과. 분리 backend/실자료 이관·운영 전환은 미완료.
-
-
 
 
 

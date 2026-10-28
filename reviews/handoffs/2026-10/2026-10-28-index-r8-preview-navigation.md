@@ -65,3 +65,9 @@ index의 sheet CSS/markup 및 scrollSheetTo/선택·쪽·확대/설정 핸들러
 - [CI](../../audits/2026-10-28/r8-preview/pr36-ci.json) · [main CI](../../audits/2026-10-28/r8-preview/main-ci.json) · [Pages](../../audits/2026-10-28/r8-preview/pages-verification.json) · [공개 UI](../../audits/2026-10-28/r8-preview/published-ui.json).
 - 기존 guest worker는 갱신하지 않았다. 로컬 guest 산출물 검증과 공개 Pages 배포를 구별한다.
 - 다음도 사용자가 고른 시험지 미리보기·출력 완성도를 우선한다. A1 추가 backend 자동 진행 보류, 실제 시스템 인쇄/한글·Safari/iPad·main Sonar 보안 출시 게이트·R7/R8 운영 전체는 미완료다. 이 기록의 후속 문서 커밋은 PR36 검증 head와 구별한다.
+
+## 2026-10-29 레일 재구성 인계 (문서만)
+
+사용자는 출시 필수 작업 우선·안전/품질 유지·Astra는 레일 재구성만 수행하도록 요청했다.
+DEV-TOKEN-ROADMAP 상단에 범위 고정→핵심 여정→노출 기능 안전성→운영 준비→R10 첫 공개 판정→후속 확장을 기록했다. RAIL-ORDERS 최신 지시와 COMMERCIAL-LAUNCH 무료/유료 적용 범위도 맞췄다. 전체 staging/AI/결제/이관을 공통 선행 조건에서 분리하되 실제 노출 경로의 보안·저장·비용·개인정보와 기존 Sonar 게이트는 유지했다. 무료 제한 공개는 권장안이며 확정/출시 승인 아님.
+다음 Sol medium은 실제 노출 기능·지원 약속·기존 증거를 대조해 첫 공개 범위/공백표만 작성한다. 이번에 코드·원격 설정·배포·실제 출시 상태는 바꾸지 않았다. 문서 위생/공백 검사 통과. Claude 독립 검토를 수행했다고 주장하지 않는다.
