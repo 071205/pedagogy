@@ -3,7 +3,7 @@
 - ID: `HANDOFF-2026-204`
 - 날짜: `2026-10-28`
 - 작성자: `Codex`
-- 상태: `needs-follow-up` (독립 검토 완료, PR/CI 대기)
+- 상태: `needs-follow-up` (독립 검토 완료, PR35의 CI/병합 확인 뒤 A1)
 - 영향 영역: `security`, `tests`, `docs`
 - 관련 이슈: `REV-2026-154`, `REV-2026-155`, `REV-2026-156` (resolved)
 
@@ -55,7 +55,7 @@ npm 명령과 기존 CI verify job에 fixture 정상/RED를 연결했다. real S
 
 ## 다음 행동
 
-현재 체크포인트 `70e22f0`는 커밋/푸시되어 있다.
-독립 코드 검토·재현 결함3건 수정·최종 정상/RED 재검증 완료. 다음은 PR·CI/병합이다.
+최종 구현 `966f78a`는 커밋/푸시되어 있고 [PR35](https://github.com/071205/pedagogy/pull/35)를 생성했다. 정확한 head/필수 CI·병합 상태는 PR 기록으로 확인한다.
+독립 코드 검토·재현 결함3건 수정·최종 정상/RED 재검증 완료. 다음은 PR35의 필수 CI·병합 상태를 확인한 뒤 A1 범위를 따르는 것이다.
 실제 A1 원격 provisioning/인증·Storage/Blaze·실자료 이관/high·main Sonar·R7/R8 운영 전체 게이트는
 미결이다. 기본 checkout 전환·transcript.txt 접근·production 변경은 하지 않았다.
