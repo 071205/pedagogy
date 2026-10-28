@@ -52,6 +52,11 @@
       "detected": true
     },
     {
+      "red": "paper-flex-basis",
+      "target": "Original source viewport and controls must remain usable",
+      "detected": true
+    },
+    {
       "red": "source-bounds",
       "target": "Source comparison must leave a visible paper viewport",
       "detected": true

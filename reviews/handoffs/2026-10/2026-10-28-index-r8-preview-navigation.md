@@ -22,7 +22,7 @@
 
 ## 검증
 
-- 새 test:sheet-navigation 정상3화면 각6쪽·목표 RED9·정리 성공. warning→한 쪽→Undo,
+- 새 test:sheet-navigation 정상3화면 각6쪽·목표 RED10·정리 성공. warning→한 쪽→Undo,
   원본 없음/긴 합성이미지·설정·확대/쪽/선택·키보드/resize와 페이지 내용/치수 보존.
 - 기존 sheet-view 정상17/RED14, sheet-source 정상16/RED17, serve.py 필수회귀175/175·JSON12,
   실제 Chromium PDF2쪽/본문·print UI RED1, public/CSP12·정적 검사 통과.
@@ -40,6 +40,20 @@ index의 sheet CSS/markup 및 scrollSheetTo/선택·쪽·확대/설정 핸들러
 - 2026-10-28 · 별도 Codex 1차: 원본을 열고 문항 선택 시 지면이 패널 아래로 사라짐을
   독립 재현. source 경계와 inspector overlay로 보완했으나 capacity 오류로 최종 판정0.
 - 2026-10-28 · Claude opus/high inline 진단150초 timeout/의견0. 승인으로 세지 않고 반복하지 않았다.
-- 2026-10-28 · 별도 GPT-6 Sol medium(레일 배정) 최종: 코드·PNG·정확본 정상3/RED9/cleanup·
+- 2026-10-28 · 별도 GPT-6 Sol medium(레일 배정) 최종: 코드·PNG·정확본 정상3/RED10/cleanup·
   CI 순서 확인, **합의/미합의 없음**. Escape 단정은 선택 함수 재열기를 놓친 것으로 철회했으며,
   선행조건·내부 버튼 Escape·handler 제거 RED를 보강했다. 원문 판정은 감사 폴더에 보존.
+
+## 최종 guest QA·CI 재개
+
+- guest 배너 환경에서 원본 영역12px/scrollHeight159/연결버튼hit=false를 추가 재현했다.
+  종이 flex-basis0으로 원본의 사용 공간을 보존했고 원본 없음/긴 이미지 각각 최소높이·버튼hit를
+  새 회귀에 추가했다. mobile153px/hit=true, desktop/tablet도hit=true. 별도 Sol 최종 합의 갱신.
+- 최종 정상3/RED10, guest 실제산출물3화면, CSS 보완 뒤 serve.py175/JSON12·public 통과.
+  앞선 지면17/14·원본16/17·PDF/정적 통과와 마지막 좁은flex 보완의 검증 범위를 구별한다.
+  정확한 head의 전체검사는 PR36 CI에서 다시 확인한다.
+- PR36 첫 head bdf31ae의 Verify40656600196은 최종 수정 때문에 취소했다. 성공으로 세지 않는다.
+- 수식/표/그림 합성4문항 A4 PDF2쪽도 공유 print 경로로 export해 PNG 시각 대조, 본문/화면 UI
+  제외·텍스트 경계·폰트8개 임베딩을 확인했다. 이 PDF는 flex 최종보완 전 bdf31ae에서 생성했고
+  마지막 변경은 인쇄에서 숨겨지는 UI 컨테이너의 flex뿐이며 인쇄 경로는 변경하지 않았다.
+  로컬 샘플: `/Users/huryul/.codex/visualizations/2026/10/27/01a17c3f-65f5-74c0-879a-8245f9a0f683/pedagogy-print-check/output/pdf/preview-print-synthetic.pdf`.

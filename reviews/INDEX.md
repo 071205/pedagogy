@@ -86,7 +86,7 @@ U0→B6에서 정규화/복원·AI 계약을 함께 다룬다. Rules의 `hasOnly
 
 ## 최근 검토
 
-[HANDOFF-2026-205](handoffs/2026-10/2026-10-28-index-r8-preview-navigation.md): 시험지 미리보기 도구 가림 REV157 해결·원본/설정/100% 보완, 정상3/RED9·기존 지면/원본/PDF/175 통과·독립 합의. 다음 PR/CI, 추가 backend 보류.
+[HANDOFF-2026-205](handoffs/2026-10/2026-10-28-index-r8-preview-navigation.md): 시험지 미리보기 도구 가림 REV157 해결·원본/설정/100% 보완, 정상3/RED10·기존 지면/원본/PDF/175 통과·독립 합의. 다음 PR/CI, 추가 backend 보류.
 
 [HANDOFF-2026-204](handoffs/2026-10/2026-10-28-security-r7-backend-staging-a0.md): A0 로컬 분리 빌드/host·정상/RED·SDK 초기화·회귀175 통과. Claude 재시도2건+독립 Codex1건 재현/수정·최종 정정 판정 합의, 각14RED·A1 원격 자원 변경 없음.
 

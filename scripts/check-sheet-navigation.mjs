@@ -131,12 +131,22 @@ async function scope(page, kind) {
     await page.locator('.sheet-body').evaluate(e => { e.style.flex = ''; e.style.minHeight = ''; });
   }
 }
+async function assertOriginalUsable(page) {
+  const sourceUsable = await page.evaluate(() => {
+    const source = document.querySelector('#sheetSrc'), button = document.querySelector('#sheetSrcAdd');
+    const body = document.querySelector('.sheet-body'), r = button.getBoundingClientRect();
+    const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    return source.clientHeight >= Math.min(120, body.clientHeight / 4) && !!hit && (hit === button || button.contains(hit));
+  });
+  assert(sourceUsable, 'Original source viewport and controls must remain usable');
+}
 async function sourceOpen(page) {
   if (await page.locator('#sheetInspectorDetails').evaluate(e => e.open) && await page.evaluate(() => SHEET_NARROW())) await page.locator('#sheetInspectorToggle').click();
   await page.locator('#sheetSrcBtn').click();
   await page.waitForFunction(() => !document.querySelector('#sheetSrc').hidden);
   await page.evaluate(() => renderSheetSource(true));
   await settle(page);
+  await assertOriginalUsable(page);
   const beforeDisclosure = await page.locator('#sheetScroll').evaluate(e => ({ height: e.clientHeight, top: e.getBoundingClientRect().top }));
   await page.evaluate(async () => { selectSheetProblem('nav-q11'); await renderSheetSource(true); });
   await settle(page);
@@ -172,6 +182,7 @@ async function sourceOpen(page) {
     const escaped = await page.evaluate(() => !document.querySelector('#sheetInspectorDetails').open && document.activeElement.id === 'sheetInspectorToggle');
     assert(escaped, 'Escape closes settings and restores disclosure focus');
   }
+  await assertOriginalUsable(page);
   await page.locator('#sheetSrcBtn').click();
   await page.waitForFunction(() => document.querySelector('#sheetSrc').hidden);
 }
@@ -219,13 +230,14 @@ const redCases = [
   { name: 'selection-scope', before: '  if(box && scroll) scrollSheetTo(box);', after: '  if(box && scroll) box.scrollIntoView({block:"center",behavior:"auto"});', target: 'Only paper viewport may scroll: selection', run: p => scope(p, 'selection') },
   { name: 'page-scope', before: '  if(pg) scrollSheetTo(pg,{block:"start"});', after: '  if(pg) pg.scrollIntoView({block:"start",behavior:"auto"});', target: 'Only paper viewport may scroll: page', run: p => scope(p, 'page') },
   { name: 'zoom-scope', before: '  if(box) scrollSheetTo(box,{inline:"center"});', after: '  if(box) box.scrollIntoView({block:"center",inline:"center",behavior:"auto"});', target: 'Only paper viewport may scroll: zoom', run: p => scope(p, 'zoom') },
-  { name: 'visible-height', before: '  .sheet-scroll{padding:12px 8px;min-height:0}', after: '  .sheet-scroll{padding:12px 8px;min-height:480px}', target: 'Paper viewport must fit the visible pane', run: async p => {
+  { name: 'visible-height', before: '  .sheet-scroll{flex:1 1 0;padding:12px 8px;min-height:0}', after: '  .sheet-scroll{flex:1 1 0;padding:12px 8px;min-height:480px}', target: 'Paper viewport must fit the visible pane', run: async p => {
     const s = await state(p);
     assert(s.scroll.bottom <= s.pane.bottom + 1 && s.scroll.top >= s.pane.top, 'Paper viewport must fit the visible pane');
   } },
   { name: 'narrow-disclosure', before: 'const resetSheetInspector=()=>{ $("#sheetInspectorDetails").open=!sheetInspectorViewport.matches; };', after: 'const resetSheetInspector=()=>{ $("#sheetInspectorDetails").open=true; };', target: 'Narrow inspector starts collapsed', run: async p => {
     assert.equal((await state(p)).inspector, false, 'Narrow inspector starts collapsed');
   } },
+  { name: 'paper-flex-basis', before: '.sheet-scroll{flex:1 1 0;padding:', after: '.sheet-scroll{flex:1 1 auto;padding:', target: 'Original source viewport and controls must remain usable', run: sourceOpen },
   { name: 'source-bounds', before: '.sheet-src{flex:0 1 auto;width:auto;min-width:0;max-width:none;max-height:50%;overflow:auto;', after: '.sheet-src{flex:0 0 auto;width:auto;min-width:0;max-width:none;max-height:60vh;', target: 'Source comparison must leave a visible paper viewport', run: sourceOpen },
   { name: 'inspector-overlay', before: '.sheet-insp-content{position:absolute;', after: '.sheet-insp-content{position:static;', target: 'Problem settings must not displace paper viewport', run: sourceOpen },
   { name: 'escape-close', before: 'if(e.key==="Escape" && SHEET_NARROW() && e.currentTarget.open){', after: 'if(e.key==="__disabled_escape__" && SHEET_NARROW() && e.currentTarget.open){', target: 'Escape closes settings and restores disclosure focus', run: sourceOpen },
@@ -267,4 +279,4 @@ try {
   if (cleanup.some(item => item.status === 'rejected')) { complete = false; process.exitCode = 1; }
   await writeFile('test-results/sheet-navigation/results.json', JSON.stringify({ complete, scope: 'synthetic local UI; all backend traffic blocked', results, cleanup: cleanup.map(item => item.status) }, null, 2) + '\n');
 }
-console.log('Preview navigation: 3 viewports and 9 specific RED targets passed.');
+console.log('Preview navigation: 3 viewports and 10 specific RED targets passed.');

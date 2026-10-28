@@ -34,5 +34,9 @@
 
 - `2026-10-28` — Codex: 재현 등록. 지면 내부 좌표 스크롤, 실제 viewport 높이 제한, 좁은 화면의 native details 문항 설정 접기 및 키보드 동작을 구현/검증 중.
 
-- `2026-10-28` — 구현 Codex: scrollSheetTo로 종이만 이동, 큰 문항 시작 정렬. narrow min-height0과 native details 기본접기를 추가했다. 독립 검토에서 원본+설정 조합의 종이 가림을 추가 재현해 원본 flex/높이 제한과 overlay로 보완했다. 최종 정상3화면/RED9·기존 지면17/14·원본16/17·필수회귀175·PDF2쪽/RED·public/CSP·정적 검사 통과. HANDOFF205/감사 증거 참조.
+- `2026-10-28` — 구현 Codex: scrollSheetTo로 종이만 이동, 큰 문항 시작 정렬. narrow min-height0과 native details 기본접기를 추가했다. 독립 검토에서 원본+설정 조합의 종이 가림을 추가 재현해 원본 flex/높이 제한과 overlay로 보완했다. 최종 정상3화면/RED10·기존 지면17/14·원본16/17·필수회귀175·PDF2쪽/RED·public/CSP·정적 검사 통과. HANDOFF205/감사 증거 참조.
 - `2026-10-28` — 별도 GPT-6 Sol medium: 최종 정확본/실행/PNG·CI순서 확인, 추가 재현 결함 없음·합의. 외부 로그인/시스템인쇄/실기기/원격운영 미검증 유지.
+
+- `2026-10-28` — 추가 guest QA: 원본 영역12px/연결button hit=false를 확인해 종이의 narrow
+  flex-basis0으로 수정. 최종 정상3/RED10·guest3화면 hit=true·175/public 통과·독립 합의 갱신.
+  첫 PR36 CI는 취소하고 최종 코드의 CI를 재개한다. 아직 운영 반영으로 세지 않는다.
