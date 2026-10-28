@@ -38,6 +38,8 @@ legalVersion·결제 포털·legal TODO·유료 AI 상한·Worker enforce·local
 
 ## 다음 한 묶음
 
+2026-10-29 업데이트: HANDOFF206에서 Sonar23건 판정·원격반영과 gateOK를 확인했다. 아래 전1 지시는 수행 완료 기록이다. 현재 다음은 전2 핵심 여정/실제 출력이며 REV147 잔여 이력은 추적 유지한다.
+
 [통합 레일](DEV-TOKEN-ROADMAP.md)의 출시 전1을 Sol medium으로 실행한다: main Sonar 최신 분석과
 현재 코드의 finding을 읽기 전용으로 대조하고 실제 결함/오탐/판단대기 및 필요한 검증을 기록한다.
 이후 전2 핵심 여정→전3 계정/이미지→전4 AI→전5 운영 준비→전6 출시 판정 순서다.

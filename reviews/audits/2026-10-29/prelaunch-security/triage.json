@@ -1,0 +1,218 @@
+{
+  "analysisRevision": "9cff81dd7fa3501aed7e59c4849dcfe72997d473",
+  "relatedCodeMatchesOriginMain": true,
+  "sonarStateChanged": true,
+  "findings": [
+    {
+      "key": "AaC9cN6v4jtq7QCmB16o",
+      "rule": "python:S5332",
+      "component": "071205_pedagogy:experiments/hwp-export/exam_layout.py",
+      "line": 7,
+      "group": "xml-namespace",
+      "proposedVerdict": "false-positive",
+      "basis": "XML namespace identifier, no network operation at reported line; preserve exact format identifier"
+    },
+    {
+      "key": "AaC9cN6v4jtq7QCmB16p",
+      "rule": "python:S5332",
+      "component": "071205_pedagogy:experiments/hwp-export/exam_layout.py",
+      "line": 8,
+      "group": "xml-namespace",
+      "proposedVerdict": "false-positive",
+      "basis": "XML namespace identifier, no network operation at reported line; preserve exact format identifier"
+    },
+    {
+      "key": "AaC9XYwkZDGRIvaeUnAR",
+      "rule": "Web:S7039",
+      "component": "071205_pedagogy:document-editor.html",
+      "line": 8,
+      "group": "inline-style",
+      "proposedVerdict": "bounded-residual-risk",
+      "basis": "style unsafe-inline remains; script hashes and script-src-attr none; no claim of zero CSS risk"
+    },
+    {
+      "key": "AaDzlq6Uo2rmfWZ12byK",
+      "rule": "pythonsecurity:S5131",
+      "component": "071205_pedagogy:serve.py",
+      "line": 452,
+      "group": "font-response",
+      "proposedVerdict": "false-positive",
+      "basis": "Exact name/extension/resolved-parent checks, fixed font MIME, unconditional nosniff; root HTTP probe and independent Claude agree"
+    },
+    {
+      "key": "AaC4hiiTGvjr3YIaEa_e",
+      "rule": "Web:S7039",
+      "component": "071205_pedagogy:index.html",
+      "line": 27,
+      "group": "inline-style",
+      "proposedVerdict": "bounded-residual-risk",
+      "basis": "style unsafe-inline remains; script hashes and script-src-attr none; no claim of zero CSS risk"
+    },
+    {
+      "key": "AaC4higoGvjr3YIaEa9K",
+      "rule": "Web:S7039",
+      "component": "071205_pedagogy:mock-exam-editor.html",
+      "line": 13,
+      "group": "inline-style",
+      "proposedVerdict": "bounded-residual-risk",
+      "basis": "style unsafe-inline remains; script hashes and script-src-attr none; no claim of zero CSS risk"
+    },
+    {
+      "key": "AaC4hieiGvjr3YIaEa7s",
+      "rule": "python:S5332",
+      "component": "071205_pedagogy:experiments/hwp-export/document_to_hwpx.py",
+      "line": 26,
+      "group": "xml-namespace",
+      "proposedVerdict": "false-positive",
+      "basis": "XML namespace identifier, no network operation at reported line; preserve exact format identifier"
+    },
+    {
+      "key": "AaC4hieiGvjr3YIaEa7t",
+      "rule": "python:S5332",
+      "component": "071205_pedagogy:experiments/hwp-export/document_to_hwpx.py",
+      "line": 27,
+      "group": "xml-namespace",
+      "proposedVerdict": "false-positive",
+      "basis": "XML namespace identifier, no network operation at reported line; preserve exact format identifier"
+    },
+    {
+      "key": "AaC4hieiGvjr3YIaEa7u",
+      "rule": "python:S5332",
+      "component": "071205_pedagogy:experiments/hwp-export/document_to_hwpx.py",
+      "line": 28,
+      "group": "xml-namespace",
+      "proposedVerdict": "false-positive",
+      "basis": "XML namespace identifier, no network operation at reported line; preserve exact format identifier"
+    },
+    {
+      "key": "AaC4higMGvjr3YIaEa82",
+      "rule": "python:S5332",
+      "component": "071205_pedagogy:experiments/hwp-export/pedagogy_hwpx.py",
+      "line": 26,
+      "group": "xml-namespace",
+      "proposedVerdict": "false-positive",
+      "basis": "XML namespace identifier, no network operation at reported line; preserve exact format identifier"
+    },
+    {
+      "key": "AaC4higMGvjr3YIaEa83",
+      "rule": "python:S5332",
+      "component": "071205_pedagogy:experiments/hwp-export/pedagogy_hwpx.py",
+      "line": 27,
+      "group": "xml-namespace",
+      "proposedVerdict": "false-positive",
+      "basis": "XML namespace identifier, no network operation at reported line; preserve exact format identifier"
+    },
+    {
+      "key": "AaC4higMGvjr3YIaEa84",
+      "rule": "python:S5332",
+      "component": "071205_pedagogy:experiments/hwp-export/pedagogy_hwpx.py",
+      "line": 28,
+      "group": "xml-namespace",
+      "proposedVerdict": "false-positive",
+      "basis": "XML namespace identifier, no network operation at reported line; preserve exact format identifier"
+    },
+    {
+      "key": "AaC4higMGvjr3YIaEa85",
+      "rule": "python:S5332",
+      "component": "071205_pedagogy:experiments/hwp-export/pedagogy_hwpx.py",
+      "line": 29,
+      "group": "xml-namespace",
+      "proposedVerdict": "false-positive",
+      "basis": "XML namespace identifier, no network operation at reported line; preserve exact format identifier"
+    },
+    {
+      "key": "AaC4higMGvjr3YIaEa86",
+      "rule": "python:S5332",
+      "component": "071205_pedagogy:experiments/hwp-export/pedagogy_hwpx.py",
+      "line": 30,
+      "group": "xml-namespace",
+      "proposedVerdict": "false-positive",
+      "basis": "XML namespace identifier, no network operation at reported line; preserve exact format identifier"
+    },
+    {
+      "key": "AaC4higMGvjr3YIaEa87",
+      "rule": "python:S5332",
+      "component": "071205_pedagogy:experiments/hwp-export/pedagogy_hwpx.py",
+      "line": 31,
+      "group": "xml-namespace",
+      "proposedVerdict": "false-positive",
+      "basis": "XML namespace identifier, no network operation at reported line; preserve exact format identifier"
+    },
+    {
+      "key": "AaC4higMGvjr3YIaEa88",
+      "rule": "python:S5332",
+      "component": "071205_pedagogy:experiments/hwp-export/pedagogy_hwpx.py",
+      "line": 32,
+      "group": "xml-namespace",
+      "proposedVerdict": "false-positive",
+      "basis": "XML namespace identifier, no network operation at reported line; preserve exact format identifier"
+    },
+    {
+      "key": "AaC4higMGvjr3YIaEa89",
+      "rule": "python:S5332",
+      "component": "071205_pedagogy:experiments/hwp-export/pedagogy_hwpx.py",
+      "line": 33,
+      "group": "xml-namespace",
+      "proposedVerdict": "false-positive",
+      "basis": "XML namespace identifier, no network operation at reported line; preserve exact format identifier"
+    },
+    {
+      "key": "AaC4higMGvjr3YIaEa8-",
+      "rule": "python:S5332",
+      "component": "071205_pedagogy:experiments/hwp-export/pedagogy_hwpx.py",
+      "line": 35,
+      "group": "xml-namespace",
+      "proposedVerdict": "false-positive",
+      "basis": "XML namespace identifier, no network operation at reported line; preserve exact format identifier"
+    },
+    {
+      "key": "AaC4hifQGvjr3YIaEa8f",
+      "rule": "python:S5332",
+      "component": "071205_pedagogy:experiments/hwp-export/exam_style.py",
+      "line": 13,
+      "group": "xml-namespace",
+      "proposedVerdict": "false-positive",
+      "basis": "XML namespace identifier, no network operation at reported line; preserve exact format identifier"
+    },
+    {
+      "key": "AaC4hifQGvjr3YIaEa8g",
+      "rule": "python:S5332",
+      "component": "071205_pedagogy:experiments/hwp-export/exam_style.py",
+      "line": 14,
+      "group": "xml-namespace",
+      "proposedVerdict": "false-positive",
+      "basis": "XML namespace identifier, no network operation at reported line; preserve exact format identifier"
+    },
+    {
+      "key": "AaC4hijuGvjr3YIaEbCC",
+      "rule": "python:S5332",
+      "component": "071205_pedagogy:serve.py",
+      "line": 397,
+      "group": "local-http",
+      "proposedVerdict": "bounded-residual-risk",
+      "basis": "loopback default; explicit private LAN opt-in; no TLS or auth assurance for LAN"
+    },
+    {
+      "key": "AaC4hijuGvjr3YIaEbCD",
+      "rule": "python:S5332",
+      "component": "071205_pedagogy:serve.py",
+      "line": 397,
+      "group": "local-http",
+      "proposedVerdict": "bounded-residual-risk",
+      "basis": "loopback default; explicit private LAN opt-in; no TLS or auth assurance for LAN"
+    },
+    {
+      "key": "AaC4hijuGvjr3YIaEbCN",
+      "rule": "python:S5332",
+      "component": "071205_pedagogy:serve.py",
+      "line": 740,
+      "group": "local-http",
+      "proposedVerdict": "bounded-residual-risk",
+      "basis": "loopback default; explicit private LAN opt-in; no TLS or auth assurance for LAN"
+    }
+  ],
+  "independentReview": "Claude Opus/high + corrected factual metadata/order/count",
+  "finalGate": "OK",
+  "finalSecurityRating": "1",
+  "finalUnresolvedVulnerabilities": 0
+}
