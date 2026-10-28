@@ -64,7 +64,8 @@
     "read:backend-staging-config": "node scripts/backend-staging-config.mjs",
     "build:backend-staging": "node scripts/build-backend-staging.mjs",
     "serve:backend-staging": "node scripts/serve-backend-staging.mjs",
-    "test:backend-staging": "node scripts/backend-staging.test.mjs && node scripts/check-backend-staging.mjs"
+    "test:backend-staging": "node scripts/backend-staging.test.mjs && node scripts/check-backend-staging.mjs",
+    "test:sheet-navigation": "node scripts/check-sheet-navigation.mjs"
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^6.0.0",

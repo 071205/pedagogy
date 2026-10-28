@@ -35,7 +35,9 @@
   "mainCi": {
     "run": 40613492383,
     "head": "78505904f1a106e8c4e3d3804b9f1132f4253d87",
-    "status": "started; final result not claimed"
+    "status": "completed",
+    "conclusion": "success",
+    "requiredJobs": "4/4 success"
   },
   "pages": {
     "run": 40613492254,

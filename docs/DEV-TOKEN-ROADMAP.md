@@ -7,17 +7,18 @@
 
 ## 현재 위치 — R7 guest 호스트 검증 완료, 분리 backend·운영 전환 대기
 
-**2026-10-28 사용자 우선순위 조정:** 백엔드·검증에 작업이 치우쳤다는 사용자 지적에 따라,
-PR35의 필수 CI/병합·Pages 확인을 마무리하고, main 최종 CI는 별도 후속 확인으로 남긴다. 이후는 허용된 **R8 로컬의 편집 →
-미리보기 → 출력 실제 화면 흐름과 불편 개선**을 우선한다. 추가 A1 백엔드 구축을 자동으로
-이어서 벌이지 않는다. R7·main Sonar·실자료 이관/high·실계정/실기기 등 기존 출시 게이트는 유지한다.
+**2026-10-28 사용자 우선순위: 시험지 미리보기·출력 완성도.** [HANDOFF205](../reviews/handoffs/2026-10/2026-10-28-index-r8-preview-navigation.md).
+R8 로컬에서 좁은 지면 도구 가림 REV157을 수정했고 원본/설정/큰 문항 이동을 보완했다.
+정상3화면/목표RED9·기존 지면17/14·원본16/17·필수회귀175·PDF/정적 검사·독립 검토 합의.
+다음은 이 UI 묶음의 PR/CI 확인이다. 추가 A1 backend 구축을 자동 진행하지 않는다.
+R7·main Sonar·실자료 이관/high·실계정/실기기 등 기존 출시 게이트는 유지한다.
 
 **2026-10-28 A0 구현·독립 검토 완료:** [HANDOFF-204](../reviews/handoffs/2026-10/2026-10-28-security-r7-backend-staging-a0.md)·
 [로컬 실행](R7-BACKEND-STAGING-A0.md). 전용 빌드/host·프로필 admission·staging 양성/prod 음성·
 AI/Storage/계정삭제 차단. Claude narrow 검토 성공 뒤 재현 결함2건, 사용자 허용 대체 Codex 검토의
 SDK App Check URL/host/CSP 결함1건을 수정해 REV154/155/156 resolved. 최종 독립 정정 판정 합의,
 artifact RED14/runtime RED14·설정 거절9·실제 SDK10.12 초기화 통과(backend 요청 모두 차단).
-기존 필수회귀175/public 통과 증거 재사용. [PR35](https://github.com/071205/pedagogy/pull/35)는 head `dae2283`의 필수 CI4개/PR Sonar 통과 뒤 merge `7850590`으로 병합했다. Pages built·핵심5파일 bytes 일치 확인. main Verify40613492383은 실행 중이며 최종 통과는 아직 주장하지 않는다. 위 R8 화면 우선순위를 따른다. 과금/원격 자원/운영 게이트는 그대로다.
+기존 필수회귀175/public 통과 증거 재사용. [PR35](https://github.com/071205/pedagogy/pull/35)는 head `dae2283`의 필수 CI4개/PR Sonar 통과 뒤 merge `7850590`으로 병합했다. Pages built·핵심5파일 bytes 일치 확인. main Verify40613492383의 필수4job success도 확인했다. 위 R8 화면 우선순위를 따른다. 과금/원격 자원/운영 게이트는 그대로다.
 
 **2026-10-28 R7 준비안:** [HANDOFF-203](../reviews/handoffs/2026-10/2026-10-28-docs-r7-firebase-staging-plan.md)·
 [자원/지역/비용 실행안](R7-FIREBASE-STAGING-PLAN.md). 기존 staging의 project/app GET200·계정2개·

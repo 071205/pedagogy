@@ -1,0 +1,56 @@
+{
+  "dateKST": "2026-10-28",
+  "base": "cef4801",
+  "sourceSha256": {
+    "index.html": "361e4c121b1146abb857af454f0a0e7e73e27390480327b4711eead5ebf79022",
+    "scripts/check-sheet-navigation.mjs": "bef4f3bd9df5b8c33b1492e91d843a2d2c00b7d7dc40021865c09b2eca11f1b1",
+    "package.json": "8850262d3847c03452c6af06c1378e744e50263e58ae7a80e2963c213193522a",
+    ".github/workflows/verify.yml": "15636822b2417ab3a716f75f1fe6d9cc119b12a1dc218e80039cc7eee9edcd54"
+  },
+  "checks": {
+    "previewNavigation": {
+      "exit": 0,
+      "viewports": 3,
+      "pagesPerViewport": 6,
+      "redTargets": 9,
+      "exactSourcePreparationWait": true
+    },
+    "sheetView": {
+      "exit": 0,
+      "normal": 17,
+      "redTargets": 14
+    },
+    "sheetSource": {
+      "exit": 0,
+      "normal": 16,
+      "redTargets": 17
+    },
+    "auditBrowser": {
+      "exit": 0,
+      "regressionPassed": 175,
+      "malformedJsonRejected": 12
+    },
+    "printUiPdf": {
+      "exit": 0,
+      "pages": 2,
+      "bodyAndNavigationBoundary": true,
+      "redTargets": 1
+    },
+    "public": {
+      "exit": 0,
+      "cspRedTargets": 12
+    },
+    "static": {
+      "exit": 0
+    }
+  },
+  "remoteBackendWrites": 0,
+  "serviceAiProviderCalls": 0,
+  "systemPrintAndRealDevice": "not tested",
+  "independentReview": "independent-review.md",
+  "priorMainCi": {
+    "head": "78505904f1a106e8c4e3d3804b9f1132f4253d87",
+    "run": 40613492383,
+    "requiredJobs": "4/4 success"
+  }
+}

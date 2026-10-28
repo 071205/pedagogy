@@ -1,0 +1,79 @@
+{
+  "complete": true,
+  "scope": "synthetic local UI; all backend traffic blocked",
+  "results": [
+    {
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "passed": true,
+      "pages": 6
+    },
+    {
+      "viewport": {
+        "width": 768,
+        "height": 1024
+      },
+      "passed": true,
+      "pages": 6
+    },
+    {
+      "viewport": {
+        "width": 1194,
+        "height": 834
+      },
+      "passed": true,
+      "pages": 6
+    },
+    {
+      "red": "selection-scope",
+      "target": "Only paper viewport may scroll: selection",
+      "detected": true
+    },
+    {
+      "red": "page-scope",
+      "target": "Only paper viewport may scroll: page",
+      "detected": true
+    },
+    {
+      "red": "zoom-scope",
+      "target": "Only paper viewport may scroll: zoom",
+      "detected": true
+    },
+    {
+      "red": "visible-height",
+      "target": "Paper viewport must fit the visible pane",
+      "detected": true
+    },
+    {
+      "red": "narrow-disclosure",
+      "target": "Narrow inspector starts collapsed",
+      "detected": true
+    },
+    {
+      "red": "source-bounds",
+      "target": "Source comparison must leave a visible paper viewport",
+      "detected": true
+    },
+    {
+      "red": "inspector-overlay",
+      "target": "Problem settings must not displace paper viewport",
+      "detected": true
+    },
+    {
+      "red": "escape-close",
+      "target": "Escape closes settings and restores disclosure focus",
+      "detected": true
+    },
+    {
+      "red": "oversized-heading",
+      "target": "Oversized question must show its heading at 100 percent",
+      "detected": true
+    }
+  ],
+  "cleanup": [
+    "fulfilled",
+    "fulfilled"
+  ]
+}
