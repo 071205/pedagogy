@@ -1,0 +1,75 @@
+{
+  "dateKST": "2026-10-27",
+  "accountCount": 2,
+  "defaultUnchanged": true,
+  "stagingIdentity": {
+    "projectId": "pedagogy-ai-staging",
+    "projectNumber": "450368559700",
+    "appId": "1:450368559700:web:5e8f86074f042dd7d12bc1"
+  },
+  "projectGet": 200,
+  "webConfigGet": 200,
+  "method": "direct read-only REST GET; default account preserved; no API activation",
+  "results": [
+    {
+      "target": "firestore",
+      "http": 403,
+      "status": "PERMISSION_DENIED"
+    },
+    {
+      "target": "storage",
+      "http": 200,
+      "buckets": []
+    },
+    {
+      "target": "auth",
+      "http": 200,
+      "authorizedDomains": [
+        "localhost",
+        "pedagogy-ai-staging.firebaseapp.com",
+        "pedagogy-ai-staging.web.app"
+      ],
+      "upgradeToIdentityPlatform": false
+    },
+    {
+      "target": "app-check",
+      "http": 200,
+      "services": [
+        {
+          "name": "projects/450368559700/services/identitytoolkit.googleapis.com",
+          "enforcementMode": "UNENFORCED"
+        }
+      ]
+    },
+    {
+      "target": "recaptcha-enterprise",
+      "http": 200,
+      "configured": true,
+      "tokenTtl": "3600s"
+    },
+    {
+      "target": "billing",
+      "http": 200,
+      "billingEnabled": false
+    }
+  ],
+  "followup": [
+    {
+      "target": "firestore",
+      "http": 403,
+      "status": "PERMISSION_DENIED",
+      "reasons": [
+        {
+          "reason": "SERVICE_DISABLED",
+          "service": "firestore.googleapis.com"
+        }
+      ]
+    },
+    {
+      "target": "google-provider",
+      "http": 404,
+      "status": "NOT_FOUND",
+      "reasons": []
+    }
+  ]
+}

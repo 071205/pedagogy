@@ -1,0 +1,37 @@
+{
+  "sourceCommit": "d65e759136c4bb79b2f6b0a91943c870d4b4e20f",
+  "site": "existing GitHub Pages; not guest host",
+  "tlsVerification": true,
+  "files": [
+    {
+      "file": "index.html",
+      "bytes": 636630,
+      "sha256": "3fc1f2cc4d95333e369b8cb19f0fa0c7ec3b3ad830b040ca831bcdae12e4eaad",
+      "matchesSource": true
+    },
+    {
+      "file": "document-editor.html",
+      "bytes": 42408,
+      "sha256": "1811e822b8c6f4376c4ffebae8e1b56f52b9d1668a6feb5e028824d2cf38426c",
+      "matchesSource": true
+    },
+    {
+      "file": "mock-exam-editor.html",
+      "bytes": 154575,
+      "sha256": "c3905ffa857dd0d087db642e1f1f9a821b039888c4b16aca3bd24f1fd1649f7a",
+      "matchesSource": true
+    },
+    {
+      "file": "service-config.js",
+      "bytes": 1893,
+      "sha256": "1f57f197b01adae968bbb2d52d3b1c23b718435a2eb47ed41007a7f58e2425b2",
+      "matchesSource": true
+    },
+    {
+      "file": "pedagogy-intake.js",
+      "bytes": 49029,
+      "sha256": "5e2f30ecaebab9158453e41530359cfa8c9c9b1d604abb57e321bea93b2cff78",
+      "matchesSource": true
+    }
+  ]
+}

@@ -34,3 +34,12 @@ Wrangler 검사는 순차 실행한다. 정상 명령은 `node scripts/check-gue
 각각 HTTP CSP/양성 대조의 정확한 단언과 exit1을 요구하며 원격 RED는 초기 거절한다.
 [감사 증거](../reviews/audits/2026-10-27/README.md)와
 [HANDOFF201](../reviews/handoffs/2026-10/2026-10-23-index-r7-guest-preview.md)을 따른다.
+
+
+## 2026-10-27 실행 증거
+
+PR30 head88c86d5 CI/Sonar 및 merge d65e759 main CI4개/Pages 확인 후 위 절차로 신규
+배포했다. 실제233자산/헤더/404·양성/iframe 정상, 배포 version/manifest/URL·lookup10007·
+createdInThisSession 메타데이터는 guest-deployment-verification.json에 보존했다.
+기존 production 자원/도메인/결제·실자료는 변경하지 않았다. rollback은 필요 없어 실행하지 않았다.
+PR Sonar 성공과 main의 기존 보안지표ERROR는 구별하고 상용 출시 게이트로 남긴다.

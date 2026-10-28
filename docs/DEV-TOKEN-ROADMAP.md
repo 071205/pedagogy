@@ -5,14 +5,48 @@
 **실행 순서·현재 단계는 이 문서 한 곳에서만 관리한다.**
 [이전 레일](DEV-TOKEN-ROADMAP-ARCHIVE-2026-09-20.md)은 완료 증거·계약 보관본이다.
 
-## 현재 위치 — R7 무료 게스트 호스트 준비, 분리 Firebase 접근/프로젝트 한도 대기
+## 현재 위치 — R7 guest 호스트 검증 완료, 분리 backend·운영 전환 대기
 
-**2026-10-25 재개:** R8 PR29 head `b1f1678` 필수4CI/Sonar 통과 후 `1ed8d7f`로 병합했다.
-정확한 main CI/Pages 확인은 진행 중이다. [HANDOFF-201](../reviews/handoffs/2026-10/2026-10-23-index-r7-guest-preview.md)의
-별도 guest overlay와 명시 호출 차단·원본 불변·정확 allowlist, UI 정상/RED 및 실제 Wrangler
-233자산/헤더/404/iframe 정상·헤더 제거 RED·독립 Codex 검토를 완료했다. 현재
-`codex/r7-guest-preview-host`에서 새 head CI·PR·새 무료 호스트 배포/원격 검증을 진행한다.
-아직 원격 배포 전이며 staging/Auth/App Check/실자료 이관·R7/8 운영 완료와 구별한다.
+**2026-10-28 A0 구현·독립 검토 완료:** [HANDOFF-204](../reviews/handoffs/2026-10/2026-10-28-security-r7-backend-staging-a0.md)·
+[로컬 실행](R7-BACKEND-STAGING-A0.md). 전용 빌드/host·프로필 admission·staging 양성/prod 음성·
+AI/Storage/계정삭제 차단. Claude narrow 검토 성공 뒤 재현 결함2건, 사용자 허용 대체 Codex 검토의
+SDK App Check URL/host/CSP 결함1건을 수정해 REV154/155/156 resolved. 최종 독립 정정 판정 합의,
+artifact RED14/runtime RED14·설정 거절9·실제 SDK10.12 초기화 통과(backend 요청 모두 차단).
+기존 필수회귀175/public 통과 증거 재사용. [PR35](https://github.com/071205/pedagogy/pull/35)의 필수 CI/병합 상태를 확인한 뒤 A1 범위를 따른다. 과금/원격 자원/운영 게이트는 그대로다.
+
+**2026-10-28 R7 준비안:** [HANDOFF-203](../reviews/handoffs/2026-10/2026-10-28-docs-r7-firebase-staging-plan.md)·
+[자원/지역/비용 실행안](R7-FIREBASE-STAGING-PLAN.md). 기존 staging의 project/app GET200·계정2개·
+기본계정 유지를 재확인했다. Firestore API 비활성(DB 유무 미확인)·bucket 없음·Google provider404·
+billing false·reCAPTCHA localhost 한정이다. 권장은 결제 없이 Auth/Firestore부터(A), Storage는
+Blaze/비용/지역 결정 뒤(B)다. API enable/생성/설정/배포는 아직 없다. Claude 최종 합의로 준비안 확정, 다음은 A0 medium
+로컬 분리 overlay 구현+독립 검토다. A1은 기존 DB/지역 확인 뒤, B 결제는 별도 결정이다.
+
+**2026-10-27 R8 로컬 후속:** [HANDOFF-202](../reviews/handoffs/2026-10/2026-10-27-tests-r8-render-recovery.md).
+세 화면의 글꼴 정의 부재/이미지 데이터 교체 복구·옛 렌더 폐기·300문항 제품 doPrint 정합 정상12,
+독립 RED6·필수 브라우저 회귀175 통과. 시스템 인쇄·실계정/실기기·인간 관찰 증거가 아니며
+분리 backend/App Check·이관·main Sonar·R7/R8 운영 전체 게이트는 그대로다.
+
+**2026-10-27 최신:** [HANDOFF-201](../reviews/handoffs/2026-10/2026-10-23-index-r7-guest-preview.md).
+PR29 main1ed8d7f의 CI4개/Pages 완료. R7 guest PR30 최종head88c86d5의 Verify40427720314
+필수4job/Sonar 및 merge d65e759의 Verify40430188686 필수4job·Pages built/핵심5파일 일치 완료.
+[게스트 미리보기](https://pedagogy-guest-preview.dbruddl79.workers.dev)를 신규 배포했고,
+version b22da34b-4d78-469c-be22-a2d776b9e811, 원격233자산 bytes/SHA·aliases/HTTP헤더·
+private404·top-level 양성 대조·iframe 정상까지 확인했다. 234 manifest 중 _headers는 비공개 제어파일이다.
+[감사 증거](../reviews/audits/2026-10-27/README.md). REV152/153은 같은 이슈 파일에서 resolved다.
+
+Codex 구현/독립 검토 뒤 사용자 허용으로 Claude opus/high 읽기 전용 협의를 실행했다.
+배포cwd·신규 이름 중단 조건·framing 양성 대조를 보완했고 코드/CI·절차 최종 합의다.
+CLI/원격 실행 증거는 별도 구분하며 구현자·검토자의 확인 한계를 HANDOFF201에 보존한다.
+main Sonar는 정확한 d65e759 분석에서도 new_security_rating=5/ERROR로 기존 차단 상태다.
+PR head Sonar 성공이나 네 CI job 성공이 이 출시 차단의 해소를 뜻하지 않는다.
+
+**남은 게이트:** 로그인·AI·계정 동기화를 끈 guest만 배포했다. 도메인 구매 보류,
+production Firebase/Worker·기존 Pages 설정·실제 자료·private 전환은 변경하지 않았다.
+분리 Firebase 접근은 추가 계정으로 복구됐지만 자원/Auth·Rules·App Check 준비는 남았다.
+App Check 정상/거절·원문 무손실 이관/롤백·실계정/실기기/인간 관찰이 남았다.
+R7/R8 운영 전체 완료가 아니다. 다음 기본 Sol medium은 PR35의 필수 CI/병합 확인 뒤 최신 R7 준비안의 A1 범위를 확인하고,
+원격 자원/지역·과금 조건 대기 중 허용된 R8 로컬 검증을 이어갈 수 있다. 실제 자료 이관 구현은 별도 high·독립 검토다.
+인계 branch의 문서/감사 후속 커밋에 별도 CI 완료를 주장하지 않는다.
 
 R1~R6와 U2는 기존 승인·운영 증거를 유지한다. R7 로컬 준비 PR27은 merge
 `506b33cd4e0a5c965d44d161391094b32c17460d`, main Verify `39922835078` 네 job 성공·
@@ -28,15 +62,25 @@ R8 실제 2쪽 PDF의 수동 원문 입력·렌더·기존 참조/Blob 바이트
 [감사 README](../reviews/audits/2026-10-23/README.md). PDF AI 추출·유료 AI·실계정 ACK·
 실제 시스템 인쇄/한글·Safari/iPad·인간 관찰은 포함하지 않아 R8 운영 완료가 아니다.
 
-**외부 환경:** 사용자 로그인 갱신 뒤에도 CLI 계정은 하나이고 분리 `pedagogy-ai-staging`
-SDK 조회는 403이다. projects:list에 production만 보이며 원인은 미확정이다. 결제 연결
-없는 별도 `pedagogy-web-staging` 생성도 code8 프로젝트 quota 초과로 거절됐다.
-생성 완료·분리 staging 완료로 기록하거나 production 설정을 staging으로 사용하지 않는다.
-사용자는 부재 중 기존 승인 범위에서 계속 진행하고 인간 결정은 미결로 남기도록 지시했다.
+**외부 환경(2026-10-27 접근 복구):** 사용자 추가 인증 뒤 CLI 계정은 **2개**이며 기본 계정은
+유지됐다. 추가 계정을 명시 선택한 읽기 전용 REST GET에서 `pedagogy-ai-staging` project와
+web config 모두 **200**, project number `450368559700`·app ID가 과거 staging과 정확히 일치한다.
+[안전한 진단 증거](../reviews/audits/2026-10-27/staging-access-recovery.json).
+첫 새 인증은 timeout이었으나 Chrome 일반 열기로 다시 시작한 새 흐름은 완료 callback까지
+회수했다. 이전 세션/URL은 재사용하지 않았다. 기본 계정 전환이나 production 변경은 없다.
+
+분리 staging 전체가 준비된 것은 아니다. Firestore GET은 **403/SERVICE_DISABLED**,
+Storage bucket list는 200/빈 목록, App Check Enterprise 앱 설정은 존재하지만 허용 도메인·
+정상 발급/거절은 미확인이다. 서비스 목록에는 Auth UNENFORCED만 보였고 Google provider
+설정 GET은 404다. billingEnabled=false이며 결제 연결·C1 공급자 호출은 하지 않았다.
+다음 기본 Sol medium은 기존 staging을 기준으로 Firestore/Storage/Auth·Rules·origin/App Check
+준비 범위를 정한다. API 활성화·지역/버킷 생성·새 비용을 접근 조회와 혼동하지 않는다.
+과거 `pedagogy-web-staging` 신규 생성의 quota 거절은 해소된 것으로 쓰지 않지만, 복구된 기존
+staging을 버리고 새 프로젝트 생성을 반복할 필요는 없다. production을 staging으로 표시하지 않는다.
 **도메인 구매 보류·무료 기본 주소/호스팅 우선**을 유지한다. AI/DB/Storage 전체 무료를 뜻하지 않는다.
 
 별도 guest-preview 패키지의 명시 guest 부팅·backend/loopback 차단·이관 금지 배너·
-정상/RED·독립 검토 후 새 기본 주소만 배포하는 작업을 진행한다. 아직 새 호스트 배포 전이다.
+정상/RED·독립 검토와 새 기본 주소 배포/원격 검증은 위 최신 체크포인트대로 완료했다.
 이는 정적 호스트 경계 검증이며 분리 Firebase/Auth/App Check 검증·R7 실제 운영 이전을
 대체하지 않는다. 구 origin 자료 이관은 [별도 설계안](R7-ORIGIN-MIGRATION-DESIGN.md)의
 high 구현·검토가 필요하다. 기존 일반 JSON만으로 Blob/작업/충돌을 무손실 이관할 수 없다.

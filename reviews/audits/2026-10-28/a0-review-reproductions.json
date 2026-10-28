@@ -1,0 +1,37 @@
+{
+  "base": "70e22f0",
+  "reviewer": "Claude opus/high inline review; independently reproduced by Codex",
+  "lateBundle": {
+    "exit": 1,
+    "target": "A0 timed-out bundle must not execute application code",
+    "actual": true,
+    "expected": false
+  },
+  "concurrentAdmission": {
+    "exit": 1,
+    "target": "A0 concurrent admitted profile must initialize second SDK",
+    "actual": 0,
+    "expected": 1
+  },
+  "appCheckEndpoint": {
+    "exit": 1,
+    "target": "A0 pinned SDK App Check endpoint positive control",
+    "sdkVersion": "10.12.0",
+    "sdkSha256": "3897630a79b188ddb4e69005057c63dae211a052a5887262d9f3e3d2166e0a19",
+    "actual": "correct staging endpoint blocked",
+    "backendRequests": 0,
+    "additionalReproductions": [
+      {
+        "target": "A0 pinned SDK App Check endpoint positive control",
+        "stage": "actual content-host URL before runtime fix",
+        "exit": 1
+      },
+      {
+        "target": "A0 actual SDK App Check CSP host positive control",
+        "stage": "runtime host fixed but CSP missing",
+        "exit": 1
+      }
+    ],
+    "finalContract": "https://content-firebaseappcheck.googleapis.com/v1/projects/<fixed-projectId>/apps/<fixed-appId>:exchangeRecaptchaEnterpriseToken?key=<fixed-key>; POST only"
+  }
+}

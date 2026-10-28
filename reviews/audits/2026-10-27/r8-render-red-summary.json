@@ -1,0 +1,62 @@
+[
+  {
+    "mode": "image",
+    "error": "image: failed image must have a visible issue {\"issues\":[],\"broken\":1,\"button\":false}",
+    "cleanup": [
+      "fulfilled",
+      "fulfilled"
+    ],
+    "serverStopped": true,
+    "raw": "r8-render-red/image.json"
+  },
+  {
+    "mode": "font",
+    "error": "font: failed body font must be visible",
+    "cleanup": [
+      "fulfilled",
+      "fulfilled"
+    ],
+    "serverStopped": true,
+    "raw": "r8-render-red/font.json"
+  },
+  {
+    "mode": "stale",
+    "error": "stale: only current render may publish {\"bad\":1,\"swaps\":2,\"latest\":true,\"text\":true,\"busy\":false,\"building\":false}",
+    "cleanup": [
+      "fulfilled",
+      "fulfilled"
+    ],
+    "serverStopped": true,
+    "raw": "r8-render-red/stale.json"
+  },
+  {
+    "mode": "count",
+    "error": "count: sheet must retain all 300 questions in order\n+ actual - expected\n... Skipped lines\n\n  [\n    'r8-q1',\n    'r8-q2',\n    'r8-q3',\n    'r8-q4',\n...\n    'r8-q299',\n-   'r8-q300'\n  ]\n",
+    "cleanup": [
+      "fulfilled",
+      "fulfilled"
+    ],
+    "serverStopped": true,
+    "raw": "r8-render-red/count.json"
+  },
+  {
+    "mode": "print-order",
+    "error": "print-order: print must retain all 300 questions in order\n+ actual - expected\n... Skipped lines\n\n  [\n    'r8-q1',\n    'r8-q2',\n    'r8-q3',\n    'r8-q4',\n...\n    'r8-q299',\n-   'r8-q300'\n  ]\n",
+    "cleanup": [
+      "fulfilled",
+      "fulfilled"
+    ],
+    "serverStopped": true,
+    "raw": "r8-render-red/print-order.json"
+  },
+  {
+    "mode": "print-layout",
+    "error": "print-layout: 300-question print/sheet layout must agree",
+    "cleanup": [
+      "fulfilled",
+      "fulfilled"
+    ],
+    "serverStopped": true,
+    "raw": "r8-render-red/print-layout.json"
+  }
+]

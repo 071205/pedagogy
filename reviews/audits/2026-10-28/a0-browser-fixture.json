@@ -1,0 +1,85 @@
+{
+  "scope": "SDK fixture, real product guards/DOM/storage/serialization",
+  "complete": true,
+  "results": [
+    {
+      "case": "normal",
+      "passed": true,
+      "sdk": "fixture"
+    },
+    {
+      "case": "no-appcheck-csp",
+      "target": "A0 actual SDK App Check CSP host positive control",
+      "detected": true
+    },
+    {
+      "case": "no-appcheck-positive",
+      "target": "A0 pinned SDK App Check endpoint positive control",
+      "detected": true
+    },
+    {
+      "case": "no-appcheck-binding",
+      "target": "A0 App Check project/app/action/key/method boundary",
+      "detected": true
+    },
+    {
+      "case": "no-late-gate",
+      "target": "A0 timed-out bundle must not execute application code",
+      "detected": true
+    },
+    {
+      "case": "no-fresh-recheck",
+      "target": "A0 concurrent admitted profile must initialize second SDK",
+      "detected": true
+    },
+    {
+      "case": "no-sdk-init",
+      "target": "A0 SDK initialization positive control",
+      "detected": true
+    },
+    {
+      "case": "no-fetch-guard",
+      "target": "A0 production fetch blocked",
+      "detected": true
+    },
+    {
+      "case": "no-ai-guard",
+      "target": "A0 unsupported getAiAppCheckToken",
+      "detected": true
+    },
+    {
+      "case": "no-storage-guard",
+      "target": "A0 unsupported storeImageFile",
+      "detected": true
+    },
+    {
+      "case": "no-text-guard",
+      "target": "A0 cloud image rejected",
+      "detected": true
+    },
+    {
+      "case": "no-profile-guard",
+      "target": "A0 dirty profile must stop SDK initialization",
+      "detected": true
+    },
+    {
+      "case": "no-auth-frame",
+      "target": "A0 staging auth frame positive control",
+      "detected": true
+    },
+    {
+      "case": "no-idb-guard",
+      "target": "A0 existing IndexedDB must stop SDK initialization",
+      "detected": true
+    },
+    {
+      "case": "early-marker",
+      "target": "A0 must not mark profile before asynchronous admission",
+      "detected": true
+    }
+  ],
+  "cleanup": [
+    "fulfilled",
+    "fulfilled"
+  ]
+}

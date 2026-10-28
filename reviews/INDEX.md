@@ -1,6 +1,6 @@
 # 리뷰 현황
 
-마지막 정리: 2026-10-25
+마지막 정리: 2026-10-28
 
 **이 파일은 새 세션이 매번 읽는다.** 열린 이슈·현재 작업·최근 검토 다섯만 두고 과거는 `handoffs/`와 git에 보존한다. 기록 규칙은
 [`README.md`](README.md) 의 '기록의 수명' 절에 있다.
@@ -13,7 +13,6 @@
 | `REV-2026-075` | `P2` | AI 문서에 들어갔다 나오면 로그인이 안 된다(재현 절차 없음) | `issues/2026-09/2026-09-09-document-editor-login-after-return.md` |
 | `REV-2026-093` | `P2` | staging Gemini가 결제 전제 미충족(`FAILED_PRECONDITION`)으로 실패한다 | `issues/2026-09/2026-09-14-gemini-staging-provider-request-error.md` |
 | `REV-2026-147` | `P2` | 과거 Firebase CLI 환경 덤프에 세션 IPC 토큰 field가 남아 이력 노출 위험이 지속된다 | `issues/2026-10/2026-10-23-security-driveupload-messaging-token-history-exposure.md` |
-| `REV-2026-153` | `P2` | 게스트 framing 검사가 top-level 비교 대상의 양성 대조를 확인하지 않는다 | `issues/2026-10/2026-10-27-tests-guest-framing-positive-control.md` |
 
 ⚠️ 이 표는 `npm run check:review-hygiene` 가 **실제 이슈 파일의 상태와 양방향으로**
 대조한다. 지난 요약을 지워도 안전한 이유가 이 대조다 — 남은 한 곳이 정확해야
@@ -25,7 +24,7 @@
 [계약](../docs/PRODUCT-UX-U0-CONTRACT.md) · [과제·결정표](../docs/PRODUCT-UX-U0-SCENARIOS.md) ·
 [시안](../docs/mockups/u0-flow.html). 계약 주장 5건을 코드로 확인했고 `REV-2026-108`을 재현했다.
 **D1 사용자 결정: 문항을 다른 권에 넣을 때 독립 사본/수정 연동을 선택 가능하게 한다.**
-**현재: U2/PR25 운영 확인·R5 독립 Codex·R6/PR26 완료. R7 PR27 병합(506b33c)·main Verify4개/Pages/5파일 일치. R8 PR28 병합(a3d8a72)·main Verify4개/Pages 완료. 추가 수동 PDF 연결 정상3크기/RED3·독립 Codex·REV151 해결(HANDOFF-200). PR29 병합(1ed8d7f)·main CI 대기. 무료 guest 호스트 코드/정상·RED·독립 검토 완료(HANDOFF-201), 새 head CI/배포 전. Firebase staging403/새 프로젝트 quota 대기. main Sonar 기존 E·App Check·자료 이관·R7/8 운영 전체 완료는 미결.**
+**현재: U2·R5·R6 완료. PR27/28/29 병합·각 main CI/Pages 완료. R7 guest PR30 head88c86d5·merge d65e759 필수CI4개/Pages·5파일 일치, 신규 workers.dev 배포·원격233자산/헤더/404/양성·iframe 검증 완료(HANDOFF-201). REV152/153 resolved, Codex·Claude 코드/절차·실제 증거 최종 합의. 추가 계정으로 기존 staging 접근 복구. R7 준비안203 Claude 합의·A0 구현204 결함3건 해결·최종 독립 검토 합의·PR35(CI/병합은 PR 기록 확인), 원문 이관·main Sonar·R7/8 운영 전체 게이트는 미결.**
 U1.5 main `877a8e7`·파일 225개 일치. 실제 Safari/iPad·원본 패널·D3/C1~C3·D1 연동 대기. 운영 보류 0건·기존26권/사본8개 보존·U2 테스트2권 추가 후28권, 원래 JSON/계정 사본 보존.
 순서·게이트는 [통합 레일](../docs/DEV-TOKEN-ROADMAP.md), 지시문은 [RAIL-ORDERS](../docs/RAIL-ORDERS.md).
 **B3 운영 장애 `REV-2026-109` 해결**(운영 `e50636c` → 문구 정정 `6679676`, 편집·삭제·진짜 충돌 운영 검증).
@@ -87,15 +86,17 @@ U0→B6에서 정규화/복원·AI 계약을 함께 다룬다. Rules의 `hasOnly
 
 ## 최근 검토
 
-[HANDOFF-2026-201](handoffs/2026-10/2026-10-23-index-r7-guest-preview.md): 무료 guest 전용 overlay·명시 auth/AI/server 차단·원본 불변·allowlist. UI/RED·실 Wrangler 233자산/헤더/404/iframe·독립 Codex 완료. PR29 병합, guest 새 CI/배포 전.
+[HANDOFF-2026-204](handoffs/2026-10/2026-10-28-security-r7-backend-staging-a0.md): A0 로컬 분리 빌드/host·정상/RED·SDK 초기화·회귀175 통과. Claude 재시도2건+독립 Codex1건 재현/수정·최종 정정 판정 합의, 각14RED·원격 변경 없음.
 
-[HANDOFF-2026-200](handoffs/2026-10/2026-10-23-tests-r8-pdf-source.md): 실제 PDF 수동 연결·픽셀/2쪽 지정·기존 refs/Blob/SHA/재로드 정상3크기·RED3. REV151 수정·독립 재검증. PR28 main CI4개/Pages 완료, Firebase403/새 프로젝트 quota·무료 guest 호스트 준비.
+[HANDOFF-2026-203](handoffs/2026-10/2026-10-28-docs-r7-firebase-staging-plan.md): 기존 staging 최신 GET·지역/비용 준비안. A=결제 미연결 Auth/Firestore, B=Blaze 뒤 Storage. Claude 최종 합의·원격 변경 없음·다음 A0 medium 구현.
+
+[HANDOFF-2026-202](handoffs/2026-10/2026-10-27-tests-r8-render-recovery.md): R8 합성 렌더 복구·300문항 정합 정상12/RED6·필수회귀175 통과. 추가계정 인증·기존 staging identity GET200 복구. Firestore API/자원·Auth/App Check·운영 게이트 미결.
+
+[HANDOFF-2026-201](handoffs/2026-10/2026-10-23-index-r7-guest-preview.md): guest overlay·CI/RED·Claude 경계 보완·REV152/153 해결. PR30 head/main CI4개·Pages 일치·무료 guest 배포와 원격233자산/헤더/404/양성/iframe 통과. 분리 backend/실자료 이관·운영 전환은 미완료.
 
 [HANDOFF-2026-199](handoffs/2026-10/2026-10-23-security-r7-static-host-preparation.md): R7 로컬 Static Assets 설정·HTTP headers·fresh manifest·Wrangler/iframe 정상·RED. REV149/150 resolved·PR27 병합/main Verify4개/Pages·main Sonar 기존 E. R8 편집 저장/오프라인 PDF 정상3화면·RED2·독립 Codex 통과; staging 인증/App Check·origin 대기.
 
-[HANDOFF-2026-198](handoffs/2026-10/2026-10-23-security-r6-verification-tools.md): R6 secret diff scan·도구 pin·Python converter·npm audit·Dependabot 판정, Actions Node24 migration, CDN/SRI·license boundary. REV-148 resolved; 독립 검토·CI·PR26 병합 완료.
 
-[HANDOFF-2026-197](handoffs/2026-10/2026-10-22-index-u2-composition.md): U2 독립 Codex 검토·저장20/RED7·UI15/RED9·PR25/병합 CI·Pages 완료. 로그인 두 권 ACK/재진입·고정 ID·원본 JSON 바이트 불변. 다음 R5.
 
 
 
