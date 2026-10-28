@@ -3,7 +3,7 @@
 - ID: `HANDOFF-2026-204`
 - 날짜: `2026-10-28`
 - 작성자: `Codex`
-- 상태: `needs-follow-up` (독립 검토 완료, PR35의 CI/병합 확인 뒤 A1)
+- 상태: `needs-follow-up` (독립 검토·PR35 병합 완료, main CI 후속·R8 화면 우선)
 - 영향 영역: `security`, `tests`, `docs`
 - 관련 이슈: `REV-2026-154`, `REV-2026-155`, `REV-2026-156` (resolved)
 
@@ -56,6 +56,21 @@ npm 명령과 기존 CI verify job에 fixture 정상/RED를 연결했다. real S
 ## 다음 행동
 
 최종 구현 `966f78a`는 커밋/푸시되어 있고 [PR35](https://github.com/071205/pedagogy/pull/35)를 생성했다. 정확한 head/필수 CI·병합 상태는 PR 기록으로 확인한다.
-독립 코드 검토·재현 결함3건 수정·최종 정상/RED 재검증 완료. 다음은 PR35의 필수 CI·병합 상태를 확인한 뒤 A1 범위를 따르는 것이다.
+독립 코드 검토·재현 결함3건 수정·최종 정상/RED 재검증 완료. 다음은 PR35의 필수 CI·병합/main 확인 뒤 R8의 편집→미리보기→출력 화면과 불편 개선을 우선하는 것이다.
 실제 A1 원격 provisioning/인증·Storage/Blaze·실자료 이관/high·main Sonar·R7/R8 운영 전체 게이트는
 미결이다. 기본 checkout 전환·transcript.txt 접근·production 변경은 하지 않았다.
+
+## 2026-10-28 사용자 방향 조정
+
+사용자가 “너무 백엔드 작업만 하는거 아님?”이라고 지적했다. 현재 PR까지만 마무리하고,
+다음은 사용자 화면에서 체감하는 편집·미리보기·출력 흐름/불편 개선을 우선한다고 답했다.
+허용된 R8 로컬 범위에서 진행하며 추가 A1 구축을 자동으로 시작하지 않는다. 원격 게이트를
+완료로 바꾸거나 없앤 것은 아니다. 우선순위는 통합 레일/RAIL-ORDERS에도 반영했다.
+
+## PR35 병합·다음 체크포인트
+
+- head `dae2283bffb20693bc5c50783590ecd7fdd9d451`, Verify40610607547의 secrets/verify/cross-platform/hwpx 전부 success, PR Sonar SUCCESS. CodeRabbit은 skipped로 독립 검토 근거에 세지 않는다.
+- PR35는 `2026-10-28T01:11:11Z` merge `78505904f1a106e8c4e3d3804b9f1132f4253d87`로 병합됐다. [안전 메타데이터](../../audits/2026-10-28/a0-pr35-ci.json).
+- main Verify40613492383은 시작됐으며 최종 통과는 아직 주장하지 않는다. Pages40613492254는 정확 merge7850590 built이며 공개 핵심5파일 bytes 일치를 확인했다([증거](../../audits/2026-10-28/a0-pr35-pages.json)). 이전 main Sonar 실패를 PR Sonar 통과로 닫지 않는다.
+- 다음은 R8 화면 우선순위다. 합성 2문항/세 viewport 탐색 기준선은 HANDOFF202 후속과 로컬 visualizations에 보존했다. 새 제품 UI 코드는 아직 바꾸지 않았다.
+- 병합 후 이 체크포인트 문서는 기존 feature branch에 별도 커밋/푸시해 보존한다. 이 문서 후속이 PR35의 검사 head에 포함됐다고 쓰지 않는다. 기본 checkout 전환·transcript.txt 접근 없음.

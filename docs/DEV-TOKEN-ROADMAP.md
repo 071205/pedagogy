@@ -7,12 +7,17 @@
 
 ## 현재 위치 — R7 guest 호스트 검증 완료, 분리 backend·운영 전환 대기
 
+**2026-10-28 사용자 우선순위 조정:** 백엔드·검증에 작업이 치우쳤다는 사용자 지적에 따라,
+PR35의 필수 CI/병합·Pages 확인을 마무리하고, main 최종 CI는 별도 후속 확인으로 남긴다. 이후는 허용된 **R8 로컬의 편집 →
+미리보기 → 출력 실제 화면 흐름과 불편 개선**을 우선한다. 추가 A1 백엔드 구축을 자동으로
+이어서 벌이지 않는다. R7·main Sonar·실자료 이관/high·실계정/실기기 등 기존 출시 게이트는 유지한다.
+
 **2026-10-28 A0 구현·독립 검토 완료:** [HANDOFF-204](../reviews/handoffs/2026-10/2026-10-28-security-r7-backend-staging-a0.md)·
 [로컬 실행](R7-BACKEND-STAGING-A0.md). 전용 빌드/host·프로필 admission·staging 양성/prod 음성·
 AI/Storage/계정삭제 차단. Claude narrow 검토 성공 뒤 재현 결함2건, 사용자 허용 대체 Codex 검토의
 SDK App Check URL/host/CSP 결함1건을 수정해 REV154/155/156 resolved. 최종 독립 정정 판정 합의,
 artifact RED14/runtime RED14·설정 거절9·실제 SDK10.12 초기화 통과(backend 요청 모두 차단).
-기존 필수회귀175/public 통과 증거 재사용. [PR35](https://github.com/071205/pedagogy/pull/35)의 필수 CI/병합 상태를 확인한 뒤 A1 범위를 따른다. 과금/원격 자원/운영 게이트는 그대로다.
+기존 필수회귀175/public 통과 증거 재사용. [PR35](https://github.com/071205/pedagogy/pull/35)는 head `dae2283`의 필수 CI4개/PR Sonar 통과 뒤 merge `7850590`으로 병합했다. Pages built·핵심5파일 bytes 일치 확인. main Verify40613492383은 실행 중이며 최종 통과는 아직 주장하지 않는다. 위 R8 화면 우선순위를 따른다. 과금/원격 자원/운영 게이트는 그대로다.
 
 **2026-10-28 R7 준비안:** [HANDOFF-203](../reviews/handoffs/2026-10/2026-10-28-docs-r7-firebase-staging-plan.md)·
 [자원/지역/비용 실행안](R7-FIREBASE-STAGING-PLAN.md). 기존 staging의 project/app GET200·계정2개·
@@ -44,7 +49,7 @@ PR head Sonar 성공이나 네 CI job 성공이 이 출시 차단의 해소를 �
 production Firebase/Worker·기존 Pages 설정·실제 자료·private 전환은 변경하지 않았다.
 분리 Firebase 접근은 추가 계정으로 복구됐지만 자원/Auth·Rules·App Check 준비는 남았다.
 App Check 정상/거절·원문 무손실 이관/롤백·실계정/실기기/인간 관찰이 남았다.
-R7/R8 운영 전체 완료가 아니다. 다음 기본 Sol medium은 PR35의 필수 CI/병합 확인 뒤 최신 R7 준비안의 A1 범위를 확인하고,
+R7/R8 운영 전체 완료가 아니다. 다음 기본 Sol medium은 PR35 병합 뒤 R8 화면 흐름을 우선하고 main 최종 CI 결과도 후속 확인하며,
 원격 자원/지역·과금 조건 대기 중 허용된 R8 로컬 검증을 이어갈 수 있다. 실제 자료 이관 구현은 별도 high·독립 검토다.
 인계 branch의 문서/감사 후속 커밋에 별도 CI 완료를 주장하지 않는다.
 

@@ -54,3 +54,13 @@ CSP auth iframe 양성 대조는 로컬 가짜 응답이다. 실제 Google 로�
 Claude 코드 검토600/360초는 exit124/의견0이었지만, 사용자 재시도 요청 후 [짧은 inline 코드 검토](a0-claude-inline-review.md)는 성공했다. 늦은 script 실행·동시 창의 오래된 fresh 판정을 [독립 재현](a0-review-reproductions.json)한 뒤 REV154/155로 기록/수정했다. 자체 script의 실행 시점 gate와 IDB await 뒤 marker 재검사를 각각 제거하면 같은 목표 단언에서 실패한다.
 
 범위를 넓힌 inline 최종 검토240초는 다시 exit124/의견0이다. 원인은 미확정이고 narrow 의견을 전체 승인으로 세지 않는다. 사용자 조건부 대체 승인으로 [독립 Codex 최종 정정 판정](a0-codex-final-review.md)을 받았다. REV156 실제 SDK App Check path/host/CSP 누락도 독립 재현/수정했다. 양쪽이 C 상수를 놓친 첫 판정은 철회했고, native fetch의 로컬 응답 대조와 별도 CSP RED로 최종 확인했다. 합의/미합의 없음이며, artifact/runtime 각각14RED 정상 검출이다. A1/API 활성화·자원 생성·Auth/Rules·과금·배포·실자료/production 변경은 없다.
+
+## PR35 CI·병합
+
+[a0-pr35-ci.json](a0-pr35-ci.json): 정확 head dae2283의 Verify40610607547 필수4job success,
+PR Sonar SUCCESS 확인 뒤 merge7850590으로 병합했다. CodeRabbit skipped는 독립 검토로 세지
+않는다. main Verify40613492383은 시작됐으며 최종 통과를 아직 주장하지 않는다. main Sonar
+기존 실패/R7 운영 전체 게이트는 별도다. 사용자 방향 조정에 따라 다음은 R8 화면 흐름/불편 개선이며
+A1을 자동 진행하지 않는다. 병합 후 체크포인트 문서는 feature branch 후속 커밋으로 보존한다.
+
+Pages는 merge7850590 built이며 [공개 핵심5파일](a0-pr35-pages.json)의 bytes/SHA가 현재 병합 소스와 일치한다. main CI 최종 통과 및 main Sonar 기존 차단 해소는 주장하지 않는다.

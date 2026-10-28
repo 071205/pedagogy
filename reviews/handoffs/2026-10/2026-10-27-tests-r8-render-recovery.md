@@ -102,3 +102,18 @@ Firestore reason/Google provider 안전 필드 조회를 완료했다. 미해결
 - 다음: Sol medium에서 기존 staging Firestore API/자원·Storage·Auth·Rules·origin/App Check 준비.
   결제 연결/새 공급자 호출은 C1 별도 게이트, 실제 자료 이관은 high·독립 검토를 유지한다.
   기본 checkout·production 전환·실자료 이관을 이번에 수행하지 않았다.
+
+## 2026-10-28 R8 화면 우선순위·탐색 기준선
+
+사용자가 백엔드 비중을 지적해 현재 PR35 마무리 뒤 R8의 편집→미리보기→출력 화면/불편 개선을 우선한다.
+추가 A1을 자동 시작하지 않는다(최신 통합 레일). CI 대기 중 guest의 새 빈 컨텍스트에서 합성 텍스트
+2문항으로 1194×834·768×1024·375×812의 실제 카드 열기→편집→지면 버튼 전환을 확인했다.
+세 크기 모두 수평 overflow 없음·1쪽 렌더 완료·인쇄 버튼 존재. 실제 시스템 인쇄/로그인·실기기
+검증은 아니다. 외부 backend는 차단했고 원본/제품 코드는 변경하지 않았다.
+
+다음 개선 후보는 좁은 화면에서 여러 줄을 차지하는 상단 도구 모음의 핵심/보조 동작 정리와
+편집↔지면 복귀의 발견성이다. 이는 기능 결함 등록이 아니라 screenshot에 근거한 UX 후보이며
+guest banner/오프라인 알림을 production 사용자 화면과 혼동하지 않는다. 화면 기준선은 로컬
+`/Users/huryul/.codex/visualizations/2026/10/27/01a17c3f-65f5-74c0-879a-8245f9a0f683/pedagogy-ui-baseline/`
+의 PNG4개와 안전 요약 `flow-baseline.json`에 보존했다. Python Playwright가 없어 기존 저장소의
+Node Playwright를 재사용했고 webapp-testing의 server lifecycle helper로 시작/종료했다.
