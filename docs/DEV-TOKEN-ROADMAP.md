@@ -10,7 +10,7 @@
 **2026-10-28 사용자 우선순위: 시험지 미리보기·출력 완성도.** [HANDOFF205](../reviews/handoffs/2026-10/2026-10-28-index-r8-preview-navigation.md).
 R8 로컬에서 좁은 지면 도구 가림 REV157을 수정했고 원본/설정/큰 문항 이동을 보완했다.
 정상3화면/목표RED10·기존 지면17/14·원본16/17·필수회귀175·PDF/정적 검사·독립 검토 합의.
-다음은 이 UI 묶음의 PR/CI 확인이다. 추가 A1 backend 구축을 자동 진행하지 않는다.
+PR36 head153bccf CI4개/PR Sonar 통과·merge9cff81d 병합, main CI4개/Pages·5파일 일치·공개 UI3화면 확인 완료. 다음도 미리보기/출력 우선이며 추가 A1 backend 구축을 자동 진행하지 않는다.
 R7·main Sonar·실자료 이관/high·실계정/실기기 등 기존 출시 게이트는 유지한다.
 
 **2026-10-28 A0 구현·독립 검토 완료:** [HANDOFF-204](../reviews/handoffs/2026-10/2026-10-28-security-r7-backend-staging-a0.md)·
@@ -50,7 +50,7 @@ PR head Sonar 성공이나 네 CI job 성공이 이 출시 차단의 해소를 �
 production Firebase/Worker·기존 Pages 설정·실제 자료·private 전환은 변경하지 않았다.
 분리 Firebase 접근은 추가 계정으로 복구됐지만 자원/Auth·Rules·App Check 준비는 남았다.
 App Check 정상/거절·원문 무손실 이관/롤백·실계정/실기기/인간 관찰이 남았다.
-R7/R8 운영 전체 완료가 아니다. 다음 기본 Sol medium은 PR35 병합 뒤 R8 화면 흐름을 우선하고 main 최종 CI 결과도 후속 확인하며,
+R7/R8 운영 전체 완료가 아니다. 다음 기본 Sol medium은 PR36 병합·main CI/Pages 확인 뒤에도 R8 미리보기/출력 흐름을 우선하며,
 원격 자원/지역·과금 조건 대기 중 허용된 R8 로컬 검증을 이어갈 수 있다. 실제 자료 이관 구현은 별도 high·독립 검토다.
 인계 branch의 문서/감사 후속 커밋에 별도 CI 완료를 주장하지 않는다.
 
