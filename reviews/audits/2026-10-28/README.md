@@ -38,20 +38,19 @@ Worker의 monitor/killSwitch 언급은 저장소 설정 기준이고 실제 live
 대조·git diff --check 통과. 제품/검사 구현은 없어 기존 회귀175·정상12/RED6은 재실행하지 않았다.
 새 구현/회귀 추가 시 필수 브라우저 회귀와 실패 주입·독립 검토를 다시 수행한다.
 
-## A0 로컬 구현·검사 — 독립 코드 검토 대기
+## A0 로컬 구현·검사 — 수정 및 최종 독립 검토
 
 [실행 설명](../../../docs/R7-BACKEND-STAGING-A0.md) ·
 [HANDOFF-204](../../handoffs/2026-10/2026-10-28-security-r7-backend-staging-a0.md).
 [소스 지문·검사](a0-verification.json), [fixture 원본](a0-browser-fixture.json),
-[실제 SDK 원본](a0-real-sdk.json)을 보존한다. 9개 runtime RED는 실제 목표 단언에서 실패를
-확인한 뒤 checker가 검출 성공으로 기록한다. artifact RED12와 설정 거절9도 통과했다.
+[실제 SDK 원본](a0-real-sdk.json)을 보존한다. 14개 runtime RED는 실제 목표 단언에서 실패를
+확인한 뒤 checker가 검출 성공으로 기록한다. artifact RED14와 설정 거절9도 통과했다.
 
 프로필 admission 전에 marker를 쓰거나 앱 코드를 실행하지 않고, 검사 완료 뒤 classic scripts를
 원래 순서/SRI로 로드한다. dirty LS·IDB 재로드·다른 origin·검사 pending 상태도 확인했다.
 실제 SDK 결과는 고정10.12.0 실행/전체 App 설정 일치뿐이며, 모든 backend 요청을 차단했다.
 CSP auth iframe 양성 대조는 로컬 가짜 응답이다. 실제 Google 로그인/attestation/ACK가 아니다.
 
-첫 Claude 코드 검토600초와 축소 검토360초는 둘 다 exit124/최종 의견0건이다. stderr progress는
-비어 원인을 추정하지 않는다. 준비안에 대한 이전 Claude 합의와 **코드 검토 미완료**를 구별한다.
-현재는 담당 대체에 대한 사용자 답을 기다린다. A1/API 활성화·자원 생성·Auth/Rules·과금·배포·
-실자료/production 변경은 없다. 새 CI 실행/병합/운영 검증 완료도 주장하지 않는다.
+Claude 코드 검토600/360초는 exit124/의견0이었지만, 사용자 재시도 요청 후 [짧은 inline 코드 검토](a0-claude-inline-review.md)는 성공했다. 늦은 script 실행·동시 창의 오래된 fresh 판정을 [독립 재현](a0-review-reproductions.json)한 뒤 REV154/155로 기록/수정했다. 자체 script의 실행 시점 gate와 IDB await 뒤 marker 재검사를 각각 제거하면 같은 목표 단언에서 실패한다.
+
+범위를 넓힌 inline 최종 검토240초는 다시 exit124/의견0이다. 원인은 미확정이고 narrow 의견을 전체 승인으로 세지 않는다. 사용자 조건부 대체 승인으로 [독립 Codex 최종 정정 판정](a0-codex-final-review.md)을 받았다. REV156 실제 SDK App Check path/host/CSP 누락도 독립 재현/수정했다. 양쪽이 C 상수를 놓친 첫 판정은 철회했고, native fetch의 로컬 응답 대조와 별도 CSP RED로 최종 확인했다. 합의/미합의 없음이며, artifact/runtime 각각14RED 정상 검출이다. A1/API 활성화·자원 생성·Auth/Rules·과금·배포·실자료/production 변경은 없다.

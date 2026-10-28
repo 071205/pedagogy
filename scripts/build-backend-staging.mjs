@@ -9,6 +9,7 @@ export const ROOT = fileURLToPath(new URL('../', import.meta.url));
 export const OUTPUT = 'dist/backend-staging-a0';
 export const BANNER = '분리 staging A0 · 합성 텍스트 전용 · AI/이미지/계정 삭제 미지원 · 실제 자료 입력 금지';
 const ENTRIES = ['index.html','document-editor.html','mock-exam-editor.html','legal.html'];
+export const SCRIPT_GATE = 'window.PEDAGOGY_A0.assertContext();\n';
 const MESSAGE = 'A0에서는 AI·이미지·계정 삭제를 지원하지 않습니다';
 const stop = 'throw Error(' + JSON.stringify(MESSAGE) + ');';
 
@@ -34,7 +35,7 @@ function policy(source) {
   return uniqueRegex(source, /(<meta\s+http-equiv="Content-Security-Policy"\s+content=")([\s\S]*?)(")/i,
     (_all,open,value,close)=>open+value.split(';').map(v=>{
       const d=v.trim();
-      if (d.startsWith('connect-src ')) return "connect-src 'self' https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firebaseappcheck.googleapis.com https://firebaseinstallations.googleapis.com https://recaptchaenterprise.googleapis.com";
+      if (d.startsWith('connect-src ')) return "connect-src 'self' https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://content-firebaseappcheck.googleapis.com https://firebaseinstallations.googleapis.com https://recaptchaenterprise.googleapis.com";
       if (d.startsWith('frame-src ')) return "frame-src 'self' https://"+IDENTITY.authDomain+' https://accounts.google.com https://apis.google.com https://www.google.com';
       if (d.startsWith('font-src ')) return "font-src 'self' data: https://cdn.jsdelivr.net";
       if (d.startsWith('img-src ')) return "img-src 'self' data: blob: https://lh3.googleusercontent.com";
@@ -115,6 +116,10 @@ function deferApplicationScripts(html) {
   if(serviceCount!==1)throw Error('A0 must have one synchronous configuration bootstrap');
   return result;
 }
+function ownScripts(html) {
+  return [...html.matchAll(/<script\b[^>]*\bsrc="([^"]+)"[^>]*>/gi)]
+    .map(m=>m[1]).filter(src=>src!=='service-config.js'&&!/^https:\/\//.test(src));
+}
 async function regular(root, relative, directory=false) {
   let path=root;
   for(const [i,part] of relative.split('/').entries()) {
@@ -160,7 +165,11 @@ async function verifyAt(output) {
     for(const tag of html.matchAll(/<script\b([^>]*)>/gi)){
       if(!/\bsrc="service-config\.js"/.test(tag[1])&&!/type="application\/x-a0-script"/.test(tag[1]))throw Error('A0 eager application script');
     }
+    for(const src of ownScripts(html)) {
+      if(!(await readFile(await regular(base,src),'utf8')).startsWith(SCRIPT_GATE))throw Error('A0 late execution gate missing: '+src);
+    }
     const csp=html.match(/<meta\s+http-equiv="Content-Security-Policy"\s+content="([\s\S]*?)"/i)?.[1]||'';
+    if(['index.html','document-editor.html'].includes(file)&&!csp.includes('https://content-firebaseappcheck.googleapis.com'))throw Error('A0 App Check CSP origin missing');
     if(!csp || /(?:workers\.dev|firebasestorage\.googleapis|storage\.googleapis|127\.0\.0\.1|http:\/\/localhost)/.test(csp))throw Error('A0 forbidden CSP origin');
   }
   for(const [file,guards] of Object.entries(REQUIRED)) {
@@ -199,7 +208,16 @@ export async function buildBackendStaging(root=ROOT, configuration) {
     }
     await buildPublic(input);
     await rename(join(input,'dist/public'),join(publish,'public'));
-    for(const file of ENTRIES){const path=join(publish,'public',file);await writeFile(path,deferApplicationScripts(await readFile(path,'utf8')));}
+    const scripts=new Set();
+    for(const file of ENTRIES){
+      const path=join(publish,'public',file);
+      const html=deferApplicationScripts(await readFile(path,'utf8'));
+      for(const src of ownScripts(html))scripts.add(src);
+      await writeFile(path,html);
+    }
+    // A native script request can finish after the loader times out. Each own
+    // classic script must check admission at execution, preserving global scope.
+    for(const src of scripts){const path=await regular(join(publish,'public'),src);await writeFile(path,SCRIPT_GATE+await readFile(path,'utf8'));}
     const files=await verifyPublic(join(publish,'public'));
     await writeFile(join(publish,'staging-manifest.json'),JSON.stringify({kind:'backend-staging-a0',configuration:config,files},null,2)+'\n');
     await verifyAt(publish);

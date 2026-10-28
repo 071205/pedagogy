@@ -8,6 +8,31 @@
       "sdk": "fixture"
     },
     {
+      "case": "no-appcheck-csp",
+      "target": "A0 actual SDK App Check CSP host positive control",
+      "detected": true
+    },
+    {
+      "case": "no-appcheck-positive",
+      "target": "A0 pinned SDK App Check endpoint positive control",
+      "detected": true
+    },
+    {
+      "case": "no-appcheck-binding",
+      "target": "A0 App Check project/app/action/key/method boundary",
+      "detected": true
+    },
+    {
+      "case": "no-late-gate",
+      "target": "A0 timed-out bundle must not execute application code",
+      "detected": true
+    },
+    {
+      "case": "no-fresh-recheck",
+      "target": "A0 concurrent admitted profile must initialize second SDK",
+      "detected": true
+    },
+    {
       "case": "no-sdk-init",
       "target": "A0 SDK initialization positive control",
       "detected": true

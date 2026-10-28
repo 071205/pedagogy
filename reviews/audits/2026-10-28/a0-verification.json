@@ -3,11 +3,11 @@
   "baseHead": "1629dee",
   "sourceSha256": {
     "scripts/backend-staging-config.mjs": "f2fce3378a94d54bde4fd4ada1c5a3f8c28dfce0e46ac3a154f8de84adeda3ae",
-    "scripts/backend-staging-runtime.mjs": "55ba8e7341dd1cdcb9770898385d8ac0b44ceddf0401fd7cce1152a2039899e1",
-    "scripts/build-backend-staging.mjs": "5950ef086cedd2387021e6f0c4bdc632a0e2adbec4490fd529b34c31c6595f06",
+    "scripts/backend-staging-runtime.mjs": "78be96a96e8e723def1ac9b05357df3733dc6de3ff153c0749dd3169ca3522e5",
+    "scripts/build-backend-staging.mjs": "11e61f698ee82070c3ccc8c8d3fad3e0d7291337da460aaaafaa7d5e7222a407",
     "scripts/serve-backend-staging.mjs": "41e51b489b7823744589101b356563b3d3a550a130fe00ef660a7ef9b9e39f30",
-    "scripts/backend-staging.test.mjs": "25dd8cb6b8ac2e6cd342420dcb60ee53f198d5438516f5996776ea94bc537680",
-    "scripts/check-backend-staging.mjs": "a01899163017aea2281a80e25290c567a7c7e8ce36999a4d8fcaeac644ddc40a",
+    "scripts/backend-staging.test.mjs": "1a9479c8cae0b8035bc0e80a16a39fe957d34e92b0e89b92c21be8b7ed881a46",
+    "scripts/check-backend-staging.mjs": "075ac9aaee1746c9c8f63bde08fb21bb85c00392e9acb114ba46501808266894",
     "package.json": "47ac8b9e687b7d1f1ecba1f1277226d37bdc43d4bca2b7a5d0c65d34e24c13de",
     ".github/workflows/verify.yml": "681a4e3e3c3d598e250c684f8870d0da7ad4e71d5582a1d5e0a8b3a88907b9c8"
   },
@@ -15,8 +15,8 @@
     "test:backend-staging": {
       "exit": 0,
       "invalidConfigurationCases": 9,
-      "artifactRedCases": 12,
-      "browserRedCases": 9,
+      "artifactRedCases": 14,
+      "browserRedCases": 14,
       "fixture": "a0-browser-fixture.json"
     },
     "actualSdk": {
@@ -35,7 +35,6 @@
     }
   },
   "remoteResourceChanges": 0,
-  "providerCalls": 0,
   "googleLoginAttestationAck": "not tested",
   "reviewCalls": [
     {
@@ -53,7 +52,27 @@
       "timeoutSeconds": 360,
       "exit": 124,
       "finalResult": false
+    },
+    {
+      "model": "opus",
+      "effort": "high",
+      "scope": "inline admission/loader snippets",
+      "timeoutSeconds": 180,
+      "exit": 0,
+      "finalResult": true,
+      "findings": "REV-2026-154/155 independently reproduced and fixed"
+    },
+    {
+      "model": "opus",
+      "effort": "high",
+      "scope": "inline config/runtime/build/host full code",
+      "timeoutSeconds": 240,
+      "exit": 124,
+      "finalResult": false
     }
   ],
-  "independentReview": "pending user choice of replacement reviewer; timeouts are not approvals"
+  "independentReview": "complete: independent Codex reviewer; corrected verdict after SDK host omission; a0-codex-final-review.md",
+  "reviewReproductions": "a0-review-reproductions.json",
+  "serviceAiProviderCalls": 0,
+  "appCheckCspControl": "native fetch captured before fixture spy; exact synthetic SDK endpoint fulfilled locally only in fixture mode; actual backend blocked"
 }

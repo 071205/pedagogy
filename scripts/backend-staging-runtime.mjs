@@ -25,6 +25,7 @@ export function stagingRuntime(config) {
     profile();
     if (typeof indexedDB.databases !== 'function') fail();
     const dbs = await indexedDB.databases();
+    fresh = !profile(); // Another A0 tab may have admitted this profile during the await.
     if ((fresh && dbs.length) || dbs.some(d => !/^(firebase|PM_)/.test(d.name || ''))) fail();
     if (navigator.serviceWorker && (await navigator.serviceWorker.getRegistrations()).length) fail();
     // Do not leave an admission marker if navigation interrupts async checks.
@@ -53,7 +54,7 @@ export function stagingRuntime(config) {
     if (['identitytoolkit.googleapis.com','securetoken.googleapis.com'].includes(u.hostname))
       return u.searchParams.get('key') === f.apiKey && /^\/v[123]\//.test(path);
     if (u.hostname === 'firebaseinstallations.googleapis.com') return path.startsWith('/v1/projects/' + f.projectId + '/installations');
-    if (u.hostname === 'firebaseappcheck.googleapis.com') return path.startsWith('/v1/projects/' + f.messagingSenderId + '/apps/' + f.appId + '/');
+    if (u.hostname === 'content-firebaseappcheck.googleapis.com') return method.toUpperCase() === 'POST' && u.searchParams.get('key') === f.apiKey && path === '/v1/projects/' + f.projectId + '/apps/' + f.appId + ':exchangeRecaptchaEnterpriseToken';
     if (u.hostname === 'recaptchaenterprise.googleapis.com') return path.startsWith('/v1/projects/' + f.projectId + '/');
     return false;
   }

@@ -3,7 +3,7 @@ import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { chromium } from 'playwright';
 import { startBackendStaging } from './serve-backend-staging.mjs';
-import { ROOT, OUTPUT } from './build-backend-staging.mjs';
+import { ROOT, OUTPUT, SCRIPT_GATE } from './build-backend-staging.mjs';
 import { IDENTITY, ORIGIN } from './backend-staging-config.mjs';
 
 const at=process.argv.indexOf('--config');
@@ -26,18 +26,25 @@ const mutations={
   'no-text-guard': ['assets/index-3.js','  window.PEDAGOGY_A0.textOnly(s);',''],
   'no-profile-guard': ['service-config.js','    if ((old && old !== identity) || (!old && localStorage.length)) fail();',''],
   'no-idb-guard': ['service-config.js',"    if ((fresh && dbs.length) || dbs.some(d => !/^(firebase|PM_)/.test(d.name || ''))) fail();",''],
-  'early-marker': ['service-config.js','    fresh = !profile();','    fresh = !profile(); localStorage.setItem(marker, identity);'],
+  'early-marker': ['service-config.js','    fresh = !profile();\n  } catch','    fresh = !profile(); localStorage.setItem(marker, identity);\n  } catch'],
+  'no-fresh-recheck': ['service-config.js','    fresh = !profile(); // Another A0 tab may have admitted this profile during the await.',''],
+  'no-late-gate': ['assets/index-1.js',SCRIPT_GATE,''],
+  'no-appcheck-positive': ['service-config.js',"    if (u.hostname === 'content-firebaseappcheck.googleapis.com') return method.toUpperCase() === 'POST' && u.searchParams.get('key') === f.apiKey && path === '/v1/projects/' + f.projectId + '/apps/' + f.appId + ':exchangeRecaptchaEnterpriseToken';","    if (u.hostname === 'content-firebaseappcheck.googleapis.com') return false;"],
+  'no-appcheck-binding': ['service-config.js',"    if (u.hostname === 'content-firebaseappcheck.googleapis.com') return method.toUpperCase() === 'POST' && u.searchParams.get('key') === f.apiKey && path === '/v1/projects/' + f.projectId + '/apps/' + f.appId + ':exchangeRecaptchaEnterpriseToken';","    if (u.hostname === 'content-firebaseappcheck.googleapis.com') return true;"],
+  'no-appcheck-csp': ['index.html','https://content-firebaseappcheck.googleapis.com','https://appcheck-disabled.invalid'],
   'no-auth-frame': ['index.html','https://pedagogy-ai-staging.firebaseapp.com','https://frame-disabled.invalid'],
 };
-async function open({red='',dirty=false,wrongOrigin=false,holdAdmission=false}={}) {
+async function open({red='',dirty=false,wrongOrigin=false,holdAdmission=false,lateBundle=false}={}) {
   const context=await browser.newContext({locale:'ko-KR'}); // never use the user's profile
   const errors=[];
   if(!realSdk) await context.addInitScript(({dirty,holdAdmission})=>{
+    document.addEventListener('load',e=>{if(e.target.src?.endsWith('/assets/index-1.js'))window.__A0_LATE_LOADED=true;},true);
     if(holdAdmission){const original=indexedDB.databases.bind(indexedDB);indexedDB.databases=()=>new Promise(resolve=>{window.__releaseA0Admission=()=>original().then(resolve);});}
     if(dirty)localStorage.setItem('private-existing-work','must remain unchanged');
     const trace={configs:[],order:[],storageCalls:0,signIns:0,fetches:0,sends:0};window.__a0SDK=trace;
     // Observe only the SDK/network boundaries. Product initialization, guards,
     // navigation, file handling, DOM, persistence and serialization are real.
+    window.__a0NativeFetch=window.fetch.bind(window);
     window.fetch=async()=>{trace.fetches++;return new Response('{}',{status:200});};
     XMLHttpRequest.prototype.send=function(){trace.sends++;};
     const callbacks=[];
@@ -57,16 +64,20 @@ async function open({red='',dirty=false,wrongOrigin=false,holdAdmission=false}={
     const local=wrongOrigin?'http://localhost:8797':ORIGIN;
     if(u.origin===local) {
       const file=u.pathname==='/'?'index.html':u.pathname.slice(1);
-      if((wrongOrigin||mutations[red]?.[0]===file)&&Object.hasOwn(host.files,file)) {
+      if((wrongOrigin||mutations[red]?.[0]===file||(lateBundle&&['service-config.js','assets/index-1.js'].includes(file)))&&Object.hasOwn(host.files,file)) {
         let body=await readFile(join(publicRoot,file),'utf8');
         if(mutations[red]?.[0]===file) {
           const [,before,after]=mutations[red];
           assert.equal(body.split(before).length,2,'Browser RED anchor exists exactly once');body=body.replace(before,after);
         }
+        if(lateBundle&&file==='service-config.js')body=body.replace('resolve(false),15000)', 'resolve(false),100)');
+        if(lateBundle&&file==='assets/index-1.js'){await new Promise(resolve=>setTimeout(resolve,500));body+='\nwindow.__A0_LATE_EXEC=true;localStorage.setItem("a0-late-side-effect","bad");';}
         return route.fulfill({contentType:file.endsWith('.html')?'text/html; charset=utf-8':'application/javascript; charset=utf-8',body});
       }
       return route.continue();
     }
+    if(!realSdk&&u.origin==='https://content-firebaseappcheck.googleapis.com'&&u.pathname==='/v1/projects/'+IDENTITY.projectId+'/apps/'+IDENTITY.appId+':exchangeRecaptchaEnterpriseToken'&&u.searchParams.get('a0control')==='1'&&route.request().method()==='POST')
+      return route.fulfill({contentType:'application/json',headers:{'Access-Control-Allow-Origin':ORIGIN},body:'{"a0AppCheckCsp":true}'});
     // A CSP positive control, not a Google authentication exchange. No backend request.
     if(u.origin==='https://'+IDENTITY.authDomain&&u.pathname==='/__/auth/iframe'&&u.searchParams.get('a0control')==='1')
       return route.fulfill({contentType:'text/html',body:'<!doctype html><p id="a0-auth-positive">staging auth frame</p>'});
@@ -118,7 +129,7 @@ async function network(page) {
       ['https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=wrong','POST'],
       ['https://firestore.googleapis.com/v1/projects/not-staging/databases/(default)/documents/x','GET'],
       ['https://firestore.googleapis.com/v1/projects/not-staging/databases/(default)/documents/x?database=projects/pedagogy-ai-staging/databases/(default)','GET'],
-      ['https://firebaseappcheck.googleapis.com/v1/projects/1/apps/wrong:exchangeRecaptchaEnterpriseToken','POST'],
+      ['https://content-firebaseappcheck.googleapis.com/v1/projects/1/apps/wrong:exchangeRecaptchaEnterpriseToken','POST'],
       ['https://firebasestorage.googleapis.com/v0/b/pedagogy-ai-staging.firebasestorage.app/o','POST'],
       ['https://pedagogy-ai-staging.dbruddl79.workers.dev/','POST'],
       ['https://firestore.googleapis.com/google.firestore.v1.Firestore/Listen/channel?database=projects/pedagogy-ai-staging/databases/(default)&database=projects/other/databases/(default)','GET'],
@@ -136,6 +147,38 @@ async function network(page) {
   });
   assert(result.blocks===result.expected&&result.deniedReached===0,'A0 production fetch blocked');
   assert(result.allowed===1&&result.xhrBlocked&&result.sends===1,'A0 allowed staging and blocked XHR controls');
+}
+async function appCheckBoundary(page) {
+  const result=await page.evaluate(async()=>{
+    const base='https://content-firebaseappcheck.googleapis.com/v1/projects/'+firebaseConfig.projectId+'/apps/'+firebaseConfig.appId;
+    const endpoint=base+':exchangeRecaptchaEnterpriseToken?key='+firebaseConfig.apiKey;
+    const beforeFetch=__a0SDK.fetches,beforeSend=__a0SDK.sends;
+    let fetched=false,xhr=false;
+    try{await fetch(endpoint,{method:'POST'});fetched=true;}catch{}
+    try{const x=new XMLHttpRequest();x.open('POST',endpoint);x.send('{}');xhr=true;}catch{}
+    const positive={fetched,xhr,fetches:__a0SDK.fetches-beforeFetch,sends:__a0SDK.sends-beforeSend};
+    const denied=[
+      [endpoint.replace('/projects/'+firebaseConfig.projectId+'/', '/projects/other/'),'POST'],
+      [endpoint.replace('/projects/'+firebaseConfig.projectId+'/', '/projects/'+firebaseConfig.messagingSenderId+'/'),'POST'],
+      [endpoint.replace('/apps/'+firebaseConfig.appId+':','/apps/wrong:'),'POST'],
+      [endpoint.replace(':exchangeRecaptchaEnterpriseToken',':exchangeDebugToken'),'POST'],
+      [endpoint.split('?')[0],'POST'],[endpoint.replace(firebaseConfig.apiKey,'wrong'),'POST'],
+      [endpoint+'&key='+firebaseConfig.apiKey,'POST'],[endpoint,'GET'],
+    ];
+    let blocked=0;const before=__a0SDK.fetches;
+    for(const [url,method]of denied){try{await fetch(url,{method});}catch{blocked++;}}
+    return {positive,blocked,total:denied.length,leaked:__a0SDK.fetches-before};
+  });
+  assert(result.positive.fetched&&result.positive.xhr&&result.positive.fetches===1&&result.positive.sends===1,'A0 pinned SDK App Check endpoint positive control');
+  assert(result.blocked===result.total&&result.leaked===0,'A0 App Check project/app/action/key/method boundary');
+}
+async function appCheckCsp(page) {
+  const allowed=await page.evaluate(async()=>{try{return (await (await window.__a0NativeFetch('https://content-firebaseappcheck.googleapis.com/v1/projects/'+firebaseConfig.projectId+'/apps/'+firebaseConfig.appId+':exchangeRecaptchaEnterpriseToken?key='+firebaseConfig.apiKey+'&a0control=1',{method:'POST',body:'{}'})).json()).a0AppCheckCsp===true;}catch{return false;}});
+  assert(allowed,'A0 actual SDK App Check CSP host positive control');
+}
+async function appCheckCheck(red='') {
+  const {page,context}=await open({red});
+  try{await positive(page);await appCheckBoundary(page);await appCheckCsp(page);}finally{await context.close();}
 }
 async function authFrame(page) {
   await page.evaluate(()=>{const f=document.createElement('iframe');f.id='a0AuthControl';f.src='https://pedagogy-ai-staging.firebaseapp.com/__/auth/iframe?a0control=1';document.body.append(f);});
@@ -167,7 +210,32 @@ async function admission(red='') {
     await page.evaluate(()=>window.__releaseA0Admission());await positive(page);
   }finally{await context.close();}
 }
+async function lateBundleCheck(red='') {
+  const {page,context}=await open({red,lateBundle:true});
+  try {
+    await page.waitForFunction(()=>window.PEDAGOGY_A0.bootstrapFinished);
+    await page.waitForFunction(()=>window.__A0_LATE_LOADED===true);
+    assert.equal(await page.locator('#loginBtn').isDisabled(),true,'Timed out loader must disable login');
+    assert.equal(await page.evaluate(()=>!!window.__A0_LATE_EXEC||localStorage.getItem('a0-late-side-effect')!==null),false,'A0 timed-out bundle must not execute application code');
+  }finally{await context.close();}
+}
+async function concurrentAdmission(red='') {
+  const {page,context}=await open({red,holdAdmission:true});
+  try {
+    const second=await context.newPage();
+    await second.goto(ORIGIN+'/index.html');
+    await second.waitForFunction(()=>typeof window.__releaseA0Admission==='function');
+    await page.evaluate(()=>window.__releaseA0Admission());await positive(page);
+    await page.evaluate(()=>new Promise((resolve,reject)=>{const r=indexedDB.open('firebaseLocalStorageDb',1);r.onsuccess=()=>{r.result.close();resolve();};r.onerror=()=>reject(Error('fixture database failed'));}));
+    await second.evaluate(()=>window.__releaseA0Admission());
+    await second.waitForFunction(()=>window.PEDAGOGY_A0.bootstrapFinished);
+    assert.equal(await second.evaluate(()=>__a0SDK.configs.length),1,'A0 concurrent admitted profile must initialize second SDK');
+  }finally{await context.close();}
+}
 async function check(red='') {
+  if(red==='no-appcheck-positive'||red==='no-appcheck-binding'||red==='no-appcheck-csp')return appCheckCheck(red);
+  if(red==='no-late-gate')return lateBundleCheck(red);
+  if(red==='no-fresh-recheck')return concurrentAdmission(red);
   if(red==='early-marker')return admission(red);
   if(red==='no-idb-guard')return dirtyIndexedDb(red);
   const dirty=red==='no-profile-guard';
@@ -190,7 +258,7 @@ async function check(red='') {
     }
     await authFrame(page);
     if(red==='no-auth-frame')return;
-    await network(page);
+    await network(page);await appCheckBoundary(page);await appCheckCsp(page);
     for(const name of ['getAiAppCheckToken','uploadBlobToStorage','storeImageFile','wipeStorageImages','purgeAttemptLedgerBeforeAccountDelete','deleteAccountEverything'])await unsupported(page,name);
     const text=await page.evaluate(()=>{
       sets=[normSet({id:'a0-text',name:'합성 텍스트',problems:[{id:'a0-q',blocks:[{type:'statement',data:{text:'A0 TEXT $x+1$'}}]}]},{keepId:true})];
@@ -235,26 +303,38 @@ try {
   try{await writeFile(protectedAsset,Buffer.concat([originalAsset,Buffer.from('\n// changed after startup\n')]));assert.equal((await fetch(ORIGIN+'/service-config.js')).status,500,'Host must reject post-verification mutation');}
   finally{await writeFile(protectedAsset,originalAsset);}
   browser=await chromium.launch();
-  const normal=await check();results.push({case:'normal',passed:true,...normal});
-  if(!realSdk) {
-    // Both dirty storage and wrong origin are negative contexts, not alternate profiles.
-    for(const options of [{dirty:true},{wrongOrigin:true}]) {
-      const {page,context}=await open(options);
-      try{await page.waitForFunction(()=>window.PEDAGOGY_A0.bootstrapFinished);assert.equal(await page.evaluate(()=>__a0SDK.configs.length),0);assert.equal(await page.locator('#loginBtn').isDisabled(),true);}
-      finally{await context.close();}
-    }
-    await dirtyIndexedDb();await admission();
-    const expectations={
-      'no-sdk-init':'A0 SDK initialization positive control', 'no-fetch-guard':'A0 production fetch blocked',
-      'no-ai-guard':'A0 unsupported getAiAppCheckToken', 'no-storage-guard':'A0 unsupported storeImageFile',
-      'no-text-guard':'A0 cloud image rejected', 'no-profile-guard':'A0 dirty profile must stop SDK initialization',
-      'no-auth-frame':'A0 staging auth frame positive control', 'no-idb-guard':'A0 existing IndexedDB must stop SDK initialization', 'early-marker':'A0 must not mark profile before asynchronous admission',
-    };
-    for(const [red,target]of Object.entries(expectations)) {
-      let error;
-      try{await check(red);}catch(e){error=e;}
-      assert(error&&error.message.includes(target),'RED must fail its target: '+red+'; '+(error?.message||'passed unexpectedly'));
-      results.push({case:red,target,detected:true});
+  if(process.env.A0_FOCUS){
+    assert(!realSdk,'Focused reproductions require the synthetic SDK');
+    assert(['late','concurrent','appcheck'].includes(process.env.A0_FOCUS),'Unknown focus');
+    await (process.env.A0_FOCUS==='late'?lateBundleCheck():process.env.A0_FOCUS==='concurrent'?concurrentAdmission():appCheckCheck());
+    results.push({case:process.env.A0_FOCUS,passed:true});
+  }else{
+    const normal=await check();results.push({case:'normal',passed:true,...normal});
+    if(!realSdk) {
+      // Both dirty storage and wrong origin are negative contexts, not alternate profiles.
+      for(const options of [{dirty:true},{wrongOrigin:true}]) {
+        const {page,context}=await open(options);
+        try{await page.waitForFunction(()=>window.PEDAGOGY_A0.bootstrapFinished);assert.equal(await page.evaluate(()=>__a0SDK.configs.length),0);assert.equal(await page.locator('#loginBtn').isDisabled(),true);}
+        finally{await context.close();}
+      }
+      await dirtyIndexedDb();await admission();await lateBundleCheck();await concurrentAdmission();
+      const expectations={
+        'no-appcheck-csp':'A0 actual SDK App Check CSP host positive control',
+        'no-appcheck-positive':'A0 pinned SDK App Check endpoint positive control',
+        'no-appcheck-binding':'A0 App Check project/app/action/key/method boundary',
+        'no-late-gate':'A0 timed-out bundle must not execute application code',
+        'no-fresh-recheck':'A0 concurrent admitted profile must initialize second SDK',
+        'no-sdk-init':'A0 SDK initialization positive control', 'no-fetch-guard':'A0 production fetch blocked',
+        'no-ai-guard':'A0 unsupported getAiAppCheckToken', 'no-storage-guard':'A0 unsupported storeImageFile',
+        'no-text-guard':'A0 cloud image rejected', 'no-profile-guard':'A0 dirty profile must stop SDK initialization',
+        'no-auth-frame':'A0 staging auth frame positive control', 'no-idb-guard':'A0 existing IndexedDB must stop SDK initialization', 'early-marker':'A0 must not mark profile before asynchronous admission',
+      };
+      for(const [red,target]of Object.entries(expectations)) {
+        let error;
+        try{await check(red);}catch(e){error=e;}
+        assert(error&&error.message.includes(target),'RED must fail its target: '+red+'; '+(error?.message||'passed unexpectedly'));
+        results.push({case:red,target,detected:true});
+      }
     }
   }
 }catch(error){status=1;console.error(error.message);}
@@ -262,7 +342,7 @@ finally {
   const cleanup=await Promise.allSettled([browser?.close(),host?.close()]);
   if(cleanup.some(x=>x.status==='rejected'))status=1;
   await mkdir(join(ROOT,'test-results'),{recursive:true});
-  const summary={scope:realSdk?'actual pinned SDK initialization; all backend requests blocked':'SDK fixture, real product guards/DOM/storage/serialization',complete:status===0,results,cleanup:cleanup.map(x=>x.status)};
+  const summary={scope:process.env.A0_FOCUS?'focused reproduction: '+process.env.A0_FOCUS:realSdk?'actual pinned SDK initialization; all backend requests blocked':'SDK fixture, real product guards/DOM/storage/serialization',complete:status===0,results,cleanup:cleanup.map(x=>x.status)};
   await writeFile(join(ROOT,'test-results',realSdk?'backend-staging-real-sdk.json':'backend-staging-fixture.json'),JSON.stringify(summary,null,2)+'\n');
   console.log(JSON.stringify(summary));
 }

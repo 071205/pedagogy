@@ -47,12 +47,14 @@ SCORE/localhost 바인딩을 대조한다. 공개 SDK config만 mode0600/부모0
 
 기존 LS 데이터/다른 admission marker·기존 IndexedDB·Service Worker가 있는 미등록 프로필은
 거절한다. 비동기 검사 전에 소유 marker를 남기지 않는다. 도중에 닫은 창이 다음 진입에 검사를
-우회하지 못하게 한다. 검사 도중 추가된 LS도 다시 확인한다. 데이터는 지우지 않는다.
+우회하지 못하게 한다. 검사 도중 추가된 LS도 다시 확인한다. IDB await 뒤 marker를 재확인해 다른 A0 창의 admission을 반영한다. 데이터는 지우지 않는다.
 등록된 A0 프로필의 재로드만 자기 marker와 허용 저장소를 대조해 진행한다. 이 표식은 브라우저
 샌드박스/서버 인증을 대체하는 보안 자격 증명이 아니며, 새 빈 프로필 사용 의무를 없애지 않는다.
 
 서비스 설정만 먼저 실행한다. 나머지 public classic scripts는 `application/x-a0-script`로 보류하고
 admission 성공 후 원래 순서·src·SRI로 로드한다. eval/inline 주입 없이 전역 스코프를 보존한다.
+자체 classic script마다 실행 시점 context gate를 앞에 두어 타임아웃 뒤 늦게 도착한 앱 코드도 차단한다.
+외부 CDN 실패는 선택적 fallback을 위해 다음 로드를 진행하며, 해당 CDN의 전역 선언까지 취소한다는 뜻은 아니다.
 늦은 document init/mock boot도 별도로 처리한다. 로그인/App Check 초기화는 켜 두고, App Check가
 Auth/Firestore 서비스보다 먼저 시작한다. Storage 객체는 만들지 않으며 mock cloud sync는 0이다.
 
@@ -79,11 +81,17 @@ Auth iframe 양성 대조는 staging authDomain의 **가짜 응답을 로컬 rou
 고정 SDK 모드는 `10.12.0` 실행과 실제 App 옵션 일치를 확인한다. fixture와 실제 SDK 결과는
 서로 다른 JSON으로 기록한다.
 
+SDK10.12.0의 App Check 주소는 `content-firebaseappcheck.googleapis.com`의 고정
+projectId/appId + `:exchangeRecaptchaEnterpriseToken`이다. runtime은 POST/고정 key까지 제한하고
+SDK 화면의 CSP도 같은 host를 허용한다. 원래 native fetch를 별도 보존해 exact SDK endpoint의
+로컬 가짜 응답으로 CSP 양성을 확인한다. 이는 실제 App Check 발급 성공이 아니며 실제 SDK
+모드에서는 이 fulfillment도 꺼 둔다. 경로 거절·바인딩 제거·CSP host 제거 RED를 분리한다.
+
 ## 검증·다음 단계
 
 검사 명령과 실제 결과·독립 검토는 [HANDOFF-204](../reviews/handoffs/2026-10/2026-10-28-security-r7-backend-staging-a0.md)에 남긴다.
 브라우저 RED는 SDK 초기화 제거·fetch guard 제거·AI/Storage 진입 방어 제거·cloud 이미지 방어
-제거·dirty LS/IDB 방어 제거·CSP auth frame 누락·admission marker 조기 기록을 각각 실제 목표
+제거·dirty LS/IDB 방어 제거·CSP auth frame 누락·admission marker 조기 기록·늦은 앱 gate 제거·동시 창 marker 재검사 제거을 각각 실제 목표
 단언에서 실패시키고, 종료/서버 정리까지 확인한다. CI verify job은 private config/CLI 계정 없이
 fixture 정상/RED를 실행한다. 실제 SDK 모드는 별도 주문형 확인이며 CI에 비밀 설정을 넣지 않는다.
 

@@ -17,7 +17,7 @@
 |---|---|
 | 끝난 것 | R2·R3 계약 · R4/B1·B2 · **B3 코드·독립 검토** · **R4.5 두 묶음 승인** · **⑥ 제품 UX 레일 통합(문서만)** |
 | 후속 완료 | R1 독립 검토 완료. **B3 3/3 완료**(`HANDOFF-170` 검토). **B5 검토·운영 배포 완료**(`HANDOFF-171`) |
-| 다음 | **R7 guest PR30 head88c86d5·merge d65e759 CI4개/Pages 완료, 신규 workers.dev 배포·원격233자산/헤더/404/양성/iframe 통과. REV152/153 해결·Claude 코드/절차 합의.** HANDOFF-201 최신 체크포인트. R8 로컬 렌더 복구·300문항 정상12/RED6·필수회귀175(HANDOFF-202). 추가 계정 인증·기존 staging identity GET200 복구. R7 자원/지역/비용 실행안(HANDOFF-203) Claude 최종 합의·원격 변경 없음. A0 구현·로컬 검사 완료(HANDOFF-204), Claude 코드검토2회 timeout/의견0·담당 대체 사용자 답 대기. 다음은 독립 검토→PR/CI, Storage는 B 결정 뒤. App Check·실자료 이관/high 구현·main Sonar·R7/8 운영 전체 게이트 유지 |
+| 다음 | **R7 guest PR30 head88c86d5·merge d65e759 CI4개/Pages 완료, 신규 workers.dev 배포·원격233자산/헤더/404/양성/iframe 통과. REV152/153 해결·Claude 코드/절차 합의.** HANDOFF-201 최신 체크포인트. R8 로컬 렌더 복구·300문항 정상12/RED6·필수회귀175(HANDOFF-202). 추가 계정 인증·기존 staging identity GET200 복구. R7 자원/지역/비용 실행안(HANDOFF-203) Claude 최종 합의·원격 변경 없음. A0 구현·독립 검토 완료(HANDOFF-204), Claude 재시도 의견2건+독립 Codex1건 재현/수정·최종 합의, artifact/runtime 각14RED. 다음은 PR/CI, Storage는 B 결정 뒤. App Check·실자료 이관/high 구현·main Sonar·R7/8 운영 전체 게이트 유지 |
 | 세션 | 클라우드/로컬 병렬 — 어느 세션에서 무엇을 하는지는 [DEV-TOKEN-ROADMAP '세션 분담'](DEV-TOKEN-ROADMAP.md#세션-분담--클라우드--로컬-2026-10-03--astra-high-판정)(2026-10-03 Astra high 판정). Codex 검토·배포·한글·로그인 확인은 로컬에만 있다 |
 | 결정·외부 대기 | D1 독립/연동 선택 완료. D2②·D4 답 반영·U0 개정 재검토 합의, D3 운영 숫자·D1 기본값/패널 시안 선택, C1 결제·새 호출 승인, R7 외부 환경. 구 탭은 사용자가 다른 기기 새로고침으로 정리하고 별도 안내 없이 엄격 Rules 적용을 결정 |
 

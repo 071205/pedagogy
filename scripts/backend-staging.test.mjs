@@ -3,7 +3,7 @@ import { readFile, writeFile, rename, symlink, rm, mkdtemp, mkdir } from 'node:f
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { PUBLIC_INPUTS, PUBLIC_FILES } from './build-public.mjs';
-import { buildBackendStaging, verifyBackendStaging, ROOT, OUTPUT } from './build-backend-staging.mjs';
+import { buildBackendStaging, verifyBackendStaging, ROOT, OUTPUT, SCRIPT_GATE } from './build-backend-staging.mjs';
 import { readConfiguration, validateConfiguration, IDENTITY, ORIGIN } from './backend-staging-config.mjs';
 
 const fixture={kind:'backend-staging-a0',origin:ORIGIN,
@@ -46,7 +46,9 @@ async function red(file,mutate,expected) {
   try{const changed=mutate(old.toString('utf8'));assert.notEqual(changed,old.toString('utf8'),'RED anchor exists');await writeFile(path,changed);await assert.rejects(verifyBackendStaging(ROOT),expected);}
   finally{await writeFile(path,old);}
 }
+await red('assets/index-1.js',s=>s.replace(SCRIPT_GATE,''),/late execution gate missing/);
 await red('index.html',s=>s.replace('type="application/x-a0-script"',''),/eager application script/);
+await red('index.html',s=>s.replace('https://content-firebaseappcheck.googleapis.com','https://absent.invalid'),/App Check CSP origin missing/);
 await red('index.html',s=>s.replace('분리 staging A0','unmarked'),/banner\/configuration/);
 await red('index.html',s=>s.replace(IDENTITY.authDomain,'absent.invalid'),/auth frame missing/);
 await red('index.html',s=>s.replace('firebase-auth-compat.js','absent.js'),/SDK positive/);
@@ -73,4 +75,4 @@ try{
   await assert.rejects(buildBackendStaging(copy,fixture),/section anchor mismatch/);
   assert.deepEqual(await readFile(join(copy,OUTPUT,'public/index.html')),old);
 }finally{await rm(copy,{recursive:true,force:true});}
-console.log('A0 config/read-only preflight: normal + 9 invalid-state cases; artifact: 12 RED boundaries, source/public/guest preservation and failed-build retention passed.');
+console.log('A0 config/read-only preflight: normal + 9 invalid-state cases; artifact: 14 RED boundaries, source/public/guest preservation and failed-build retention passed.');
