@@ -76,3 +76,7 @@ Sonar 새7건은 [CODE_SMELL](sonar-new-maintenance.json): 문자열 상수/함�
 ## PR40 최종 병합·공개 검증
 
 [검증 요약](pr40-final-verification.json): PR head `f098170` CI4/Sonar 통과 → merge `1bae434` → 동일 revision main CI4, Pages built, Sonar gate OK. 공개 문서 편집기 파일은 로컬과 SHA-256/bytes 동일. 공개 브라우저에서 GIF를 출력 전 거절하고 PNG 미리보기/다운로드 후 HWPX 그림 BinData1/`hp:pic`1을 확인했다. 새 그림 표본의 실제 한글 출력은 아직 미검증이다.
+
+## 2026-10-30 화면·실시간 미리보기 관찰
+
+[30문항 자체 표본 관찰](mock-live-preview-observation.json) · [실시간 Typst 화면](mock-live-updated.png) · [HTML 근사 화면](mock-html-mode.png): 로컬 serve.py/Chromium에서 한 번의 본문 편집 뒤 실시간 이미지가 576ms에 바뀌고, HTML 모드도 새 문구를 표시했다. HTML 선지와 숨은 측정의 요청 폰트·크기·자간이 다르다. 한 번의 반응 시간은 성능 상한이 아니며 연속 입력·타 기기·실제 한글 출력을 검증한 것은 아니다. 이 관찰을 [REA·화면 적용 계획](../../../docs/PRELAUNCH-HWPX-REA-RENDER-PLAN.md)에 연결했다. 한 번의 이미지 해시 변경과 별도로 저장한 화면에서 새 본문 문구를 시각 대조했다. 실시간 이미지의 폰트 실사용·전체 시험지·연속 편집은 미측정이다.

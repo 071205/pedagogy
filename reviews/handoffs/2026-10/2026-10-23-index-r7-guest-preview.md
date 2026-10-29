@@ -301,3 +301,4 @@ Firestore403/SERVICE_DISABLED·bucket 없음·Google provider GET404·billing fa
 
 - 2026-10-29 PR40 최종: head f098170 CI4/PR Sonar 성공→merge1bae434, main CI4/Pages built/동일 revision Sonar OK, 공개 문서 UI GIF 거절·PNG 다운로드 그림 BinData1 확인. [HANDOFF207](2026-10-29-mock-hwpx-total-pages.md)·[증거](../../audits/2026-10-29/prelaunch-print/pr40-final-verification.json). 새 PNG/JPEG 표본 native 한글, Windows/iOS·실계정은 여전히 미검증.
 - 사용자 후속 REA 질문: 현재 출시 코드와 분리된 H1 연구 브랜치 `claude/h1-hwp-research`/10a0914의 분석·사이트 설계를 확인하고 [출시 적용 계획](../../../docs/PRELAUNCH-HWPX-REA-RENDER-PLAN.md)을 작성했다. 현 main에는 연구 브랜치의 REV129/130 수정이 병합되지 않았으므로 재현/범위 판정 뒤 전2 작은 묶음으로 다룬다. REA 재분석이나 H1 전체 병합을 완료로 세지 않는다.
+- 2026-10-30 REA 확장: 사용자 후속으로 내부 함수·값 흐름·가능한 네이티브 호출 관찰과 실제 모의고사 실시간/HTML 화면까지 계획에 포함했다. 합성30문항 로컬 화면 관찰은 [HANDOFF208](2026-10-29-docs-prelaunch-rea-render-plan.md)·[증거](../../audits/2026-10-29/prelaunch-print/mock-live-preview-observation.json). 출시 코드/새 REA 실험 완료로 세지 않는다.

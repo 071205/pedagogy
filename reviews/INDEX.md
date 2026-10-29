@@ -20,7 +20,7 @@
 
 ## 지금 하는 일
 
-**2026-10-29 확정:** 편집·출력 + 로그인·저장·이미지 + AI 모두 첫 출시 포함. 통합 레일을 출시 전1~6/후1~4로 확정. [공백표](../docs/FIRST-RELEASE-SCOPE.md) 갱신, 전1 Sonar23건 독립 판정·원격반영/gateOK(206), 전2 실제 Chrome/Safari PDF·한글 출력/REV158·159 수정(207), PR40 REV160·161 병합/main CI4·Pages·공개 그림 검증 완료. REA 출력 적용 계획은 전2 재현 후보/실물 검사에 좁히고 지원 약속 대조는 남음. 무료/유료 미정.
+**2026-10-29 확정:** 편집·출력 + 로그인·저장·이미지 + AI 모두 첫 출시 포함. 통합 레일을 출시 전1~6/후1~4로 확정. [공백표](../docs/FIRST-RELEASE-SCOPE.md) 갱신, 전1 Sonar23건 독립 판정·원격반영/gateOK(206), 전2 실제 Chrome/Safari PDF·한글 출력/REV158·159 수정(207), PR40 REV160·161 병합/main CI4·Pages·공개 그림 검증 완료. REA 출력 적용 계획은 내부 함수·실시간 화면·실물 검사를 전2에 연결했고 지원 약속 대조는 남음. 무료/유료 미정.
 
 **R4/U0 계약 독립 검토·연결 시안 완료**(Claude Opus 5 · `HANDOFF-167`):
 [계약](../docs/PRODUCT-UX-U0-CONTRACT.md) · [과제·결정표](../docs/PRODUCT-UX-U0-SCENARIOS.md) ·
@@ -88,7 +88,7 @@ U0→B6에서 정규화/복원·AI 계약을 함께 다룬다. Rules의 `hasOnly
 
 ## 최근 검토
 
-[HANDOFF-2026-208](handoffs/2026-10/2026-10-29-docs-prelaunch-rea-render-plan.md): 기존 H1 한글·REA 근거/사이트 설계를 전2 현 코드 재현→폰트 준비·선지 측정→실제 출력 대조→필요 시 REA로 좁힌 계획. Claude 제한 범위 검토·보완, 제품 변경/새 REA 실험 없음.
+[HANDOFF-2026-208](handoffs/2026-10/2026-10-29-docs-prelaunch-rea-render-plan.md): 기존 H1 한글·REA 근거와 현 화면 관찰을 전2의 내부 함수/값 흐름→실시간·HTML 미리보기→폰트·선지 측정→실제 출력 대조로 연결한 계획. Claude 제한 범위 검토·보완, 제품 변경/새 REA 실험 없음.
 
 [HANDOFF-2026-207](handoffs/2026-10/2026-10-29-mock-hwpx-total-pages.md): Chrome/Safari PDF·한글 실제3쪽/왕복, REV158·159 수정/독립 합의·PR38 완료. REV160·161도 PR40 merge1bae434, main CI4·Pages·Sonar OK·공개 PNG HWPX 그림 포함 확인. 새 그림 native 한글·Windows/iOS는 미검증.
 
