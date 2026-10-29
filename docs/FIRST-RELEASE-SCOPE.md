@@ -21,7 +21,7 @@
 | 로그인·문제집/모의고사 동기화 | loginBtn, libraryCloudSchema/setRevisionSchema/mockCloudSchema=1 | HANDOFF170/196/197 Rules·충돌·실계정 저장/복원 | 유효 증거를 재사용하고 변경 영향/부족한 계정 격리·모의고사 재진입을 보완. 첫 출시 필수 |
 | 이미지·삭제/탈퇴 | 기존 Storage 및 데이터 관리 경로 | Rules/자동 검사 기록, 운영 체크리스트 | 합성 파일/전용 테스트 계정으로 업로드·타계정 거절·삭제/재인증/실패 안내의 실제 증거 필요. 운영 자료 삭제 금지 |
 | AI | 기존 단건 요청/문서 AI 경로 존재, U2 유료 일괄 추출은 비활성 | HANDOFF197의 paid 차단은 일괄 구성만 증명 | 첫 출시 필수. 단건/문서/일괄 등 제공 경로의 공급자 성공·실패·권한·비용·D3 검증. 일괄OFF를 완료로 쓰지 않기 |
-| 문서 편집기·HWPX·모의고사 | document-editor는 메뉴 입구 없어도 직접 URL 공개, legal은 HWPX 약속 | 기존 HWPX CI·REV075 대역3엔진 왕복 | 핵심 N제 출력과 별도 범위. 제외 시 메뉴뿐 아니라 URL/안내 조정 검토. Mac 한글 시험지 9문항3쪽 실제 열기/수식·그림/PDF/왕복 저장 확인, 고정 분모 REV158·사용자 지적 제목 정렬 REV159 수정/실제 출력 검증(207). 문서 편집기 별도 표본·Windows 범위/로그인 포함 문서 왕복 REV075는 남음 |
+| 문서 편집기·HWPX·모의고사 | document-editor는 메뉴 입구 없어도 직접 URL 공개, legal은 HWPX 약속 | 기존 HWPX CI·REV075 대역3엔진 왕복 | 핵심 N제 출력과 별도 범위. 제외 시 메뉴뿐 아니라 URL/안내 조정 검토. Mac 한글 시험지 9문항3쪽 실제 열기/수식·그림/PDF/왕복 저장 확인, 고정 분모 REV158·사용자 지적 제목 정렬 REV159 수정/실제 출력 검증(207). 일반 문서3표본4쪽 native 출력/재저장·재열기 PDF동일, 공개 UI 직접 HWPX 다운로드/표본 ZIP동일도 확인. REV160 안내 정정·REV161 그림 누락 방지는 후속 PR 대기. Windows 범위·실제 로그인 포함 문서 왕복 REV075는 남음 |
 | App Check·운영 origin | service-config site key 빈 값, Worker 설정 enforce 아님/localhost 존재 | A0는 SDK 초기화·합성 정상/거절만 확인 | 첫 출시 전 기존 보안 계약에 맞는 실제 정상/거절 확인. A0 성공을 서버 enforcement 증거로 쓰지 않음 |
 | 문의·개인정보 안내 | supportEmail/legalVersion 빈 값, legal 운영자/책임자/수탁자 TODO | 현재 legal 소스·check:launch 진단 | 실제 운영자/공개 문의처와 제공 기능에 맞는 처리 안내 확정 필요. 유료 사업 정보와 구분, 임의 채우지 않기 |
 | 호스트·소스 공개 경계 | Pages 기존 서비스 + guest workers.dev 별도 | HANDOFF201 guest233자산·헤더·private404,205 Pages5파일 일치 | SECURITY-ARCHITECTURE의 Pages 상용 호스팅 제한/소스 보호 계약 유지. 현재 Pages를 새 출시 호스트로 자동 확정하지 않기. guest 최신 제품코드 아님. 도메인 구매 보류 유지 |

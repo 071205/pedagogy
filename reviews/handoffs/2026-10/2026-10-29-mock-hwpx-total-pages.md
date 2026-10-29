@@ -5,7 +5,7 @@
 - 작성자: `Codex Sol high`
 - 상태: `needs-follow-up` (두 수정·독립 검토 완료, PR/배포 확인 및 전2 남은 범위)
 - 영향 영역: `mock | tests | docs`
-- 관련 이슈: `REV-2026-158` (resolved) · `REV-2026-159` (resolved)
+- 관련 이슈: `REV-2026-158` (resolved) · `REV-2026-159` (resolved) · `REV-2026-160` (resolved) · `REV-2026-161` (resolved)
 
 ## 변경 내용
 
@@ -54,3 +54,21 @@
 PR37 head9fc2dde는 verify/cross-platform/hwpx·PR Sonar 성공, secrets만 실패했다. 공식 해시 검증한 같은 Gitleaks8.30.1로 재현하니 기존 보안 감사 커밋의 Sonar object `key`가 generic-api-key75건이었다. 분석/이슈 식별자임을 JSON 스키마로 확인했고, 해당 증거5파일의 필드명만 sonarObjectId로 정규화했다(값 보존/역변환 동일). 검사/ignore/CI를 약화하지 않았다.
 
 원본 branch codex/r7-guest-host-verified와 커밋은 그대로 보존한다. **현재 실제 worktree는 같은 pedagogy-u15b, branch codex/prelaunch-output-verified**이며 origin/main 기준 동일 변경을 하나로 옮겨 대체 PR을 진행한다. 기본 checkout 전환/force-push/기존 이력 rewrite 없음. 검증용 serve.py8896도 종료했다.
+
+### 원격 반영 확인 (PR38)
+
+PR38 head e3b402f의 필수4개/PR Sonar 성공 후 merge0fbe60420cfde5f89a2b3577cc0594105a81f9b4로 병합했다. Pages40831760039 built, 변경 helper/실제 호출부 포함7파일 bytes 일치. 공개 사이트의 새 Chromium 문맥에서 backend를 차단하고9문항 HWPX 생성→저장ZIP의 자동 총수4/제목4 CENTER·공백0·공유원형 보존 확인. main Verify40831760704 필수4개 모두 success, 같은 revision의 Sonar Quality Gate OK/new_security_rating=1. [근거](../../audits/2026-10-29/prelaunch-print/pr38-main-ci.json)·[Sonar](../../audits/2026-10-29/prelaunch-print/pr38-main-sonar.json).
+
+현재 worktree 같은 pedagogy-u15b·branch codex/prelaunch-output-verified. squash 뒤 origin/main과 파일 동일성을 확인하고 이력 재작성 없이 merge로 계보를 연결했다. 원래 codex/r7-guest-host-verified는 그대로 보존, 기본 checkout 전환 없음.
+
+### 일반 문서 native 검증
+
+문서 편집기 기존 브라우저 표본3종(기본/확장블록/머리말꼬리말)을 실제 Mac 한글에서 출력·재저장/닫기/재열기했다. 총4쪽 모두 수식·표·상자·선지·각주1/2·쪽나눔·머리말/꼬리말 표시, 왕복 PDF4쪽 PNG모두 동일. [근거](../../audits/2026-10-29/prelaunch-print/document-native-verification.json). 제품 코드 추가 변경 없음. 기본 조판 경로의 native 공백 보완이며 REV075 실제 계정/문서복귀나 iOS·Windows를 해결한 것으로 세지 않는다. 사용자 요청에 맞춰 완료 시험 창을 정리하고 빈 창만 남은 한글 앱도 종료했다(실행 상태 false 확인).
+
+### 공개 문서 UI와 안내 정정 (REV160)
+
+공개 문서 편집기에서 합성 JSON 검증·미리보기→HWPX 버튼 다운로드를 backend/localhost 차단 문맥으로 확인했다. 파일 ZIP 11파트가 위 실제 Mac 한글 검증 표본과 bytes동일하다. 다만 화면에는 로컬 서버 필수라는 구 안내가 남아 REV160으로 등록했다. 해당 문구를 브라우저 우선/실패 시 로컬 서버 시도라는 실제 제어 흐름으로 수정했다. 같은 화면의 베타 안내도 각주·쪽 나눔·머리말·꼬리말을 미지원으로 잘못 적어, 구현/한글 native 표본에 맞게 정정했다. 수정 후 로컬 serve.py UI도 같은 다운로드/새 안내·페이지 오류0, ZIP 11파트 동일. [두 문구 렌더](../../audits/2026-10-29/prelaunch-print/document-local-copy.json)도 별도 확인. Claude Opus/high 독립 검토 합의. [공개·로컬 증거](../../audits/2026-10-29/prelaunch-print/README.md). 본문 조판/다운로드 로직 변경 없음. 후속 PR 및 Pages 반영을 확인한다.
+
+### 문서 그림 검증 누락 (REV161)
+
+독립 검토의 새 단서로 합성 GIF가 문서 JSON 검증을 통과한 뒤 HWPX 그림 BinData에서 빠지는 것을 브라우저에서 재현했다. 브라우저 그림 입력을 PNG/JPEG 실제 바이트·base64·2.5MiB·양수 치수로 검증하고, 서버 Python도 24바이트 이하/0픽셀 그림을 거부한다. 브라우저 엔진을 막았을 때 정상 PNG가 로컬 서버에서 BinData1로 출력되는 대체 경로를 확인했다. [재현·RED/정상·UI/폴백·회귀](../../audits/2026-10-29/prelaunch-print/README.md): 미지원5종 양쪽 거부, 정상 PNG/JPEG 각각 browser↔Python/ZIP 정합, HWPX12·정적·공개 빌드·CSP·회귀175 통과. 일반 문서 그림을 native 한글로 별도 열어 본 것은 아니다. Claude 첫 독립 의견의 폴백/서버 검증 지적을 반영했고 [최종 재검토](../../audits/2026-10-29/prelaunch-print/claude-document-image-final.md)에서 차단 의견 없음. 180초 timeout은 완료로 세지 않고 축소 재시도 240초 성공으로 닫았다. 서버 오류 표현·상수/그림 치수 검사 범위는 비차단 후속 관찰이다.

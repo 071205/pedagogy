@@ -237,6 +237,9 @@ if FIGURE.exists():
         ("base64 아님", {"type": "image", "data": "이건 base64 가 아니다", "width": 60}),
         ("PNG/JPEG 아님", {"type": "image",
                            "data": base64.b64encode(b"MZ\x90\x00 not an image").decode(), "width": 60}),
+        ("24바이트 PNG", {"type": "image", "data": base64.b64encode(png[:24]).decode(), "width": 60}),
+        ("폭 0 PNG", {"type": "image", "data": base64.b64encode(
+            png[:16] + bytes(4) + png[20:]).decode(), "width": 60}),
         ("너무 넓음", {"type": "image", "data": encoded, "width": 500}),
         ("너무 좁음", {"type": "image", "data": encoded, "width": 1}),
         ("width 가 숫자 아님", {"type": "image", "data": encoded, "width": "60mm"}),

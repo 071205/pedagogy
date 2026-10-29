@@ -44,3 +44,27 @@ Windows 한글·실제 프린터·계정 동기화·AI 성공의 증거로 확�
 3쪽 선택과목 제목은 원본 양식의 JUSTIFY+앞공백으로 배치돼 짧은 기하로 바꾸자 중심이 왼쪽으로 치우쳤다. [native 측정/해시](hwpx-centering-verification.json): 수정 전 ink중심329.5px/종이380px. 제목 단독 문단만 공유 서식의 CENTER 사본으로 바꾸고 앞공백/줄 캐시를 제거했다. 실제 한글3쪽의 ink중심377.5/380/379px, 원본 공유 서식5/24는 JUSTIFY 유지·본문9문항과 정확한 쪽수 보존. 다른 이름 저장/닫기/재열기 PDF3쪽 PNG도 동일하다. 정상 제목4개/공유 서식·Python/JS 정합과 [브라우저](center-red-browser.log)/[Python](center-red-python.log)/[양쪽](center-red-both.log) RED가 각각 실패했고 필수 회귀175/HWPX12/정적도 통과했다.
 
 REV158은 [최종 독립 합의](claude-total-final.md) 완료. REV159도 [정정 최종 합의](claude-center-final.md) 완료. 초기 의견의 후행공백 추정·검사시점 전제는 [실제 생성물](center-exact-subjects.json)로 정정받았다. 최초240s timeout과 inline 검토/정정 성공을 구별하며, 새 근거 없는 재검토는 하지 않았다. 사용자가 정리를 요청한 완료 시험 창5개를 닫았고 현재 한글 창은1개다.
+
+## 일반 문서 native 출력 공백 추가 보완
+
+[일반 문서 검증](document-native-verification.json)·[생성/정합 로그](document-builder-native-fixtures.log): 기존 document-sample/extra-blocks/page-notes 브라우저 생성물을 실제 Mac 한글에서 열어 PDF저장→다른 이름 저장→닫기→재열기→PDF로 대조했다. 표본3종/총4쪽: 표·상자·보기·선지·행렬/경우/극한 수식·각주1/2·명시적 쪽나눔·머리말/꼬리말 표시. 재열기 PDF의4쪽 PNG 모두 원출력과 bytes동일. 새 제품 변경/결함은 없다. 검증 후 한글 앱은 종료해 시험 창0개다. 브라우저 조판기→native 출력 검증이며 실제 로그인/클라우드/문서 복귀·UI 파일다운로드/iOS·Windows/실프린터까지 검증했다고 확대하지 않는다.
+
+## PR·원격 반영
+
+[PR38 head e3b402f CI](pr38-ci.json): 필수4개와 PR Sonar 성공 후 squash merge0fbe604. [Pages40831760039](pages-verification.json) built/주요7파일 bytes동일. [공개 HWPX](published-hwpx.json): 실제 공개 mock editor의 조판기로 합성9문항 생성, 저장ZIP에 PAGE4/TOTAL_PAGE4·제목4 CENTER/공백0·공유5/24 JUSTIFY 보존. backend 요청 차단한 새 Chromium 문맥이며 실제 native 검증은 위 별도 증거와 연결한다. guest Worker를 갱신한 것은 아니다.
+
+Sonar 새7건은 [CODE_SMELL](sonar-new-maintenance.json): 문자열 상수/함수복잡도/문자클래스/list 사본 권고. 새 보안 finding이 아니며 gate통과. 특히 순회 중 XML을 변경하는 list 사본과 Python의 ASCII 숫자 범위는 검사 권고만 보고 바꾸지 않았다. M1에서 근거가 있을 때 정리한다. 병합 main CI 상태는 인계207을 따른다.
+
+## 공개·로컬 문서 편집기 버튼과 안내 (REV160)
+
+[공개 UI](document-public-ui.json): 공개 문서 편집기에서 합성 JSON 검증·미리보기→실제 HWPX 버튼 다운로드 성공. backend/localhost 차단 문맥의 파일 ZIP 모든 파트가 위 native 검증의 기본 문서 표본과 bytes동일하다. 이 과정에서 로컬 서버 필수라는 낡은 안내를 재현했다. 브라우저 직접 생성 우선/실패 시 로컬 서버 시도로 안내를 고쳤다. 같은 화면에서 각주·쪽 나눔·머리말·꼬리말을 미지원으로 잘못 쓴 베타 안내도 실제 지원 범위에 맞췄다. [수정 후 로컬 UI](document-local-guide.json)에서 새 문구 표시·구 서버 필수 문구 없음·다운로드 성공·ZIP 11파트 동일, 페이지 오류0. [두 문구 렌더](document-local-copy.json)에서 상충한 베타 안내도 사라졌다. [Claude 독립 검토](claude-document-guide-final.md)는 실제 제어 흐름과 문구가 일치하며 차단 의견 없음. 공개 Pages에는 후속 PR 병합 전까지 옛 문구가 남아 있다.
+
+## PR38 병합 main 최종 검사
+
+[main CI](pr38-main-ci.json): merge0fbe604의 verify·cross-platform·hwpx·secrets 4개 모두 success. [main Sonar](pr38-main-sonar.json): 같은 revision의 Quality Gate OK/new_security_rating=1. 이는 기존23건 판정 뒤의 최신 분석 결과다.
+
+## 문서 그림 검증·누락 방지 (REV161)
+
+[기존 브라우저 재현](document-image-loss-repro.json): 합성 GIF image.data를 validate가 받았지만 HWPX에서 그림 BinData0·경고1이었다. Claude의 베타 문구 [독립 검토](claude-document-beta-review.md)에서 나온 단서를 직접 재현했다. 브라우저 image 검증에서 base64·2.5MiB 한도·PNG/JPEG 바이트/양수 크기를 출력 전에 확인하고, Python 문서 계약도 24바이트 이하/0픽셀을 거부하게 했다. 브라우저 엔진을 못 불러오면 로컬 서버의 검증/출력 대체 경로를 유지한다. 지원 문구를 PNG·JPEG base64로 한정했다.
+
+[의도한 RED](document-image-red.log)는 수정 전 GIF를 받아 exit1. [정상/정합](document-image-browser-parity.log)은 미지원5종 브라우저·Python 모두 거부, 정상 PNG/JPEG 각각 BinData 포함 12파트·조판 신호/ZIP 정합. [실제 로컬 UI](document-image-local-ui.json)는 GIF 사전 거부·PNG/JPEG 미리보기 표시/다운로드 성공, [엔진 차단 시 로컬 서버 경로](document-image-server-fallback.json)는 PNG BinData1 포함해 성공했다. [HWPX12](document-image-hwpx-suites.log)·[Python 문서](document-image-python.log)·[CSP](document-image-csp.log)·[정적](document-image-static.log)·[공개 빌드](document-image-public.log)·[브라우저 회귀175](document-image-regression175.log) 통과. 실제 한글에서 일반 문서 그림 표본을 별도로 열어 본 증거는 아니므로 그 범위로 확대하지 않는다. [Claude 첫 의견](claude-document-image-first.md)의 폴백/서버 검사 지적을 반영했고 [최종 독립 검토](claude-document-image-final.md)에서 재현 가능한 차단 결함 없음. 첫 후속180초 timeout은 검토 완료로 세지 않았다. 오류 표현/검사 상수·그림 치수 비교는 비차단 후속 관찰이다.

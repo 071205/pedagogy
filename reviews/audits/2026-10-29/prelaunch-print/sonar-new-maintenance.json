@@ -1,0 +1,51 @@
+[
+  {
+    "rule": "python:S1192",
+    "severity": "CRITICAL",
+    "type": "CODE_SMELL",
+    "message": "Define a constant instead of duplicating this literal \"Contents/header.xml\" 3 times.",
+    "line": 92
+  },
+  {
+    "rule": "python:S3776",
+    "severity": "CRITICAL",
+    "type": "CODE_SMELL",
+    "message": "Refactor this function to reduce its Cognitive Complexity from 42 to the 15 allowed.",
+    "line": 470
+  },
+  {
+    "rule": "python:S6353",
+    "severity": "MINOR",
+    "type": "CODE_SMELL",
+    "message": "Use concise character class syntax '\\d' instead of '[0-9]'.",
+    "line": 481
+  },
+  {
+    "rule": "python:S7504",
+    "severity": "MINOR",
+    "type": "CODE_SMELL",
+    "message": "Remove this unnecessary `list()` call on an already iterable object.",
+    "line": 483
+  },
+  {
+    "rule": "python:S3776",
+    "severity": "CRITICAL",
+    "type": "CODE_SMELL",
+    "message": "Refactor this function to reduce its Cognitive Complexity from 31 to the 15 allowed.",
+    "line": 621
+  },
+  {
+    "rule": "python:S7504",
+    "severity": "MINOR",
+    "type": "CODE_SMELL",
+    "message": "Remove this unnecessary `list()` call on an already iterable object.",
+    "line": 631
+  },
+  {
+    "rule": "python:S6353",
+    "severity": "MINOR",
+    "type": "CODE_SMELL",
+    "message": "Use concise character class syntax '\\d' instead of '[0-9]'.",
+    "line": 645
+  }
+]

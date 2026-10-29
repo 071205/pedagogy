@@ -1,0 +1,9 @@
+{
+  "browserEngineBlocked": true,
+  "validationWithoutEngine": true,
+  "download": "서버 대체 경로.hwpx",
+  "status": "한글 HWPX 파일을 내보냈습니다",
+  "zipParts": 12,
+  "imageParts": 1,
+  "imageName": "BinData/image2.png"
+}

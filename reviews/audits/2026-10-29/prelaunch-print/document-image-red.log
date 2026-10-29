@@ -1,0 +1,8 @@
+file:///Users/huryul/%EA%B0%9C%EB%B0%9C/pedagogy-%EC%9E%91%EC%97%85%EC%82%AC%EB%B3%B8/pedagogy-u15b/scripts/check-hwpx-browser.mjs:211
+    if (message === "accepted") throw new Error(`지원하지 않는 그림 입력 ${i + 1}개째가 검증을 통과했습니다`);
+                                      ^
+
+Error: 지원하지 않는 그림 입력 1개째가 검증을 통과했습니다
+    at file:///Users/huryul/%EA%B0%9C%EB%B0%9C/pedagogy-%EC%9E%91%EC%97%85%EC%82%AC%EB%B3%B8/pedagogy-u15b/scripts/check-hwpx-browser.mjs:211:39
+
+Node.js v26.7.0

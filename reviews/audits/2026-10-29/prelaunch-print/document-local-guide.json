@@ -1,0 +1,21 @@
+{
+  "url": "http://127.0.0.1:8907/document-editor.html",
+  "previewRendered": true,
+  "download": "예시 문서 — 쓸 수 있는 블록 전부.hwpx",
+  "status": "한글 HWPX 파일을 내보냈습니다",
+  "renderedGuide": [
+    "형식, 분량, 포함할 사실을 구체적으로 적으세요. 개인 정보나 비공개 자료는 넣지 마세요.",
+    "처음 사용할 때 요청 내용이 Cloudflare Worker를 거쳐 Anthropic에 전송된다는 안내를 다시 확인합니다. AI 초안은 반드시 검토하세요.",
+    "지원: 제목글·문단·수식·인용문·글머리표·번호 목록·표·상자·<보기>·선지·그림(base64)·각주·쪽 나눔. 머리말·꼬리말은 블록이 아니라 문서 맨 위의 header·footer 값으로 넣습니다. HTML이나 HWPX/XML은 허용하지 않습니다.",
+    "여기에서 구조와 수식을 확인한 뒤 내보내세요. HWPX 파일은 브라우저에서 바로 만들 수 있습니다. 브라우저에서 만들지 못하는 경우에는 PEDAGOGY 로컬 서버를 통한 내보내기를 시도합니다."
+  ],
+  "staleServerOnlyClaim": false,
+  "blockedRequests": 6,
+  "pageErrors": [],
+  "scope": "Local serve.py document editor JSON paste→validate/preview→HWPX button→browser download. Backend/local server requests blocked; no AI/account use.",
+  "zipComparison": {
+    "nativeValidatedFixture": "document-sample-browser.hwpx",
+    "zipPartCount": 11,
+    "allPartsByteIdentical": true
+  }
+}

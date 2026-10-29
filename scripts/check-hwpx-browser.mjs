@@ -99,6 +99,15 @@ cases.push(["page-notes", {
   blocks: [{ type: "paragraph", text: "본문 한 줄" }],
 }]);
 
+// 실제 브라우저 검증 경로와 두 조판기의 그림 파트까지 함께 대조한다.
+const imagePng = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+cases.push(["image-png", {
+  version: 1,
+  title: "그림 포함 문서",
+  blocks: [{ type: "paragraph", text: "그림 아래 본문" },
+           { type: "image", data: imagePng, width: 20 }],
+}]);
+
 /* ── 결과에서 뽑아낼 신호 ─────────────────────────────────────────────────
  * 조판 결과를 실제로 결정하는 것들만 본다. 직렬화 차이(속성 순서·공백)는 무시한다. */
 /* 조판 결과를 실제로 결정하는 것들만 본다. 직렬화 차이(속성 순서·공백)는 무시한다.
@@ -188,8 +197,59 @@ try {
   const page = await browser.newPage();
   // ?t= 는 캐시된 낡은 사본을 다시 검사하지 않기 위한 것이다.
   await page.goto(`${base}/document-editor.html?t=${Date.now()}`, { waitUntil: "networkidle" });
-  const ready = await page.evaluate(() => !!(window.PedagogyHwpxDocument && window.CompressionStream));
-  if (!ready) throw new Error("브라우저 조판기를 불러오지 못했습니다 (hwpx-engine.js / hwpx-document.js)");
+  const ready = await page.evaluate(() => !!(window.PedagogyHwpxDocument && window.CompressionStream && typeof window.validate === "function"));
+  if (!ready) throw new Error("브라우저 문서 검증기/조판기를 불러오지 못했습니다 (document-editor.html / hwpx-engine.js / hwpx-document.js)");
+
+  // GIF/잘못된 base64/크기 초과를 검증에서 막아야 미리보기 뒤 HWPX에서 그림이 빠지지 않는다.
+  const zeroWidthPng = Buffer.from(imagePng, "base64");
+  zeroWidthPng.writeUInt32BE(0, 16);
+  const invalidImageInputs = ["R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=", "not-base64!",
+    "A".repeat(4 * 900_000), Buffer.from(imagePng, "base64").subarray(0, 24).toString("base64"),
+    zeroWidthPng.toString("base64")];
+  const imageVerdicts = await page.evaluate((items) => items.map((data) => {
+    try {
+      window.validate({ title: "그림 검증", blocks: [{ type: "image", data, width: 20 }] });
+      return "accepted";
+    } catch (error) { return String(error.message); }
+  }), invalidImageInputs);
+  const expectedImageErrors = [/PNG 또는 JPEG/, /base64/, /너무 큽니다/,
+    /PNG 또는 JPEG/, /PNG 또는 JPEG/];
+  for (const [i, message] of imageVerdicts.entries()) {
+    if (!expectedImageErrors[i].test(message))
+      throw new Error(`지원하지 않는 그림 입력 ${i + 1}개째의 잘못된 검증 결과: ${message}`);
+  }
+  const pyImageVerdicts = spawnSync(python, ["-c", `
+import json, sys
+sys.path.insert(0, ${JSON.stringify(expDir)})
+from document_schema import validate, DocumentValidationError
+answers = []
+for encoded in json.load(sys.stdin):
+    try:
+        validate({"title": "그림 검증", "blocks": [{"type": "image", "data": encoded, "width": 20}]})
+        answers.append("accepted")
+    except DocumentValidationError:
+        answers.append("rejected")
+print(json.dumps(answers))
+`], { input: JSON.stringify(invalidImageInputs), encoding: "utf8" });
+  if (pyImageVerdicts.status !== 0 ||
+      JSON.stringify(JSON.parse(pyImageVerdicts.stdout)) !== JSON.stringify(invalidImageInputs.map(() => "rejected")))
+    throw new Error("브라우저와 Python의 미지원 그림 거절 판정이 다릅니다");
+  console.log("  ✅ 지원하지 않는 그림 5종을 브라우저/Python 모두 차단");
+
+  const imageJpeg = await page.evaluate(() => {
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = 2;
+    const context = canvas.getContext("2d");
+    context.fillStyle = "#224488";
+    context.fillRect(0, 0, 2, 2);
+    return canvas.toDataURL("image/jpeg", 0.8).split(",", 2)[1];
+  });
+  cases.push(["image-jpeg", {
+    version: 1,
+    title: "JPEG 그림 포함 문서",
+    blocks: [{ type: "paragraph", text: "그림 아래 본문" },
+             { type: "image", data: imageJpeg, width: 20 }],
+  }]);
 
   if (outDir) await mkdir(outDir, { recursive: true });
   console.log("브라우저 ↔ 파이썬 대조");

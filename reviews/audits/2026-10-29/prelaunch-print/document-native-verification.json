@@ -1,0 +1,112 @@
+{
+  "scope": "Existing browser-generated document-editor fixtures; native Mac Hancom12.30.0 open→PDF→SaveAs→close→reopen→PDF. No product code changes or accounts.",
+  "cases": [
+    {
+      "case": "document-sample",
+      "pages": 1,
+      "allPagesVisuallyCompared": true,
+      "nativeSaveAsCloseReopen": true,
+      "roundtripPngIdentical": [
+        true
+      ],
+      "files": {
+        "document-sample-browser.hwpx": {
+          "bytes": 9579,
+          "sha256": "e01e7338fbbc42de9f2bb12b47356a4256c951f0d8f89f4bcf860bb35a60f074"
+        },
+        "document-sample-python.hwpx": {
+          "bytes": 9530,
+          "sha256": "cc749bdd9982379b325e5751c404f399ebc7381d9cdd2787954da5faee03a461"
+        },
+        "document-sample-browser.pdf": {
+          "bytes": 40822,
+          "sha256": "73b2e47681e2e4e2782afda0ebc170739d1c16a6f3e5c0db5f15a91c9e4ebaae"
+        },
+        "document-sample-roundtrip.hwpx": {
+          "bytes": 66064,
+          "sha256": "a43da2dccd8d5759ce5efe4f75157bfd7c5c11ec70a6292a43b23eeab6008feb"
+        },
+        "document-sample-roundtrip.pdf": {
+          "bytes": 40822,
+          "sha256": "5741c4ad1a887d999cd589b20072532835e3ab18840918ffd14adc19b5b24542"
+        }
+      }
+    },
+    {
+      "case": "extra-blocks",
+      "pages": 2,
+      "allPagesVisuallyCompared": true,
+      "nativeSaveAsCloseReopen": true,
+      "roundtripPngIdentical": [
+        true,
+        true
+      ],
+      "files": {
+        "extra-blocks-browser.hwpx": {
+          "bytes": 9320,
+          "sha256": "bc3b50a467ed1be8d3f6e069214726d9f3f9533fcb4b2be86982b1939e8e7647"
+        },
+        "extra-blocks-python.hwpx": {
+          "bytes": 9282,
+          "sha256": "db1bdb1f71a5f7be7e2dafa639db42c821742029495bc48ebf7050a59a2ac8ee"
+        },
+        "extra-blocks-browser.pdf": {
+          "bytes": 45803,
+          "sha256": "5174c430c2c83105c41cac3a47bea65a5533f2a6b38800a5f9f4934162f4e8aa"
+        },
+        "extra-blocks-roundtrip.hwpx": {
+          "bytes": 57509,
+          "sha256": "a6734a7785bdd82f84ef1a7c128f14ac18a01ea4995533150eac986a99cebddf"
+        },
+        "extra-blocks-roundtrip.pdf": {
+          "bytes": 45803,
+          "sha256": "e4468115e974e7c806e722737cbfb952677f9e17857764c69781a90e42020448"
+        }
+      }
+    },
+    {
+      "case": "page-notes",
+      "pages": 1,
+      "allPagesVisuallyCompared": true,
+      "nativeSaveAsCloseReopen": true,
+      "roundtripPngIdentical": [
+        true
+      ],
+      "files": {
+        "page-notes-browser.hwpx": {
+          "bytes": 8311,
+          "sha256": "6e4c0dcbc1f5be72f2e92d29b371c8e50cee67c8fc2af7cf88f7ca2657b7e252"
+        },
+        "page-notes-python.hwpx": {
+          "bytes": 8299,
+          "sha256": "6296d26148c66b1de4beea3c00ffa85871d553daa9a99119a01de0ac9ceb70b0"
+        },
+        "page-notes-browser.pdf": {
+          "bytes": 14555,
+          "sha256": "95e84ee47cbfe20e7de2e8add5a745122e04e27cb44880c088f1759a72c033f6"
+        },
+        "page-notes-roundtrip.hwpx": {
+          "bytes": 32775,
+          "sha256": "0502baf2c9ea1d1f679300001703ad183fe8e523e180caa67daee967b3d1baf6"
+        },
+        "page-notes-roundtrip.pdf": {
+          "bytes": 14555,
+          "sha256": "829386a207115a5b3871b83ff6aff2945b7b3ee5539b0969c2a8bbe7c5a0eb5d"
+        }
+      }
+    }
+  ],
+  "visualResults": [
+    "sample: title/inline and display math/list/numbering/quote/table/boxes/examples/choices all present",
+    "extra: heading2/3, matrix/cases/limit, 3+2 and vertical choices, quote math, footnotes1/2 on correct pages, explicit pagebreak preserved",
+    "page-notes: native header/body/footer all present"
+  ],
+  "builderParity": "existing check-hwpx-browser.mjs passes all3 cases and built-in validator REDs; rerun only to retain native-test files",
+  "nativeCleanup": "completed test documents closed; auto-created blank last document also closed by quitting app; cua inventory isRunning=false",
+  "limits": [
+    "synthetic fixtures, not user files",
+    "not login or cloud ACK",
+    "not iPad/iOS/Windows or physical printer",
+    "builder-to-native validation; UI download/account-return journey remains separate"
+  ]
+}

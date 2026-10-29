@@ -1,0 +1,28 @@
+{
+  "runId": 40831760704,
+  "headSha": "0fbe60420cfde5f89a2b3577cc0594105a81f9b4",
+  "status": "completed",
+  "conclusion": "success",
+  "jobs": [
+    {
+      "name": "hwpx",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "name": "verify",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "name": "cross-platform",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "name": "secrets",
+      "status": "completed",
+      "conclusion": "success"
+    }
+  ]
+}

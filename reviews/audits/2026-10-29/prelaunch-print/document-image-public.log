@@ -1,0 +1,7 @@
+
+> test:public
+> node scripts/check-source-csp.mjs && node scripts/build-public.test.mjs && node scripts/static-staging.test.mjs
+
+Source CSP: 5 scripts and 1 legal style hash-locked; 12/12 failure injections rejected
+Public build: reproducible runtime files; private files excluded; map, secret, symlink, missing-input and leaked-output rejection confirmed
+Static staging gate: fresh build, manifest, stale output, failed build and wrong root checks passed

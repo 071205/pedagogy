@@ -248,7 +248,7 @@ def validate(raw: Any) -> Document:
             # ⚠️ 확장자나 이름이 아니라 **바이트를 보고** 형식을 정한다. 이름만 그림인
             #    파일이 HWPX 안으로 들어가면 한글이 문서를 열지 못한다.
             size = image_size(data)
-            if size is None:
+            if size is None or len(data) <= 24 or min(size) <= 0:
                 raise DocumentValidationError(
                     f"{where}.data 가 PNG 또는 JPEG 이 아닙니다 (내용을 보고 판정합니다)")
             width = block.get("width", 80)

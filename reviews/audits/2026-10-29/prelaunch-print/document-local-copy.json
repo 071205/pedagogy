@@ -1,0 +1,7 @@
+{
+  "url": "http://127.0.0.1:8908/document-editor.html",
+  "guide": "여기에서 구조와 수식을 확인한 뒤 내보내세요. HWPX 파일은 브라우저에서 바로 만들 수 있습니다. 브라우저에서 만들지 못하는 경우에는 PEDAGOGY 로컬 서버를 통한 내보내기를 시도합니다.",
+  "beta": "베타 범위 — 위에 나열한 문서 블록과 머리말·꼬리말을 HWPX로 내보낼 수 있습니다. 사용자가 올린 고정 양식의 세밀한 재현은 아직 지원하지 않습니다.",
+  "pageErrors": [],
+  "scope": "Local serve.py browser render of two user-facing copy changes only; no account/AI or HWPX output generated in this probe."
+}
