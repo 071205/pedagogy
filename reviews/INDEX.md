@@ -20,7 +20,7 @@
 
 ## 지금 하는 일
 
-**2026-10-29 확정:** 편집·출력 + 로그인·저장·이미지 + AI 모두 첫 출시 포함. 통합 레일을 출시 전1~6/후1~4로 확정. [공백표](../docs/FIRST-RELEASE-SCOPE.md) 갱신, 전1 Sonar23건 독립 판정·원격반영/gateOK(206), 전2 실제 Chrome/Safari PDF·한글 출력/REV158 수정 검증(207), 지원 약속 대조 남음. 무료/유료 미정.
+**2026-10-29 확정:** 편집·출력 + 로그인·저장·이미지 + AI 모두 첫 출시 포함. 통합 레일을 출시 전1~6/후1~4로 확정. [공백표](../docs/FIRST-RELEASE-SCOPE.md) 갱신, 전1 Sonar23건 독립 판정·원격반영/gateOK(206), 전2 실제 Chrome/Safari PDF·한글 출력/REV158·159 수정(207), PR40 REV160·161 병합/main CI4·Pages·공개 그림 검증 완료. REA 출력 적용 계획은 내부 함수·실시간 화면·실물 검사를 전2에 연결했고 지원 약속 대조는 남음. 무료/유료 미정.
 
 **R4/U0 계약 독립 검토·연결 시안 완료**(Claude Opus 5 · `HANDOFF-167`):
 [계약](../docs/PRODUCT-UX-U0-CONTRACT.md) · [과제·결정표](../docs/PRODUCT-UX-U0-SCENARIOS.md) ·
@@ -88,15 +88,15 @@ U0→B6에서 정규화/복원·AI 계약을 함께 다룬다. Rules의 `hasOnly
 
 ## 최근 검토
 
-[HANDOFF-2026-207](handoffs/2026-10/2026-10-29-mock-hwpx-total-pages.md): Chrome/Safari 실제2쪽 PDF·저장/복원, 한글 REV158 전체쪽수·REV159 제목 정렬 수정/실제3쪽·왕복 PNG동일·RED6/회귀175 통과. 두 결함 독립 합의·PR38 병합/Pages7파일·공개 HWPX 확인, main CI4개/동일 revision Sonar gate OK.
+[HANDOFF-2026-208](handoffs/2026-10/2026-10-29-docs-prelaunch-rea-render-plan.md): 기존 H1 한글·REA 근거와 현 화면 관찰을 전2의 내부 함수/값 흐름→실시간·HTML 미리보기→폰트·선지 측정→실제 출력 대조로 연결한 계획. Claude 제한 범위 검토·보완, 제품 변경/새 REA 실험 없음.
+
+[HANDOFF-2026-207](handoffs/2026-10/2026-10-29-mock-hwpx-total-pages.md): Chrome/Safari PDF·한글 실제3쪽/왕복, REV158·159 수정/독립 합의·PR38 완료. REV160·161도 PR40 merge1bae434, main CI4·Pages·Sonar OK·공개 PNG HWPX 그림 포함 확인. 새 그림 native 한글·Windows/iOS는 미검증.
 
 [HANDOFF-2026-206](handoffs/2026-10/2026-10-29-security-prelaunch-sonar-triage.md): 최신 main Sonar23건 독립 판정·오탐17/제한적 수용6 원격반영, API 미해결0/gateOK. 다음 전2·REV147 추적 유지.
 
 [HANDOFF-2026-205](handoffs/2026-10/2026-10-28-index-r8-preview-navigation.md): 시험지 미리보기 도구 가림 REV157 해결·원본/설정/100% 보완, 정상3/RED10·기존 지면/원본/PDF/175 통과·독립 합의. PR36 병합·main CI4개/Pages·공개 UI3화면 완료, 추가 backend 보류.
 
 [HANDOFF-2026-204](handoffs/2026-10/2026-10-28-security-r7-backend-staging-a0.md): A0 로컬 분리 빌드/host·정상/RED·SDK 초기화·회귀175 통과. Claude 재시도2건+독립 Codex1건 재현/수정·최종 정정 판정 합의, 각14RED·A1 원격 자원 변경 없음.
-
-[HANDOFF-2026-203](handoffs/2026-10/2026-10-28-docs-r7-firebase-staging-plan.md): 기존 staging 최신 GET·지역/비용 준비안. A=결제 미연결 Auth/Firestore, B=Blaze 뒤 Storage. Claude 최종 합의·원격 변경 없음·다음 A0 medium 구현.
 
 저장 구조의 기존 미결과 상세는 각 인계를 따른다.
 

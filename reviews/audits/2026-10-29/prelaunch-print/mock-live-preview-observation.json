@@ -1,0 +1,46 @@
+{
+  "date": "2026-10-30",
+  "scope": "자체 full-exam.json 30문항, macOS Chromium, 로컬 serve.py 실시간 Typst/HTML 근사, 한 번의 편집",
+  "input": "experiments/hwp-export/samples/full-exam.json",
+  "live": {
+    "changed": true,
+    "latencyMs": 576,
+    "beforeSha256": "879d761478b81b35d8facc630f293447525a4d0ecbc966619c47f7812483aae6",
+    "afterSha256": "0314aabc8fc834a30a302e696041965e306002019a6fcea47f3f960aa2ac2eeb",
+    "visualReadback": {
+      "method": "mock-live-updated.png 직접 시각 대조",
+      "latestTextVisible": "화면 즉시 반영 1793286465052",
+      "result": "입력 textarea와 실시간 이미지에 같은 새 문구 표시"
+    }
+  },
+  "html": {
+    "previewUpdated": true,
+    "requestedChoiceFont": "ExamBody, Hamchorom, \"KoPub Batang\", serif",
+    "choiceFontSize": "14.5467px",
+    "choiceLetterSpacing": "-0.4364px",
+    "hiddenMeasureFont": "Hamchorom, serif",
+    "hiddenMeasureSize": "14.72px",
+    "mode": "이 문항"
+  },
+  "pageErrors": [],
+  "screenshots": [
+    "mock-live-updated.png",
+    "mock-html-mode.png"
+  ],
+  "limitations": [
+    "576ms는 한 번의 관찰이며 지연 상한이 아님",
+    "연속 편집·취소·타 브라우저/기기·HWPX 출력 품질은 이 관찰에서 판정하지 않음",
+    "측정 모드는 이 문항이며 전체 시험지는 미측정",
+    "src 변경까지의 시간은 화면 픽셀 완성/연속 입력 지연 상한이 아님",
+    "실시간 이미지의 실제 사용 폰트와 서버 웹폰트 주입 여부는 미측정"
+  ],
+  "interaction": {
+    "pvMode": "이 문항",
+    "target": "첫 문항 본문 textarea",
+    "liveLatencyStart": "Playwright fill 호출 직전 Date.now()",
+    "liveLatencyEnd": "#stage img.live-pg src 변경 감지",
+    "pollInterval": "Playwright waitForFunction 기본 폴링",
+    "serverWebfontsInjected": "미측정",
+    "actualGlyphFont": "미측정"
+  }
+}
