@@ -196,6 +196,49 @@
   const textOf = (node) => deep(node, "t").map((n) => n.textContent || "").join("");
   const squeeze = (s) => s.replace(/\s+/g, "");
 
+  /* REV159: 과목명 길이가 바뀌어도 가운데에 놓인다. 원본의 공백 정렬을 제거하고
+     해당 제목만 원래 문단 모양의 CENTER 사본을 참조한다. 공유 서식은 바꾸지 않는다. */
+  function centerMastheadSubjects(doc) {
+    const head = doc.part("Contents/header.xml").xml.documentElement;
+    const properties = deep(head, "paraProperties")[0];
+    if (!properties) return 0;
+    const styles = new Map(kids(properties, "paraPr").map((n) => [n.getAttribute("id"), n]));
+    let nextId = Math.max(0, ...[...styles.keys()].map(Number)) + 1;
+    const centered = new Map();
+    let changed = 0;
+    for (const path of sectionPaths(doc)) {
+      for (const para of deep(doc.part(path).xml.documentElement, "p")) {
+        const texts = kids(para, "run").flatMap((r) => kids(r, "t"));
+        const joined = texts.map((n) => n.textContent || "").join("");
+        if (!/^\s*수학\s*영역(?:\([^)]*\))?\s*$/.test(joined)) continue;
+        if (deep(para, "autoNum").length || deep(para, "tbl").length) continue;
+        const sourceId = para.getAttribute("paraPrIDRef"), source = styles.get(sourceId);
+        const align = source && deep(source, "align")[0];
+        if (!align) continue;
+        if (align.getAttribute("horizontal") !== "CENTER") {
+          if (!centered.has(sourceId)) {
+            const copy = source.cloneNode(true), id = String(nextId++);
+            copy.setAttribute("id", id);
+            deep(copy, "align")[0].setAttribute("horizontal", "CENTER");
+            properties.appendChild(copy);
+            centered.set(sourceId, id);
+          }
+          para.setAttribute("paraPrIDRef", centered.get(sourceId));
+        }
+        let leading = true;
+        for (const text of texts) {
+          if (!leading) break;
+          text.textContent = (text.textContent || "").replace(/^\s+/, "");
+          leading = !text.textContent;
+        }
+        for (const cache of kids(para, "linesegarray")) cache.remove();
+        changed++;
+      }
+    }
+    properties.setAttribute("itemCnt", String(kids(properties, "paraPr").length));
+    return changed;
+  }
+
   /* 이어지는 쪽 머리말을 **본문을 비우기 전에** 떠 둔다.
      ⚠️ 실물은 쪽마다 머리말을 다시 넣지 않는다 — 2쪽 첫 문단에 한 번 두고 뒤 쪽이
         물려받는다. `clearBody()` 가 그 문단을 지우면 **2쪽부터 시험지 형식이 사라진다.**
@@ -420,6 +463,37 @@
     return found;
   }
 
+  /* REV158: 원본의 고정 전체 쪽수를 한글 자동 필드로 바꾼다.
+     Mac 한글의 입력→상용구→전체 쪽수로 저장한 TOTAL_PAGE 실물과 PDF로 확인했다.
+     계획 쪽나눔 수는 실제 조판 쪽수가 아니므로 분모로 쓰지 않는다.
+     바탕쪽의 PAGE 문단 + 숫자만 든 다음 문단인 쪽번호 셀만 고친다. */
+  function normalizePageTotals(doc) {
+    let changed = 0;
+    for (const path of doc.parts.keys()) {
+      if (!/^Contents\/masterpage\d+\.xml$/.test(path)) continue;
+      for (const cell of deep(doc.part(path).xml.documentElement, "tc")) {
+        const sub = kids(cell, "subList")[0];
+        const paras = sub ? kids(sub, "p") : [];
+        if (paras.length !== 2) continue;
+        const nums = deep(paras[0], "autoNum");
+        if (nums.length !== 1 || nums[0].getAttribute("numType") !== "PAGE") continue;
+        const runs = kids(paras[1], "run");
+        if (runs.length !== 1 || runs[0].children.length !== 1) continue;
+        const texts = kids(runs[0], "t");
+        if (texts.length !== 1 || texts[0].children.length || !/^\d+$/.test(texts[0].textContent || "")) continue;
+        if (nums[0].parentNode.localName !== "ctrl") continue;
+        const ctrl = nums[0].parentNode.cloneNode(true);
+        const total = deep(ctrl, "autoNum")[0];
+        total.setAttribute("numType", "TOTAL_PAGE");
+        total.setAttribute("num", "1"); // 한글이 열고 조판할 때 실제 쪽수로 계산하는 초기값
+        runs[0].insertBefore(ctrl, texts[0]);
+        texts[0].textContent = "";
+        changed++;
+      }
+    }
+    return changed;
+  }
+
   /* 틀에 딸려 온 그림을 버린다.
      ⚠️ 파일만 지우면 `content.hpf` 의 목록에 참조가 남아 문서가 깨진 것으로 판정된다. */
   function stripBindata(doc) {
@@ -444,19 +518,21 @@
     const roles = readRoles(parts);
     const doc = await global.PedagogyHwpx.HwpxDocument.open(buffer);
     // ⚠️ 순서가 중요하다 — 비운 뒤에 부르면 머리말도 표도 이미 없다.
+    centerMastheadSubjects(doc);
     roles._page_header = capturePageHeaders(doc);
     roles._line_mm = readPadStepMm(doc, roles);
     roles._column_tops = readColumnTopsMm(doc);
     roles._marks = captureMarks(doc);
     roles._cleared = clearBody(doc);
     roles._bindata_gone = stripBindata(doc);
+    normalizePageTotals(doc);
     return { doc, roles };
   }
 
   global.PedagogyExamTemplate = {
     STYLE_NAMES, classify, visibleText,
     equationBase, namedStyles, rolesFromBody, rolesByUsage, readRoles,
-    capturePageHeaders, captureMarks, readColumnTopsMm, readPadStepMm,
-    clearBody, stripBindata, setMastheadTitle, setMastheadElective, openTemplate,
+    centerMastheadSubjects, capturePageHeaders, captureMarks, readColumnTopsMm, readPadStepMm,
+    clearBody, stripBindata, normalizePageTotals, setMastheadTitle, setMastheadElective, openTemplate,
   };
 })(typeof window !== "undefined" ? window : globalThis);

@@ -1,0 +1,24 @@
+{
+  "scope": "synthetic local shared print pipeline; all backend traffic blocked",
+  "pages": 2,
+  "questions": 4,
+  "tables": 1,
+  "images": [
+    {
+      "complete": true,
+      "width": 600
+    }
+  ],
+  "math": 23,
+  "overflow": 0,
+  "fontProblems": [],
+  "sourceHead": "153bccf",
+  "pdfPages": 2,
+  "textWithinPage": true,
+  "textChecks": true,
+  "visualPngReviewed": 2,
+  "embeddedFontCount": 8,
+  "allFontsEmbedded": true,
+  "sha256": "2dd97b8d6925bc4c30df444ac744f35276c651fe8f277c6449332a9c2652a163",
+  "limitation": "Chromium PDF export; physical printer/HWP/Safari/iPad not tested"
+}

@@ -1,0 +1,29 @@
+REGRESSION 175 / 175 통과
+FAILED []
+CLOUD_NORMALIZATION {
+  headerBefore: 500,
+  headerAfter: 500,
+  blocksBefore: 51,
+  blocksAfter: 51
+}
+SERIALIZATION_BENCH [
+  {
+    problems: 100,
+    chars: 106493,
+    medianMs: 0.09999999403953552,
+    maxMs: 0.19999998807907104
+  },
+  {
+    problems: 500,
+    chars: 532493,
+    medianMs: 0.6000000238418579,
+    maxMs: 1.2000000178813934
+  },
+  {
+    problems: 2000,
+    chars: 2130993,
+    medianMs: 1.699999988079071,
+    maxMs: 4.5
+  }
+]
+JSON_ROOT: 12 malformed requests rejected, server healthy

@@ -1,0 +1,42 @@
+{
+  "scope": "Chrome native print dialog Save as PDF, synthetic fixture, local mode",
+  "pdfSha256": "a831a96f61712ce3ad01e68946e760a4c47fda55804f04a8c98aa63adb7dd32f",
+  "pdfBytes": 64508,
+  "pages": [
+    {
+      "width": 594.95996,
+      "height": 841.91998,
+      "words": 67,
+      "pedagogyWords": [
+        {
+          "text": "PEDAGOGY",
+          "y": "13.879499"
+        },
+        {
+          "text": "PEDAGOGY",
+          "y": "804.192362"
+        }
+      ]
+    },
+    {
+      "width": 594.95996,
+      "height": 841.91998,
+      "words": 49,
+      "pedagogyWords": [
+        {
+          "text": "PEDAGOGY",
+          "y": "13.879499"
+        },
+        {
+          "text": "PEDAGOGY",
+          "y": "804.192362"
+        }
+      ]
+    }
+  ],
+  "allFourQuestionsAndAnswersPreserved": true,
+  "screenControlsAbsent": true,
+  "textWithinPage": true,
+  "physicalPrinterTest": false,
+  "realAccountCloudTest": false
+}

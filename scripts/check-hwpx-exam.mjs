@@ -71,6 +71,7 @@ roles.pop("_source", None)
 # 2단계 — 떠 오기·비우기까지. \`open_template()\` 이 하는 것을 그대로 한다.
 from pedagogy_hwpx import HwpxDocument
 doc = HwpxDocument.open(str(T))
+tmpl.center_masthead_subjects(doc)
 roles["_page_header"] = tmpl.capture_page_headers(doc)
 roles["_line_mm"] = tmpl.read_pad_step_mm(doc, roles)
 roles["_column_tops"] = tmpl.read_column_tops_mm(doc)
@@ -239,7 +240,11 @@ const PY_BUILD = `
 import json, sys, re, dataclasses, tempfile, os
 sys.path.insert(0, "experiments/hwp-export")
 from pathlib import Path
-import mock_to_hwpx as m
+import mock_to_hwpx as m, template as tmpl
+if os.environ.get("HWPX_TOTAL_RED") in ("python", "both"):
+    tmpl.normalize_page_totals = lambda doc: 0
+if os.environ.get("HWPX_CENTER_RED") in ("python", "both"):
+    tmpl.center_masthead_subjects = lambda doc: 0
 data = json.loads(sys.argv[1])
 tmpdir = tempfile.mkdtemp()
 out = Path(tmpdir) / "exam.hwpx"
@@ -282,7 +287,25 @@ units = []
 for p in data.get("problems") or []:
     u, at = m.prob_units(p)
     units.append({"units": u, "ptsAt": at})
-print(json.dumps({"report": dataclasses.asdict(rep), "sections": sections, "units": units}, ensure_ascii=False))
+# 구역 밖 바탕쪽도 전체 구조/속성/텍스트를 견준다. 양쪽이 같이 틀리는 것은 아래 기대값으로 잡는다.
+def tree(n):
+    return {"tag": etree.QName(n).localname,
+            "attrs": {etree.QName(k).localname: v for k, v in n.attrib.items()},
+            "text": n.text or "", "tail": n.tail or "", "children": [tree(c) for c in n if isinstance(c.tag, str)]}
+masters = {name: tree(etree.fromstring(z.read(name))) for name in z.namelist()
+           if re.fullmatch(r"Contents/masterpage[0-9]+\\.xml", name)}
+head = etree.fromstring(z.read("Contents/header.xml"))
+para_styles = {n.get("id"): n for n in head.iter() if etree.QName(n).localname == "paraPr"}
+subjects = []
+for index in (0, 1):
+    for p in etree.fromstring(z.read(f"Contents/section{index}.xml")).iter(HPNS + "p"):
+        text = "".join("".join(t.itertext()) for run in p.findall(HPNS + "run") for t in run.findall(HPNS + "t"))
+        if not re.fullmatch(r"\\s*수학\\s*영역(?:\\([^)]*\\))?\\s*", text): continue
+        align = next(n for n in para_styles[p.get("paraPrIDRef")].iter() if etree.QName(n).localname == "align")
+        subjects.append({"text": text, "align": align.get("horizontal")})
+original_align = {i: next(n for n in para_styles[i].iter() if etree.QName(n).localname == "align").get("horizontal") for i in ("5", "24")}
+print(json.dumps({"report": dataclasses.asdict(rep), "sections": sections, "units": units,
+                  "masters": masters, "subjects": subjects, "originalAlign": original_align}, ensure_ascii=False))
 `;
 
 let pyRoles;
@@ -678,7 +701,18 @@ let jsExam;
     const page = await browser5.newPage();
     await page.setContent("<!doctype html><meta charset=utf-8><title>시험지 대조</title>");
     await page.addScriptTag({ path: join(ROOT, "hwpx-engine.js") });
-    await page.addScriptTag({ path: join(ROOT, "hwpx-exam-template.js") });
+    let templateSource = readFileSync(join(ROOT, "hwpx-exam-template.js"), "utf8");
+    if (["browser", "both"].includes(process.env.HWPX_TOTAL_RED)) {
+      const broken = templateSource.replace("    normalizePageTotals(doc);", "    /* RED: fixed template total retained */");
+      if (broken === templateSource) throw new Error("쪽수 실패 주입 위치를 찾지 못했습니다");
+      templateSource = broken;
+    }
+    if (["browser", "both"].includes(process.env.HWPX_CENTER_RED)) {
+      const broken = templateSource.replace("    centerMastheadSubjects(doc);", "    /* RED: original space alignment retained */");
+      if (broken === templateSource) throw new Error("제목 정렬 실패 주입 위치를 찾지 못했습니다");
+      templateSource = broken;
+    }
+    await page.addScriptTag({ content: templateSource });
     await page.addScriptTag({ path: join(ROOT, "hwpx-exam.js") });
     jsExam = await page.evaluate(async ([b64, exam]) => {
       const bin = atob(b64); const bytes = new Uint8Array(bin.length);
@@ -688,7 +722,21 @@ let jsExam;
       const raw = new Uint8Array(await blob.arrayBuffer());
       let rb = ""; for (let i = 0; i < raw.length; i++) rb += String.fromCharCode(raw[i]);
       const ser = new XMLSerializer();
-      const out = { report, sections: {}, b64: btoa(rb) };
+      const tree = (n) => ({ tag: n.localName,
+        attrs: Object.fromEntries([...n.attributes].filter((a) => a.namespaceURI !== "http://www.w3.org/2000/xmlns/")
+          .map((a) => [a.localName, a.value])),
+        text: n.firstChild?.nodeType === Node.TEXT_NODE ? n.firstChild.nodeValue : "",
+        tail: n.nextSibling?.nodeType === Node.TEXT_NODE ? n.nextSibling.nodeValue : "",
+        children: [...n.children].map(tree) });
+      const out = { report, sections: {}, b64: btoa(rb), masters: {} };
+      // Python과 동일하게 저장된 ZIP을 다시 읽는다. DOM만 맞고 직렬화가 틀린 경우도 잡는다.
+      for (const [name, bytes] of await window.PedagogyHwpx.unzip(raw.buffer)) {
+        if (/^Contents\/masterpage\d+\.xml$/.test(name)) {
+          const xml = new DOMParser().parseFromString(new TextDecoder().decode(bytes), "application/xml");
+          if (xml.querySelector("parsererror")) throw new Error(`바탕쪽 XML 파싱 실패: ${name}`);
+          out.masters[name] = tree(xml.documentElement);
+        }
+      }
       for (const i of [0, 1]) {
         const paras = doc.paragraphs(i);
         out.sections[i] = paras.map((p) => {
@@ -708,6 +756,18 @@ let jsExam;
             sizes: [...xml.matchAll(/\b(?:width|height)="(\d+)"/g)].map((m) => m[1]),
           };
         });
+      }
+      const header = doc.part("Contents/header.xml").xml;
+      const styles = new Map([...header.getElementsByTagName("*")].filter((n) => n.localName === "paraPr")
+        .map((n) => [n.getAttribute("id"), n]));
+      const alignment = (id) => [...styles.get(id).getElementsByTagName("*")].find((n) => n.localName === "align").getAttribute("horizontal");
+      out.originalAlign = Object.fromEntries(["5", "24"].map((id) => [id, alignment(id)]));
+      out.subjects = [];
+      for (const i of [0, 1]) for (const p of doc.section(i).getElementsByTagName("*")) {
+        if (p.localName !== "p") continue;
+        const text = [...p.children].filter((n) => n.localName === "run")
+          .flatMap((run) => [...run.children].filter((n) => n.localName === "t")).map((t) => t.textContent || "").join("");
+        if (/^\s*수학\s*영역(?:\([^)]*\))?\s*$/.test(text)) out.subjects.push({ text, align: alignment(p.getAttribute("paraPrIDRef")) });
       }
       return out;
     }, [templateB64, { ...EXAM, problems: EXAM.problems.map((p, i) => ({
@@ -742,6 +802,36 @@ for (const i of ["0", "1"]) {
     bfails++;
     if (bfails > 6) break;
   }
+}
+/* REV159: 글자 수가 짧아져도 공백 대신 실제 가운데 정렬. 공유 서식은 유지한다. */
+for (const [language, exam] of [["Python", pyExam], ["JS", jsExam]]) {
+  if (exam.subjects.length !== 4 || exam.subjects.some((p) => p.align !== "CENTER" || p.text !== p.text.trim())
+      || Object.values(exam.originalAlign).some((v) => v !== "JUSTIFY")) {
+    console.log(`  ❌ ${language} 과목 제목 가운데 정렬/공유 서식 보존`); bfails++;
+  }
+}
+if (canon(pyExam.subjects) !== canon(jsExam.subjects)) {
+  console.log("  ❌ 과목 제목 Python/JS 정합"); bfails++;
+}
+/* REV158: 쪽나눔 집계는 실제 총수가 아니다. 4개 바탕쪽 모두 자동 PAGE/TOTAL_PAGE여야 한다.
+   두 구현에 같은 결함을 주입해도 이 기대값이 실패해야 한다. */
+if (canon(pyExam.masters) !== canon(jsExam.masters)) {
+  console.log("  ❌ 바탕쪽 전체 구조/속성/텍스트가 Python/JS에서 갈라졌습니다"); bfails++;
+}
+for (const [language, masters] of [["Python", pyExam.masters], ["JS", jsExam.masters]]) {
+  const all = (n) => [n, ...n.children.flatMap(all)];
+  const entries = Object.values(masters);
+  const valid = entries.length === 4 && entries.every((root) => {
+    const nodes = all(root), nums = nodes.filter((n) => n.tag === "autoNum");
+    return nums.filter((n) => n.attrs.numType === "PAGE").length === 1
+      && nums.filter((n) => n.attrs.numType === "TOTAL_PAGE" && n.attrs.num === "1"
+        && n.children.length === 1 && n.children[0].tag === "autoNumFormat"
+        && n.children[0].attrs.type === "DIGIT" && n.children[0].attrs.prefixChar === ""
+        && n.children[0].attrs.suffixChar === "").length === 1
+      && !nodes.some((n) => n.tag === "ctrl" && n.attrs.id != null)
+      && !nodes.some((n) => n.tag === "t" && /^\d+$/.test(n.text));
+  });
+  if (!valid) { console.log(`  ❌ ${language} 바탕쪽 쪽수 — 고정 분모/누락된 자동 필드`); bfails++; }
 }
 /* ⚠️ 조립이 실제로 일어나야 한다 — 쪽나눔·단나눔·태그·상자가 하나도 없으면
    빈 문서끼리 '같다' 로 통과한다. */
