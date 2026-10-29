@@ -75,6 +75,6 @@
     "pixelmatch": "^7.2.0",
     "playwright": "^1.62.1",
     "pngjs": "^7.0.0",
-    "wrangler": "4.151.1"
+    "wrangler": "4.151.3"
   }
 }
