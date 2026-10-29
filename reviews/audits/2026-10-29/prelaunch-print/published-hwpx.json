@@ -1,0 +1,60 @@
+{
+  "url": "https://071205.github.io/pedagogy/mock-exam-editor.html",
+  "bytes": 25993,
+  "problems": 9,
+  "masters": [
+    {
+      "name": "Contents/masterpage0.xml",
+      "page": 1,
+      "total": 1
+    },
+    {
+      "name": "Contents/masterpage1.xml",
+      "page": 1,
+      "total": 1
+    },
+    {
+      "name": "Contents/masterpage2.xml",
+      "page": 1,
+      "total": 1
+    },
+    {
+      "name": "Contents/masterpage3.xml",
+      "page": 1,
+      "total": 1
+    }
+  ],
+  "subjects": [
+    {
+      "name": "Contents/section0.xml",
+      "text": "수학 영역",
+      "align": "CENTER"
+    },
+    {
+      "name": "Contents/section0.xml",
+      "text": "수학 영역",
+      "align": "CENTER"
+    },
+    {
+      "name": "Contents/section0.xml",
+      "text": "수학 영역",
+      "align": "CENTER"
+    },
+    {
+      "name": "Contents/section1.xml",
+      "text": "수학 영역(기하)",
+      "align": "CENTER"
+    }
+  ],
+  "sharedOriginalAlign": [
+    "JUSTIFY",
+    "JUSTIFY"
+  ],
+  "warnings": [],
+  "blockedRequests": 8,
+  "pageErrors": [],
+  "limits": [
+    "backend blocked; no account/AI proof",
+    "native rendering covered separately on identical reviewed source"
+  ]
+}

@@ -285,3 +285,16 @@ cwd 안에 보존한 정상/RED 원문·head/main CI4job·배포 안전 메타�
 일치를 확인했다. 이제 다음은 **접근 재시도**가 아니라 기존 staging의 자원/Auth·App Check 준비다.
 Firestore403/SERVICE_DISABLED·bucket 없음·Google provider GET404·billing false를 구별한다.
 최종 근거는 [HANDOFF-202](2026-10-27-tests-r8-render-recovery.md)의 접근 복구와 감사 JSON이다.
+
+## 새 채팅 재개 체크포인트 (2026-10-29 · 출시 전2 실제 출력)
+
+- 실제 worktree는 계속 `/Users/huryul/개발/pedagogy-작업사본/pedagogy-u15b`. **현재 branch는 `codex/prelaunch-output-verified`**다. 원본 `codex/r7-guest-host-verified`/9fc2dde를 보존하고 main 기준 대체 PR38을 만들었다. 기본 checkout 전환/force-push/기존 이력 rewrite 없음. transcript.txt는 접근 금지 유지.
+- 실행 원본은 통합 레일 상단 출시 전1~6/후1~4. 세 기능(편집·출력/로그인·클라우드·이미지/AI) 첫 출시 포함, 무료/유료 미정·도메인 구매 보류. 전체 staging 구축을 먼저 완성하는 순서는 아니다.
+- 현재 최신은 [HANDOFF207](2026-10-29-mock-hwpx-total-pages.md). 실제 Chrome/Safari2쪽 PDF, 시험지 Mac 한글9문항3쪽/일반 문서3표본4쪽 native/왕복 저장을 확인했다. 사용자 지적 제목치우침 REV159와 고정총수20 REV158을 수정, 정상/RED6·회귀175·Claude 독립 최종 합의. 한글 시험 창/앱은 정리 완료.
+- PR37은 제품 CI/PR Sonar 성공·secrets만 Sonar object key 식별자75건으로 실패. 인증값이 아님을 확인해 증거5JSON의 필드명만 sonarObjectId로 정규화(값/역변환동일), 같은 Gitleaks0건. 검사 규칙/ignore/CI 변경 없음. 원본 브랜치는 보존·PR37은38로 대체하고 닫았다.
+- PR38 head e3b402f 필수4개/PR Sonar 성공→merge0fbe604, Pages40831760039 built/7파일 일치·공개 HWPX 자동총수/제목정렬 확인. **main Verify40831760704 필수4개 success·동일 revision Sonar gate OK**(207). guest Worker 갱신 없음.
+- Sonar 기존23건 판정/원격반영은206 완료(오탐17/기존 제한적 수용6), REV147은 별도 추적. Sonar 새7CODE_SMELL은 보안결함이 아니며 M1 범위. 보안/삭제/저장 검증은 도구와 무관하게 유지한다.
+- 다음은 전2 지원 약속·실제 iOS/Windows·실계정 문서복귀 등 남은 증거 대조와 전3 계정/파일의 최소 검증 준비다. native 출력 성공을 계정/AI/전체 출시 완료로 세지 않는다. 실제 자료 이관/저장·권한 핵심 변경은 high+독립 검토 게이트 유지. 사용자 승인된 일반 로그인/계정선택은 계속하되 새 비용/새 보안 접근은 별도 구체화한다.
+
+- 2026-10-29 후속: 공개 문서 편집기 HWPX 버튼은 backend 차단 상태에서도 동작했고 파일 ZIP이 실제 Mac 한글 검증 기본 표본과 동일했다. 로컬 서버 필수라는 낡은 안내 REV160은 문구만 정정, 로컬 UI/Claude 독립 검토 완료. 후속 PR/Pages 반영은 HANDOFF207에서 추적한다.
+- 같은 출시 전2 문서 출력에서 REV161 GIF 그림 누락도 재현·수정했다. 브라우저/Python 미지원5종 거절·PNG/JPEG 정상/ZIP 정합·서버 폴백·HWPX12·회귀175·Claude 최종 합의. 후속 PR/Pages 확인은207을 따른다. 실계정·iOS/Windows·AI/전체 출시는 여전히 미완료.

@@ -1,0 +1,37 @@
+{
+  "revision": "0fbe60420cfde5f89a2b3577cc0594105a81f9b4",
+  "analysisDate": "2026-10-29T06:51:36+0000",
+  "gate": "OK",
+  "conditions": [
+    {
+      "metricKey": "new_reliability_rating",
+      "status": "OK",
+      "actualValue": "1",
+      "errorThreshold": "1"
+    },
+    {
+      "metricKey": "new_security_rating",
+      "status": "OK",
+      "actualValue": "1",
+      "errorThreshold": "1"
+    },
+    {
+      "metricKey": "new_maintainability_rating",
+      "status": "OK",
+      "actualValue": "1",
+      "errorThreshold": "1"
+    },
+    {
+      "metricKey": "new_duplicated_lines_density",
+      "status": "OK",
+      "actualValue": "0.0",
+      "errorThreshold": "3"
+    },
+    {
+      "metricKey": "new_security_hotspots_reviewed",
+      "status": "OK",
+      "actualValue": "100.0",
+      "errorThreshold": "100"
+    }
+  ]
+}

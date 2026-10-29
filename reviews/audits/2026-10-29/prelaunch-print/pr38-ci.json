@@ -1,0 +1,71 @@
+{
+  "headRefOid": "e3b402f892a30ff15f3fc58b81281f8ad96539ae",
+  "mergeCommit": {
+    "oid": "0fbe60420cfde5f89a2b3577cc0594105a81f9b4"
+  },
+  "mergedAt": "2026-10-29T06:51:29Z",
+  "state": "MERGED",
+  "statusCheckRollup": [
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-29T06:25:10Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/071205/pedagogy/actions/runs/40829068234/job/123298807961",
+      "name": "secrets",
+      "startedAt": "2026-10-29T06:25:03Z",
+      "status": "COMPLETED",
+      "workflowName": "Verify"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-29T06:49:58Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/071205/pedagogy/actions/runs/40829068234/job/123298808076",
+      "name": "verify",
+      "startedAt": "2026-10-29T06:25:03Z",
+      "status": "COMPLETED",
+      "workflowName": "Verify"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-29T06:30:44Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/071205/pedagogy/actions/runs/40829068234/job/123298807963",
+      "name": "cross-platform",
+      "startedAt": "2026-10-29T06:25:02Z",
+      "status": "COMPLETED",
+      "workflowName": "Verify"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-29T06:26:35Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/071205/pedagogy/actions/runs/40829068234/job/123298807632",
+      "name": "hwpx",
+      "startedAt": "2026-10-29T06:25:03Z",
+      "status": "COMPLETED",
+      "workflowName": "Verify"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-29T06:25:07Z",
+      "conclusion": "SKIPPED",
+      "detailsUrl": "https://coderabbit.ai?utm_source=cr_app&utm_medium=github",
+      "name": "CodeRabbit",
+      "startedAt": "2026-10-29T06:25:07Z",
+      "status": "COMPLETED",
+      "workflowName": ""
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-29T06:25:25Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://sonarcloud.io/dashboard?id=071205_pedagogy&pullRequest=38",
+      "name": "SonarCloud Code Analysis",
+      "startedAt": "2026-10-29T06:25:04Z",
+      "status": "COMPLETED",
+      "workflowName": ""
+    }
+  ],
+  "url": "https://github.com/071205/pedagogy/pull/38"
+}

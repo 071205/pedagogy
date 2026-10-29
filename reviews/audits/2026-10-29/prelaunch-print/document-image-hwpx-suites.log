@@ -1,0 +1,18 @@
+
+> test:hwpx
+> node scripts/check-hwpx.mjs
+
+  ✅ test_tex_to_hwp.py
+  ✅ test_layout.py
+  ✅ test_image_paths.py
+  ✅ test_internal_runtime.py
+  ✅ test_document_export.py
+  ✅ test_document_endpoint.py
+  ✅ test_structure.py
+  ✅ test_sections.py
+  ✅ test_page_layout.py
+  ✅ test_style_roles.py
+  ✅ test_template_content.py
+  ✅ test_endpoint.py
+HWPX concurrency and exception recovery passed
+HWPX export tests passed — 실행 12건

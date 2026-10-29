@@ -88,7 +88,7 @@ U0→B6에서 정규화/복원·AI 계약을 함께 다룬다. Rules의 `hasOnly
 
 ## 최근 검토
 
-[HANDOFF-2026-207](handoffs/2026-10/2026-10-29-mock-hwpx-total-pages.md): Chrome/Safari 실제2쪽 PDF·저장/복원, 한글 REV158 전체쪽수·REV159 제목 정렬 수정/실제3쪽·왕복 PNG동일·RED6/회귀175 통과. 두 결함 독립 최종 합의·PR/배포 대기.
+[HANDOFF-2026-207](handoffs/2026-10/2026-10-29-mock-hwpx-total-pages.md): Chrome/Safari 실제2쪽 PDF·저장/복원, 한글 REV158 전체쪽수·REV159 제목 정렬 수정/실제3쪽·왕복 PNG동일·RED6/회귀175 통과. 두 결함 독립 합의·PR38 병합/Pages7파일·공개 HWPX 확인, main CI4개/동일 revision Sonar gate OK.
 
 [HANDOFF-2026-206](handoffs/2026-10/2026-10-29-security-prelaunch-sonar-triage.md): 최신 main Sonar23건 독립 판정·오탐17/제한적 수용6 원격반영, API 미해결0/gateOK. 다음 전2·REV147 추적 유지.
 

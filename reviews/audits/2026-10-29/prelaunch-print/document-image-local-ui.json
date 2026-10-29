@@ -1,0 +1,10 @@
+{
+  "gifRejectedBeforeDownload": "2번째 블록의 data가 PNG 또는 JPEG가 아닙니다 (내용을 보고 판정합니다)",
+  "pngPreviewVisible": true,
+  "jpegPreviewVisible": true,
+  "pngDownload": "그림 검증.hwpx",
+  "jpegDownload": "그림 검증.hwpx",
+  "pngStatus": "한글 HWPX 파일을 내보냈습니다",
+  "jpegStatus": "한글 HWPX 파일을 내보냈습니다",
+  "pageErrors": []
+}
