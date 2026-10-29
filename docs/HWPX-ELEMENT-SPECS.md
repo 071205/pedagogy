@@ -7,6 +7,17 @@
 
 ⚠️ **그래서 추측으로 XML 을 짓지 않는다.** 아래 방법으로 근거를 만든 뒤 구현한다.
 
+한글 내부 분석과 적용 질문·판정·재개 순서는 [H1 분석 설계](HWP-RESEARCH-DESIGN.md)에 있다.
+조사 계획은 Claude 검토를 마쳤으며, 아래 실물로 확인한 기존 규칙과 새 정적 분석 가설을 구별한다.
+
+2026-10-15 build 6544의 [구역 실증](HWP-RESEARCH-RESULTS.md#h1-section-02--2026-10-15--codex-주도독립-에이전트-검토):
+두 구역인데 `secCnt=1`이면 파일은 열려도 B 본문이 빠지고, 재저장 시 B 파트도 사라졌다.
+ID 배정 교환은 본문 순서를 바꿨고 경로 별칭은 열렸다. 단일 Mac 표본의 관찰이며 제품
+validator는 [출력 프로필 계약](HWP-SECTION-DIAGNOSTIC-CONTRACT.md)에 따라 Python/JS에 반영했다.
+`section_package_diagnostics()`/`sectionPackageDiagnostics()`의 inspect 경고와 canonical export 오류를 구별한다.
+56개 정상/반례의 실제 DOM parity, 정상1/2/3구역의 Mac 열기/PDF6쪽을 확인했다(`HANDOFF-191`).
+열기·본문·왕복·PDF를 각각 판정하며 Windows/일반 alias 편집 지원을 주장하지 않는다.
+
 ## 새 요소를 알아내는 방법 (2026-09-17 확립)
 
 ```bash

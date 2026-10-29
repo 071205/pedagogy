@@ -1,0 +1,100 @@
+{
+  "suite": "H1-d-section-output",
+  "cases": [
+    {
+      "sections": 1,
+      "file": "h1d-sections-1.hwpx",
+      "sha256": "f335439f6e711686b3e1b6b35b248be01ef62000601ecf1badd43dde60150354",
+      "expectedMarkers": [
+        "H1 canonical section 0"
+      ],
+      "open": "pass",
+      "pdf": "pass",
+      "pdfFile": "h1d-sections-1.pdf",
+      "pdfSha256": "4dbd1c0f5eb40543d7583fa06b4a5192be021c33c01c60482af47f1b818cb4f8",
+      "pages": 1,
+      "pageImages": [
+        {
+          "file": "h1d-sections-1-1.png",
+          "sha256": "3d21aa0aa98f5774be8bbd157a73a793fcbf7a5893d230a13f45456606701629"
+        }
+      ],
+      "latestOutputByteIdentical": true,
+      "contentCheck": "expected markers each occur exactly once in PDF text, in section order",
+      "visualCheck": "all 6 pages rasterized; 3 unique page images inspected; repeated pages hash-identical"
+    },
+    {
+      "sections": 2,
+      "file": "h1d-sections-2.hwpx",
+      "sha256": "943415295a7a8c00c5dd1c6d9a6d35bea8fdc8ce55460bb993314c763d3af07a",
+      "expectedMarkers": [
+        "H1 canonical section 0",
+        "H1 canonical section 1"
+      ],
+      "open": "pass",
+      "pdf": "pass",
+      "pdfFile": "h1d-sections-2.pdf",
+      "pdfSha256": "406f0a1642db6953405bd771bde9bbe115f14159858945fd7297d68c1e38eee0",
+      "pages": 2,
+      "pageImages": [
+        {
+          "file": "h1d-sections-2-1.png",
+          "sha256": "3d21aa0aa98f5774be8bbd157a73a793fcbf7a5893d230a13f45456606701629"
+        },
+        {
+          "file": "h1d-sections-2-2.png",
+          "sha256": "8397bb95027fd6339fda5a4f24c5f5fba4feff2f7c35d96f60d4acd229841920"
+        }
+      ],
+      "latestOutputByteIdentical": true,
+      "contentCheck": "expected markers each occur exactly once in PDF text, in section order",
+      "visualCheck": "all 6 pages rasterized; 3 unique page images inspected; repeated pages hash-identical"
+    },
+    {
+      "sections": 3,
+      "file": "h1d-sections-3.hwpx",
+      "sha256": "c9f30c0e79725f6d0d594f8ae30e8117a0a4cb7cfc7967e6006aeb40fdc8e5f4",
+      "expectedMarkers": [
+        "H1 canonical section 0",
+        "H1 canonical section 1",
+        "H1 canonical section 2"
+      ],
+      "open": "pass",
+      "pdf": "pass",
+      "pdfFile": "h1d-sections-3.pdf",
+      "pdfSha256": "dc4cf4ca03b3094c571002ad4d7c2a97408c8dc53d46f7c11cca60793eea9653",
+      "pages": 3,
+      "pageImages": [
+        {
+          "file": "h1d-sections-3-1.png",
+          "sha256": "3d21aa0aa98f5774be8bbd157a73a793fcbf7a5893d230a13f45456606701629"
+        },
+        {
+          "file": "h1d-sections-3-2.png",
+          "sha256": "8397bb95027fd6339fda5a4f24c5f5fba4feff2f7c35d96f60d4acd229841920"
+        },
+        {
+          "file": "h1d-sections-3-3.png",
+          "sha256": "f62851e14c88516cd3bace4423502737d08386ddb7fadc82c01bcd421edc6fb3"
+        }
+      ],
+      "latestOutputByteIdentical": true,
+      "contentCheck": "expected markers each occur exactly once in PDF text, in section order",
+      "visualCheck": "all 6 pages rasterized; 3 unique page images inspected; repeated pages hash-identical"
+    }
+  ],
+  "scope": "self-authored canonical section output, Mac Hancom12.30.0 build6544; not general HWPX/Windows certification",
+  "testedEngineSha256": "906b2f1826e40948f7de42fde3c634c4fb224c0788d46ced7040bbc17a618795",
+  "latestEngineSha256": "bb931cb0bf80007c5c370b5a03c91a4319f1eda918824ff77fb96156e872cabd",
+  "revalidation": "After final diagnostic changes, regenerated canonical 1/2/3-section ZIPs are byte-identical to the files actually opened/PDF-exported on Mac.",
+  "sourceBase": "2547a1e (working-tree changes; no commit)",
+  "latestGenerator": {
+    "path": "scripts/check-hwpx-section-package.py",
+    "sha256": "fd3c943b59712888ca7de01623b1c10892f7dc3fd668b714d679e9a825697871",
+    "entry": "runpy.run_path(...)[make](sectionCount).save(outputPath)"
+  },
+  "template": {
+    "path": "experiments/hwp-export/templates/blank.hwpx",
+    "sha256": "bc39062d00fa8a580bbf9791c41980fd62a5395ac99e13939bcc019f0093c3b3"
+  }
+}

@@ -21,9 +21,11 @@
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 const CHECK = process.argv.includes("--check");
-const ROOT = path.resolve(new URL("..", import.meta.url).pathname);
+/* ⚠️ `.pathname` 은 퍼센트 인코딩된 채다 — 폴더 이름에 한글이 있으면 **없는 경로를 스캔하고 '아이콘 없음' 으로 거짓 통과**한다. */
+const ROOT = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
 const NAME = "Icon\r";
 const ICON_ONLY = "0000000000000000040000000000000000000000000000000000000000000000";
 

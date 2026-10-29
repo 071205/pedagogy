@@ -65,6 +65,8 @@ Production 설정을 staging으로 표시하거나 emulator 결과를 실제 서
 **2026-10-29 전1 Sonar 판정·원격 반영 완료:** [HANDOFF206](../reviews/handoffs/2026-10/2026-10-29-security-prelaunch-sonar-triage.md). 최신 main9cff81d 분석의 취약점23건을 독립 검토 뒤 오탐17/기존 제한적 위험수용6으로 반영했다. API 미해결0·gateOK/new_security_rating1 확인. 코드/규칙/threshold 변경 없음. 기존 REV147 잔여 이력 위험은 open 추적 유지하며 별도 완료로 바꾸지 않는다. 아래 과거 Sonar ERROR는 당시 증거이고 현재 상태는 이 문단이 우선한다.
 범위/전후 레일 설계 및 R1~R6·U2·PR35 A0·PR36 완료 증거 유지. **전2 실제 출력 공백 보완:** [HANDOFF207](../reviews/handoffs/2026-10/2026-10-29-mock-hwpx-total-pages.md)·[증거](../reviews/audits/2026-10-29/prelaunch-print/README.md). 합성4문항 import→수정→저장/재진입→JSON 동일, 실제 Chrome·Safari 인쇄창에서 A4 2쪽 PDF/본문·수식·표·그림·복귀 확인. 실제 Mac 한글 9문항3쪽 검증 중 고정 분모20 오류 REV158 재현; native TOTAL_PAGE 필드를 확인해 JS/Python 틀 열기에서 전환했고 1/3·2/3·3/3 출력·왕복 재저장/재열기 PDF 동일, 정상/RED3·필수회귀175 통과. REV158 독립 최종 합의 완료. 사용자 지적 REV159 과목 제목 공백정렬도 CENTER 사본으로 수정했고 실제3쪽/재저장 PDF·회귀175/RED3 통과, 두 결함 최종 독립 합의 완료, PR/배포 상태는207에 이어 기록한다. **다음은 전2 지원 약속·실기기/문서 경로의 남은 증거 대조이며 전3 계정/파일은 별도다.** 전1 Sonar를 반복하지 않는다. 전1 잔여위험 및 전2~6 종합 완료/출시는 아직 아니다.
 
+**H1 한글 분석·사이트 적용 옆길(2026-10-15 · 2026-10-29 main 이관):** [설계](HWP-RESEARCH-DESIGN.md) → [결과](HWP-RESEARCH-RESULTS.md) → [구역 진단 계약](HWP-SECTION-DIAGNOSTIC-CONTRACT.md) → [사이트 시험지 적용 계약](HWP-WEB-TYPESETTING-DESIGN.md). `HANDOFF-188~192`. 다음 H1-f1(REV-129 측정 컨텍스트·REV-130 글꼴 준비 경계) → f2 출력별 프로필 → g 수식 폭/기준선 → h 사이트 대조. 출시 전 레일(전1~6)의 순서를 바꾸지 않는 옆길이다.
+
 ## 기존 완료 증거 — 아래 과거의 “다음”보다 상단 확정 레일 우선
 
 **2026-10-28 사용자 우선순위: 시험지 미리보기·출력 완성도.** [HANDOFF205](../reviews/handoffs/2026-10/2026-10-28-index-r8-preview-navigation.md).

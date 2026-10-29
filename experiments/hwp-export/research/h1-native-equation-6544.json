@@ -1,0 +1,91 @@
+{
+  "schemaVersion": 1,
+  "questionId": "H1-equation-03-native",
+  "appVersion": "12.30.0",
+  "appBuild": "6544",
+  "analysisSha256": "77ce5ae1d2421eda9325f43d32a4c7d08ad2c3264b9bb6e744a206fde95bbac3",
+  "architecture": "arm64",
+  "provider": {
+    "id": "ghidra",
+    "name": "Ghidra",
+    "version": "12.1.4"
+  },
+  "profileDigest": "20565088524a2d0359b9b96f46ac48e679d774c7b0092c56abc06de8fdbec11c",
+  "observationDate": "2026-10-15",
+  "observations": [
+    {
+      "address": "0x78bbdc",
+      "evidenceId": "ev_4ed90bc200a4b6eb960bfce776f7b3fb5ce6621d70d234f07c590ec0e0a682dc",
+      "role": "attribute serializer candidate for baseLine/baseUnit"
+    },
+    {
+      "address": "0x78bcb8",
+      "evidenceId": "ev_1e82bff3feab5a2867adc14ce424f452a930eee8b6f75616c164596cf957da7f",
+      "role": "attribute parser candidate for baseLine/baseUnit"
+    },
+    {
+      "address": "0x69b0e4",
+      "evidenceId": "ev_237cc807cac78b4c4e655987d5d1f568a84f84a8aa9d1698c64c718fa861054a",
+      "role": "control dispatch selects equation branch 0x65716564 and calls 0x69cb70"
+    },
+    {
+      "address": "0x69cb70",
+      "evidenceId": "ev_1775fd4b1d4188e243043a805455f7446b9de752f1c27d07e5b426be5495dd67",
+      "role": "after 0x6a75c4 and unresolved virtual +0x1c0 both succeed, calls script preparation and measurement candidates"
+    },
+    {
+      "address": "0x6a75c4",
+      "evidenceId": "ev_df5844f2b13c3c3fe86c973d13ada7f81986725bf1aa037dd18d3483f084c58a",
+      "role": "common control/shape import with unresolved reader-interface calls"
+    },
+    {
+      "address": "0x2b8bcc",
+      "evidenceId": "ev_120883bf13942d3df6d7cd46e76c2a90b0e762b12a2724c36f5850fce3d71ecc",
+      "role": "prepares script through an unresolved interface"
+    },
+    {
+      "address": "0x2b973c",
+      "evidenceId": "ev_159daf6dece1a43c4938f73d10ce86c908c92aa6be90d51cef4bdf6d4abdd3c9",
+      "role": "measurement/update candidate; drawing context and version branches, alternate 0x1fac78 path; width update conditional on object flag +0xf0==0"
+    },
+    {
+      "address": "0x2b9a90",
+      "evidenceId": "ev_2f53dd4d228c8fe0775fb03e5b24a008bac0b8b456290ff1f7d66b35fc919e25",
+      "role": "measurement mode invokes unresolved interface, returns dimension/baseline candidates; missing interface has zero-output path"
+    },
+    {
+      "address": "0x575b58",
+      "evidenceId": "ev_dce5540f44f873cedb547204ac28b83a3b53302a45cd415e140c7ec11caa16c7",
+      "role": "uppercase EQUATION/SCRIPT import path also calls shared preparation/measurement candidates"
+    }
+  ],
+  "searchBoundary": {
+    "functionDossiers": 12,
+    "numberingFalseLeads": [
+      "0x77adb8",
+      "0x79ff00"
+    ],
+    "otherCorroboratingWriter": "0x575880",
+    "stringsEvidenceId": "ev_b2faa674729624f132002740585cc8e3d277b32703750bcce475799bed5619a4",
+    "measurementXrefsEvidenceId": "ev_710beab4392868b82b750b554d808c063d9d5177539ef397f12a9954b5fc2a91"
+  },
+  "conclusions": {
+    "observedStatic": "property serialization/parsing candidates and direct dispatch/preparation/measurement call edges",
+    "inferred": "shared measurement/update path is consistent with per-equation geometry normalization observed in separate real-app fixtures",
+    "boundedNegative": "selected function paths did not expose a baseline==0-only measurement predicate",
+    "notEstablished": [
+      "dynamic binding from 0x78bcb8 property parser to 0x69cb70 consumer",
+      "actual runtime path for the controlled HWPX files",
+      "concrete implementation identity of the measurement interface or attribution to HncEqEdit",
+      "alternative-version and object-flag paths",
+      "general formula/font/Windows behavior"
+    ]
+  },
+  "independentReview": "Codex read-only review of eight focused dossiers confirmed bounded claims and required update conditions; no Claude review of this native follow-up",
+  "retention": {
+    "evidenceRecords": 35,
+    "evidenceBytes": 6510956,
+    "snapshotBytes": 12942317,
+    "close": "cleanup_incomplete/sysctl_errno_22 reported; binary_session open=false and exact ps PID25426 returned no process"
+  }
+}

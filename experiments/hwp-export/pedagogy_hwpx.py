@@ -693,7 +693,8 @@ class HwpxDocument:
     def _manifest_id(self, preferred: str) -> str:
         ids = {node.get("id") for node in self.get_part("Contents/content.hpf").element.xpath(".//opf:item", namespaces=NS)}
         value, i = preferred or "image", 2
-        while value in ids:
+        # Numeric section IDs belong to the canonical section reader, even before that section exists.
+        while value in ids or re.fullmatch(r"section[0-9]+", value):
             value = f"{preferred}_{i}"; i += 1
         return value
 
@@ -704,8 +705,102 @@ class HwpxDocument:
         return []
 
     def validation_errors(self) -> list[str]:
+        """Required parts of our canonical editing/export profile; not a general HWPX verdict."""
         required = {"mimetype", "version.xml", "Contents/content.hpf", "Contents/header.xml", "Contents/section0.xml"}
         return [f"missing {path}" for path in sorted(required - set(self._parts))]
+
+    def _xml_root(self, path: str, prefix: str, name: str):
+        part = self._parts.get(path)
+        root = part.element if part is not None else None
+        return root if root is not None and root.tag == qn(prefix, name) else None
+
+    def _section_paths(self) -> list[str]:
+        # Filename aliases are still section XML and must receive reference checks.
+        return [path for path in self._parts if self._xml_root(path, "hs", "sec") is not None]
+
+    def _reference_section_paths(self) -> list[str]:
+        catalog = set(self._section_paths())
+        return [path for path, part in self._parts.items() if part.element is not None and
+                (path in catalog or (path.startswith("Contents/section") and path.endswith(".xml")))]
+
+    def section_package_diagnostics(self, profile: str = "inspect") -> list[dict[str, str]]:
+        """Diagnose without repairing. Export uses our canonical editing profile, not all HWPX."""
+        if profile not in ("inspect", "pedagogy-export"):
+            raise ValueError(f"Unknown section profile: {profile}")
+        diagnostics = []
+        policy_severity = "error" if profile == "pedagogy-export" else "warning"
+
+        def add(code, severity, kind, part, message):
+            entry = dict(code=code, severity=severity, kind=kind, part=part, message=message)
+            if entry not in diagnostics:
+                diagnostics.append(entry)
+
+        def finish():
+            keys = ("code", "part", "severity", "kind", "message")
+            return sorted(diagnostics, key=lambda d: tuple(d[k].encode("utf-16-be", "surrogatepass") for k in keys))
+
+        roots = {}
+        for path, prefix, name in (("Contents/header.xml", "hh", "head"), ("Contents/content.hpf", "opf", "package")):
+            roots[path] = self._xml_root(path, prefix, name)
+            if path not in self._parts:
+                add("section-required-part-missing", "error", "integrity", path, "구역 진단에 필요한 파트가 없습니다")
+            elif roots[path] is None:
+                add("section-root-invalid", "error", "integrity", path, "구역 진단 파트의 XML 루트가 올바르지 않습니다")
+        paths = self._section_paths()
+        head = roots["Contents/header.xml"]
+        if head is not None:
+            declared = head.get("secCnt", "")
+            if not re.fullmatch(r"[ \t\r\n]*\+?[0-9]+[ \t\r\n]*", declared):
+                normalized = ""
+            else:
+                normalized = declared.strip(" \t\r\n").lstrip("+").lstrip("0")
+            if not normalized:
+                add("section-count-invalid", "error", "integrity", "Contents/header.xml", "secCnt는 십진 양의 정수여야 합니다")
+            elif normalized != str(len(paths)):
+                add("section-count-mismatch", policy_severity, "integrity", "Contents/header.xml", "secCnt와 물리 구역 후보 수가 다릅니다")
+        hpf = roots["Contents/content.hpf"]
+        if hpf is None:
+            return finish()
+        manifests = hpf.findall(qn("opf", "manifest"))
+        if len(manifests) != 1:
+            code = "section-manifest-missing" if not manifests else "section-manifest-ambiguous"
+            add(code, "error", "integrity", "Contents/content.hpf", "직접 manifest가 하나여야 합니다")
+            return finish()
+        items = [(node.get("id", ""), node.get("href", "")) for node in manifests[0].findall(qn("opf", "item"))]
+        def canonical_slot(href):
+            return bool(re.fullmatch(r"Contents/section[0-9]+\.xml", href))
+        sections = [(id, href) for id, href in items if href in paths or canonical_slot(href) or re.fullmatch(r"section[0-9]+", id)]
+        relevant_ids = {id for id, _ in sections}
+        ids, targets = {}, {}
+        for id, _ in items:
+            if id in relevant_ids:
+                ids[id] = ids.get(id, 0) + 1
+        for _, href in sections:
+            if href in paths or canonical_slot(href):
+                targets[href] = targets.get(href, 0) + 1
+            if href not in self._parts:
+                add("section-target-missing", "error", "integrity", href or "Contents/content.hpf", "구역 참조의 파트가 없습니다")
+            elif href not in paths:
+                if canonical_slot(href):
+                    add("section-target-invalid", "error", "integrity", href, "구역 참조의 XML 루트가 hs:sec가 아닙니다")
+                else:
+                    add("section-target-unsupported", policy_severity, "unsupported", href, "ID 이름만으로 구역임을 확정할 수 없습니다")
+        for id, count in ids.items():
+            if count > 1:
+                add("section-id-duplicate", "error", "integrity", "Contents/content.hpf", f"구역 ID가 중복됩니다: {id}")
+        for href, count in targets.items():
+            if count > 1:
+                add("section-target-duplicate", "error", "integrity", href or "Contents/content.hpf", "구역 파트가 중복 배정됐습니다")
+        for path in paths:
+            if path not in targets:
+                add("section-unreferenced", policy_severity, "integrity", path, "manifest에서 참조하지 않는 구역 후보입니다")
+        expected = {f"section{i}" for i in range(len(paths))}  # Bound by actual parts, never secCnt.
+        if set(ids) != expected:
+            add("section-id-unsupported", policy_severity, "unsupported", "Contents/content.hpf", "현재 편집기는 연속된 section ID를 지원합니다")
+        for id, href in sections:
+            if href in paths and href != f"Contents/{id}.xml":
+                add("section-mapping-unsupported", policy_severity, "unsupported", href, "현재 편집기는 canonical 구역 경로 배정을 지원합니다")
+        return finish()
 
     # ⚠️ 한글은 문서 안의 id 참조가 하나라도 끊어져 있으면 **어디가 문제인지 말하지 않고**
     #    "파일을 읽거나 저장하는데 문제가 있습니다" 라고만 한다. 실제로 그것 때문에
@@ -731,7 +826,9 @@ class HwpxDocument:
 
     def _header_ids(self, collection: str, item: str) -> set[str] | None:
         """머리글의 참조 표에 실제로 있는 id 들. 표 자체가 없으면 None."""
-        head = self.get_part("Contents/header.xml").element
+        head = self._xml_root("Contents/header.xml", "hh", "head")
+        if head is None:
+            return None
         node = head.find(f".//hh:{collection}", namespaces=NS)
         if node is None:
             return None
@@ -746,7 +843,9 @@ class HwpxDocument:
            문단은 `styleIDRef="0"` 으로 그 없는 스타일을 가리키고 있었다.
            XML 문법은 완벽해서 파서로는 절대 잡히지 않는다. 개수를 세어야 보인다.
         """
-        head = self.get_part("Contents/header.xml").element
+        head = self._xml_root("Contents/header.xml", "hh", "head")
+        if head is None:
+            return []
         errors = []
         for collection, item in (("fontfaces", "fontface"), ("borderFills", "borderFill"),
                                  ("charProperties", "charPr"), ("tabProperties", "tabPr"),
@@ -780,14 +879,15 @@ class HwpxDocument:
            내보내는데 한글이 멀쩡히 연다 — 직접 확인했다. 오류로 막으면 정상 문서를
            거부하게 된다. 그래서 알리기만 한다.
         """
+        if self._xml_root("Contents/header.xml", "hh", "head") is None:
+            return []
         warnings = []
         for scope, refs, prefix in (("본문", self._SECTION_REFS, "hp"),
                                     ("머리글", self._HEADER_REFS, "hh")):
             for tag, attribute, collection, item in refs:
                 if self._header_ids(collection, item) is not None:
                     continue
-                roots = ([self.get_part(x).element for x in self.list_part_paths()
-                          if x.startswith("Contents/section") and x.endswith(".xml")]
+                roots = ([self.get_part(x).element for x in self._reference_section_paths()]
                          if scope == "본문" else [self.get_part("Contents/header.xml").element])
                 for root in roots:
                     if any(node.get(attribute) is not None for node in root.iter(qn(prefix, tag))):
@@ -797,11 +897,14 @@ class HwpxDocument:
         return sorted(set(warnings))
 
     def reference_validation_errors(self) -> list[str]:
-        hpf = self.get_part("Contents/content.hpf").element
-        errors = [f"manifest references missing part: {node.get('href')}"
-                  for node in hpf.xpath(".//opf:item", namespaces=NS)
-                  if node.get("href") not in self._parts]
+        hpf = self._xml_root("Contents/content.hpf", "opf", "package")
+        errors = [f"manifest references missing part: {node.get('href', '')}"
+                  for node in (hpf.xpath(".//opf:item", namespaces=NS) if hpf is not None else [])
+                  if node.get("href", "") not in self._parts]
         errors += self.item_count_errors()
+        head = self._xml_root("Contents/header.xml", "hh", "head")
+        if head is None:
+            return errors
 
         tables: dict[str, set[str] | None] = {}
         for _, _, collection, item in self._SECTION_REFS + self._HEADER_REFS:
@@ -819,10 +922,8 @@ class HwpxDocument:
                         errors.append(f"{scope}의 <{tag} {attribute}=\"{value}\">가 "
                                       f"{collection} 에 없는 id 를 가리킵니다")
 
-        for path in self.list_part_paths():
-            if path.startswith("Contents/section") and path.endswith(".xml"):
-                check("본문", self.get_part(path).element, self._SECTION_REFS)
-        head = self.get_part("Contents/header.xml").element
+        for path in self._reference_section_paths():
+            check("본문", self.get_part(path).element, self._SECTION_REFS)
         check("머리글", head, self._HEADER_REFS)
 
         # 글꼴 참조는 위 규칙에 안 맞는다 — `<hh:fontRef hangul="0" latin="0" .../>` 처럼
@@ -859,6 +960,13 @@ class HwpxDocument:
 
     def strict_validate(self) -> None:
         errors = self.validation_errors() + self.reference_validation_errors()
+        diagnostics = self.section_package_diagnostics("pedagogy-export")
+        for d in diagnostics:
+            if d["code"] == "section-target-missing":
+                errors = [e for e in errors if e not in (f"missing {d['part']}", f"manifest references missing part: {d['part']}")]
+        errors += [f"[{d['code']}] {d['part']}: {d['message']}"
+                   for d in diagnostics if d["severity"] == "error"
+                   and not (d["code"] == "section-required-part-missing" and d["part"] not in self._parts)]
         if errors:
             raise ValueError("; ".join(errors))
 

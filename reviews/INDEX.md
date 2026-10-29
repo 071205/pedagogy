@@ -13,6 +13,8 @@
 | `REV-2026-075` | `P2` | AI 문서에 들어갔다 나오면 로그인이 안 된다(재현 절차 없음) | `issues/2026-09/2026-09-09-document-editor-login-after-return.md` |
 | `REV-2026-093` | `P2` | staging Gemini가 결제 전제 미충족(`FAILED_PRECONDITION`)으로 실패한다 | `issues/2026-09/2026-09-14-gemini-staging-provider-request-error.md` |
 | `REV-2026-147` | `P2` | 과거 Firebase CLI 환경 덤프에 세션 IPC 토큰 field가 남아 이력 노출 위험이 지속된다 | `issues/2026-10/2026-10-23-security-driveupload-messaging-token-history-exposure.md` |
+| `REV-2026-129` | `P2` | 모의고사 선지 측정 CSS가 실제 표시와 달라 자동 배치를 잘못 고름(2026-10-15 기록 · 현재 main 미재확인) | `issues/2026-10/2026-10-15-mock-choice-measure-context.md` |
+| `REV-2026-130` | `P2` | 모의고사 HWPX 높이 측정에 글꼴 준비 경계가 없음(2026-10-15 기록 · 현재 main 미재확인) | `issues/2026-10/2026-10-15-mock-export-font-measurement-race.md` |
 
 ⚠️ 이 표는 `npm run check:review-hygiene` 가 **실제 이슈 파일의 상태와 양방향으로**
 대조한다. 지난 요약을 지워도 안전한 이유가 이 대조다 — 남은 한 곳이 정확해야
@@ -96,7 +98,7 @@ U0→B6에서 정규화/복원·AI 계약을 함께 다룬다. Rules의 `hasOnly
 
 [HANDOFF-2026-204](handoffs/2026-10/2026-10-28-security-r7-backend-staging-a0.md): A0 로컬 분리 빌드/host·정상/RED·SDK 초기화·회귀175 통과. Claude 재시도2건+독립 Codex1건 재현/수정·최종 정정 판정 합의, 각14RED·A1 원격 자원 변경 없음.
 
-[HANDOFF-2026-203](handoffs/2026-10/2026-10-28-docs-r7-firebase-staging-plan.md): 기존 staging 최신 GET·지역/비용 준비안. A=결제 미연결 Auth/Firestore, B=Blaze 뒤 Storage. Claude 최종 합의·원격 변경 없음·다음 A0 medium 구현.
+**H1 한글 분석 옆길(2026-10-14~15 · 2026-10-29 main 위로 이관)**: [HANDOFF-188](handoffs/2026-10/2026-10-14-docs-hwp-research-design.md) 설계 → [189](handoffs/2026-10/2026-10-14-tests-hwp-research-harness.md) 하네스 → [190](handoffs/2026-10/2026-10-15-tests-hwp-section-research-skill.md) 실증·스킬 → [191](handoffs/2026-10/2026-10-15-mock-hwpx-section-diagnostics.md) 구역 진단 → [192](handoffs/2026-10/2026-10-15-docs-hwp-web-typesetting.md) 사이트 적용 계약. 129·130 미수정 → H1-f1 우선. 번호가 겹친 이슈 하나는 `REV-2026-160` 으로 재부여.
 
 저장 구조의 기존 미결과 상세는 각 인계를 따른다.
 
