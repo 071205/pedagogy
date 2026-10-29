@@ -1,0 +1,358 @@
+{
+  "total": 1,
+  "p": 1,
+  "ps": 50,
+  "paging": {
+    "pageIndex": 1,
+    "pageSize": 50,
+    "total": 1
+  },
+  "effortTotal": 30,
+  "debtTotal": 30,
+  "issues": [
+    {
+      "sonarObjectId": "AaDzlq6Uo2rmfWZ12byK",
+      "rule": "pythonsecurity:S5131",
+      "severity": "BLOCKER",
+      "component": "071205_pedagogy:serve.py",
+      "project": "071205_pedagogy",
+      "line": 452,
+      "hash": "96c396f53d0ecfdeb8241536e6b5eb4c",
+      "textRange": {
+        "startLine": 452,
+        "endLine": 452,
+        "startOffset": 8,
+        "endOffset": 30
+      },
+      "flows": [
+        {
+          "locations": [
+            {
+              "component": "071205_pedagogy:serve.py",
+              "textRange": {
+                "startLine": 452,
+                "endLine": 452,
+                "startOffset": 8,
+                "endOffset": 30
+              },
+              "msg": "Sink: this invocation is not safe; a malicious value can be used as argument"
+            },
+            {
+              "component": "071205_pedagogy:serve.py",
+              "textRange": {
+                "startLine": 441,
+                "endLine": 441,
+                "startOffset": 31,
+                "endOffset": 42
+              },
+              "msg": "This instruction can propagate malicious content"
+            },
+            {
+              "component": "071205_pedagogy:serve.py",
+              "textRange": {
+                "startLine": 441,
+                "endLine": 441,
+                "startOffset": 8,
+                "endOffset": 13
+              },
+              "msg": "This instruction can propagate malicious content"
+            },
+            {
+              "component": "071205_pedagogy:serve.py",
+              "textRange": {
+                "startLine": 536,
+                "endLine": 536,
+                "startOffset": 19,
+                "endOffset": 79
+              },
+              "msg": "This instruction can propagate malicious content"
+            },
+            {
+              "component": "071205_pedagogy:serve.py",
+              "textRange": {
+                "startLine": 536,
+                "endLine": 536,
+                "startOffset": 35,
+                "endOffset": 49
+              },
+              "msg": "Source: a user can craft an HTTP request with malicious content"
+            }
+          ]
+        }
+      ],
+      "status": "OPEN",
+      "message": "Reflected XSS via file content in Handler._send()",
+      "effort": "30min",
+      "debt": "30min",
+      "tags": [
+        "cwe"
+      ],
+      "transitions": [],
+      "actions": [],
+      "comments": [],
+      "creationDate": "2026-09-19T18:51:35+0000",
+      "updateDate": "2026-10-21T05:47:26+0000",
+      "type": "VULNERABILITY",
+      "organization": "071205",
+      "cleanCodeAttribute": "COMPLETE",
+      "cleanCodeAttributeCategory": "INTENTIONAL",
+      "impacts": [
+        {
+          "softwareQuality": "SECURITY",
+          "severity": "BLOCKER"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "projectName": "pedagogy",
+      "internalTags": [
+        "taint"
+      ],
+      "lastChangeAnalysisUuid": "852f8ca2-fd15-4f3c-9ba6-7c0fa9c1a8fd",
+      "lastChangeSource": "ANALYSIS"
+    }
+  ],
+  "components": [
+    {
+      "organization": "071205",
+      "sonarObjectId": "071205_pedagogy:serve.py",
+      "uuid": "AaC4hh6pGvjr3YIaEa1Z",
+      "enabled": true,
+      "qualifier": "FIL",
+      "name": "serve.py",
+      "longName": "serve.py",
+      "path": "serve.py"
+    },
+    {
+      "organization": "071205",
+      "sonarObjectId": "071205_pedagogy",
+      "uuid": "AaC4hVU8-tlGSghLjaiG",
+      "enabled": true,
+      "qualifier": "TRK",
+      "name": "pedagogy",
+      "longName": "pedagogy"
+    }
+  ],
+  "organizations": [
+    {
+      "sonarObjectId": "071205",
+      "name": "071205"
+    }
+  ],
+  "rules": [
+    {
+      "sonarObjectId": "pythonsecurity:S5131",
+      "name": "Endpoints should not be vulnerable to reflected cross-site scripting (XSS) attacks",
+      "lang": "py",
+      "status": "READY",
+      "langName": "Python"
+    }
+  ],
+  "users": [],
+  "languages": [
+    {
+      "sonarObjectId": "abap",
+      "name": "ABAP"
+    },
+    {
+      "sonarObjectId": "ansible",
+      "name": "Ansible"
+    },
+    {
+      "sonarObjectId": "apex",
+      "name": "Apex"
+    },
+    {
+      "sonarObjectId": "azurepipelines",
+      "name": "Azure Pipelines"
+    },
+    {
+      "sonarObjectId": "azureresourcemanager",
+      "name": "Azure Resource Manager"
+    },
+    {
+      "sonarObjectId": "c",
+      "name": "C"
+    },
+    {
+      "sonarObjectId": "cloudformation",
+      "name": "CloudFormation"
+    },
+    {
+      "sonarObjectId": "cobol",
+      "name": "COBOL"
+    },
+    {
+      "sonarObjectId": "cpp",
+      "name": "C++"
+    },
+    {
+      "sonarObjectId": "cs",
+      "name": "C#"
+    },
+    {
+      "sonarObjectId": "css",
+      "name": "CSS"
+    },
+    {
+      "sonarObjectId": "dart",
+      "name": "Dart"
+    },
+    {
+      "sonarObjectId": "dataweave",
+      "name": "DataWeave"
+    },
+    {
+      "sonarObjectId": "docker",
+      "name": "Docker"
+    },
+    {
+      "sonarObjectId": "flex",
+      "name": "Flex"
+    },
+    {
+      "sonarObjectId": "githubactions",
+      "name": "GitHub Actions"
+    },
+    {
+      "sonarObjectId": "go",
+      "name": "Go"
+    },
+    {
+      "sonarObjectId": "gosu",
+      "name": "Gosu"
+    },
+    {
+      "sonarObjectId": "groovy",
+      "name": "Groovy"
+    },
+    {
+      "sonarObjectId": "ipynb",
+      "name": "IPython Notebooks"
+    },
+    {
+      "sonarObjectId": "java",
+      "name": "Java"
+    },
+    {
+      "sonarObjectId": "jcl",
+      "name": "JCL"
+    },
+    {
+      "sonarObjectId": "js",
+      "name": "JavaScript"
+    },
+    {
+      "sonarObjectId": "json",
+      "name": "JSON"
+    },
+    {
+      "sonarObjectId": "jsp",
+      "name": "JSP"
+    },
+    {
+      "sonarObjectId": "kotlin",
+      "name": "Kotlin"
+    },
+    {
+      "sonarObjectId": "kubernetes",
+      "name": "Kubernetes"
+    },
+    {
+      "sonarObjectId": "objc",
+      "name": "Objective-C"
+    },
+    {
+      "sonarObjectId": "php",
+      "name": "PHP"
+    },
+    {
+      "sonarObjectId": "pli",
+      "name": "PL/I"
+    },
+    {
+      "sonarObjectId": "plsql",
+      "name": "PL/SQL"
+    },
+    {
+      "sonarObjectId": "postgres",
+      "name": "PostgreSQL"
+    },
+    {
+      "sonarObjectId": "powershell",
+      "name": "PowerShell"
+    },
+    {
+      "sonarObjectId": "py",
+      "name": "Python"
+    },
+    {
+      "sonarObjectId": "r",
+      "name": "R"
+    },
+    {
+      "sonarObjectId": "rpg",
+      "name": "RPG"
+    },
+    {
+      "sonarObjectId": "ruby",
+      "name": "Ruby"
+    },
+    {
+      "sonarObjectId": "rust",
+      "name": "Rust"
+    },
+    {
+      "sonarObjectId": "scala",
+      "name": "Scala"
+    },
+    {
+      "sonarObjectId": "secrets",
+      "name": "Secrets"
+    },
+    {
+      "sonarObjectId": "shell",
+      "name": "Shell"
+    },
+    {
+      "sonarObjectId": "swift",
+      "name": "Swift"
+    },
+    {
+      "sonarObjectId": "terraform",
+      "name": "Terraform"
+    },
+    {
+      "sonarObjectId": "text",
+      "name": "Text"
+    },
+    {
+      "sonarObjectId": "ts",
+      "name": "TypeScript"
+    },
+    {
+      "sonarObjectId": "tsql",
+      "name": "T-SQL"
+    },
+    {
+      "sonarObjectId": "vb",
+      "name": "Vb"
+    },
+    {
+      "sonarObjectId": "vbnet",
+      "name": "VB.NET"
+    },
+    {
+      "sonarObjectId": "web",
+      "name": "HTML"
+    },
+    {
+      "sonarObjectId": "xml",
+      "name": "XML"
+    },
+    {
+      "sonarObjectId": "yaml",
+      "name": "YAML"
+    }
+  ],
+  "facets": []
+}

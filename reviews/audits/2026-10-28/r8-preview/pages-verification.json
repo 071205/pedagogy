@@ -1,0 +1,41 @@
+{
+  "mergeCommit": "9cff81dd7fa3501aed7e59c4849dcfe72997d473",
+  "build": "built",
+  "results": [
+    {
+      "file": "index.html",
+      "status": 200,
+      "bytes": 639718,
+      "sha256": "1411f879b8d5e98f690b68ddfe2db0bf35639d80638590ccd20de789d4196812",
+      "matches": true
+    },
+    {
+      "file": "document-editor.html",
+      "status": 200,
+      "bytes": 42408,
+      "sha256": "1811e822b8c6f4376c4ffebae8e1b56f52b9d1668a6feb5e028824d2cf38426c",
+      "matches": true
+    },
+    {
+      "file": "mock-exam-editor.html",
+      "status": 200,
+      "bytes": 154575,
+      "sha256": "c3905ffa857dd0d087db642e1f1f9a821b039888c4b16aca3bd24f1fd1649f7a",
+      "matches": true
+    },
+    {
+      "file": "service-config.js",
+      "status": 200,
+      "bytes": 1893,
+      "sha256": "1f57f197b01adae968bbb2d52d3b1c23b718435a2eb47ed41007a7f58e2425b2",
+      "matches": true
+    },
+    {
+      "file": "pedagogy-normalize.js",
+      "status": 200,
+      "bytes": 37748,
+      "sha256": "96c8e766375992bb1fba7acccb90e72be05cb3eed8b447ad3600afbfad4e793e",
+      "matches": true
+    }
+  ]
+}

@@ -1,0 +1,78 @@
+[
+  {
+    "section": 0,
+    "text": "수학 영역",
+    "trimmed": true,
+    "paraPr": "52",
+    "align": "CENTER",
+    "margins": [
+      {
+        "intent": "0",
+        "left": "0",
+        "right": "0"
+      },
+      {
+        "intent": "0",
+        "left": "0",
+        "right": "0"
+      }
+    ]
+  },
+  {
+    "section": 0,
+    "text": "수학 영역",
+    "trimmed": true,
+    "paraPr": "53",
+    "align": "CENTER",
+    "margins": [
+      {
+        "intent": "0",
+        "left": "0",
+        "right": "0"
+      },
+      {
+        "intent": "0",
+        "left": "0",
+        "right": "0"
+      }
+    ]
+  },
+  {
+    "section": 0,
+    "text": "수학 영역",
+    "trimmed": true,
+    "paraPr": "53",
+    "align": "CENTER",
+    "margins": [
+      {
+        "intent": "0",
+        "left": "0",
+        "right": "0"
+      },
+      {
+        "intent": "0",
+        "left": "0",
+        "right": "0"
+      }
+    ]
+  },
+  {
+    "section": 1,
+    "text": "수학 영역(기하)",
+    "trimmed": true,
+    "paraPr": "52",
+    "align": "CENTER",
+    "margins": [
+      {
+        "intent": "0",
+        "left": "0",
+        "right": "0"
+      },
+      {
+        "intent": "0",
+        "left": "0",
+        "right": "0"
+      }
+    ]
+  }
+]

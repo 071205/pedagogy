@@ -1,0 +1,12 @@
+{
+  "scope": "synthetic local isolated Chrome profile; backend blocked",
+  "beforeId": "qgh4i3vi",
+  "reloadedIdentical": true,
+  "exportedProblems": 4,
+  "preview": {
+    "pages": 2,
+    "questions": 4,
+    "fontProblems": []
+  },
+  "requestsBlocked": 10
+}

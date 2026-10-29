@@ -467,6 +467,56 @@ def _clean_frame_paragraph(para) -> None:
         run.remove()                # 글자·수식만 있는 run = 실물 문항
 
 
+def center_masthead_subjects(doc: HwpxDocument) -> int:
+    """과목 제목의 공백 정렬을 실제 가운데 정렬로 바꾼다(REV159). 공유 서식은 보존한다."""
+    head = doc.get_part("Contents/header.xml")
+    properties = head.root.find(".//hh:paraProperties")
+    if properties is None:
+        return 0
+    styles = {n.get_attr("id"): n for n in properties.children if n.local_name == "paraPr"}
+    next_id = max([0] + [int(n) for n in styles]) + 1
+    centered = {}
+    changed = 0
+    for path in doc.list_part_paths():
+        if not re.fullmatch(r"Contents/section[0-9]+\.xml", path):
+            continue
+        for para in list(doc.get_part(path).root.iter()):
+            if para.local_name != "p":
+                continue
+            texts = [t for run in para.children if run.local_name == "run"
+                     for t in run.children if t.local_name == "t"]
+            joined = "".join(t.text_content() for t in texts)
+            if not re.fullmatch(r"\s*수학\s*영역(?:\([^)]*\))?\s*", joined):
+                continue
+            if any(n.local_name in ("autoNum", "tbl") for n in para.iter()):
+                continue
+            source_id = para.get_attr("paraPrIDRef")
+            source = styles.get(source_id)
+            align = source.find("hh:align") if source is not None else None
+            if align is None:
+                continue
+            if align.get_attr("horizontal") != "CENTER":
+                if source_id not in centered:
+                    copy = properties.append_xml(source.to_xml())
+                    copy.set_attr("id", str(next_id))
+                    copy.find("hh:align").set_attr("horizontal", "CENTER")
+                    centered[source_id] = str(next_id)
+                    next_id += 1
+                para.set_attr("paraPrIDRef", centered[source_id])
+            for text in texts:
+                stripped = re.sub(r"^\s+", "", text.text_content())
+                for child in text.children:
+                    child.remove()
+                text.text = stripped
+                if stripped:
+                    break
+            for cache in [n for n in para.children if n.local_name == "linesegarray"]:
+                cache.remove()
+            changed += 1
+    properties.set_attr("itemCnt", str(len([n for n in properties.children if n.local_name == "paraPr"])))
+    return changed
+
+
 def set_masthead_title(doc: HwpxDocument, title: str) -> bool:
     """머리말의 `2025학년도 대학수학능력시험 문제지` 를 우리 회차명으로 바꾼다.
 
@@ -566,6 +616,46 @@ def set_masthead_elective(doc: HwpxDocument, elective: str) -> bool:
                 break
             sec.mark_modified()
     return found
+
+
+def normalize_page_totals(doc: HwpxDocument) -> int:
+    """바탕쪽의 고정 전체 쪽수만 TOTAL_PAGE 자동 필드로 전환한다(REV158).
+
+    Mac 한글에서 직접 저장한 전체 쪽수 필드와 실제 PDF로 확인한 형태다.
+    본문의 숫자나 다른 바탕쪽 내용은 건드리지 않는다. JS 사본과 함께 검증한다.
+    """
+    changed = 0
+    for path in doc.list_part_paths():
+        if not re.fullmatch(r"Contents/masterpage\d+\.xml", path):
+            continue
+        for cell in list(doc.get_part(path).root.iter()):
+            if cell.local_name != "tc":
+                continue
+            sub = cell.find("hp:subList")
+            paras = [n for n in sub.children if n.local_name == "p"] if sub is not None else []
+            if len(paras) != 2:
+                continue
+            nums = [n for n in paras[0].iter() if n.local_name == "autoNum"]
+            if len(nums) != 1 or nums[0].get_attr("numType") != "PAGE":
+                continue
+            runs = [n for n in paras[1].children if n.local_name == "run"]
+            if len(runs) != 1 or len(runs[0].children) != 1:
+                continue
+            text = runs[0].children[0]
+            if text.local_name != "t" or text.children or not re.fullmatch(r"[0-9]+", text.text or ""):
+                continue
+            # 원래 PAGE의 형식/컨트롤을 보존하고, 한글이 만든 TOTAL_PAGE 속성만 바꾼다.
+            ctrl = next((n for n in paras[0].iter()
+                         if n.local_name == "ctrl" and n.find("hp:autoNum") is not None), None)
+            if ctrl is None:
+                continue
+            copy = runs[0].insert_xml(0, ctrl.to_xml())
+            total = copy.find("hp:autoNum")
+            total.set_attr("numType", "TOTAL_PAGE")
+            total.set_attr("num", "1")
+            text.text = ""
+            changed += 1
+    return changed
 
 
 def strip_bindata(doc: HwpxDocument) -> int:
@@ -781,12 +871,14 @@ def open_template(path: Path | str) -> tuple[HwpxDocument, dict]:
     roles.update(read_roles_by_usage(path))
     doc = HwpxDocument.open(str(path))
     # ⚠️ 순서가 중요하다 — `clear_body()` 뒤에 부르면 머리말은 이미 지워진 뒤다.
+    center_masthead_subjects(doc)
     roles["_page_header"] = capture_page_headers(doc)
     roles["_line_mm"] = read_pad_step_mm(doc, roles)
     roles["_column_tops"] = read_column_tops_mm(doc)
     roles["_marks"] = capture_marks(doc)
     clear_body(doc)
     strip_bindata(doc)
+    normalize_page_totals(doc)
     return doc, roles
 
 

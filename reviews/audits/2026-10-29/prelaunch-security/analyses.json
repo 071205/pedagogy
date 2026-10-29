@@ -1,0 +1,23 @@
+{
+  "paging": {
+    "pageIndex": 1,
+    "pageSize": 1,
+    "total": 9
+  },
+  "analyses": [
+    {
+      "sonarObjectId": "fc829bff-cdfd-48b6-918c-4bb905a810b3",
+      "date": "2026-10-28T09:25:01+0000",
+      "events": [
+        {
+          "sonarObjectId": "AaGB1Gd58IMS-sCBEBxJ",
+          "category": "VERSION",
+          "name": "not provided"
+        }
+      ],
+      "projectVersion": "not provided",
+      "manualNewCodePeriodBaseline": false,
+      "revision": "9cff81dd7fa3501aed7e59c4849dcfe72997d473"
+    }
+  ]
+}

@@ -3,7 +3,7 @@
 - ID: `HANDOFF-2026-205`
 - 날짜: `2026-10-28`
 - 작성자: `Codex`
-- 상태: `needs-follow-up` (로컬 구현·독립 합의 완료, PR/CI 후속)
+- 상태: `needs-follow-up` (PR36 병합·main CI/Pages 완료, 실기기/운영 게이트 후속)
 - 영향 영역: `index`, `tests`, `docs`
 - 관련 이슈: `REV-2026-157`
 
@@ -51,9 +51,36 @@ index의 sheet CSS/markup 및 scrollSheetTo/선택·쪽·확대/설정 핸들러
   새 회귀에 추가했다. mobile153px/hit=true, desktop/tablet도hit=true. 별도 Sol 최종 합의 갱신.
 - 최종 정상3/RED10, guest 실제산출물3화면, CSS 보완 뒤 serve.py175/JSON12·public 통과.
   앞선 지면17/14·원본16/17·PDF/정적 통과와 마지막 좁은flex 보완의 검증 범위를 구별한다.
-  정확한 head의 전체검사는 PR36 CI에서 다시 확인한다.
+  정확한 head153bccf의 전체검사도 PR36 CI4개 모두 통과했다.
 - PR36 첫 head bdf31ae의 Verify40656600196은 최종 수정 때문에 취소했다. 성공으로 세지 않는다.
 - 수식/표/그림 합성4문항 A4 PDF2쪽도 공유 print 경로로 export해 PNG 시각 대조, 본문/화면 UI
-  제외·텍스트 경계·폰트8개 임베딩을 확인했다. 이 PDF는 flex 최종보완 전 bdf31ae에서 생성했고
-  마지막 변경은 인쇄에서 숨겨지는 UI 컨테이너의 flex뿐이며 인쇄 경로는 변경하지 않았다.
+  제외·텍스트 경계·폰트8개 임베딩을 확인했다. 최종 PDF는 head153bccf에서 다시 생성해 검토했고
+  [안전 요약](../../audits/2026-10-28/r8-preview/pdf-visual-check.json)에 source head/바이트 SHA를 보존했다.
   로컬 샘플: `/Users/huryul/.codex/visualizations/2026/10/27/01a17c3f-65f5-74c0-879a-8245f9a0f683/pedagogy-print-check/output/pdf/preview-print-synthetic.pdf`.
+
+## 새 채팅 재개 체크포인트
+
+- [PR36](https://github.com/071205/pedagogy/pull/36) 최종 head `153bccf`의 Verify40660384414 필수4job·PR Sonar 통과 후 merge `9cff81d`로 병합했다. 병합 후 main Verify40664044913도 필수4job 모두 success다.
+- Pages40664044930 success/built·핵심5파일 바이트 일치. 실제 공개 Pages에서 새 Chromium 문맥3개(PC/태블릿/모바일)·합성12문항6쪽의 처음/마지막 쪽·확대·원본 연결버튼 hit/높이·바깥 스크롤0을 확인했다. 실제 backend 요청은 차단했다.
+- [CI](../../audits/2026-10-28/r8-preview/pr36-ci.json) · [main CI](../../audits/2026-10-28/r8-preview/main-ci.json) · [Pages](../../audits/2026-10-28/r8-preview/pages-verification.json) · [공개 UI](../../audits/2026-10-28/r8-preview/published-ui.json).
+- 기존 guest worker는 갱신하지 않았다. 로컬 guest 산출물 검증과 공개 Pages 배포를 구별한다.
+- 다음도 사용자가 고른 시험지 미리보기·출력 완성도를 우선한다. A1 추가 backend 자동 진행 보류, 실제 시스템 인쇄/한글·Safari/iPad·main Sonar 보안 출시 게이트·R7/R8 운영 전체는 미완료다. 이 기록의 후속 문서 커밋은 PR36 검증 head와 구별한다.
+
+## 2026-10-29 레일 재구성 인계 (문서만)
+
+사용자는 출시 필수 작업 우선·안전/품질 유지·Astra는 레일 재구성만 수행하도록 요청했다.
+DEV-TOKEN-ROADMAP 상단에 범위 고정→핵심 여정→노출 기능 안전성→운영 준비→R10 첫 공개 판정→후속 확장을 기록했다. RAIL-ORDERS 최신 지시와 COMMERCIAL-LAUNCH 무료/유료 적용 범위도 맞췄다. 전체 staging/AI/결제/이관을 공통 선행 조건에서 분리하되 실제 노출 경로의 보안·저장·비용·개인정보와 기존 Sonar 게이트는 유지했다. 무료 제한 공개는 권장안이며 확정/출시 승인 아님.
+다음 Sol medium은 실제 노출 기능·지원 약속·기존 증거를 대조해 첫 공개 범위/공백표만 작성한다. 이번에 코드·원격 설정·배포·실제 출시 상태는 바꾸지 않았다. 문서 위생/공백 검사 통과. Claude 독립 검토를 수행했다고 주장하지 않는다.
+
+## 2026-10-29 Sol 범위 대조 완료
+
+FIRST-RELEASE-SCOPE에 코드 노출·기존 검증 증거·공백과 A/B/C안을 기록했다. 상용 check:launch 원래 프로세스는8건으로 실패(후속 검색 명령의 shell exit0과 구분). 코드·원격 변경 없음. Pages 호스팅/소스 보호·직접 document URL·HWPX 약속·AI 단건과 일괄OFF 차이를 반영했다. 다음 사용자 범위 선택과 main Sonar 실제 finding 읽기 전용 분류. 새 독립 검토/원격 검증을 수행한 것으로 쓰지 않는다.
+
+## 2026-10-29 최종 재개 체크포인트 — Astra high 레일 확정
+
+사용자가 세 기능 모두 첫 출시 포함을 확정하고 출시 전/후로 레일 분리를 요청했다. 이전 A/B/C 선택 대기는 폐기했다. DEV-TOKEN-ROADMAP 상단에 전1 보안→전2 핵심여정→전3 계정/파일→전4 AI→전5 운영/조건부 결제→전6 출시 판정과 후1~4 고도화를 기록했다. FIRST-RELEASE-SCOPE/RAIL-ORDERS/COMMERCIAL-LAUNCH/INDEX를 맞췄다. 기존 완료 증거·high/독립 검토·과금 승인·도메인 보류 유지. 무료/유료는 별개 미결이며 AI를 출시 후로 미루지 않는다.
+이번은 문서 설계만. 다음 Sol medium은 전1 최신 Sonar finding 읽기 전용 대조부터 시작한다. 코드/원격 설정/배포/실호출 없음. 문서 위생·공백·폐기 선택안 잔존을 확인한다. 외부 독립 검토를 받은 것으로 주장하지 않는다.
+
+## 2026-10-29 출시 전2 연결 검증 후속
+
+[새 증거](../../audits/2026-10-29/prelaunch-print/README.md): 합성4문항 실제 import→본문수정→로컬저장→새로고침 자동편집기복원→JSON export 전체동일 확인. 별도 일반 Chrome에 실제 파일선택창으로 재가져오기→앱 인쇄→native 인쇄창2쪽/PDF/여백없음→저장→앱복귀 확인. 실제 PDF A4 2쪽/4문항4정답·수식/표/그림·텍스트 경계/폰트8개 포함·PNG시각 대조 완료. 자동 probe의 복원/JSON 형식 가정2건은 하네스 오류로 수정, 제품 코드 변경 없음. 임시프로필·서버 정리 성공. Safari/iPad/한글·실계정/실프린터/인간 관찰은 이번 증거가 아니며 전2 전체완료로 확대하지 않는다.

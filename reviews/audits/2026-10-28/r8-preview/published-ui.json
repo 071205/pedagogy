@@ -1,0 +1,478 @@
+{
+  "url": "https://071205.github.io/pedagogy/",
+  "mergeCommit": "9cff81dd7fa3501aed7e59c4849dcfe72997d473",
+  "backendRequests": "blocked",
+  "results": [
+    {
+      "name": "desktop",
+      "original": {
+        "height": 638,
+        "scrollHeight": 638,
+        "rect": {
+          "top": 196,
+          "bottom": 834
+        },
+        "connectButtonHit": true,
+        "hidden": false
+      }
+    },
+    {
+      "name": "desktop",
+      "initial": {
+        "selected": "1",
+        "pageCount": 6,
+        "zoomHittable": true,
+        "navHittable": true,
+        "bar": {
+          "top": 56,
+          "bottom": 111,
+          "height": 55,
+          "scrollTop": 0,
+          "scrollHeight": 54,
+          "clientHeight": 54
+        },
+        "pane": {
+          "top": 56,
+          "bottom": 834,
+          "height": 778,
+          "scrollTop": 0,
+          "scrollHeight": 778,
+          "clientHeight": 778
+        },
+        "scroll": {
+          "top": 196,
+          "bottom": 834,
+          "height": 638,
+          "scrollTop": 0,
+          "scrollHeight": 5494,
+          "clientHeight": 638
+        },
+        "editor": {
+          "top": 56,
+          "bottom": 834,
+          "height": 778,
+          "scrollTop": 0,
+          "scrollHeight": 778,
+          "clientHeight": 778
+        },
+        "main": {
+          "top": 56,
+          "bottom": 834,
+          "height": 778,
+          "scrollTop": 0,
+          "scrollHeight": 778,
+          "clientHeight": 778
+        },
+        "windowY": 0
+      },
+      "last": {
+        "selected": "6",
+        "pageCount": 6,
+        "zoomHittable": true,
+        "navHittable": true,
+        "bar": {
+          "top": 56,
+          "bottom": 111,
+          "height": 55,
+          "scrollTop": 0,
+          "scrollHeight": 54,
+          "clientHeight": 54
+        },
+        "pane": {
+          "top": 56,
+          "bottom": 834,
+          "height": 778,
+          "scrollTop": 0,
+          "scrollHeight": 778,
+          "clientHeight": 778
+        },
+        "scroll": {
+          "top": 196,
+          "bottom": 834,
+          "height": 638,
+          "scrollTop": 4566,
+          "scrollHeight": 5494,
+          "clientHeight": 638
+        },
+        "editor": {
+          "top": 56,
+          "bottom": 834,
+          "height": 778,
+          "scrollTop": 0,
+          "scrollHeight": 778,
+          "clientHeight": 778
+        },
+        "main": {
+          "top": 56,
+          "bottom": 834,
+          "height": 778,
+          "scrollTop": 0,
+          "scrollHeight": 778,
+          "clientHeight": 778
+        },
+        "windowY": 0
+      },
+      "source": {
+        "selected": "5",
+        "pageCount": 6,
+        "zoomHittable": true,
+        "navHittable": true,
+        "bar": {
+          "top": 56,
+          "bottom": 111,
+          "height": 55,
+          "scrollTop": 0,
+          "scrollHeight": 54,
+          "clientHeight": 54
+        },
+        "pane": {
+          "top": 56,
+          "bottom": 834,
+          "height": 778,
+          "scrollTop": 0,
+          "scrollHeight": 778,
+          "clientHeight": 778
+        },
+        "scroll": {
+          "top": 196,
+          "bottom": 834,
+          "height": 638,
+          "scrollTop": 1828,
+          "scrollHeight": 2466,
+          "clientHeight": 638
+        },
+        "editor": {
+          "top": 56,
+          "bottom": 834,
+          "height": 778,
+          "scrollTop": 0,
+          "scrollHeight": 778,
+          "clientHeight": 778
+        },
+        "main": {
+          "top": 56,
+          "bottom": 834,
+          "height": 778,
+          "scrollTop": 0,
+          "scrollHeight": 778,
+          "clientHeight": 778
+        },
+        "windowY": 0
+      }
+    },
+    {
+      "name": "tablet",
+      "original": {
+        "height": 139,
+        "scrollHeight": 139,
+        "rect": {
+          "top": 370.5,
+          "bottom": 510.875
+        },
+        "connectButtonHit": true,
+        "hidden": false
+      }
+    },
+    {
+      "name": "tablet",
+      "initial": {
+        "selected": "1",
+        "pageCount": 6,
+        "zoomHittable": true,
+        "navHittable": true,
+        "bar": {
+          "top": 186,
+          "bottom": 241,
+          "height": 55,
+          "scrollTop": 0,
+          "scrollHeight": 54,
+          "clientHeight": 54
+        },
+        "pane": {
+          "top": 186,
+          "bottom": 1024,
+          "height": 838,
+          "scrollTop": 0,
+          "scrollHeight": 838,
+          "clientHeight": 838
+        },
+        "scroll": {
+          "top": 370.5,
+          "bottom": 1024,
+          "height": 653.5,
+          "scrollTop": 0,
+          "scrollHeight": 6356,
+          "clientHeight": 654
+        },
+        "editor": {
+          "top": 131,
+          "bottom": 1024,
+          "height": 893,
+          "scrollTop": 0,
+          "scrollHeight": 893,
+          "clientHeight": 893
+        },
+        "main": {
+          "top": 131,
+          "bottom": 1024,
+          "height": 893,
+          "scrollTop": 0,
+          "scrollHeight": 893,
+          "clientHeight": 893
+        },
+        "windowY": 0
+      },
+      "last": {
+        "selected": "6",
+        "pageCount": 6,
+        "zoomHittable": true,
+        "navHittable": true,
+        "bar": {
+          "top": 186,
+          "bottom": 241,
+          "height": 55,
+          "scrollTop": 0,
+          "scrollHeight": 54,
+          "clientHeight": 54
+        },
+        "pane": {
+          "top": 186,
+          "bottom": 1024,
+          "height": 838,
+          "scrollTop": 0,
+          "scrollHeight": 838,
+          "clientHeight": 838
+        },
+        "scroll": {
+          "top": 370.5,
+          "bottom": 1024,
+          "height": 653.5,
+          "scrollTop": 5289,
+          "scrollHeight": 6356,
+          "clientHeight": 654
+        },
+        "editor": {
+          "top": 131,
+          "bottom": 1024,
+          "height": 893,
+          "scrollTop": 0,
+          "scrollHeight": 893,
+          "clientHeight": 893
+        },
+        "main": {
+          "top": 131,
+          "bottom": 1024,
+          "height": 893,
+          "scrollTop": 0,
+          "scrollHeight": 893,
+          "clientHeight": 893
+        },
+        "windowY": 0
+      },
+      "source": {
+        "selected": "5",
+        "pageCount": 6,
+        "zoomHittable": true,
+        "navHittable": true,
+        "bar": {
+          "top": 186,
+          "bottom": 241,
+          "height": 55,
+          "scrollTop": 0,
+          "scrollHeight": 54,
+          "clientHeight": 54
+        },
+        "pane": {
+          "top": 186,
+          "bottom": 1024,
+          "height": 838,
+          "scrollTop": 0,
+          "scrollHeight": 838,
+          "clientHeight": 838
+        },
+        "scroll": {
+          "top": 510.875,
+          "bottom": 1024,
+          "height": 513.125,
+          "scrollTop": 5118,
+          "scrollHeight": 6356,
+          "clientHeight": 513
+        },
+        "editor": {
+          "top": 131,
+          "bottom": 1024,
+          "height": 893,
+          "scrollTop": 0,
+          "scrollHeight": 893,
+          "clientHeight": 893
+        },
+        "main": {
+          "top": 131,
+          "bottom": 1024,
+          "height": 893,
+          "scrollTop": 0,
+          "scrollHeight": 893,
+          "clientHeight": 893
+        },
+        "windowY": 0
+      }
+    },
+    {
+      "name": "mobile",
+      "original": {
+        "height": 159,
+        "scrollHeight": 159,
+        "rect": {
+          "top": 491.5,
+          "bottom": 651.25
+        },
+        "connectButtonHit": true,
+        "hidden": false
+      }
+    },
+    {
+      "name": "mobile",
+      "initial": {
+        "selected": "1",
+        "pageCount": 6,
+        "zoomHittable": true,
+        "navHittable": true,
+        "bar": {
+          "top": 263,
+          "bottom": 362,
+          "height": 99,
+          "scrollTop": 0,
+          "scrollHeight": 98,
+          "clientHeight": 98
+        },
+        "pane": {
+          "top": 263,
+          "bottom": 812,
+          "height": 549,
+          "scrollTop": 0,
+          "scrollHeight": 549,
+          "clientHeight": 549
+        },
+        "scroll": {
+          "top": 491.5,
+          "bottom": 812,
+          "height": 320.5,
+          "scrollTop": 0,
+          "scrollHeight": 2975,
+          "clientHeight": 321
+        },
+        "editor": {
+          "top": 208,
+          "bottom": 812,
+          "height": 604,
+          "scrollTop": 0,
+          "scrollHeight": 604,
+          "clientHeight": 604
+        },
+        "main": {
+          "top": 208,
+          "bottom": 812,
+          "height": 604,
+          "scrollTop": 0,
+          "scrollHeight": 604,
+          "clientHeight": 604
+        },
+        "windowY": 0
+      },
+      "last": {
+        "selected": "6",
+        "pageCount": 6,
+        "zoomHittable": true,
+        "navHittable": true,
+        "bar": {
+          "top": 263,
+          "bottom": 362,
+          "height": 99,
+          "scrollTop": 0,
+          "scrollHeight": 98,
+          "clientHeight": 98
+        },
+        "pane": {
+          "top": 263,
+          "bottom": 812,
+          "height": 549,
+          "scrollTop": 0,
+          "scrollHeight": 549,
+          "clientHeight": 549
+        },
+        "scroll": {
+          "top": 491.5,
+          "bottom": 812,
+          "height": 320.5,
+          "scrollTop": 2471,
+          "scrollHeight": 2975,
+          "clientHeight": 321
+        },
+        "editor": {
+          "top": 208,
+          "bottom": 812,
+          "height": 604,
+          "scrollTop": 0,
+          "scrollHeight": 604,
+          "clientHeight": 604
+        },
+        "main": {
+          "top": 208,
+          "bottom": 812,
+          "height": 604,
+          "scrollTop": 0,
+          "scrollHeight": 604,
+          "clientHeight": 604
+        },
+        "windowY": 0
+      },
+      "source": {
+        "selected": "6",
+        "pageCount": 6,
+        "zoomHittable": true,
+        "navHittable": true,
+        "bar": {
+          "top": 263,
+          "bottom": 362,
+          "height": 99,
+          "scrollTop": 0,
+          "scrollHeight": 98,
+          "clientHeight": 98
+        },
+        "pane": {
+          "top": 263,
+          "bottom": 812,
+          "height": 549,
+          "scrollTop": 0,
+          "scrollHeight": 549,
+          "clientHeight": 549
+        },
+        "scroll": {
+          "top": 651.25,
+          "bottom": 812,
+          "height": 160.75,
+          "scrollTop": 2421,
+          "scrollHeight": 2975,
+          "clientHeight": 161
+        },
+        "editor": {
+          "top": 208,
+          "bottom": 812,
+          "height": 604,
+          "scrollTop": 0,
+          "scrollHeight": 604,
+          "clientHeight": 604
+        },
+        "main": {
+          "top": 208,
+          "bottom": 812,
+          "height": 604,
+          "scrollTop": 0,
+          "scrollHeight": 604,
+          "clientHeight": 604
+        },
+        "windowY": 0
+      }
+    }
+  ]
+}

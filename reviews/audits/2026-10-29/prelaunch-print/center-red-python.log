@@ -1,0 +1,17 @@
+틀 읽기 대조 통과 — 역할 22종이 파이썬과 같습니다
+문항 방출 대조 통과 — 문단 13개가 파이썬과 같습니다
+문항 배치 대조 통과 — 표본 7종이 파이썬과 같습니다
+표 개체 대조 통과 — 표 3개·개체 id 가 파이썬과 같습니다
+  ❌ 구역 0 문단 0
+      파이썬 …ne":1,"lineNumberShape":1,"lineShape":3,"lineseg":6,"linesegarray":6,"margin":1,"masterPage":2,"noteLine":2,"noteSpacing":2,"numbering":2,"offset":6,"orgSz":3,"outMargin":6,"p":7,"pageBorderFill":3,"p
+      JS     …ne":1,"lineNumberShape":1,"lineShape":3,"lineseg":5,"linesegarray":5,"margin":1,"masterPage":2,"noteLine":2,"noteSpacing":2,"numbering":2,"offset":6,"orgSz":3,"outMargin":6,"p":7,"pageBorderFill":3,"p
+  ❌ 구역 0 문단 26
+      파이썬 …:2,"inMargin":2,"line":4,"lineShape":8,"lineseg":12,"linesegarray":10,"offset":8,"orgSz":8,"outMargin":10,"p":11,"pos":10,"pt0":4,"pt1":4,"pt2":4,"pt3":4,"rect":4,"renderingInfo":8,"rotMatrix":8,"rota
+      JS     …:2,"inMargin":2,"line":4,"lineShape":8,"lineseg":10,"linesegarray":8,"offset":8,"orgSz":8,"outMargin":10,"p":11,"pos":10,"pt0":4,"pt1":4,"pt2":4,"pt3":4,"rect":4,"renderingInfo":8,"rotMatrix":8,"rotat
+  ❌ 구역 1 문단 0
+      파이썬 …:1,"equation":1,"flip":2,"footNotePr":1,"fwSpace":5,"grid":1,"inMargin":3,"line":1,"lineNumberShape":1,"lineShape":2,"lineseg":8,"linesegarray":7,"margin":1,"masterPage":2,"noteLine":2,"noteSpacing":2
+      JS     …:1,"equation":1,"flip":2,"footNotePr":1,"fwSpace":4,"grid":1,"inMargin":3,"line":1,"lineNumberShape":1,"lineShape":2,"lineseg":7,"linesegarray":6,"margin":1,"masterPage":2,"noteLine":2,"noteSpacing":2
+  ❌ Python 과목 제목 가운데 정렬/공유 서식 보존
+  ❌ 과목 제목 Python/JS 정합
+
+시험지가 갈라졌습니다 — 5건
