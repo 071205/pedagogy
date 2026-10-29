@@ -298,3 +298,6 @@ Firestore403/SERVICE_DISABLED·bucket 없음·Google provider GET404·billing fa
 
 - 2026-10-29 후속: 공개 문서 편집기 HWPX 버튼은 backend 차단 상태에서도 동작했고 파일 ZIP이 실제 Mac 한글 검증 기본 표본과 동일했다. 로컬 서버 필수라는 낡은 안내 REV160은 문구만 정정, 로컬 UI/Claude 독립 검토 완료. 후속 PR/Pages 반영은 HANDOFF207에서 추적한다.
 - 같은 출시 전2 문서 출력에서 REV161 GIF 그림 누락도 재현·수정했다. 브라우저/Python 미지원5종 거절·PNG/JPEG 정상/ZIP 정합·서버 폴백·HWPX12·회귀175·Claude 최종 합의. 후속 PR/Pages 확인은207을 따른다. 실계정·iOS/Windows·AI/전체 출시는 여전히 미완료.
+
+- 2026-10-29 PR40 최종: head f098170 CI4/PR Sonar 성공→merge1bae434, main CI4/Pages built/동일 revision Sonar OK, 공개 문서 UI GIF 거절·PNG 다운로드 그림 BinData1 확인. [HANDOFF207](2026-10-29-mock-hwpx-total-pages.md)·[증거](../../audits/2026-10-29/prelaunch-print/pr40-final-verification.json). 새 PNG/JPEG 표본 native 한글, Windows/iOS·실계정은 여전히 미검증.
+- 사용자 후속 REA 질문: 현재 출시 코드와 분리된 H1 연구 브랜치 `claude/h1-hwp-research`/10a0914의 분석·사이트 설계를 확인하고 [출시 적용 계획](../../../docs/PRELAUNCH-HWPX-REA-RENDER-PLAN.md)을 작성했다. 현 main에는 연구 브랜치의 REV129/130 수정이 병합되지 않았으므로 재현/범위 판정 뒤 전2 작은 묶음으로 다룬다. REA 재분석이나 H1 전체 병합을 완료로 세지 않는다.

@@ -76,3 +76,9 @@ PR38 head e3b402f의 필수4개/PR Sonar 성공 후 merge0fbe60420cfde5f89a2b357
 ### 후속 PR40 첫 품질 게이트
 
 PR40 head ac882c9의 HWPX/secrets CI 성공, Sonar 새 보안·신뢰성1/OK지만 유지보수성4/ERROR(신규 CODE_SMELL52). 기존 단일행 validate를 직접 건드린 결과 전체 함수가 새 코드로 분류된 것이 주원인이다. [원격 조건](../../audits/2026-10-29/prelaunch-print/pr40-initial-sonar.json). 정책/임계값을 약화하지 않고 그 원형 줄을 main과 같게 되돌렸다. `window.validate` 후처리로 정규화된 image만 검사하고 CSP 해시만 다시 계산했다. [독립 검토](../../audits/2026-10-29/prelaunch-print/claude-document-image-wrapper-final.md)·직접 UI/서버 폴백·PNG/JPEG·5종 거절·정적/공개/회귀175 재통과. 새 head CI/Sonar까지 확인한다.
+
+### PR40 병합 main·공개 그림 검증
+
+PR40 최신 head `f098170`은 CI 필수4개와 PR Sonar가 성공했고, `1bae4347b7eb900b7a279b427327af74668bfe33`으로 squash 병합됐다. 같은 revision의 main CI4개(40889188409)·Pages(40889187048, `built`)·Sonar gate `OK`/신규 보안·신뢰성·유지보수성 1을 확인했다. 공개 `document-editor.html`은 이 작업 사본과 SHA-256/bytes가 같고, 실제 공개 UI에서 GIF 입력은 HWPX 이전 거절, PNG는 미리보기·다운로드 성공. 생성 HWPX 12파트에 그림 BinData1/`hp:pic`1, 페이지 오류0. [요약 증거](../../audits/2026-10-29/prelaunch-print/pr40-final-verification.json).
+
+새 PNG/JPEG 그림 표본을 Mac 한글에서 직접 인쇄한 것은 이번 PR 검증에 포함되지 않았다. PR38 일반 문서 native3표본4쪽 근거와 혼동하지 않는다. Windows 한글·iPad/iOS·실계정 문서 복귀는 계속 전2/전3 미검증이다. 별도 REA/출력 검증 적용 계획은 [계획](../../../docs/PRELAUNCH-HWPX-REA-RENDER-PLAN.md)을 따른다.

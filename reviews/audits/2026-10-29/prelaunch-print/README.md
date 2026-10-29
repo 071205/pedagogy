@@ -72,3 +72,7 @@ Sonar 새7건은 [CODE_SMELL](sonar-new-maintenance.json): 문자열 상수/함�
 ## PR40 첫 Sonar 유지보수 게이트와 수정
 
 [첫 분석](pr40-initial-sonar.json): head ac882c9의 새 보안·신뢰성 평가는 1/OK였으나, 기존 한 줄짜리 `validate`를 수정하자 함수 전체가 새 코드가 되어 유지보수성 4/ERROR·CODE_SMELL 52건으로 차단됐다. 정책/품질 게이트를 바꾸지 않고 원래 검증 함수 줄을 main과 동일하게 되돌린 뒤, 정규화된 결과의 image 블록만 `window.validate` 래퍼에서 검사한다. [Claude 독립 재검토](claude-document-image-wrapper-final.md)는 모든 사용자 호출 경로·PNG/JPEG/GIF·서버 폴백 보존에 합의했고, 제안에 따라 함수 선언 직접 재할당 대신 전역 프로퍼티를 갱신했다. 이후 [브라우저/Python 정합](document-image-browser-parity.log)·[CSP](document-image-csp.log)·[정적](document-image-static.log)·[공개](document-image-public.log)·[회귀175](document-image-regression175.log)·실제 UI/폴백을 재확인했다. PR 최신 head의 Sonar/CI 결과는 인계207에 이어 기록한다.
+
+## PR40 최종 병합·공개 검증
+
+[검증 요약](pr40-final-verification.json): PR head `f098170` CI4/Sonar 통과 → merge `1bae434` → 동일 revision main CI4, Pages built, Sonar gate OK. 공개 문서 편집기 파일은 로컬과 SHA-256/bytes 동일. 공개 브라우저에서 GIF를 출력 전 거절하고 PNG 미리보기/다운로드 후 HWPX 그림 BinData1/`hp:pic`1을 확인했다. 새 그림 표본의 실제 한글 출력은 아직 미검증이다.

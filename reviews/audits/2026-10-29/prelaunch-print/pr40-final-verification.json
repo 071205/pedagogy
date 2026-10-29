@@ -1,0 +1,74 @@
+{
+  "pr": {
+    "url": "https://github.com/071205/pedagogy/pull/40",
+    "head": "f0981703d3a88d7ad6bc91bdf7bfa8588d677528",
+    "mergeCommit": "1bae4347b7eb900b7a279b427327af74668bfe33"
+  },
+  "ci": {
+    "pr": {
+      "run": 40884719785,
+      "jobs": {
+        "hwpx": "success",
+        "secrets": "success",
+        "verify": "success",
+        "cross-platform": "success"
+      }
+    },
+    "main": {
+      "run": 40889188409,
+      "jobs": {
+        "hwpx": "success",
+        "verify": "success",
+        "secrets": "success",
+        "cross-platform": "success"
+      }
+    }
+  },
+  "pages": {
+    "run": 40889187048,
+    "status": "built",
+    "commit": "1bae4347b7eb900b7a279b427327af74668bfe33",
+    "documentEditorSha256": "da6ec489581516333185aa5da5adb2e19c3ab23c2fdd4d6cb7aa621ae8f5d3e2",
+    "publishedBytesEqual": true
+  },
+  "sonar": {
+    "revision": "1bae4347b7eb900b7a279b427327af74668bfe33",
+    "gate": "OK",
+    "conditions": {
+      "new_reliability_rating": {
+        "status": "OK",
+        "actualValue": "1"
+      },
+      "new_security_rating": {
+        "status": "OK",
+        "actualValue": "1"
+      },
+      "new_maintainability_rating": {
+        "status": "OK",
+        "actualValue": "1"
+      },
+      "new_duplicated_lines_density": {
+        "status": "OK",
+        "actualValue": "0.0"
+      },
+      "new_security_hotspots_reviewed": {
+        "status": "OK",
+        "actualValue": "100.0"
+      }
+    }
+  },
+  "publicUi": {
+    "pngPreviewVisible": true,
+    "gifRejectedBeforeExport": true,
+    "downloadStatus": "한글 HWPX 파일을 내보냈습니다",
+    "hwpxParts": 12,
+    "imageBinData": 1,
+    "pictureElements": 1,
+    "pageErrors": [],
+    "backendBlockedRequests": 0
+  },
+  "limitations": [
+    "새 PNG/JPEG 그림 표본의 실제 한글 출력은 미검증",
+    "Windows 한글·iPad/iOS·실계정 문서 복귀는 미검증"
+  ]
+}
