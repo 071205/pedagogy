@@ -1,6 +1,6 @@
 # 첫 공개 범위·증거 공백표
 
-기준일: 2026-10-29 · 코드 기준 PR36 merge9cff81d와 동일 제품 코드.
+기준일: 2026-10-29 · 코드 기준 PR36 merge9cff81d + REV158 쪽수·REV159 제목 정렬 수정 검증(인계207).
 저장소 코드/기존 인계를 대조한 계획 문서다. 새 실계정·원격 설정 점검이나 출시 승인은 아니다.
 실행 순서·상태의 원본은 [통합 레일](DEV-TOKEN-ROADMAP.md)이다.
 
@@ -16,16 +16,16 @@
 | 기능/조건 | 현재 코드·공개 경로 | 재사용할 증거 | 공개 전 남은 확인/처리 |
 | --- | --- | --- | --- |
 | 편집·JSON·문제집 구성 | index의 파일 불러오기/전체 내보내기, composition UI | HANDOFF197 정상20/RED7·UI15·실계정2권 ACK/재진입·원본 보존 | 선택한 공개 산출물에서 대표 사용자 여정으로 묶어 확인. 신규 전체 재검토 불필요 |
-| 미리보기·PDF/인쇄 | index doPrint·쪽/확대/설정/원본 | HANDOFF200/202/205, 정상3화면/RED10·회귀175·합성PDF2쪽·배포UI3화면 | 첫 지원을 데스크톱 Chrome PDF로 제안. 실제 브라우저 인쇄창→PDF 저장 대표1회, 사용자 관찰/출력 결과 확인. 실제 프린터 지원 약속은 별도 확인 |
+| 미리보기·PDF/인쇄 | index doPrint·쪽/확대/설정/원본 | HANDOFF200/202/205, 정상3화면/RED10·회귀175·합성PDF2쪽·배포UI3화면 | 2026-10-29 실제 Chrome·Safari 인쇄창→PDF 저장/복귀·합성4문항2쪽 확인(감사prelaunch-print). iPad/iOS·사용자 관찰·실제 프린터 지원 약속은 별도 확인 |
 | 로컬 자료·원문 보관 | localStorage/IDB, 원문 관리 | HANDOFF197 영속표시·200 PDF Blob/참조/재진입·202 복구 | 로컬 저장은 백업 보장이 아님. JSON에 원문/Blob 전체가 들어간다고 안내하지 않기. 내보내기/재가져오기와 원문 재연결 범위 명시 |
 | 로그인·문제집/모의고사 동기화 | loginBtn, libraryCloudSchema/setRevisionSchema/mockCloudSchema=1 | HANDOFF170/196/197 Rules·충돌·실계정 저장/복원 | 유효 증거를 재사용하고 변경 영향/부족한 계정 격리·모의고사 재진입을 보완. 첫 출시 필수 |
 | 이미지·삭제/탈퇴 | 기존 Storage 및 데이터 관리 경로 | Rules/자동 검사 기록, 운영 체크리스트 | 합성 파일/전용 테스트 계정으로 업로드·타계정 거절·삭제/재인증/실패 안내의 실제 증거 필요. 운영 자료 삭제 금지 |
 | AI | 기존 단건 요청/문서 AI 경로 존재, U2 유료 일괄 추출은 비활성 | HANDOFF197의 paid 차단은 일괄 구성만 증명 | 첫 출시 필수. 단건/문서/일괄 등 제공 경로의 공급자 성공·실패·권한·비용·D3 검증. 일괄OFF를 완료로 쓰지 않기 |
-| 문서 편집기·HWPX·모의고사 | document-editor는 메뉴 입구 없어도 직접 URL 공개, legal은 HWPX 약속 | 기존 HWPX CI·REV075 대역3엔진 왕복 | 핵심 N제 출력과 별도 범위. 제외 시 메뉴뿐 아니라 URL/안내 조정 검토. HWPX 포함이면 실제 한글 열기/내용 대조, 로그인 포함 문서 왕복 REV075 재현 확인 |
+| 문서 편집기·HWPX·모의고사 | document-editor는 메뉴 입구 없어도 직접 URL 공개, legal은 HWPX 약속 | 기존 HWPX CI·REV075 대역3엔진 왕복 | 핵심 N제 출력과 별도 범위. 제외 시 메뉴뿐 아니라 URL/안내 조정 검토. Mac 한글 시험지 9문항3쪽 실제 열기/수식·그림/PDF/왕복 저장 확인, 고정 분모 REV158·사용자 지적 제목 정렬 REV159 수정/실제 출력 검증(207). 문서 편집기 별도 표본·Windows 범위/로그인 포함 문서 왕복 REV075는 남음 |
 | App Check·운영 origin | service-config site key 빈 값, Worker 설정 enforce 아님/localhost 존재 | A0는 SDK 초기화·합성 정상/거절만 확인 | 첫 출시 전 기존 보안 계약에 맞는 실제 정상/거절 확인. A0 성공을 서버 enforcement 증거로 쓰지 않음 |
 | 문의·개인정보 안내 | supportEmail/legalVersion 빈 값, legal 운영자/책임자/수탁자 TODO | 현재 legal 소스·check:launch 진단 | 실제 운영자/공개 문의처와 제공 기능에 맞는 처리 안내 확정 필요. 유료 사업 정보와 구분, 임의 채우지 않기 |
 | 호스트·소스 공개 경계 | Pages 기존 서비스 + guest workers.dev 별도 | HANDOFF201 guest233자산·헤더·private404,205 Pages5파일 일치 | SECURITY-ARCHITECTURE의 Pages 상용 호스팅 제한/소스 보호 계약 유지. 현재 Pages를 새 출시 호스트로 자동 확정하지 않기. guest 최신 제품코드 아님. 도메인 구매 보류 유지 |
-| 보안 검사·이력 | main Sonar 기존 Security 실패, REV147 과거 IPC 토큰 잔여 | HANDOFF201 main 판정·REV147 수명/endpoint 조사·신규로그 방어 | main 실제 finding별 공개 영향·수정/오탐 근거 판정. PR Sonar 성공으로 대체 불가. REV147은 별도 잔여위험 판단, 이력 rewrite 자동 실행 금지 |
+| 보안 검사·이력 | main Sonar 판정/원격반영 완료, REV147 과거 IPC 토큰 잔여 | HANDOFF201 main 판정·REV147 수명/endpoint 조사·신규로그 방어 | HANDOFF206에서 최신 main23건 오탐17/제한적 수용6 원격반영·미해결0/gateOK 확인. 새 finding은 근거로 판정. REV147은 별도 잔여위험 판단, 이력 rewrite 자동 실행 금지 |
 | 장애·복구·비용 | 배포/회귀 도구 및 저장 복구 계약 존재 | 기존 CI4개·Pages 바이트 일치·STORAGE-CONTRACT | 공개 범위별 오류 파악/지원 담당·백업/복구·이전 배포 복귀 절차 확인. 알림을 지출 상한으로 표현하지 않음 |
 
 ## 검사 해석

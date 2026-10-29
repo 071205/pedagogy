@@ -1,0 +1,25 @@
+{
+  "scope": "Actual macOS Safari native UI, local mode, same Chrome JSON export imported",
+  "importProblems": 4,
+  "editedHeader": "PEDAGOGY · Safari 저장 확인",
+  "headerAndEditedBodyPreservedAfterReload": true,
+  "nativePrint": {
+    "pages": 2,
+    "paper": "A4 210x297mm",
+    "scalePercent": 100,
+    "browserHeaderFooter": false,
+    "background": false,
+    "physicalPrinterSelected": false,
+    "saveAsPdf": true
+  },
+  "pdfPages": 2,
+  "pdfBytes": 60656,
+  "pdfSha256": "ed4140250ed278e90d44c5675a3b1d897e6e6af01e03cc48e0d897faea0dadc4",
+  "visualReview": "both rendered pages; equations/table/image/answers present",
+  "limits": [
+    "not iPad/iOS",
+    "not account sync",
+    "not physical printer"
+  ],
+  "toolIssue": "file picker/save field state required fresh AX state and keyboard selection; no product patch"
+}

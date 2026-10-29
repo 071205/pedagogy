@@ -196,3 +196,13 @@ node scripts/hwp-to-pdf.mjs 결과.hwpx        # 한글의 '파일 → PDF로 �
 
 ⚠️ **사본은 갈라진다** — `npm run test:hwpx-browser` 가 같은 문서 JSON 을 양쪽에 넣어
 결과를 대조한다. 한쪽만 고치지 말 것.
+
+## 2026-10-29 · 시험지 전체 쪽수 (REV158)
+
+**버전별 실물 관찰:** Mac 한글 입력→상용구→전체 쪽수로 직접 저장하면 run 안 ctrl/autoNum의 `numType="TOTAL_PAGE" num="1"`과 DIGIT autoNumFormat을 만든다. PAGE와 같은 자리이며 num은 조판 전 캐시다. 원본 시험지 masterpage0~3의 리터럴20을 이 필드로 바꾸자 실제3쪽 PDF에1/3·2/3·3/3이 출력됐다. 한글 자체 저장→닫기/재열기 PDF의3쪽 PNG도 동일했다.
+
+**우리 생성기 정책:** JS/Python 틀 열기에서 바탕쪽의 PAGE 쪽번호 문단과 숫자만 든 다음 분모 문단인 셀만 전환한다. 본문 숫자/다른 셀·양식/원본 틀 자산은 보존한다. rep.pages는 계획 쪽나눔 수라 총수로 쓰지 않는다. 자동 필드가 이미 있으면 다시 넣지 않는다. Windows 한글 호환은 이번 관찰에서 주장하지 않는다. [증거/해시/한글 버전](../reviews/audits/2026-10-29/prelaunch-print/hwpx-native-verification.json)·[검사/RED](../reviews/audits/2026-10-29/prelaunch-print/README.md).
+
+### 과목 제목 정렬 (REV159)
+
+원본 틀의 과목 제목은 JUSTIFY+선행 공백이라 확률과 통계→기하처럼 길이가 달라지면 치우친다. 제목 단독 문단에만 원래 문단 모양의 CENTER 사본을 참조하고 앞공백/낡은 linesegarray를 제거한다. 공유 서식/글자 모양은 유지하며 이어지는 쪽 머리말을 capture하기 전에 처리한다. 실제 Mac 한글의 공통/이어지는 쪽/기하 제목과 재저장 PDF로 확인했고 [측정 근거](../reviews/audits/2026-10-29/prelaunch-print/hwpx-centering-verification.json)를 보존했다.

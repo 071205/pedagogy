@@ -1,0 +1,28 @@
+
+> test:review-contracts
+> node scripts/build-hwpx-templates.mjs --check && node scripts/check-review-contracts.mjs
+
+틀 인라인 최신 확인 — exam-template-data.js · blank-template-data.js
+PASS folder tombstone masks membership from either source (schema 0)
+PASS folder tombstone masks membership from either source (schema 1)
+PASS explicit empty cloud folderId beats stale migration map (schema 1)
+PASS capability off never sends folderId or changes set for local move
+PASS A migration distinguishes absent field from explicit cloud no-folder
+PASS delete and immediate restore use same queue, delete errors propagate
+PASS account switch reloads local folder metadata
+PASS mock JSON image is bounded by decoded 2 MiB
+PASS actual selection Undo and Redo survive delayed tombstone snapshot
+PASS 401 selected deletes retain only failed ID and permit retry
+PASS concurrent prefs save preserves remote tombstones and clears 401 memberships in chunks
+PASS figure format follows bytes and broken data produces warning
+PASS exam download without API server (http)
+PASS exam download without API server (file)
+PASS download failure restores button and reports failure without success
+PASS index.html boots from file:// with the split normalization module
+PASS mock library store loads and renders from file://
+PASS moving normalization keeps the exact window surface
+PASS print split keeps its surface, group boundaries, and staged shrink
+PASS render split keeps its surface, sanitization order, and context
+PASS a hung cloud read falls back to local data instead of spinning forever
+PASS a hung folder preferences read does not hold an already loaded library
+PASS classic scripts share lexical bindings without window properties
