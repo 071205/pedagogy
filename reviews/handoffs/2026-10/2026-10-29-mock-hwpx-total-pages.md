@@ -72,3 +72,7 @@ PR38 head e3b402f의 필수4개/PR Sonar 성공 후 merge0fbe60420cfde5f89a2b357
 ### 문서 그림 검증 누락 (REV161)
 
 독립 검토의 새 단서로 합성 GIF가 문서 JSON 검증을 통과한 뒤 HWPX 그림 BinData에서 빠지는 것을 브라우저에서 재현했다. 브라우저 그림 입력을 PNG/JPEG 실제 바이트·base64·2.5MiB·양수 치수로 검증하고, 서버 Python도 24바이트 이하/0픽셀 그림을 거부한다. 브라우저 엔진을 막았을 때 정상 PNG가 로컬 서버에서 BinData1로 출력되는 대체 경로를 확인했다. [재현·RED/정상·UI/폴백·회귀](../../audits/2026-10-29/prelaunch-print/README.md): 미지원5종 양쪽 거부, 정상 PNG/JPEG 각각 browser↔Python/ZIP 정합, HWPX12·정적·공개 빌드·CSP·회귀175 통과. 일반 문서 그림을 native 한글로 별도 열어 본 것은 아니다. Claude 첫 독립 의견의 폴백/서버 검증 지적을 반영했고 [최종 재검토](../../audits/2026-10-29/prelaunch-print/claude-document-image-final.md)에서 차단 의견 없음. 180초 timeout은 완료로 세지 않고 축소 재시도 240초 성공으로 닫았다. 서버 오류 표현·상수/그림 치수 검사 범위는 비차단 후속 관찰이다.
+
+### 후속 PR40 첫 품질 게이트
+
+PR40 head ac882c9의 HWPX/secrets CI 성공, Sonar 새 보안·신뢰성1/OK지만 유지보수성4/ERROR(신규 CODE_SMELL52). 기존 단일행 validate를 직접 건드린 결과 전체 함수가 새 코드로 분류된 것이 주원인이다. [원격 조건](../../audits/2026-10-29/prelaunch-print/pr40-initial-sonar.json). 정책/임계값을 약화하지 않고 그 원형 줄을 main과 같게 되돌렸다. `window.validate` 후처리로 정규화된 image만 검사하고 CSP 해시만 다시 계산했다. [독립 검토](../../audits/2026-10-29/prelaunch-print/claude-document-image-wrapper-final.md)·직접 UI/서버 폴백·PNG/JPEG·5종 거절·정적/공개/회귀175 재통과. 새 head CI/Sonar까지 확인한다.

@@ -21,3 +21,5 @@
 - 2026-10-29 Codex: `document-editor.html`의 `validatedImageData`로 PNG/JPEG 바이트·base64·2.5MiB·양수 치수를 확인하고, `document_schema.py`는 길이24바이트 이하/0픽셀을 거부한다. 지원 문구는 PNG·JPEG로 한정. 브라우저 엔진 차단 시에는 Python 로컬 서버가 최종 검증하도록 대체 경로를 보존했다. [RED→정상/정합·UI·필수 검사](../../audits/2026-10-29/prelaunch-print/README.md). 첫 Claude 검토에서 Python 느슨함/엔진 부재 시 폴백 차단을 발견했고 코드와 실제 폴백 출력으로 보완. 최종 독립 재검토 진행 중.
 
 - 2026-10-29 Codex: [Claude Opus/high 최종 재검토](../../audits/2026-10-29/prelaunch-print/claude-document-image-final.md)에서 엔진 부재→서버 검증·정상 PNG/JPEG 출력 및 불량5종 차단에 재현 가능한 차단 결함이 없다고 합의했다. 첫 후속 180초 timeout은 검토 완료로 세지 않고, 범위 축소 재시도 240초 성공을 최종으로 사용했다. 남은 서버 오류 메시지 표현/검사 상수 사본·픽셀 비율 비교는 비차단 후속 관찰로 기록; GIF 통과→그림 누락은 재현 절차에서 더는 발생하지 않는다.
+
+- 2026-10-29 Codex: PR40 첫 Sonar는 새 보안/신뢰성 결함0이지만 기존 단일행 validate 전체 재분석으로 유지보수성4/ERROR였다. 원본 검증 함수 줄을 main과 동일하게 복원하고 `window.validate` 후처리로 이미 정규화된 image만 검사한다. [Claude 재검토](../../audits/2026-10-29/prelaunch-print/claude-document-image-wrapper-final.md)는 네 호출 경로·원본 결과·GIF 차단·PNG/JPEG/서버 폴백 보존에 합의했고, 전역 프로퍼티 대입을 권고했다. 해당 방식으로 바꾼 뒤 실제 UI/폴백·browser↔Python·CSP/정적/공개/회귀175 재통과. Sonar 새 head 판정은 PR40에서 확인한다.

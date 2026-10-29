@@ -2,7 +2,7 @@
 > check:static
 > node scripts/check-review-hygiene.mjs && node scripts/check-static.mjs && node scripts/check-launch-readiness.test.mjs && node scripts/check-accessibility.mjs && node scripts/check-document-blocks.mjs && node scripts/check-shared-design.mjs && node scripts/check-exam-style-roles.mjs
 
-리뷰 기록 위생 통과 — 이슈 149건(열림 5) · INDEX 118/120줄 · 최근 검토 5/5 · 자기검사 6/6
+리뷰 기록 위생 통과 — 이슈 149건(열림 4) · INDEX 117/120줄 · 최근 검토 5/5 · 자기검사 6/6
 Commercial static checks passed
 상용 출시 게이트 설정 검사 통과
 접근성 계약 통과 — 35개

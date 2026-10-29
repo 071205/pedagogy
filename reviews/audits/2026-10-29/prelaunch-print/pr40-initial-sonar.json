@@ -1,0 +1,40 @@
+{
+  "pr": 40,
+  "head": "ac882c978710e689f6c17cdeb5d4654c3c3feedb",
+  "gate": "ERROR",
+  "conditions": [
+    {
+      "metric": "new_reliability_rating",
+      "status": "OK",
+      "actualValue": "1",
+      "errorThreshold": "1"
+    },
+    {
+      "metric": "new_security_rating",
+      "status": "OK",
+      "actualValue": "1",
+      "errorThreshold": "1"
+    },
+    {
+      "metric": "new_maintainability_rating",
+      "status": "ERROR",
+      "actualValue": "4",
+      "errorThreshold": "1"
+    },
+    {
+      "metric": "new_duplicated_lines_density",
+      "status": "OK",
+      "actualValue": "0.0",
+      "errorThreshold": "3"
+    },
+    {
+      "metric": "new_security_hotspots_reviewed",
+      "status": "OK",
+      "actualValue": "100.0",
+      "errorThreshold": "100"
+    }
+  ],
+  "codeSmellCount": 52,
+  "findingCategory": "new maintainability; no new reliability/security gate failure",
+  "remediation": "Restore unchanged legacy one-line validate; apply image validation to its normalized result through window.validate wrapper; preserve CSP policy and update only script hash."
+}
