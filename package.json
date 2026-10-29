@@ -72,7 +72,7 @@
     "firebase": "^13.1.0",
     "firebase-tools": "15.34.0",
     "pdfjs-dist": "6.3.289",
-    "pixelmatch": "^7.2.0",
+    "pixelmatch": "^8.0.0",
     "playwright": "^1.62.1",
     "pngjs": "^7.0.0",
     "wrangler": "4.151.1"
